@@ -668,6 +668,8 @@ export const instanceSettings = pgTable("instance_settings", {
 	registryAuthEnabled: boolean("registry_auth_enabled"),
 	registryInternalSecretEnc: text("registry_internal_secret_enc"),
 	registryPublicHost: text("registry_public_host"),
+	vapidPrivateKeyEnc: text("vapid_private_key_enc"),
+	vapidPublicKey: text("vapid_public_key"),
 	garageAdminTokenEnc: text("garage_admin_token_enc"),
 	garageEnabled: boolean("garage_enabled"),
 	garagePublicHost: text("garage_public_host"),

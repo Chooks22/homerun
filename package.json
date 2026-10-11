@@ -107,7 +107,7 @@
 		"build": "bun run gen && vite build",
 		"start": "./build/server",
 		"gen": "svelte-kit sync && bun run scripts/generate-openapi.ts && openapi-typescript ./openapi.json -o tests/integration/support/openapi-types.ts && bunx biome check --write tests/integration/support/openapi-types.ts && bun run scripts/generate-config-schema.ts && bun run scripts/generate-architecture.ts && bun run scripts/generate-iac-spec.ts",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit --project tsconfig.scripts.json && go vet ./cmd/... ./internal/... ./tests/unit/go/... && go tool -modfile=tools/go/go.mod golangci-lint run ./cmd/... ./internal/... ./tests/unit/go/... && go -C terraform/provider vet ./... && go -C terraform/provider tool -modfile=../../tools/go/go.mod golangci-lint run --config ../../.golangci.yml ./...",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit --project tsconfig.scripts.json && tsc --noEmit --project src/service-worker/tsconfig.json && go vet ./cmd/... ./internal/... ./tests/unit/go/... && go tool -modfile=tools/go/go.mod golangci-lint run ./cmd/... ./internal/... ./tests/unit/go/... && go -C terraform/provider vet ./... && go -C terraform/provider tool -modfile=../../tools/go/go.mod golangci-lint run --config ../../.golangci.yml ./...",
 		"lint": "markdownlint-cli2 \"**/*.md\" && bun scripts/lint-tailwind.ts && oxlint --type-aware --deny-warnings",
 		"lint:ai": "agnix --strict .",
 		"lint:fix": "markdownlint-cli2 --fix \"**/*.md\" && bun scripts/lint-tailwind.ts --fix && oxlint --type-aware --fix",

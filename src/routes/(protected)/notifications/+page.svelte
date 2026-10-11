@@ -58,7 +58,7 @@
       </p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <BrowserNotificationsButton />
+      <BrowserNotificationsButton showDisable />
       {#if unreadCount > 0}
         <Button onclick={handleMarkAllRead} size="sm" variant="outline">
           <CheckCheck class="size-3.5" />

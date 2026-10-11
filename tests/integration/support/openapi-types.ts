@@ -4790,7 +4790,13 @@ export interface operations {
 						events: string[];
 						id: string;
 						/** @enum {string} */
-						kind: "webhook" | "discord" | "slack" | "telegram" | "email";
+						kind:
+							| "webhook"
+							| "discord"
+							| "slack"
+							| "telegram"
+							| "email"
+							| "browser";
 						lastError: string | null;
 						name: string;
 						/** @description Where it delivers without the secret part: a webhook's origin, a Telegram chat id, an email address */
@@ -4862,7 +4868,13 @@ export interface operations {
 						events: string[];
 						id: string;
 						/** @enum {string} */
-						kind: "webhook" | "discord" | "slack" | "telegram" | "email";
+						kind:
+							| "webhook"
+							| "discord"
+							| "slack"
+							| "telegram"
+							| "email"
+							| "browser";
 						lastError: string | null;
 						name: string;
 						/** @description Where it delivers without the secret part: a webhook's origin, a Telegram chat id, an email address */
@@ -4936,7 +4948,13 @@ export interface operations {
 						events: string[];
 						id: string;
 						/** @enum {string} */
-						kind: "webhook" | "discord" | "slack" | "telegram" | "email";
+						kind:
+							| "webhook"
+							| "discord"
+							| "slack"
+							| "telegram"
+							| "email"
+							| "browser";
 						lastError: string | null;
 						name: string;
 						/** @description Where it delivers without the secret part: a webhook's origin, a Telegram chat id, an email address */
@@ -5078,7 +5096,13 @@ export interface operations {
 						events: string[];
 						id: string;
 						/** @enum {string} */
-						kind: "webhook" | "discord" | "slack" | "telegram" | "email";
+						kind:
+							| "webhook"
+							| "discord"
+							| "slack"
+							| "telegram"
+							| "email"
+							| "browser";
 						lastError: string | null;
 						name: string;
 						/** @description Where it delivers without the secret part: a webhook's origin, a Telegram chat id, an email address */

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Bell } from "@lucide/svelte";
 	import { onMount } from "svelte";
+	import { currentPushSubscription } from "#lib/browser-push.js";
 	import { headerControlClass } from "#lib/components/header-styles.js";
 	import {
 		browserNotificationPermission,
@@ -20,6 +21,7 @@
 	const unreadCount = $derived(unread.current?.unreadCount ?? 0);
 
 	let seen: Set<string> | null = null;
+	let pushActive = false;
 
 	$effect(() => {
 		const items = unread.current?.items;
@@ -39,12 +41,17 @@
 	});
 
 	onMount(() => {
+		void currentPushSubscription()
+			.then((subscription) => {
+				pushActive = subscription !== null;
+			})
+			.catch(() => null);
 		const timer = setInterval(() => void unread.refresh(), POLL_MS);
 		return () => clearInterval(timer);
 	});
 
 	function showBrowserNotification(item: NotificationFeedItem) {
-		if (browserNotificationPermission() !== "granted") {
+		if (pushActive || browserNotificationPermission() !== "granted") {
 			return;
 		}
 		const shown = new Notification(

@@ -172,7 +172,8 @@ const components: Component[] = [
 	{
 		group: "external",
 		id: "notify",
-		label: "Notification targets (Discord, Slack, Telegram, webhook, SMTP)",
+		label:
+			"Notification targets (Discord, Slack, Telegram, webhook, SMTP, browser push services)",
 	},
 	{ group: "external", id: "acme", label: "Let's Encrypt" },
 	{
@@ -378,8 +379,8 @@ const edges: Edge[] = [
 	{
 		from: "app",
 		to: "notify",
-		via: "HTTPS webhooks, Telegram Bot API, SMTP",
-		why: "Notifications, invites and emailed sign-in codes.",
+		via: "HTTPS webhooks, Telegram Bot API, SMTP, Web Push",
+		why: "Notifications (to a closed browser too), invites and emailed sign-in codes.",
 	},
 	{
 		from: "cli",

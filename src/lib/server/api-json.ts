@@ -68,7 +68,7 @@ export function redactedChannelTarget(
 	kind: NotificationChannel["kind"],
 	target: string,
 ): string {
-	if (kind === "telegram" || kind === "email") {
+	if (kind === "telegram" || kind === "email" || kind === "browser") {
 		return channelTargetLabel(kind, target);
 	}
 	return URL.canParse(target) ? `${new URL(target).origin}/…` : "…";

@@ -4,6 +4,7 @@
 		Hash,
 		Mail,
 		MessageCircle,
+		Monitor,
 		Pencil,
 		Plus,
 		Send,
@@ -12,6 +13,7 @@
 		Webhook,
 	} from "@lucide/svelte";
 	import { onMount } from "svelte";
+	import BrowserNotificationsButton from "#lib/components/browser-notifications-button.svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import { labelClass as label } from "#lib/components/form-styles.js";
@@ -25,6 +27,7 @@
 	import { enhanceToast } from "#lib/toast.js";
 	import type { NotificationChannelKind } from "#lib/types.js";
 	import { enhance } from "$app/forms";
+	import { refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
 	const { data, form } = $props();
@@ -60,6 +63,7 @@
 	}
 
 	const KIND_LABEL: Record<NotificationChannelKind, string> = {
+		browser: "Browser",
 		discord: "Discord",
 		email: "Email",
 		slack: "Slack",
@@ -68,6 +72,7 @@
 	};
 
 	const TARGET_PLACEHOLDER: Record<NotificationChannelKind, string> = {
+		browser: "",
 		discord: "https://discord.com/api/webhooks/…",
 		email: "oncall@example.com",
 		slack: "https://hooks.slack.com/services/…",
@@ -91,18 +96,23 @@
       </h1>
       <p class="text-text-muted mt-1 text-sm">
         Where Homerun sends build, update and uptime notifications. Pick which
-        events each channel receives in your notification settings.
+        events each channel receives in your notification settings. Turning on
+        browser notifications adds this browser as a channel: it gets them
+        through a push service, even with no Homerun tab open.
       </p>
     </div>
 
-    <Button
-      href={resolve('profile/notifications')}
-      size="sm"
-      variant="outline"
-    >
-      <SlidersHorizontal class="size-4" />
-      Notification settings
-    </Button>
+    <div class="flex flex-wrap items-center gap-2">
+      <BrowserNotificationsButton onchange={() => void refreshAll()} showDisable />
+      <Button
+        href={resolve('profile/notifications')}
+        size="sm"
+        variant="outline"
+      >
+        <SlidersHorizontal class="size-4" />
+        Notification settings
+      </Button>
+    </div>
   </div>
 
   <section class="panel mb-6 rounded-md">
@@ -206,7 +216,7 @@
   {#if data.channels.length === 0}
     <EmptyState
       icon={BellRing}
-      subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address above."
+      subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address above, or turn on browser notifications."
       title="No notification channels yet"
     />
   {:else}
@@ -228,6 +238,8 @@
               <Hash class="text-text-muted size-4 shrink-0" />
             {:else if channel.kind === "telegram"}
               <Send class="text-text-muted size-4 shrink-0" />
+            {:else if channel.kind === "browser"}
+              <Monitor class="text-text-muted size-4 shrink-0" />
             {:else}
               <Mail class="text-text-muted size-4 shrink-0" />
             {/if}
@@ -345,7 +357,7 @@
             value={editing.telegramChatId ?? ""}
           />
         </div>
-      {:else}
+      {:else if editing.kind !== "browser"}
         <div>
           <label class={label} for="editChannelTarget">
             {editing.kind === "email" ? "Address" : "Webhook URL"}

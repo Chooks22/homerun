@@ -819,6 +819,13 @@
 			"when": 1791622897740,
 			"tag": "0116_needy_scarlet_spider",
 			"breakpoints": true
+		},
+		{
+			"idx": 117,
+			"version": "7",
+			"when": 1791701640633,
+			"tag": "0117_rare_master_chief",
+			"breakpoints": true
 		}
 	],
 	"version": "7"

@@ -22,11 +22,21 @@ by event, failures first with their errors, which opens **Scheduling**. A run
 with a single outcome keeps that outcome's own entry.
 
 **Browser notifications**: click **Turn on browser notifications** on the
-Notifications page (or in the dashboard summary) and allow them, and every new
-notification also pops up as a desktop notification while a Homerun tab is open
-in that browser, checked every 30 seconds. Clicking one opens what it's about.
-The button disappears once the browser has allowed or blocked them; change that
-from the browser's site settings.
+Notifications page, in the dashboard summary or on **Notification Channels**,
+and allow them. That browser is added as a **Browser** notification channel and
+gets notifications through its push service and Homerun's service worker, so
+they show up even with every Homerun tab closed (the browser itself has to be
+running). Each browser you turn it on in is its own channel, named after it
+(`Firefox on Linux`), with its own events in the matrix below; it starts with
+the channel defaults plus **Build started**, **Build succeeded** and **Deploy
+failed**, so a git build announces itself and then replaces that notification
+with how it ended. Clicking one opens what it's about. **Turn off on this
+browser** removes its channel. While a browser has push on, an open Homerun tab
+no longer pops up the feed's own entries, so nothing shows twice; a browser
+without push still gets those while a tab is open, checked every 30 seconds. If
+the browser drops its subscription, the channel disables itself and says so;
+turn it on again from that browser. Push needs the dashboard served over HTTPS
+(or `localhost`).
 
 It's deliberately a short curated list, not a log: everything Homerun logs at
 warn or error level is persisted separately and shown on the relevant service's
@@ -35,13 +45,15 @@ automatically, so the feed doesn't grow without bound.
 
 **Notification channels** send the same kind of events outside the dashboard.
 Add a Discord webhook, a Slack incoming webhook, a Telegram bot, a generic
-webhook, or an email address under **Notification Channels** in the sidebar,
-then pick which events each one gets under **Profile → Notifications**: build
-succeeded/failed, a build stopped by failing [status checks](status-checks.md),
-scheduled update succeeded/failed, manual deploy succeeded/failed, a new
-revision found unhealthy or [rolled back](revisions-and-rollback.md), an image
-scan finding [critical vulnerabilities](image-scanning.md), a service going down
-or recovering (from its [uptime probe](observability.md#uptime)), the server
+webhook, or an email address under **Notification Channels** in the sidebar (or
+a browser, see above), then pick which events each one gets under **Profile →
+Notifications**: a git build or a deploy started (not sent for scheduled runs),
+build succeeded/failed, a build stopped by failing
+[status checks](status-checks.md), scheduled update succeeded/failed, manual
+deploy succeeded/failed, a new revision found unhealthy or
+[rolled back](revisions-and-rollback.md), an image scan finding
+[critical vulnerabilities](image-scanning.md), a service going down or
+recovering (from its [uptime probe](observability.md#uptime)), the server
 crossing a [resource limit](dashboard.md) or recovering from one, a new or
 regressed [error issue](error-tracking.md), a [volume backup](backups.md)
 succeeding or failing (after its retry), a

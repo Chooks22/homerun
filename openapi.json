@@ -7036,7 +7036,8 @@
 													"discord",
 													"slack",
 													"telegram",
-													"email"
+													"email",
+													"browser"
 												],
 												"type": "string"
 											},
@@ -7208,7 +7209,8 @@
 												"discord",
 												"slack",
 												"telegram",
-												"email"
+												"email",
+												"browser"
 											],
 											"type": "string"
 										},
@@ -7446,7 +7448,8 @@
 												"discord",
 												"slack",
 												"telegram",
-												"email"
+												"email",
+												"browser"
 											],
 											"type": "string"
 										},
@@ -7634,7 +7637,8 @@
 												"discord",
 												"slack",
 												"telegram",
-												"email"
+												"email",
+												"browser"
 											],
 											"type": "string"
 										},

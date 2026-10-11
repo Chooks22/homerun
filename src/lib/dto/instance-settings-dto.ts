@@ -30,6 +30,7 @@ import { decryptSecret, encryptSecret } from "#lib/services/secrets.js";
 import type { TracingColumns } from "#lib/tracing/settings.js";
 import type { UpdateChannel } from "#lib/update-channel.js";
 import { BaseDTO } from "./base-dto";
+import { blankInstanceSettings } from "./instance-settings-blank";
 
 /** Fixed id : this table only ever holds one row. */
 const SINGLETON_ID = "default";
@@ -175,84 +176,7 @@ export class InstanceSettingsDTO extends BaseDTO<InstanceSettings> {
 			return { created: false, settings: new InstanceSettingsDTO(existing) };
 		}
 
-		const now = new Date();
-		const row: InstanceSettings = {
-			authCheckUrl: null,
-			authCrossSubdomainCookies: null,
-			authOrigin: null,
-			baseDomain: null,
-			dnsProvider: null,
-			createdAt: now,
-			dockerNetworkName: null,
-			dockerSocketPath: null,
-			emailOtpSignIn: null,
-			errorPages: null,
-			ipBans: null,
-			defaultUiMode: null,
-			otelCollectorEnabled: null,
-			traceRetentionDays: null,
-			garageAdminTokenEnc: null,
-			garageEnabled: null,
-			garagePublicHost: null,
-			garageRpcSecretEnc: null,
-			gitProviders: [],
-			id: SINGLETON_ID,
-			imageScanBlockFixableOnly: null,
-			imageScanBlockSeverity: null,
-			imageScanEnabled: null,
-			imageScanRequired: null,
-			magicLinkSignIn: null,
-			oauthProviders: [],
-			onboardingCompletedAt: null,
-			dependenciesBackfilledAt: null,
-			orchestrationMode: null,
-			pangolinApiBaseUrl: null,
-			pangolinApiTokenEnc: null,
-			pangolinMainSiteName: null,
-			pangolinNewtEndpoint: null,
-			pangolinNewtId: null,
-			pangolinNewtSecretEnc: null,
-			pangolinOrgId: null,
-			pangolinOwnsAuth: null,
-			pangolinTargetHost: null,
-			pangolinTargetPort: null,
-			pendingServiceRedeploy: null,
-			preferredSignInMethods: null,
-			registryAuthEnabled: null,
-			registryInternalSecretEnc: null,
-			registryPublicHost: null,
-			requirePasskey: null,
-			requireTwoFactor: null,
-			resourceAlertReminderMinutes: null,
-			resourceAlertSustainSeconds: null,
-			resourceThresholds: null,
-			retainedImagesPerService: null,
-			smtpEnabled: null,
-			smtpFrom: null,
-			smtpHost: null,
-			smtpPasswordEnc: null,
-			smtpPort: null,
-			smtpSecure: null,
-			smtpUser: null,
-			traefikAcmeEmail: null,
-			traefikCertResolver: null,
-			traefikDynamicConfigDir: null,
-			traefikEntrypoint: null,
-			traefikHttpCache: false,
-			sshHost: null,
-			sshHostKey: null,
-			sshPort: null,
-			sshPrivateKeyEnc: null,
-			sshPublicKey: null,
-			sshUser: null,
-			tlsCertEnc: null,
-			tlsCertExpiresAt: null,
-			tlsCertIssuer: null,
-			tlsCertNames: [],
-			tlsKeyEnc: null,
-			updateChannel: null,
-			updatedAt: now,
-		};
+		const row = blankInstanceSettings(SINGLETON_ID, new Date());
 		const inserted = await db
 			.insert(instanceSettings)
 			.values(row)
@@ -379,6 +303,13 @@ export class InstanceSettingsDTO extends BaseDTO<InstanceSettings> {
 				| "registryPublicHost"
 			>
 		>,
+	): Promise<void> {
+		await this.persist(input);
+	}
+
+	/** Persists the Web Push VAPID key pair, the private half already encrypted. */
+	async persistVapid(
+		input: Pick<InstanceSettings, "vapidPrivateKeyEnc" | "vapidPublicKey">,
 	): Promise<void> {
 		await this.persist(input);
 	}

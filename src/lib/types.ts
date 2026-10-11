@@ -60,9 +60,12 @@ export type NotificationChannelKind =
 	| "discord"
 	| "slack"
 	| "telegram"
-	| "email";
+	| "email"
+	| "browser";
 
 export type NotificationEvent =
+	| "build.started"
+	| "deploy.started"
 	| "build.failed"
 	| "build.succeeded"
 	| "build.checks_failed"

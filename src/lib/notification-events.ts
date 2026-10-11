@@ -11,6 +11,13 @@ export interface NotificationEventInfo {
 export const NOTIFICATION_EVENTS: NotificationEventInfo[] = [
 	{
 		description:
+			"A service built from a git repository started building. Not sent for scheduled runs.",
+		event: "build.started",
+		group: "Builds",
+		label: "Build started",
+	},
+	{
+		description:
 			"A service built from a git repository failed to build or start.",
 		event: "build.failed",
 		group: "Builds",
@@ -43,6 +50,13 @@ export const NOTIFICATION_EVENTS: NotificationEventInfo[] = [
 		event: "update.succeeded",
 		group: "Updates",
 		label: "Update succeeded",
+	},
+	{
+		description:
+			"A deploy of an image, a rollback or a preview promote started. Not sent for scheduled runs.",
+		event: "deploy.started",
+		group: "Deploys",
+		label: "Deploy started",
 	},
 	{
 		description: "A manual deploy of an image failed.",
@@ -179,6 +193,13 @@ export const DEFAULT_NOTIFICATION_EVENTS: NotificationEvent[] = [
 	"cron_job.failed",
 ];
 
+export const DEFAULT_BROWSER_EVENTS: NotificationEvent[] = [
+	...DEFAULT_NOTIFICATION_EVENTS,
+	"build.started",
+	"build.succeeded",
+	"deploy.failed",
+];
+
 const EVENT_SET = new Set<string>(
 	NOTIFICATION_EVENTS.map((info) => info.event),
 );
@@ -225,7 +246,25 @@ export function deployEvent(
 	return trigger === "cron" ? `update.${outcome}` : `deploy.${outcome}`;
 }
 
+/**
+ * Picks the notification event for a deploy that just started:
+ * `build.started` when a git-based service is about to be built (not for a
+ * preview promote or a rollback, which reuse an existing image),
+ * `deploy.started` otherwise.
+ */
+export function deployStartedEvent(
+	buildSource: string,
+	trigger: DeployTrigger,
+	rollback: boolean,
+): NotificationEvent {
+	return buildSource === "git" && trigger !== "promote" && !rollback
+		? "build.started"
+		: "deploy.started";
+}
+
 const DEPLOY_TITLES: Partial<Record<NotificationEvent, string>> = {
+	"build.started": "is building",
+	"deploy.started": "is deploying",
 	"build.failed": "failed to build",
 	"build.succeeded": "was built and deployed",
 	"deploy.failed": "failed to deploy",

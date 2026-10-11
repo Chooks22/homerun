@@ -8,7 +8,11 @@ import {
 	type ImageScanFinding,
 	type SeverityCounts,
 } from "#lib/image-scan.js";
-import { deployEvent, deployTitle } from "#lib/notification-events.js";
+import {
+	deployEvent,
+	deployStartedEvent,
+	deployTitle,
+} from "#lib/notification-events.js";
 import type { Deployment, Service } from "#lib/server/db/schema.js";
 import type { NotificationEvent } from "#lib/types.js";
 
@@ -170,6 +174,38 @@ export function deployMessage(
 			input.origin,
 			`/services/${service.id}/environments/revisions`,
 		),
+		serviceId: service.id,
+		serviceName: service.name,
+		timestamp,
+		title: deployTitle(event, service.name),
+	};
+}
+
+/** Builds the notification channel message for a deploy that just started: `build.started` for a git build, `deploy.started` otherwise. */
+export function deployStartedMessage(
+	input: DeployMessageInput & { rollback: boolean },
+	timestamp: string,
+): ChannelMessage {
+	const { deployment, service } = input;
+	const event = deployStartedEvent(
+		service.buildSource,
+		input.trigger,
+		input.rollback,
+	);
+	const fields: MessageField[] = [];
+	if (input.stackName) {
+		fields.push({ name: "Stack", value: input.stackName });
+	}
+	fields.push({
+		name: "Trigger",
+		value: input.rollback ? "Rollback" : deployTriggerLabel(input.trigger),
+	});
+	fields.push(...sourceFields(service, deployment));
+	return {
+		detail: null,
+		event,
+		fields,
+		link: dashboardLink(input.origin, `/services/${service.id}`),
 		serviceId: service.id,
 		serviceName: service.name,
 		timestamp,

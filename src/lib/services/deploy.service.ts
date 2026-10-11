@@ -385,6 +385,7 @@ class DeploymentServiceClass {
 			}));
 		await dep.update({ startedAt: new Date(), status: "pulling" });
 		await svc.update({ currentStatus: "pulling" });
+		NotificationChannelService.notifyDeployStarted({ dep, svc, trigger });
 
 		const ctx: DeployContext = { dep, svc, userId };
 		try {

@@ -157,17 +157,52 @@ own feed, so no permission area gates it.
   `getUnreadNotifications` every 30s and, once permission is granted, shows a
   `Notification` for each unread id it hadn't seen (seeded from the first
   result, so a reload doesn't replay old ones; `tag` is the row id so two tabs
-  don't show it twice). Permission is asked from
-  `browser-notifications-button.svelte` (a click, since browsers ignore an
-  unprompted request), on the page and in the dashboard summary.
+  don't show it twice). It skips that entirely once this browser has a Web Push
+  subscription (see Browser push below), so nothing shows twice.
+
+## Browser push (`src/service-worker/`, `web-push.ts`, `WebPushService`, `push.remote.ts`)
+
+A browser is a notification channel of kind `"browser"`, one row per browser,
+whose `target` is its push subscription as JSON (`{endpoint, keys}`), so it gets
+the channel events matrix, test, edit, enable and delete for free and the
+grouping/retry path above. `browser-notifications-button.svelte` →
+`enableBrowserPush` (`src/lib/browser-push.ts`) asks permission, waits on the
+service worker SvelteKit auto-registers from `src/service-worker/index.ts`,
+subscribes with the instance's VAPID public key (re-subscribing when the stored
+subscription used an older key) and calls `registerBrowserPush`, which upserts
+the channel by endpoint, named by `browserDeviceName` and subscribed to
+`DEFAULT_BROWSER_EVENTS`. The service worker only handles `push` (shows the
+notification) and `notificationclick` (focuses a tab and navigates it, or opens
+one); it caches nothing. Its own `tsconfig.json` extends
+`$app/tsconfig/service-worker` (WebWorker lib) and `bun run check` runs `tsc`
+over it, since the root tsconfig excludes it.
+
+**No `web-push` dependency**: `src/lib/server/web-push.ts` does RFC 8291
+(`aes128gcm`, Web Crypto ECDH/HKDF/AES-GCM, one record) and RFC 8292 (an ES256
+JWT via `jose`) itself, round-trip tested in `tests/unit/app/web-push.test.ts`.
+The VAPID key pair is generated on first use and stored on `instance_settings`
+(`vapidPublicKey`, `vapidPrivateKeyEnc` encrypted with the auth secret); if the
+auth secret changes it can't be decrypted, a new pair is generated, and every
+browser has to turn push on again. `pushPayload` keeps the body to one line and
+tags it `<serviceId>:<event prefix>`, so a `build.started` push is replaced
+(with `renotify`) by that build's `build.succeeded`/`build.failed`. A 404/410
+from the push service is `PushSubscriptionGoneError`: the channel is disabled
+with its `lastError` set and no retry is queued. A channel's `target` never
+reaches the dashboard or the API, `channelTargetLabel` shows `Push via <host>`.
+The REST API lists browser channels but can't create one.
+
+`build.started`/`deploy.started` (`deployStartedEvent`, `deployStartedMessage`)
+are sent by `prepareWorkerDeploy` through `notifyDeployStarted` once the
+deployment is marked pulling; never for a `cron` trigger, whose outcome goes
+into the scheduled run summary anyway.
 
 ## Outbound notification channels (`notification_channel`, `NotificationChannelDTO`, `notification-channel.service.ts`)
 
 The account-wide counterpart to the in-app feed above: a `notification_channel`
 row is a `kind` (`"webhook"` generic JSON POST, `"discord"` embed, `"slack"`
-incoming-webhook attachment, `"telegram"` Bot API `sendMessage`, or `"email"`)
-plus a `target` and an `events` jsonb column (`NotificationEvent[]`, DB default
-and DTO default
+incoming-webhook attachment, `"telegram"` Bot API `sendMessage`, `"email"`, or
+`"browser"` Web Push, see Browser push above) plus a `target` and an `events`
+jsonb column (`NotificationEvent[]`, DB default and DTO default
 `["build.failed","build.checks_failed","update.failed","deploy.unhealthy","deploy.rolled_back"]`),
 managed on `/notification-channels` (create/test/delete) with the events matrix
 itself edited on `/profile/notifications`.

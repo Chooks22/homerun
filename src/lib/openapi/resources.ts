@@ -106,7 +106,7 @@ export const notificationChannelResponse = z.object({
 	enabled: z.boolean(),
 	events: z.array(z.string()),
 	id: z.string(),
-	kind: z.enum(["webhook", "discord", "slack", "telegram", "email"]),
+	kind: z.enum(["webhook", "discord", "slack", "telegram", "email", "browser"]),
 	lastError: z.string().nullable(),
 	name: z.string(),
 	targetLabel: z.string().meta({

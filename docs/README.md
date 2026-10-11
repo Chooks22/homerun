@@ -143,7 +143,8 @@ sync by hand.
 - **[Docker Registry](registry.md)**: turning the image mirror into a real
   private registry, push/pull tokens, and publishing it at a hostname.
 - **[Notifications](notifications.md)**: the bell, and sending events to
-  Discord, Slack, Telegram, a webhook or email.
+  Discord, Slack, Telegram, a webhook, email or a browser through push, even
+  with Homerun closed.
 - **[Status pages](status-pages.md)**: private or public uptime pages.
 - **[Upgrading Homerun](upgrading.md)**: the one-click update, and upgrading by
   hand.

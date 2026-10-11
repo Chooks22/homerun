@@ -1,5 +1,5 @@
 import { config, isSmtpEnabled } from "#lib/config.js";
-import type { DeployTrigger } from "#lib/deploy-trigger.js";
+import { type DeployTrigger, isRollback } from "#lib/deploy-trigger.js";
 import type { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { JobDTO, type NewJobInput } from "#lib/dto/job-dto.js";
 import { NotificationChannelDTO } from "#lib/dto/notification-channel-dto.js";
@@ -13,6 +13,11 @@ import {
 	NOTIFICATION_EVENTS,
 } from "#lib/notification-events.js";
 import { brandedEmail } from "#lib/server/email-layout.js";
+import {
+	type PushPayload,
+	PushSubscriptionGoneError,
+	pushSubscriptionSchema,
+} from "#lib/server/web-push.js";
 import { primaryHostname } from "#lib/service-domains.js";
 import { serviceHostname } from "./dns.service";
 import { EmailService } from "./email.service";
@@ -25,10 +30,12 @@ import {
 import {
 	type ChannelMessage,
 	deployMessage,
+	deployStartedMessage,
 	type MessageField,
 	withStackTitle,
 } from "./notification-messages";
 import { QueueService } from "./queue.service";
+import { WebPushService } from "./web-push.service";
 
 const logger = new Logger("NotificationChannels");
 
@@ -52,6 +59,8 @@ const DISCORD_DESCRIPTION_LIMIT = 4000;
 const DISCORD_FIELD_LIMIT = 1024;
 const DISCORD_INLINE_MAX = 40;
 
+const PUSH_BODY_LIMIT = 240;
+
 const DISCORD_RED = 0xef_44_44;
 const DISCORD_GREEN = 0x10_b9_81;
 
@@ -63,6 +72,12 @@ export interface DispatchOptions {
 export interface DeployNotification {
 	dep: DeploymentDTO;
 	ok: boolean;
+	svc: ServiceDTO;
+	trigger: DeployTrigger;
+}
+
+export interface DeployStartedNotification {
+	dep: DeploymentDTO;
 	svc: ServiceDTO;
 	trigger: DeployTrigger;
 }
@@ -228,6 +243,34 @@ export function telegramPayload(chatId: string, message: ChannelMessage) {
 }
 
 /**
+ * Renders a channel message as a Web Push payload for the service worker: the
+ * title, the detail's first line or else the fields on one line, a tag shared
+ * by a service's start and outcome of the same kind (so "is building" is
+ * replaced by how the build ended) and where a click leads.
+ */
+export function pushPayload(message: ChannelMessage): PushPayload {
+	const firstLine = message.detail?.split("\n").find((line) => line.trim());
+	const body =
+		firstLine ??
+		withService(message)
+			.filter((field) => !field.value.includes("\n"))
+			.map((field) => `${field.name}: ${field.value}`)
+			.join(" · ");
+	const realService =
+		message.serviceId && message.serviceId !== "test"
+			? message.serviceId
+			: null;
+	return {
+		body: keepHead(body, PUSH_BODY_LIMIT),
+		tag: `${realService ?? "homerun"}:${message.event.split(".")[0]}`,
+		title: message.title,
+		url:
+			message.link ??
+			(realService ? `/services/${realService}` : "/notifications"),
+	};
+}
+
+/**
  * The queued job that retries a failed delivery to one channel, starting
  * `DELIVERY_RETRY_DELAY_MS` from `now` and backing off exponentially through
  * the worker's own retry schedule.
@@ -281,6 +324,45 @@ class NotificationChannelServiceClass {
 					`Deploy notification failed: service=${notification.svc.id} : ${err instanceof Error ? err.message : String(err)}`,
 				);
 			});
+	}
+
+	/**
+	 * Fire-and-forget "is building" / "is deploying" notification for a deploy
+	 * the worker is about to run. A scheduled run sends none, its outcome is
+	 * reported with the rest of the run. Failures are logged, never thrown.
+	 */
+	notifyDeployStarted({ dep, svc, trigger }: DeployStartedNotification): void {
+		if (trigger === "cron") {
+			return;
+		}
+		this.#deployStartedMessage(dep, svc, trigger)
+			.then((message) => this.dispatch(message))
+			.catch((err) => {
+				logger.warn(
+					`Deploy started notification failed: service=${svc.id} : ${err instanceof Error ? err.message : String(err)}`,
+				);
+			});
+	}
+
+	/** Builds the "is building" / "is deploying" `ChannelMessage`, looking up the service's stack name. */
+	async #deployStartedMessage(
+		dep: DeploymentDTO,
+		svc: ServiceDTO,
+		trigger: DeployTrigger,
+	): Promise<ChannelMessage> {
+		const stack = svc.stackId ? await StackDTO.get(svc.stackId) : null;
+		return deployStartedMessage(
+			{
+				deployment: dep.toJSON(),
+				origin: config.auth.origin ?? null,
+				publicUrl: null,
+				rollback: isRollback(dep.rollbackOfDeploymentId, trigger),
+				service: svc.toJSON(),
+				stackName: stack?.name ?? null,
+				trigger,
+			},
+			new Date().toISOString(),
+		);
 	}
 
 	/** Builds the deploy-outcome `ChannelMessage`, resolving the service's public URL from its stack (if any) and DNS-resolvable state. */
@@ -496,6 +578,11 @@ class NotificationChannelServiceClass {
 			await channel.update({ lastError: null });
 		} catch (err) {
 			const reason = err instanceof Error ? err.message : String(err);
+			if (err instanceof PushSubscriptionGoneError) {
+				logger.warn(`Channel "${channel.name}" disabled: ${reason}`);
+				await channel.update({ lastError: reason });
+				return;
+			}
 			logger.warn(
 				`Channel "${channel.name}" failed, retrying later: ${reason}`,
 			);
@@ -511,7 +598,7 @@ class NotificationChannelServiceClass {
 		}
 	}
 
-	/** Routes delivery to the channel-kind-specific sender: Discord's embed payload, Slack's attachment, Telegram's bot API, email, or the generic JSON webhook POST. */
+	/** Routes delivery to the channel-kind-specific sender: Discord's embed payload, Slack's attachment, Telegram's bot API, email, a browser's Web Push subscription, or the generic JSON webhook POST. */
 	#deliver(
 		channel: NotificationChannelDTO,
 		message: ChannelMessage,
@@ -525,6 +612,8 @@ class NotificationChannelServiceClass {
 				return this.#sendTelegram(channel.target, message);
 			case "email":
 				return this.#sendEmail(channel.target, message);
+			case "browser":
+				return this.#sendPush(channel, message);
 			default:
 				return this.#post(channel.target, message);
 		}
@@ -567,6 +656,39 @@ class NotificationChannelServiceClass {
 			throw new Error(
 				`Telegram returned HTTP ${response.status}${body?.description ? `: ${body.description}` : ""}`,
 			);
+		}
+	}
+
+	/**
+	 * Sends a channel message to a browser through its Web Push subscription,
+	 * which the service worker shows even with no Homerun tab open. A
+	 * subscription the push service says is gone disables the channel.
+	 *
+	 * @throws `PushSubscriptionGoneError` for an expired subscription, an
+	 *   `Error` when the stored target isn't a subscription or the push service
+	 *   refuses.
+	 */
+	async #sendPush(
+		channel: NotificationChannelDTO,
+		message: ChannelMessage,
+	): Promise<void> {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(channel.target);
+		} catch {
+			parsed = null;
+		}
+		const subscription = pushSubscriptionSchema.safeParse(parsed);
+		if (!subscription.success) {
+			throw new Error("The browser channel has no push subscription.");
+		}
+		try {
+			await WebPushService.send(subscription.data, pushPayload(message));
+		} catch (err) {
+			if (err instanceof PushSubscriptionGoneError) {
+				await channel.update({ enabled: false });
+			}
+			throw err;
 		}
 	}
 

@@ -30,14 +30,37 @@ export function parseTelegramTarget(target: string): TelegramTarget | null {
 }
 
 /**
+ * The push service a browser channel's stored subscription points at, such
+ * as `fcm.googleapis.com`, or null when the target isn't a subscription.
+ */
+export function pushServiceHost(target: string): string | null {
+	try {
+		const parsed: unknown = JSON.parse(target);
+		const endpoint =
+			parsed && typeof parsed === "object" && "endpoint" in parsed
+				? parsed.endpoint
+				: null;
+		return typeof endpoint === "string" && URL.canParse(endpoint)
+			? new URL(endpoint).hostname
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * What the dashboard shows as a channel's destination: the target itself,
  * except a Telegram channel's, which shows only the chat so the bot token
- * never reaches the browser.
+ * never reaches the browser, and a browser channel's, which shows only its
+ * push service so the subscription's keys don't either.
  */
 export function channelTargetLabel(
 	kind: NotificationChannelKind,
 	target: string,
 ): string {
+	if (kind === "browser") {
+		return `Push via ${pushServiceHost(target) ?? "unknown service"}`;
+	}
 	if (kind !== "telegram") {
 		return target;
 	}
