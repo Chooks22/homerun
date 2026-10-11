@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bell, CheckCheck, Trash2 } from "@lucide/svelte";
+	import { Bell, CheckCheck, Settings2, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 	import BrowserNotificationsButton from "#lib/components/browser-notifications-button.svelte";
@@ -15,6 +15,7 @@
 	} from "#lib/remote/notifications.remote.js";
 	import { title } from "#lib/store/title.js";
 	import { toastError } from "#lib/toast.js";
+	import { resolve } from "$app/paths";
 
 	const feed = getNotifications();
 
@@ -71,6 +72,10 @@
           Clear all
         </Button>
       {/if}
+      <Button href={resolve('notifications/settings')} size="sm" variant="outline">
+        <Settings2 class="size-3.5" />
+        Settings
+      </Button>
     </div>
   </div>
 

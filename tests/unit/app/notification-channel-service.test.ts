@@ -60,6 +60,7 @@ type Message = Parameters<typeof NotificationChannelService.dispatch>[0];
 interface FakeChannel {
 	enabled: boolean;
 	events: string[];
+	groupMessages: boolean;
 	id: string;
 	kind: string;
 	name: string;
@@ -76,6 +77,7 @@ function fakeChannel(
 	const channel = {
 		enabled: true,
 		events: ["build.failed"],
+		groupMessages: false,
 		id: `ch-${kind}`,
 		kind,
 		name: `${kind} channel`,
@@ -366,13 +368,38 @@ describe("grouped delivery", () => {
 		);
 	}
 
+	test("a channel that didn't opt into grouping gets every message as it happens", async () => {
+		const grouped = fakeChannel("webhook", "https://grouped.example.com", {
+			events: ["build.failed"],
+			groupMessages: true,
+			id: "ch-grouped",
+		});
+		const direct = fakeChannel("webhook", "https://direct.example.com", {
+			events: ["build.failed"],
+			id: "ch-direct",
+		});
+		channelsFor(grouped, direct);
+		const posted = stubFetch(() => new Response("ok"));
+
+		setSystemTime(new Date("2026-09-28T03:00:00Z"));
+		await NotificationChannelService.dispatch(message);
+		setSystemTime(new Date("2026-09-28T03:00:20Z"));
+		await NotificationChannelService.dispatch(message);
+		await NotificationChannelService.dispatch(message, { scheduled: true });
+
+		expect(posted.filter((p) => p.url.includes("direct"))).toHaveLength(3);
+		expect(posted.filter((p) => p.url.includes("grouped"))).toHaveLength(1);
+	});
+
 	test("messages under a minute apart go out as one, each channel getting only its events", async () => {
 		const narrow = fakeChannel("webhook", "https://narrow.example.com", {
 			events: ["build.failed"],
+			groupMessages: true,
 			id: "ch-narrow",
 		});
 		const wide = fakeChannel("webhook", "https://wide.example.com", {
 			events: ["build.failed", "update.succeeded"],
+			groupMessages: true,
 			id: "ch-wide",
 		});
 		channelsFor(narrow, wide);
@@ -406,6 +433,7 @@ describe("grouped delivery", () => {
 	test("a scheduled outcome waits until no scheduled job is still queued or running", async () => {
 		const channel = fakeChannel("webhook", "https://hook.example.com", {
 			events: ["update.succeeded", "backup.failed"],
+			groupMessages: true,
 		});
 		channelsFor(channel);
 		const posted = stubFetch(() => new Response("ok"));

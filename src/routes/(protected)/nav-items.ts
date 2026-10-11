@@ -24,7 +24,6 @@ import {
 	LayoutGrid,
 	Network,
 	ScrollText,
-	Send,
 	Server,
 	Settings,
 	TerminalSquare,
@@ -110,13 +109,6 @@ export const allNavItems: NavItem[] = [
 		icon: Activity,
 		label: "Status Page",
 		parent: "Observability",
-	},
-	{
-		category: "Operations",
-		exact: false,
-		href: resolve("notification-channels"),
-		icon: Send,
-		label: "Notification Channels",
 	},
 	{
 		category: "Operations",

@@ -7,6 +7,7 @@
 		currentPushSubscription,
 		disableBrowserPush,
 		enableBrowserPush,
+		tabNotificationsEnabled,
 	} from "#lib/browser-push.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { browserNotificationPermission } from "#lib/notification-feed.js";
@@ -27,7 +28,9 @@
 	async function refreshState() {
 		supported = browserPushSupported();
 		denied = browserNotificationPermission() === "denied";
-		subscribed = (await currentPushSubscription().catch(() => null)) !== null;
+		subscribed =
+			tabNotificationsEnabled() ||
+			(await currentPushSubscription().catch(() => null)) !== null;
 	}
 
 	onMount(() => {
@@ -37,8 +40,9 @@
 	async function enableCallback() {
 		busy = true;
 		try {
-			await enableBrowserPush();
+			const mode = await enableBrowserPush();
 			onchange?.();
+			return mode;
 		} finally {
 			busy = false;
 			await refreshState();
@@ -50,7 +54,10 @@
 			error: (error) =>
 				toastError(error, "Couldn't turn on browser notifications."),
 			loading: "Waiting for the browser",
-			success: "Browser notifications are on, even with Homerun closed.",
+			success: (mode) =>
+				mode === "push"
+					? "Browser notifications are on, even with Homerun closed."
+					: "This browser has no push service, so notifications show only while a Homerun tab is open.",
 		});
 	}
 

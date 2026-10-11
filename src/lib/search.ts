@@ -244,12 +244,6 @@ export const SEARCH_PAGES: SearchPage[] = [
 		section: "Build Cache",
 	},
 	{
-		href: "/notification-channels",
-		keywords: ["webhook", "discord", "slack", "telegram", "email", "alerts"],
-		label: "Notification Channels",
-		section: "Operations",
-	},
-	{
 		href: "/api-docs",
 		keywords: ["openapi", "rest", "reference"],
 		label: "API Docs",
@@ -298,9 +292,15 @@ export const SEARCH_PAGES: SearchPage[] = [
 		section: "Profile",
 	},
 	{
-		href: "/profile/notifications",
-		keywords: ["alerts", "events"],
-		label: "Notification Preferences",
+		href: "/notifications/settings",
+		keywords: ["alerts", "events", "grouping", "browser", "push"],
+		label: "Notification settings",
+		section: "Profile",
+	},
+	{
+		href: "/notifications/settings/channels",
+		keywords: ["webhook", "discord", "slack", "telegram", "email", "alerts"],
+		label: "Notification channels",
 		section: "Profile",
 	},
 	{

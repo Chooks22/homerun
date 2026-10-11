@@ -32,6 +32,7 @@ resource "homerun_notification_channel" "example" {
 
 - `enabled` (Boolean) Defaults to `true`.
 - `events` (List of String)
+- `group_messages` (Boolean) Defaults to `false`.
 
 ### Read-only
 

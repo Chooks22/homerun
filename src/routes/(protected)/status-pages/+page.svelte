@@ -49,7 +49,7 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <Button
-        href={resolve('notification-channels')}
+        href={resolve('notifications/settings/channels')}
         size="sm"
         variant="outline"
       ><Send class="size-4" />Notification channels</Button>

@@ -130,8 +130,8 @@ feature pages under `docs/`.
 - `error-tracking-source-maps.webp` —
   `/services/:id/observability/errors (Source maps)`
 - `notifications-bell.webp` — `/ (notifications open)`
-- `notifications-channels.webp` — `/notification-channels`
-- `notifications-subscriptions.webp` — `/profile/notifications`
+- `notifications-channels.webp` — `/notifications/settings/channels`
+- `notifications-subscriptions.webp` — `/notifications/settings`
 - `status-pages-dashboard.webp` — `/status-pages/:id`
 - `status-pages-public.webp` — `/status/:slug`
 - `auth-sign-in.webp` — `/authentication`

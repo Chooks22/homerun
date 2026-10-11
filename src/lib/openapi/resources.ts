@@ -105,6 +105,7 @@ export const notificationChannelResponse = z.object({
 	createdAt: timestamp,
 	enabled: z.boolean(),
 	events: z.array(z.string()),
+	groupMessages: z.boolean(),
 	id: z.string(),
 	kind: z.enum(["webhook", "discord", "slack", "telegram", "email", "browser"]),
 	lastError: z.string().nullable(),

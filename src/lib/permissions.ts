@@ -89,7 +89,10 @@ export const PERMISSION_AREAS = [
 		description: "Channels alerts and deploy notifications are sent to.",
 		key: "notifications",
 		label: "Notification channels",
-		routes: ["/notification-channels", "/api/v1/notification-channels"],
+		routes: [
+			"/notifications/settings/channels",
+			"/api/v1/notification-channels",
+		],
 	},
 	{
 		description: "DNS provider connections and managed records.",
@@ -464,9 +467,10 @@ function routeWithin(routeId: string, prefix: string): boolean {
 
 /**
  * The permission a request needs, from SvelteKit's matched route: the area
- * owning the route at `read` for a safe method and `write` otherwise. Null
- * when the route is open to every signed-in user (their own profile, the
- * overview, better-auth) or sits outside the dashboard and the REST API,
+ * owning the route at `read` for a safe method and `write` otherwise, even
+ * under an open route (notification channels sit under the open
+ * `/notifications`). Null when no area claims a route open to every signed-in
+ * user (their own profile, the overview, better-auth) or one that sits outside the dashboard and the REST API,
  * which guard themselves; `"unmapped"` for a dashboard or API route no area
  * claims, which only a holder of every permission may reach.
  */
@@ -484,14 +488,13 @@ export function requiredPermission(
 	const id = inDashboard
 		? routeId.slice(PROTECTED_GROUP.length) || "/"
 		: routeId;
-	if (OPEN_ROUTES.some((prefix) => routeWithin(id, prefix))) {
-		return null;
-	}
 	const area = PERMISSION_AREAS.find((entry) =>
 		entry.routes.some((prefix: string) => routeWithin(id, prefix)),
 	);
 	if (!area) {
-		return "unmapped";
+		return OPEN_ROUTES.some((prefix) => routeWithin(id, prefix))
+			? null
+			: "unmapped";
 	}
 	return {
 		area: area.key,

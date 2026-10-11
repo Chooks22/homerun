@@ -312,18 +312,18 @@ async function seedErrors(page: Page, seeded: Seeded): Promise<void> {
 
 /** Two notification channels, kept off the events this run could fire (resource alerts and new errors), so nothing is sent while the shots are taken. */
 async function seedChannels(page: Page): Promise<void> {
-	await postAction(page, "/notification-channels?/createChannel", {
+	await postAction(page, "/notifications/settings/channels?/createChannel", {
 		kind: "discord",
 		name: "Ops alerts",
 		target: "https://discord.com/api/webhooks/1234567890/example-token",
 	});
-	await postAction(page, "/notification-channels?/createChannel", {
+	await postAction(page, "/notifications/settings/channels?/createChannel", {
 		kind: "email",
 		name: "On-call email",
 		target: "oncall@example.com",
 	});
 
-	await page.goto("/profile/notifications");
+	await page.goto("/notifications/settings");
 	const fields = await page
 		.locator('input[name^="channel:"]')
 		.evaluateAll((els) => [
@@ -332,7 +332,7 @@ async function seedChannels(page: Page): Promise<void> {
 	const rows = fields.flatMap((field) =>
 		QUIET_EVENTS.map((event): [string, string] => [field, event]),
 	);
-	const res = await page.request.post("/profile/notifications?/save", {
+	const res = await page.request.post("/notifications/settings?/save", {
 		data: new URLSearchParams(rows).toString(),
 		headers: {
 			"content-type": "application/x-www-form-urlencoded",
@@ -597,16 +597,16 @@ export const shots: ShotModule = {
 			path: () => "/notifications",
 		},
 		{
-			doc: "/notification-channels",
+			doc: "/notifications/settings/channels",
 			expect: /Ops alerts/,
 			name: "notifications-channels",
-			path: () => "/notification-channels",
+			path: () => "/notifications/settings/channels",
 		},
 		{
-			doc: "/profile/notifications",
+			doc: "/notifications/settings",
 			expect: /What to send, and where/,
 			name: "notifications-subscriptions",
-			path: () => "/profile/notifications",
+			path: () => "/notifications/settings",
 		},
 		{
 			doc: "/status-pages/:id",

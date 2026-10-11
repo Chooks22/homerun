@@ -16,8 +16,9 @@ test.describe
 			page,
 		}) => {
 			await signIn(page);
-			await page.getByRole("link", { name: "Notification Channels" }).click();
-			await expect(page).toHaveURL(/\/notification-channels$/);
+			await page.goto("/notifications/settings");
+			await page.getByRole("link", { exact: true, name: "Channels" }).click();
+			await expect(page).toHaveURL(/\/notifications\/settings\/channels$/);
 
 			await page.locator("#channelName").fill("E2E hook");
 			await page.locator("#channelKind").click();
@@ -32,7 +33,7 @@ test.describe
 				),
 			).toBeVisible();
 
-			await page.goto("/profile/notifications");
+			await page.goto("/notifications/settings");
 			const serviceDown = page.getByRole("checkbox", {
 				name: "Service down to E2E hook",
 			});
@@ -40,15 +41,21 @@ test.describe
 			await expect(
 				page.getByRole("checkbox", { name: "Build failed to E2E hook" }),
 			).toBeChecked();
+			const groupBursts = page.getByRole("checkbox", {
+				name: "Group bursts to E2E hook",
+			});
+			await expect(groupBursts).not.toBeChecked();
 			await serviceDown.click();
+			await groupBursts.click();
 			await page.getByRole("button", { name: "Save" }).click();
 			await expect(
 				page.getByText("Notification settings saved."),
 			).toBeVisible();
 			await page.reload();
 			await expect(serviceDown).toBeChecked();
+			await expect(groupBursts).toBeChecked();
 
-			await page.goto("/notification-channels");
+			await page.goto("/notifications/settings/channels");
 			await page.getByRole("button", { name: "Edit E2E hook" }).click();
 			await page.locator("#editChannelName").fill("E2E hook renamed");
 			await page
@@ -74,7 +81,7 @@ test.describe
 
 		test("a malformed Discord webhook URL is rejected", async ({ page }) => {
 			await signIn(page);
-			await page.goto("/notification-channels");
+			await page.goto("/notifications/settings/channels");
 
 			await page.locator("#channelName").fill("Bad hook");
 			await page.locator("#channelTarget").fill("https://example.com/hook");
@@ -91,7 +98,7 @@ test.describe
 			page,
 		}) => {
 			await signIn(page);
-			await page.goto("/notification-channels");
+			await page.goto("/notifications/settings/channels");
 
 			const botToken = "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw";
 			await page.locator("#channelName").fill("E2E Telegram");
@@ -112,7 +119,7 @@ test.describe
 
 		test("a Slack channel needs a Slack webhook URL", async ({ page }) => {
 			await signIn(page);
-			await page.goto("/notification-channels");
+			await page.goto("/notifications/settings/channels");
 
 			await page.locator("#channelName").fill("Bad Slack");
 			await page.locator("#channelKind").click();

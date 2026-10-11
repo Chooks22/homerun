@@ -167,7 +167,7 @@ async function searchInfrastructure(
 			.map((dto) => dto.toJSON())
 			.map((row) => ({
 				detail: row.kind,
-				href: resolve("notification-channels"),
+				href: resolve("notifications/settings/channels"),
 				id: row.id,
 				kind: "notificationChannel" as const,
 				label: row.name,

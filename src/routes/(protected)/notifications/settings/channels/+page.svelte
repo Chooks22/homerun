@@ -8,12 +8,10 @@
 		Pencil,
 		Plus,
 		Send,
-		SlidersHorizontal,
 		Trash2,
 		Webhook,
 	} from "@lucide/svelte";
 	import { onMount } from "svelte";
-	import BrowserNotificationsButton from "#lib/components/browser-notifications-button.svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import { labelClass as label } from "#lib/components/form-styles.js";
@@ -27,12 +25,10 @@
 	import { enhanceToast } from "#lib/toast.js";
 	import type { NotificationChannelKind } from "#lib/types.js";
 	import { enhance } from "$app/forms";
-	import { refreshAll } from "$app/navigation";
-	import { resolve } from "$app/paths";
 
 	const { data, form } = $props();
 
-	onMount(() => title.set("Notification Channels"));
+	onMount(() => title.set("Notification channels"));
 
 	let channelKind = $state<NotificationChannelKind>("discord");
 	const kindOptions: { label: string; value: NotificationChannelKind }[] = [
@@ -88,33 +84,7 @@
 	}
 </script>
 
-<div class="p-5 md:p-6">
-  <div class="mb-8 flex flex-wrap items-center justify-between gap-4">
-    <div>
-      <h1 class="text-text text-lg font-semibold tracking-tight">
-        Notification Channels
-      </h1>
-      <p class="text-text-muted mt-1 text-sm">
-        Where Homerun sends build, update and uptime notifications. Pick which
-        events each channel receives in your notification settings. Turning on
-        browser notifications adds this browser as a channel: it gets them
-        through a push service, even with no Homerun tab open.
-      </p>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <BrowserNotificationsButton onchange={() => void refreshAll()} showDisable />
-      <Button
-        href={resolve('profile/notifications')}
-        size="sm"
-        variant="outline"
-      >
-        <SlidersHorizontal class="size-4" />
-        Notification settings
-      </Button>
-    </div>
-  </div>
-
+<div>
   <section class="panel mb-6 rounded-md">
     <div class="panel-head">
       <h2 class="eyebrow flex shrink-0 items-center gap-1.5">
@@ -216,7 +186,7 @@
   {#if data.channels.length === 0}
     <EmptyState
       icon={BellRing}
-      subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address above, or turn on browser notifications."
+      subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address above, or turn on browser notifications under General."
       title="No notification channels yet"
     />
   {:else}

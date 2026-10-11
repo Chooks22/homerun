@@ -12,6 +12,7 @@ import { BaseDTO } from "./base-dto";
 export interface NewNotificationChannelInput {
 	enabled?: boolean;
 	events?: NotificationEvent[];
+	groupMessages?: boolean;
 	kind: NotificationChannelKind;
 	name: string;
 	target: string;
@@ -21,7 +22,13 @@ export interface NewNotificationChannelInput {
 export type NotificationChannelUpdateInput = Partial<
 	Pick<
 		NotificationChannel,
-		"enabled" | "events" | "kind" | "lastError" | "name" | "target"
+		| "enabled"
+		| "events"
+		| "groupMessages"
+		| "kind"
+		| "lastError"
+		| "name"
+		| "target"
 	>
 >;
 
@@ -133,6 +140,7 @@ export class NotificationChannelDTO extends BaseDTO<NotificationChannel> {
 			createdAt: now,
 			enabled: input.enabled ?? true,
 			events: input.events ?? [...DEFAULT_NOTIFICATION_EVENTS],
+			groupMessages: input.groupMessages ?? false,
 			id: crypto.randomUUID(),
 			kind: input.kind,
 			lastError: null,
@@ -176,6 +184,10 @@ export class NotificationChannelDTO extends BaseDTO<NotificationChannel> {
 	/** The notification events the channel is subscribed to. */
 	get events(): NotificationEvent[] {
 		return this.row.events;
+	}
+	/** Whether notifications close together reach the channel folded into one message, see `NotificationGrouper`. */
+	get groupMessages(): boolean {
+		return this.row.groupMessages;
 	}
 	/** Which delivery integration the channel uses. */
 	get kind(): NotificationChannelKind {

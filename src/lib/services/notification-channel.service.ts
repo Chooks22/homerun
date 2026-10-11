@@ -392,22 +392,29 @@ class NotificationChannelServiceClass {
 	}
 
 	/**
-	 * Delivers `message` to every account's enabled channels subscribed to
-	 * that event, or holds it to go out grouped with the ones around it (see
+	 * Delivers `message` right away to every account's enabled channels
+	 * subscribed to that event, except the ones that opted into grouping: for
+	 * those it's held to go out with the ones around it (see
 	 * `NotificationGrouper`): sent now when nothing went out in the last
 	 * minute, otherwise with the next group, and always with the rest of its
-	 * run when `options.scheduled`. Per-channel failures don't reject; see
-	 * `#send`.
+	 * run when `options.scheduled`. A scheduled outcome is held either way, for
+	 * the run's in-app summary. Per-channel failures don't reject; see `#send`.
 	 */
 	async dispatch(
 		message: ChannelMessage,
 		options: DispatchOptions = {},
 	): Promise<void> {
-		const immediate = this.#grouper.add(
-			message,
-			options.scheduled ?? false,
-			Date.now(),
-		);
+		const scheduled = options.scheduled ?? false;
+		const channels = await NotificationChannelDTO.listSubscribed(message.event);
+		const direct = channels.filter((channel) => !channel.groupMessages);
+		if (direct.length > 0) {
+			const titled = await this.#withStackTitle(message);
+			await Promise.all(direct.map((channel) => this.#send(channel, titled)));
+		}
+		if (!scheduled && direct.length === channels.length) {
+			return;
+		}
+		const immediate = this.#grouper.add(message, scheduled, Date.now());
 		if (immediate) {
 			await this.#deliverGroup({ messages: [immediate], scheduled: false });
 			return;
@@ -456,25 +463,23 @@ class NotificationChannelServiceClass {
 		await Promise.all(groups.map((group) => this.#deliverGroup(group)));
 	}
 
-	/** Delivers a group to every channel subscribed to any of its events: each channel gets the messages it subscribes to, one as itself, several folded by `groupedMessage`. A scheduler run's group also leaves one in-app notification, channels or not. */
+	/** Delivers a group to every channel that opted into grouping and subscribes to any of its events: each channel gets the messages it subscribes to, one as itself, several folded by `groupedMessage`. A scheduler run's group also leaves one in-app notification, channels or not. */
 	async #deliverGroup(group: MessageGroup): Promise<void> {
 		const events = [...new Set(group.messages.map((m) => m.event))];
 		const subscribed = await Promise.all(
 			events.map((event) => NotificationChannelDTO.listSubscribed(event)),
 		);
 		const byId = new Map(
-			subscribed.flat().map((channel) => [channel.id, channel]),
+			subscribed
+				.flat()
+				.filter((channel) => channel.groupMessages)
+				.map((channel) => [channel.id, channel]),
 		);
 		if (byId.size === 0 && !group.scheduled) {
 			return;
 		}
 		const titled = await Promise.all(
-			group.messages.map(async (message) =>
-				withStackTitle(
-					message,
-					message.serviceId ? await this.#stackNameOf(message.serviceId) : null,
-				),
-			),
+			group.messages.map((message) => this.#withStackTitle(message)),
 		);
 		if (group.scheduled) {
 			NotificationDTO.notify(scheduledNotification(titled));
@@ -492,6 +497,14 @@ class NotificationChannelServiceClass {
 						mine.length === 1 ? mine[0] : groupedMessage(mine, group.scheduled),
 					),
 				),
+		);
+	}
+
+	/** `message` with its service's stack name in the title, see `withStackTitle`. */
+	async #withStackTitle(message: ChannelMessage): Promise<ChannelMessage> {
+		return withStackTitle(
+			message,
+			message.serviceId ? await this.#stackNameOf(message.serviceId) : null,
 		);
 	}
 

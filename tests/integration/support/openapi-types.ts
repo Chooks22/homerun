@@ -4788,6 +4788,7 @@ export interface operations {
 						createdAt: string;
 						enabled: boolean;
 						events: string[];
+						groupMessages: boolean;
 						id: string;
 						/** @enum {string} */
 						kind:
@@ -4846,6 +4847,8 @@ export interface operations {
 					enabled?: boolean;
 					/** @description The events sent to the channel. */
 					events?: string[];
+					/** @description Fold notifications sent less than a minute apart into one message. */
+					groupMessages?: boolean;
 					/** @enum {string} */
 					kind: "webhook" | "discord" | "slack" | "telegram" | "email";
 					name: string;
@@ -4866,6 +4869,7 @@ export interface operations {
 						createdAt: string;
 						enabled: boolean;
 						events: string[];
+						groupMessages: boolean;
 						id: string;
 						/** @enum {string} */
 						kind:
@@ -4946,6 +4950,7 @@ export interface operations {
 						createdAt: string;
 						enabled: boolean;
 						events: string[];
+						groupMessages: boolean;
 						id: string;
 						/** @enum {string} */
 						kind:
@@ -5076,6 +5081,8 @@ export interface operations {
 					enabled?: boolean;
 					/** @description The events sent to the channel. */
 					events?: string[];
+					/** @description Fold notifications sent less than a minute apart into one message. */
+					groupMessages?: boolean;
 					name?: string;
 					/** @description The webhook URL, the email address, or bot_token:chat_id for Telegram. Write-only. */
 					target?: string;
@@ -5094,6 +5101,7 @@ export interface operations {
 						createdAt: string;
 						enabled: boolean;
 						events: string[];
+						groupMessages: boolean;
 						id: string;
 						/** @enum {string} */
 						kind:

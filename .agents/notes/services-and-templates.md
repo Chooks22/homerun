@@ -1096,9 +1096,9 @@ page with the query kept, page and `_app` 200, `/services` and `/auth/sign-in`
 404 on the status domain.
 
 `/status-pages` is the operator's view: health of every service and the pages
-themselves, with a link out to `/notification-channels`. `/status/<slug>` is the
-public one, and the routing and disclosure rules for it are in `routing.md`:
-read that before touching either.
+themselves, with a link out to `/notifications/settings/channels`.
+`/status/<slug>` is the public one, and the routing and disclosure rules for it
+are in `routing.md`: read that before touching either.
 
 **Alerts fire on a state change, not on a state.** `uptime-probe.ts`'s tick
 reads the previous beat per probe before recording the new one and

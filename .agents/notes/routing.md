@@ -94,10 +94,10 @@ would repeat the parent's):
   one, so it's lost once `JobDTO.prune` drops the job; the dashboard's Recent
   Deployments "View all" links here).
 - **Operations**: Observability (**Monitoring**, **Status Page**, see Status
-  pages in `services-and-templates.md`), **Notification Channels**, Scheduling
-  (**Overview**, the instance-wide view of every cron redeploy, enabled cron job
-  and backup schedule plus the job queue, and **Cron Jobs**, see Cron jobs
-  below), **Terminal**.
+  pages in `services-and-templates.md`), Scheduling (**Overview**, the
+  instance-wide view of every cron redeploy, enabled cron job and backup
+  schedule plus the job queue, and **Cron Jobs**, see Cron jobs below),
+  **Terminal**.
 - **Data**: **Volumes** (`/storage`), Backup & Restore (**Backups**, the run
   history + "Run now", and **Backup Destinations**, `/s3-destinations`, reusable
   targets: S3, SFTP, SMB, WebDAV), **Object Storage** (`/object-storage`,

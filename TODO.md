@@ -10,6 +10,8 @@ When done delete the entry, no bloat.
 - [ ] Route `screenshots.yaml` and `e2e.yaml` Docker Hub pulls through
       mirror.gcr.io like the integration job, they can flake on an anonymous
       pull refusal the same way
+- [ ] Notification channels: move the "Add a channel" form off the list page
+      onto its own `channels/new` route, like every other list page
 
 ## Medium
 

@@ -2079,6 +2079,7 @@ export const notificationChannel = pgTable(
 				"backup.failed",
 				"cron_job.failed",
 			]),
+		groupMessages: boolean("group_messages").notNull().default(false),
 		id: text("id").primaryKey(),
 		kind: text("kind").$type<NotificationChannelKind>().notNull(),
 		lastError: text("last_error"),

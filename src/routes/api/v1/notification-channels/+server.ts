@@ -26,7 +26,7 @@ export const POST = async ({ locals, request }) => {
 	if ("response" in body) {
 		return body.response;
 	}
-	const { enabled, events, kind, name, target } = body.data;
+	const { enabled, events, groupMessages, kind, name, target } = body.data;
 	const targetError = validateChannelTarget(kind, target);
 	if (targetError) {
 		return apiError(targetError);
@@ -34,6 +34,7 @@ export const POST = async ({ locals, request }) => {
 	const channel = await NotificationChannelDTO.create({
 		enabled,
 		events: events?.filter(isNotificationEvent),
+		groupMessages,
 		kind,
 		name,
 		target,

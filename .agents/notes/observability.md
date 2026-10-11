@@ -154,11 +154,16 @@ own feed, so no permission area gates it.
   unread, for the bell and the dashboard's `unread-notifications.svelte`), and
   one command per mutation, each refreshing both queries server-side.
 - **Browser notifications** (`src/lib/notification-feed.ts`): the bell polls
-  `getUnreadNotifications` every 30s and, once permission is granted, shows a
+  `getUnreadNotifications` every 30s and, in tab-only mode, shows a
   `Notification` for each unread id it hadn't seen (seeded from the first
   result, so a reload doesn't replay old ones; `tag` is the row id so two tabs
-  don't show it twice). It skips that entirely once this browser has a Web Push
-  subscription (see Browser push below), so nothing shows twice.
+  don't show it twice). Tab-only mode (`tabNotificationsEnabled`, a
+  `localStorage` flag plus granted permission) is what `enableBrowserPush` falls
+  back to when `pushManager.subscribe` rejects with an `AbortError`: Chromium
+  builds without Google's push service (Helium, ungoogled-chromium) fail every
+  subscription with "Registration failed - push service error", and no server
+  change can fix that, since Chromium push only goes through FCM. A browser with
+  a Web Push subscription never shows these, so nothing shows twice.
 
 ## Browser push (`src/service-worker/`, `web-push.ts`, `WebPushService`, `push.remote.ts`)
 
@@ -204,8 +209,10 @@ incoming-webhook attachment, `"telegram"` Bot API `sendMessage`, `"email"`, or
 `"browser"` Web Push, see Browser push above) plus a `target` and an `events`
 jsonb column (`NotificationEvent[]`, DB default and DTO default
 `["build.failed","build.checks_failed","update.failed","deploy.unhealthy","deploy.rolled_back"]`),
-managed on `/notification-channels` (create/test/delete) with the events matrix
-itself edited on `/profile/notifications`.
+managed on `/notifications/settings/channels` (create/test/delete) with the
+events matrix and the per-channel `groupMessages` opt-in edited on
+`/notifications/settings`. Channels sit under the open `/notifications`, so
+`requiredPermission` matches permission areas before `OPEN_ROUTES`.
 
 `NotificationEvent` (`src/lib/types.ts`) and its catalog
 (`src/lib/notification-events.ts`, `NOTIFICATION_EVENTS`,
@@ -258,32 +265,34 @@ variants) and a Slack one to be an https
 posts `telegramBotToken`/`telegramChatId`, `channelTargetFromForm` packs them as
 `<bot token>/<chat id>` (`src/lib/notification-channel-target.ts`, split back
 with `parseTelegramTarget` on the last `/`), validated as `\d+:[\w-]{30,}` and a
-numeric chat id or `@name`. `/notification-channels`' `load` swaps every target
-for `channelTargetLabel`, so a Telegram row reaches the browser as `Chat <id>`
-and the token never does; a Telegram error reports Telegram's own `description`,
+numeric chat id or `@name`. The channels tab's `load` swaps every target for
+`channelTargetLabel`, so a Telegram row reaches the browser as `Chat <id>` and
+the token never does; a Telegram error reports Telegram's own `description`,
 never the request URL that carries the token. The payload builders
 (`messageSubject`/`messageBody`/`discordPayload`/
 `slackPayload`/`telegramPayload`) and `deployEvent`/`isFailureEvent` are pure
 and unit-tested in `tests/unit/app/notification-channel.test.ts`.
 
-**Grouping** (`src/lib/services/notification-grouping.ts`).
-`dispatch(message, { scheduled })` hands every message to a
-`NotificationGrouper` (pure, driven by timestamps so tests pass a clock): a
-message with nothing sent in the last 60s goes out at once, later ones are held
-until 60s of quiet (5 min cap), and `scheduled` ones (a `cron`-triggered deploy,
-a backup or cron job enqueued by its scheduler, the `scheduled` payload flag)
-are always held until 60s of quiet _and_ `JobDTO.hasActiveScheduledWork()` is
-false (1h cap). That check filters payloads in code because of the
-double-encoded jsonb trap in `data-and-config.md`. A 10s ticker (`flushDue`,
-public so tests drive it with `setSystemTime`) runs only while something is
-held. `#deliverGroup` resolves each channel once across the group's events and
-sends it only its subscribed messages: one as itself, several folded by
-`groupedMessage` (counts in the title, first failure's event, link and colour,
-failures' detail tails). Held messages are in memory; a restart drops them.
-Tests call `discardPending()` in `afterEach`, since otherwise consecutive
-dispatches in one test file group. Backup outcomes are notified from
-`worker-jobs/backup.ts`'s finalize (a failure only once no retry is left), cron
-jobs from `worker-jobs/cron_job.ts`'s.
+**Grouping** (`src/lib/services/notification-grouping.ts`), opt-in per channel
+(`groupMessages`, default false). `dispatch(message, { scheduled })` sends to
+every subscribed channel without it right away, and hands the message to a
+`NotificationGrouper` only when a subscribed channel has it or it's `scheduled`
+(the feed's `Scheduled tasks` entry needs the run held either way). The grouper
+is pure, driven by timestamps so tests pass a clock: a message with nothing sent
+in the last 60s goes out at once, later ones are held until 60s of quiet (5 min
+cap), and `scheduled` ones (a `cron`-triggered deploy, a backup or cron job
+enqueued by its scheduler, the `scheduled` payload flag) are always held until
+60s of quiet _and_ `JobDTO.hasActiveScheduledWork()` is false (1h cap). That
+check filters payloads in code because of the double-encoded jsonb trap in
+`data-and-config.md`. A 10s ticker (`flushDue`, public so tests drive it with
+`setSystemTime`) runs only while something is held. `#deliverGroup` resolves
+each grouping channel once across the group's events and sends it only its
+subscribed messages: one as itself, several folded by `groupedMessage` (counts
+in the title, first failure's event, link and colour, failures' detail tails).
+Held messages are in memory; a restart drops them. Tests call `discardPending()`
+in `afterEach`, since otherwise consecutive dispatches in one test file group.
+Backup outcomes are notified from `worker-jobs/backup.ts`'s finalize (a failure
+only once no retry is left), cron jobs from `worker-jobs/cron_job.ts`'s.
 
 **A message is built once, in `notification-messages.ts`, and every channel
 renders the same shape**: `title`, `detail`, a list of `fields` (name/value) and

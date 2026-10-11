@@ -7027,6 +7027,9 @@
 												},
 												"type": "array"
 											},
+											"groupMessages": {
+												"type": "boolean"
+											},
 											"id": {
 												"type": "string"
 											},
@@ -7070,6 +7073,7 @@
 											"createdAt",
 											"enabled",
 											"events",
+											"groupMessages",
 											"id",
 											"kind",
 											"lastError",
@@ -7152,6 +7156,10 @@
 										},
 										"type": "array"
 									},
+									"groupMessages": {
+										"description": "Fold notifications sent less than a minute apart into one message.",
+										"type": "boolean"
+									},
 									"kind": {
 										"enum": [
 											"webhook",
@@ -7200,6 +7208,9 @@
 											},
 											"type": "array"
 										},
+										"groupMessages": {
+											"type": "boolean"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -7243,6 +7254,7 @@
 										"createdAt",
 										"enabled",
 										"events",
+										"groupMessages",
 										"id",
 										"kind",
 										"lastError",
@@ -7439,6 +7451,9 @@
 											},
 											"type": "array"
 										},
+										"groupMessages": {
+											"type": "boolean"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -7482,6 +7497,7 @@
 										"createdAt",
 										"enabled",
 										"events",
+										"groupMessages",
 										"id",
 										"kind",
 										"lastError",
@@ -7591,6 +7607,10 @@
 										},
 										"type": "array"
 									},
+									"groupMessages": {
+										"description": "Fold notifications sent less than a minute apart into one message.",
+										"type": "boolean"
+									},
 									"name": {
 										"maxLength": 100,
 										"minLength": 1,
@@ -7627,6 +7647,9 @@
 												"type": "string"
 											},
 											"type": "array"
+										},
+										"groupMessages": {
+											"type": "boolean"
 										},
 										"id": {
 											"type": "string"
@@ -7671,6 +7694,7 @@
 										"createdAt",
 										"enabled",
 										"events",
+										"groupMessages",
 										"id",
 										"kind",
 										"lastError",

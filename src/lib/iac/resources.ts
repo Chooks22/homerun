@@ -387,6 +387,7 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("targetLabel", "string", { readOnly: true }),
 			attr("enabled", "bool", on),
 			attr("events", "strings"),
+			attr("groupMessages", "bool", off),
 		],
 		collectionPath: "/notification-channels",
 		description: "Where notifications are sent.",

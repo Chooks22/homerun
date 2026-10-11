@@ -102,7 +102,6 @@ describe("visibleIn", () => {
 			"/redirects",
 			"/dns",
 			"/git-providers",
-			"/notification-channels",
 			"/users",
 			"/authentication",
 			"/settings",

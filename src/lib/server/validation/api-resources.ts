@@ -115,6 +115,12 @@ const notificationEvents = z
 export const notificationChannelApiBody = z.object({
 	enabled: z.boolean().optional(),
 	events: notificationEvents.optional(),
+	groupMessages: z
+		.boolean()
+		.optional()
+		.describe(
+			"Fold notifications sent less than a minute apart into one message.",
+		),
 	kind: z.enum(["webhook", "discord", "slack", "telegram", "email"]),
 	name: text.min(1).max(100),
 	target: secret(

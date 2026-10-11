@@ -1,7 +1,6 @@
 <script lang="ts">
 	import {
 		AppWindow,
-		BellRing,
 		KeyRound,
 		Lock,
 		Palette,
@@ -61,13 +60,6 @@
 			icon: Palette,
 			id: "appearance",
 			label: "Appearance",
-		},
-		{
-			exact: false,
-			href: resolve("profile/notifications"),
-			icon: BellRing,
-			id: "notifications",
-			label: "Notifications",
 		},
 	];
 

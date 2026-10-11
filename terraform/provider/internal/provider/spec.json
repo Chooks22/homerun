@@ -1062,6 +1062,12 @@
 					"kind": "strings",
 					"name": "events",
 					"tf": "events"
+				},
+				{
+					"kind": "bool",
+					"name": "groupMessages",
+					"tf": "group_messages",
+					"default": false
 				}
 			],
 			"collectionPath": "/notification-channels",

@@ -826,6 +826,13 @@
 			"when": 1791701640633,
 			"tag": "0117_rare_master_chief",
 			"breakpoints": true
+		},
+		{
+			"idx": 118,
+			"version": "7",
+			"when": 1791745209775,
+			"tag": "0118_parallel_lightspeed",
+			"breakpoints": true
 		}
 	],
 	"version": "7"

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { Bell } from "@lucide/svelte";
 	import { onMount } from "svelte";
-	import { currentPushSubscription } from "#lib/browser-push.js";
-	import { headerControlClass } from "#lib/components/header-styles.js";
 	import {
-		browserNotificationPermission,
-		notificationHref,
-	} from "#lib/notification-feed.js";
+		currentPushSubscription,
+		tabNotificationsEnabled,
+	} from "#lib/browser-push.js";
+	import { headerControlClass } from "#lib/components/header-styles.js";
+	import { notificationHref } from "#lib/notification-feed.js";
 	import {
 		getUnreadNotifications,
 		markNotificationRead,
@@ -51,7 +51,7 @@
 	});
 
 	function showBrowserNotification(item: NotificationFeedItem) {
-		if (pushActive || browserNotificationPermission() !== "granted") {
+		if (pushActive || !tabNotificationsEnabled()) {
 			return;
 		}
 		const shown = new Notification(

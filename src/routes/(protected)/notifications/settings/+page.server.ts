@@ -12,6 +12,7 @@ export const load = async ({ parent }) => {
 	return {
 		channels: channels.map((channel) => ({
 			events: channel.events,
+			groupMessages: channel.groupMessages,
 			id: channel.id,
 			kind: channel.kind,
 			name: channel.name,
@@ -33,6 +34,7 @@ export const actions = {
 						.getAll(`channel:${channel.id}`)
 						.filter((value) => typeof value === "string")
 						.filter(isNotificationEvent),
+					groupMessages: form.get(`group:${channel.id}`) === "on",
 				}),
 			),
 		);
