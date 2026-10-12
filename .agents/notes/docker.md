@@ -1458,7 +1458,12 @@ Overview's polled `workstationStatus` remote query) writes
 `homerun-workstation-<slug>.yml` into `traefik.dynamicConfigDir` pointing at
 `http://<agent hostname>:<port>`, only when the content changed, and drops it
 when the workstation isn't running. With no dynamic config dir the page links
-the published port directly.
+the published port directly. Either way `start` also runs `syncDns` on the
+hostname (Pangolin SSO off, the IDE has its own password) and `remove` runs
+`deleteDns`: behind Pangolin the hostname resolves to Pangolin, and without a
+resource Pangolin serves its default certificate for it, which is what
+"workstations aren't routed" was. A failed sync is thrown after the container
+started, so it reaches the toast and `lastError`.
 
 **Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`), not
 the per-app login wall, whose gate is service-shaped (`gatedService`,

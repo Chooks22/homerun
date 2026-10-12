@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	mock,
+	spyOn,
+	test,
+} from "bun:test";
 import dns from "node:dns/promises";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,6 +29,12 @@ const { AgentClientService } = await import(
 const { RemoteHostDTO } = await import("../../../src/lib/dto/remote-host-dto");
 const { WorkstationDTO } = await import("../../../src/lib/dto/workstation-dto");
 const helpers = await import("../../../src/lib/services/deploy/helpers");
+const { PangolinService } = await import(
+	"../../../src/lib/services/pangolin.service"
+);
+const { DomainDnsService } = await import(
+	"../../../src/lib/services/domain-dns.service"
+);
 
 type Workstation = NonNullable<Awaited<ReturnType<typeof WorkstationDTO.get>>>;
 type Host = NonNullable<Awaited<ReturnType<typeof RemoteHostDTO.get>>>;
@@ -28,6 +42,23 @@ type Host = NonNullable<Awaited<ReturnType<typeof RemoteHostDTO.get>>>;
 const restorers: { mockRestore: () => void }[] = [];
 const originalDir = config.traefik.dynamicConfigDir;
 const realFetch = globalThis.fetch;
+let pangolinSync: ReturnType<typeof spyOn>;
+let pangolinDelete: ReturnType<typeof spyOn>;
+
+beforeEach(() => {
+	pangolinSync = spyOn(PangolinService, "syncDnsRecord").mockResolvedValue(
+		null,
+	);
+	pangolinDelete = spyOn(PangolinService, "deleteDnsRecord").mockResolvedValue(
+		null,
+	);
+	restorers.push(
+		pangolinSync,
+		pangolinDelete,
+		spyOn(DomainDnsService, "syncHostname").mockResolvedValue(null),
+		spyOn(DomainDnsService, "deleteHostname").mockResolvedValue(null),
+	);
+});
 
 afterEach(() => {
 	for (const spy of restorers.splice(0)) {
@@ -155,6 +186,37 @@ describe("WorkstationService.start", () => {
 		expect(ws.update).toHaveBeenCalledWith({ lastError: "worker down" });
 	});
 
+	test("its hostname gets a Pangolin resource without Pangolin's sign-in", async () => {
+		restorers.push(spyOn(WorkerClient, "put").mockResolvedValue({}));
+		pangolinSync.mockResolvedValue({
+			detail: "created",
+			ok: true,
+			provider: "pangolin",
+		});
+		const ws = workstation({ gitUrl: null });
+		await WorkstationService.start(ws);
+		expect(pangolinSync).toHaveBeenCalledWith(WorkstationService.hostname(ws), {
+			sso: false,
+		});
+	});
+
+	test("a failed DNS sync is stored as the last error", async () => {
+		restorers.push(spyOn(WorkerClient, "put").mockResolvedValue({}));
+		pangolinSync.mockResolvedValue({
+			detail: "site not found",
+			ok: false,
+			provider: "pangolin",
+		});
+		const ws = workstation({ gitUrl: null });
+		await expect(WorkstationService.start(ws)).rejects.toThrow(
+			"site not found",
+		);
+		expect(ws.update).toHaveBeenCalledWith({
+			desiredState: "running",
+			lastError: null,
+		});
+	});
+
 	test("a host that isn't an agent any more is refused", async () => {
 		restorers.push(spyOn(RemoteHostDTO, "get").mockResolvedValue(null));
 		await expect(
@@ -228,6 +290,9 @@ describe("WorkstationService stop and remove", () => {
 		const ws = workstation();
 		await WorkstationService.remove(ws, true);
 		expect(del).toHaveBeenCalledWith("/v1/workstations/ws1", { volume: "1" });
+		expect(pangolinDelete).toHaveBeenCalledWith(
+			WorkstationService.hostname(ws),
+		);
 		expect(ws.delete).toHaveBeenCalled();
 	});
 

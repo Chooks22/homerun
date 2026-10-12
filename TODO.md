@@ -7,6 +7,10 @@ When done delete the entry, no bloat.
 
 ## Small
 
+- [ ] better-auth 1.7.7 wants an `issuer` column on `account` that `schema.ts`
+      lacks: every sign-up (and so the integration suite's bootstrap) answers
+      500 with "The field "issuer" does not exist in the "account" Drizzle
+      schema"
 - [ ] Route `screenshots.yaml` and `e2e.yaml` Docker Hub pulls through
       mirror.gcr.io like the integration job, they can flake on an anonymous
       pull refusal the same way
@@ -28,8 +32,14 @@ When done delete the entry, no bloat.
 - [ ] Deleting an agent host cascades its workstation rows but leaves their
       containers on that host and their Traefik route file behind
 - [ ] A service created after a workstation can take the workstation's slug, and
-      the two then fight over the same hostname: check workstation slugs on
-      service creation too
+      the two then fight over the same hostname (and removing the workstation
+      drops the Pangolin resource the service relies on): check workstation
+      slugs on service creation too
+- [ ] Deploys of anything behind Traefik report success without checking the
+      route: probe the hostname once the container is up (local Traefik with the
+      Host header for the router, the public URL for DNS/Pangolin) and fail on
+      Traefik's own 404/502/504 or the edge's default certificate, warn on a
+      certificate still being issued
 
 ## Large
 

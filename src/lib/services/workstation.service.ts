@@ -11,6 +11,7 @@ import {
 	type AgentConnection,
 } from "#lib/services/agent-client.service.js";
 import { resolveGitCredential } from "#lib/services/deploy/helpers.js";
+import { deleteDns, syncDns } from "#lib/services/dns.service.js";
 import {
 	agentHostAddress,
 	workstationLabels,
@@ -189,6 +190,7 @@ class WorkstationServiceClass {
 			});
 			await ws.update({ desiredState: "running", lastError: null });
 			logger.info(`Workstation starting: workstation=${ws.id}`);
+			await this.#syncDns(ws);
 		} catch (error) {
 			await ws.update({
 				lastError: error instanceof Error ? error.message : String(error),
@@ -223,6 +225,7 @@ class WorkstationServiceClass {
 			query: { volume: withVolume ? "1" : "0" },
 		});
 		await this.#removeRoute(ws);
+		await deleteDns([this.hostname(ws)]);
 		await ws.delete();
 		logger.info(
 			`Workstation removed: workstation=${ws.id} volume=${withVolume}`,
@@ -401,6 +404,26 @@ class WorkstationServiceClass {
 				label: `https://${host}`,
 				ok: false,
 			};
+		}
+	}
+
+	/**
+	 * Points `ws`'s hostname at this server through every configured DNS
+	 * provider (a Pangolin resource, a DNS record), with Pangolin's sign-in
+	 * off since the IDE has its own password.
+	 *
+	 * @throws When a provider fails, with each failure's reason.
+	 */
+	async #syncDns(ws: WorkstationDTO): Promise<void> {
+		const failed = (await syncDns([this.hostname(ws)], { sso: false })).filter(
+			(result) => !result.ok,
+		);
+		if (failed.length > 0) {
+			throw new Error(
+				`The workstation runs, but its hostname isn't routed: ${failed
+					.map((result) => `${result.provider}: ${result.detail}`)
+					.join("; ")}`,
+			);
 		}
 	}
 

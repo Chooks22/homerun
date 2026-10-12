@@ -196,9 +196,14 @@ class CrowdsecServiceClass {
 			method: "POST",
 			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 		});
-		if (!response.ok) {
+		if (response.status === 401 || response.status === 403) {
 			throw new Error(
 				`CrowdSec refused the machine login (HTTP ${response.status}).`,
+			);
+		}
+		if (!response.ok) {
+			throw new Error(
+				`CrowdSec's LAPI at ${credentials.url} didn't answer the login (HTTP ${response.status}): check that it's running and that the URL reaches it directly.`,
 			);
 		}
 		const body = (await response.json()) as { expire?: string; token?: string };
