@@ -33,7 +33,7 @@ COPY --from=cli-builder /out/homerun /usr/local/bin/homerun
 
 CMD ["homerun", "--help"]
 
-FROM oven/bun:1.4.2-alpine AS deps-base
+FROM oven/bun:1.4.3-alpine AS deps-base
 
 ENV BUN_FEATURE_FLAG_EXPERIMENTAL_HTTP2_CLIENT=1
 
@@ -60,7 +60,7 @@ RUN bun run build
 # `oven/bun:1.4.2-alpine` only because the binary is musl-linked (compiled on the
 # Alpine builder above) and entrypoint.sh relies on this image's baked-in
 # `bun` user plus `su-exec` / busybox `addgroup`.
-FROM oven/bun:1.4.2-alpine AS app
+FROM oven/bun:1.4.3-alpine AS app
 
 RUN apk add --no-cache ca-certificates su-exec
 

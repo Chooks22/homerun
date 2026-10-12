@@ -43,7 +43,7 @@
 		"@tailwindcss/typography": "0.5.20",
 		"@tailwindcss/vite": "4.3.3",
 		"@testing-library/svelte": "5.4.2",
-		"@types/bun": "1.4.0",
+		"@types/bun": "1.4.2",
 		"@types/dockerode": "4.0.1",
 		"@types/node": "26.6.1",
 		"@types/sanitize-html": "2.16.1",
@@ -94,7 +94,7 @@
 		"@better-auth/prisma-adapter": "$better-auth",
 		"@better-auth/telemetry": "$better-auth"
 	},
-	"packageManager": "bun@1.4.2",
+	"packageManager": "bun@1.4.3",
 	"patchedDependencies": {
 		"cpu-features@0.0.10": "patches/cpu-features@0.0.10.patch",
 		"@sveltejs/adapter-bun@1.0.0": "patches/@sveltejs%2Fadapter-bun@1.0.0.patch"
