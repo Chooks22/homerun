@@ -27,7 +27,9 @@ Settings**, and allow them. That browser is added as a **Browser** notification
 channel and gets notifications through its push service and Homerun's service
 worker, so they show up even with every Homerun tab closed (the browser itself
 has to be running). Each browser you turn it on in is its own channel, named
-after it (`Firefox on Linux`), with its own events in the matrix below; it
+after it (`Firefox on Linux`), with its own events in the matrix below; the
+matrix only ever shows the browser you're viewing it from, so each browser's
+events are set from that browser and other devices' columns stay hidden; it
 starts with the channel defaults plus **Build started**, **Build succeeded** and
 **Deploy failed**, so a git build announces itself and then replaces that
 notification with how it ended. Clicking one opens what it's about. **Turn off

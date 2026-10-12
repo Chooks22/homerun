@@ -27,6 +27,16 @@ Concretely:
   in a code block, conventional-commit style (`feat: ...`, `fix: ...`). One
   line, even for a large batch of unrelated changes: summarise, don't list. Only
   suggest it, never commit.
+- **When a commit is made anyway** (a hook or an explicit ask), it's authored
+  and committed as `Oro <orochibraru@gmail.com>`, set with
+  `git config user.name`/`user.email` first. No `Co-Authored-By`, no session
+  link, no mention of Claude anywhere in the message.
+- **A PR title is always a conventional commit** (`feat(scope): ...`,
+  `fix: ...`, types
+  `feat|fix|perf|refactor|docs|chore|ci|build|test|style|revert`), since the
+  squash merge uses it as the commit message and
+  `.github/workflows/pr-title.yaml` fails the PR otherwise. Same rule for the PR
+  body as for commits: no Claude mention, no session link.
 
 **Work out of `TODO.md`.** It's the backlog, and it's the only one. Don't write
 a plan in chat, don't keep a task list somewhere else, don't hand back a

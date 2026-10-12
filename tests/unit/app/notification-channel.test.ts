@@ -14,8 +14,13 @@ const {
 	slackPayload,
 	telegramPayload,
 } = await import("../../../src/lib/services/notification-channel.service");
-const { channelTargetLabel, formatTelegramTarget, parseTelegramTarget } =
-	await import("../../../src/lib/notification-channel-target");
+const {
+	channelTargetLabel,
+	formatTelegramTarget,
+	parseTelegramTarget,
+	pushEndpoint,
+	pushEndpointDigest,
+} = await import("../../../src/lib/notification-channel-target");
 const { notificationDeliveryJobPayload } = await import(
 	"../../../src/lib/services/queue/payloads"
 );
@@ -530,5 +535,29 @@ describe("ipBanMessage", () => {
 			{ name: "Until", value: "Lifted by hand" },
 		]);
 		expect(message.link).toBeNull();
+	});
+});
+
+describe("pushEndpoint", () => {
+	test("reads the endpoint of a stored subscription", () => {
+		expect(
+			pushEndpoint(
+				JSON.stringify({ endpoint: "https://push.example/abc", keys: {} }),
+			),
+		).toBe("https://push.example/abc");
+	});
+
+	test("is null for a target that isn't a subscription", () => {
+		expect(pushEndpoint("not json")).toBeNull();
+		expect(pushEndpoint(JSON.stringify({ endpoint: "nope" }))).toBeNull();
+	});
+});
+
+describe("pushEndpointDigest", () => {
+	test("is a stable hex SHA-256 that differs per endpoint", async () => {
+		const first = await pushEndpointDigest("https://push.example/a");
+		expect(first).toMatch(/^[0-9a-f]{64}$/);
+		expect(await pushEndpointDigest("https://push.example/a")).toBe(first);
+		expect(await pushEndpointDigest("https://push.example/b")).not.toBe(first);
 	});
 });

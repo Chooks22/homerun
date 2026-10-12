@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { BellRing, Monitor, Plus } from "@lucide/svelte";
 	import { onMount } from "svelte";
+	import { currentPushSubscription } from "#lib/browser-push.js";
 	import BrowserNotificationsButton from "#lib/components/browser-notifications-button.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
+	import { pushEndpointDigest } from "#lib/notification-channel-target.js";
 	import { NOTIFICATION_EVENTS } from "#lib/notification-events.js";
 	import { title } from "#lib/store/title.js";
 	import { saveToast } from "#lib/toast.js";
@@ -16,7 +18,32 @@
 
 	const { data } = $props();
 
-	onMount(() => title.set("Notification settings"));
+	let ownDigest = $state<string | null>(null);
+
+	const channels = $derived(
+		data.channels.filter(
+			(channel) =>
+				channel.kind !== "browser" ||
+				(ownDigest !== null && channel.endpointDigest === ownDigest),
+		),
+	);
+
+	async function refreshOwnDigest() {
+		const subscription = await currentPushSubscription().catch(() => null);
+		ownDigest = subscription
+			? await pushEndpointDigest(subscription.endpoint)
+			: null;
+	}
+
+	async function handleBrowserChange() {
+		await refreshAll();
+		await refreshOwnDigest();
+	}
+
+	onMount(() => {
+		title.set("Notification settings");
+		void refreshOwnDigest();
+	});
 
 	const groups = [...new Set(NOTIFICATION_EVENTS.map((info) => info.group))];
 </script>
@@ -29,12 +56,12 @@
       title="This browser"
     >
       {#snippet trailing()}
-        <BrowserNotificationsButton onchange={() => void refreshAll()} showDisable />
+        <BrowserNotificationsButton onchange={() => void handleBrowserChange()} showDisable />
       {/snippet}
     </PanelHeader>
   </section>
 
-  {#if data.channels.length === 0}
+  {#if channels.length === 0}
     <EmptyState
       icon={BellRing}
       subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address, then choose what it receives here."
@@ -57,11 +84,14 @@
         method="POST"
         use:enhance={saveToast("Notification settings")}
       >
+        {#each channels as channel (channel.id)}
+          <input name="channels" type="hidden" value={channel.id} />
+        {/each}
         <table class="w-full text-sm">
           <thead>
             <tr class="border-border border-b">
               <th class="eyebrow px-5 py-3 text-left font-medium">Event</th>
-              {#each data.channels as channel (channel.id)}
+              {#each channels as channel (channel.id)}
                 <th class="text-text px-4 py-3 text-center text-xs font-medium whitespace-nowrap">
                   {channel.name}
                 </th>
@@ -70,7 +100,7 @@
           </thead>
           <tbody>
             <tr class="bg-surface-2/50">
-              <td class="eyebrow px-5 py-2" colspan={data.channels.length + 1}>
+              <td class="eyebrow px-5 py-2" colspan={channels.length + 1}>
                 Delivery
               </td>
             </tr>
@@ -82,7 +112,7 @@
                   run's outcomes, into one message instead of one each.
                 </p>
               </td>
-              {#each data.channels as channel (channel.id)}
+              {#each channels as channel (channel.id)}
                 <td class="px-4 py-3 text-center">
                   <div class="flex justify-center">
                     <Checkbox
@@ -97,7 +127,7 @@
             </tr>
             {#each groups as group (group)}
               <tr class="bg-surface-2/50">
-                <td class="eyebrow px-5 py-2" colspan={data.channels.length + 1}>
+                <td class="eyebrow px-5 py-2" colspan={channels.length + 1}>
                   {group}
                 </td>
               </tr>
@@ -107,7 +137,7 @@
                     <p class="text-text font-medium">{info.label}</p>
                     <p class="text-text-subtle text-xs">{info.description}</p>
                   </td>
-                  {#each data.channels as channel (channel.id)}
+                  {#each channels as channel (channel.id)}
                     <td class="px-4 py-3 text-center">
                       <div class="flex justify-center">
                         <Checkbox
