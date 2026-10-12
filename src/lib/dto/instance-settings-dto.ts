@@ -25,6 +25,7 @@ import {
 	instanceSettings,
 	type OauthTokenAuthMethod,
 } from "#lib/server/db/schema.js";
+import type { CrowdsecCredentials } from "#lib/services/crowdsec.service.js";
 import type { NewtCredentials } from "#lib/services/docker/newt.js";
 import { decryptSecret, encryptSecret } from "#lib/services/secrets.js";
 import type { TracingColumns } from "#lib/tracing/settings.js";
@@ -286,6 +287,58 @@ export class InstanceSettingsDTO extends BaseDTO<InstanceSettings> {
 	/** Persists the IP ban settings. */
 	async updateIpBans(input: IpBanSettings): Promise<void> {
 		await this.persist({ ipBans: input });
+	}
+
+	/** The CrowdSec LAPI bans are pushed to, as the settings page shows it: never the password, only whether one is stored. */
+	get crowdsec(): {
+		machineId: string | null;
+		passwordSet: boolean;
+		url: string | null;
+	} {
+		return {
+			machineId: this.row.crowdsecMachineId,
+			passwordSet: Boolean(this.row.crowdsecPasswordEnc),
+			url: this.row.crowdsecUrl,
+		};
+	}
+
+	/** The CrowdSec LAPI URL, machine id and decrypted password, or null unless all three are stored. */
+	crowdsecCredentials(): CrowdsecCredentials | null {
+		const password = this.row.crowdsecPasswordEnc
+			? decryptSecret(this.row.crowdsecPasswordEnc)
+			: null;
+		return this.row.crowdsecUrl && this.row.crowdsecMachineId && password
+			? {
+					machineId: this.row.crowdsecMachineId,
+					password,
+					url: this.row.crowdsecUrl,
+				}
+			: null;
+	}
+
+	/**
+	 * Persists the CrowdSec LAPI URL and machine id and, when one was typed,
+	 * the re-encrypted password; a blank password keeps the stored one, and
+	 * null clears all three.
+	 */
+	async updateCrowdsec(
+		input: { machineId: string; password: string | null; url: string } | null,
+	): Promise<void> {
+		await this.persist(
+			input
+				? {
+						crowdsecMachineId: input.machineId,
+						crowdsecUrl: input.url,
+						...(input.password
+							? { crowdsecPasswordEnc: encryptSecret(input.password) }
+							: {}),
+					}
+				: {
+						crowdsecMachineId: null,
+						crowdsecPasswordEnc: null,
+						crowdsecUrl: null,
+					},
+		);
 	}
 
 	/** Persists the base domain and auth origin/cookie overrides. */

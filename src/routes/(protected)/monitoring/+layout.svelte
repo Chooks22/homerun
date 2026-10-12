@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { Activity, BarChart3, Settings2, ShieldBan } from "@lucide/svelte";
+	import {
+		Activity,
+		BarChart3,
+		Settings2,
+		ShieldBan,
+		ShieldCheck,
+	} from "@lucide/svelte";
 	import TabNav from "#lib/components/tab-nav.svelte";
 	import { can } from "#lib/permissions.js";
 	import { currentHref, visibleItems } from "#lib/ui-mode.js";
@@ -28,6 +34,12 @@
 						icon: ShieldBan,
 						id: "monitoring/blocked",
 						label: "Blocked IPs",
+					},
+					{
+						href: resolve("/(protected)/monitoring/crowdsec"),
+						icon: ShieldCheck,
+						id: "monitoring/crowdsec",
+						label: "CrowdSec",
 					},
 					{
 						href: resolve("/(protected)/monitoring/settings"),

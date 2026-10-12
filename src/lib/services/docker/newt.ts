@@ -30,6 +30,11 @@ export interface NewtCredentials {
 	secret: string;
 }
 
+export interface NewtEndpoint {
+	GlobalIPv6Address?: string;
+	IPAddress?: string;
+}
+
 export const NEWT_CONTAINER_NAME = "homerun-newt";
 export const NEWT_IMAGE = "fosrl/newt:latest";
 export const CORE_LABEL = "homerun.core";
@@ -110,4 +115,28 @@ export function newtSwarmServiceSpec(
 			RestartPolicy: { Condition: "any" },
 		},
 	};
+}
+
+/**
+ * The Traefik flag making `entrypoint` trust the `X-Forwarded-For` and
+ * `X-Real-Ip` the Newt container in `newt` sends, so a visitor behind
+ * Pangolin is seen (and banned) as themselves rather than as the tunnel.
+ * Only Newt's own addresses: trusting its whole network would trust Docker's
+ * gateway too, which is where docker-proxy hands over published-port traffic
+ * from outside, and anyone could then name their own address. Null while
+ * Newt has no address yet (a swarm task still starting).
+ */
+export function tunnelTrustFlags(
+	entrypoint: string,
+	newt: { NetworkSettings?: { Networks?: Record<string, NewtEndpoint> } },
+): Record<string, string> | null {
+	const addresses = Object.values(newt.NetworkSettings?.Networks ?? {})
+		.flatMap((endpoint) => [endpoint.IPAddress, endpoint.GlobalIPv6Address])
+		.filter((address): address is string => Boolean(address));
+	return addresses.length > 0
+		? {
+				[`entryPoints.${entrypoint}.forwardedHeaders.trustedIPs`]:
+					addresses.join(","),
+			}
+		: null;
 }

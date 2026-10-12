@@ -14,6 +14,7 @@ import {
 	shouldBan,
 } from "#lib/ip-bans.js";
 import { Logger } from "#lib/logger.js";
+import { CrowdsecService } from "./crowdsec.service.ts";
 import { dashboardHostFrom } from "./docker/dashboard.ts";
 import {
 	BLOCKED_PROOF_HEADER,
@@ -67,6 +68,7 @@ class IpBanServiceClass {
 				`Banned ${ip} after ${hits} blocked requests${host ? ` on ${host}` : ""}`,
 			);
 			await this.sync();
+			void CrowdsecService.ban(ip, settings.durationHours, reason);
 			NotificationChannelService.notify(
 				ipBanMessage(
 					{
@@ -82,11 +84,12 @@ class IpBanServiceClass {
 		}
 	}
 
-	/** Lifts the ban on `ip` and rewrites the bans file. Returns whether there was one. */
+	/** Lifts the ban on `ip`, rewrites the bans file and deletes the address's CrowdSec decisions. Returns whether there was a ban here. */
 	async unban(ip: string): Promise<boolean> {
 		const removed = await IpBanDTO.unban(ip);
 		if (removed) {
 			await this.sync();
+			void CrowdsecService.unban(ip);
 		}
 		return removed;
 	}

@@ -47,6 +47,7 @@ import { DockerCustomSslMixin } from "./docker/custom-ssl.ts";
 import { DockerGarageMixin } from "./docker/garage.ts";
 import { DockerImageScanMixin } from "./docker/image-scan.ts";
 import { DockerNetworkMixin } from "./docker/networks.ts";
+import { DockerNewtMixin } from "./docker/newt-tunnel.ts";
 import { DockerOneOffMixin } from "./docker/one-off.ts";
 import { DockerOtelMixin } from "./docker/otel.ts";
 import { DockerReconcileMixin } from "./docker/reconcile.ts";
@@ -56,7 +57,8 @@ import { DockerSwarmReplicasMixin } from "./docker/swarm-replicas.ts";
 import { DockerTerminalMixin } from "./docker/terminal.ts";
 
 // Merge order matters only where one concern calls another's methods via
-// `this` : containers before one-off (runOneOff calls this.pullImage). The
+// `this` : containers before one-off (runOneOff calls this.pullImage), core
+// services before the Newt tunnel (it calls this.applyTraefikFlags). The
 // rest have no cross-concern dependency, so their position is arbitrary.
 class DockerServiceClass extends DockerOtelMixin(
 	DockerGarageMixin(
@@ -65,13 +67,15 @@ class DockerServiceClass extends DockerOtelMixin(
 				DockerCleanupMixin(
 					DockerOneOffMixin(
 						DockerTerminalMixin(
-							DockerCoreServicesMixin(
-								DockerCustomSslMixin(
-									DockerReconcileMixin(
-										DockerSwarmReplicasMixin(
-											DockerSwarmMixin(
-												DockerContainerMixin(
-													DockerNetworkMixin(BaseDockerService),
+							DockerNewtMixin(
+								DockerCoreServicesMixin(
+									DockerCustomSslMixin(
+										DockerReconcileMixin(
+											DockerSwarmReplicasMixin(
+												DockerSwarmMixin(
+													DockerContainerMixin(
+														DockerNetworkMixin(BaseDockerService),
+													),
 												),
 											),
 										),

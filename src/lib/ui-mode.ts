@@ -44,6 +44,7 @@ const ADVANCED_ONLY: ReadonlySet<string> = new Set([
 	"/registry",
 	"/docker-cleanup",
 	"monitoring/traces",
+	"monitoring/crowdsec",
 	"monitoring/settings",
 	"service/environments/environments",
 	"service/environments/revisions",

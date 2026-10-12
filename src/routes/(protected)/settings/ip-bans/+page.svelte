@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ShieldBan } from "@lucide/svelte";
+	import { ShieldBan, ShieldCheck } from "@lucide/svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
 	import { labelClass as label } from "#lib/components/form-styles.js";
 	import PanelHeader from "#lib/components/panel-header.svelte";
@@ -12,6 +12,7 @@
 	const { data } = $props();
 
 	let saving = $state(false);
+	let savingCrowdsec = $state(false);
 	let enabled = $derived(data.ipBans.enabled);
 </script>
 
@@ -97,9 +98,77 @@
       </div>
       <p class="text-text-subtle text-xs">
         0 hours bans for good. The address is the one Traefik sees the request
-        come from: behind a proxy such as Pangolin or Cloudflare that's the
-        proxy, so private and loopback addresses and requests through
-        Cloudflare are never banned.
+        come from: behind Homerun's own Pangolin tunnel that's the visitor,
+        behind any other proxy such as Cloudflare it's the proxy, so private
+        and loopback addresses and requests through Cloudflare are never
+        banned.
+      </p>
+    </form>
+  </section>
+
+  <section class="panel rounded-md">
+    <PanelHeader
+      description="Also hands every ban to a CrowdSec Local API as a decision, so its bouncers (the firewall on a Pangolin server) drop the address before it reaches this host. Unbanning here deletes the address's decisions there too."
+      icon={ShieldCheck}
+      title="CrowdSec"
+    >
+      {#snippet trailing()}
+        <SaveButton form="crowdsec-settings" pending={savingCrowdsec} />
+      {/snippet}
+    </PanelHeader>
+    <form
+      id="crowdsec-settings"
+      action="?/updateCrowdsec"
+      class="space-y-4 p-5"
+      method="POST"
+      use:enhance={enhanceToast({
+        error: "Couldn't save the CrowdSec settings.",
+        loading: "Checking the CrowdSec login",
+        onSettled: () => {
+          savingCrowdsec = false;
+        },
+        onStart: () => {
+          savingCrowdsec = true;
+        },
+        success: "CrowdSec settings saved.",
+      })}
+    >
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label class={label} for="crowdsecUrl">LAPI URL</label>
+          <Input
+            id="crowdsecUrl"
+            name="crowdsecUrl"
+            placeholder="https://crowdsec.example.com"
+            type="url"
+            value={data.crowdsec.url ?? ""}
+          />
+        </div>
+        <div>
+          <label class={label} for="crowdsecMachineId">Machine id</label>
+          <Input
+            id="crowdsecMachineId"
+            name="crowdsecMachineId"
+            placeholder="homerun"
+            value={data.crowdsec.machineId ?? ""}
+          />
+        </div>
+        <div>
+          <label class={label} for="crowdsecPassword">Machine password</label>
+          <Input
+            id="crowdsecPassword"
+            autocomplete="new-password"
+            name="crowdsecPassword"
+            placeholder={data.crowdsec.passwordSet ? "Unchanged" : ""}
+            type="password"
+          />
+        </div>
+      </div>
+      <p class="text-text-subtle text-xs">
+        Register a machine on the CrowdSec host with
+        <code>cscli machines add homerun --password &lt;password&gt;</code>; a
+        bouncer key can't add decisions. Saving logs in first and refuses
+        credentials that don't work. Clear the URL to stop pushing.
       </p>
     </form>
   </section>

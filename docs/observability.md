@@ -52,8 +52,10 @@ so the peak is the stack's real peak rather than the sum of each service's.
 host's own CPU and memory instead of the sum of the services'. Both add a **By
 service** table, busiest first, that links to each service's own monitoring. The
 sidebar's Monitoring page also has a **Traces** tab, the traces of Homerun's own
-background jobs, and for admins a **Settings** tab for the OpenTelemetry
-collector (see [Tracing](tracing.md)).
+background jobs, and for admins a **Blocked IPs** tab (see
+[Blocked paths and IP bans](blocked-paths-and-ip-bans.md)), a **CrowdSec** tab
+(see [CrowdSec](blocked-paths-and-ip-bans.md#crowdsec)) and a **Settings** tab
+for the OpenTelemetry collector (see [Tracing](tracing.md)).
 
 ![A stack's Monitoring tab, with its By service table](images/stack-monitoring.webp)
 

@@ -12,6 +12,9 @@ const {
 	infraContainersFrom,
 	missingTraefikFlags,
 } = await import("../../../src/lib/services/docker/core-services");
+const { tunnelTrustFlags } = await import(
+	"../../../src/lib/services/docker/newt"
+);
 
 const METRICS = [
 	"--entrypoints.metrics.address=:8082",
@@ -191,5 +194,35 @@ describe("applyFlags on a Traefik that already has them", () => {
 		expect(
 			applyFlags(["--a=1", "--b=2", "--c=3"], { b: "9", d: "4", a: null }),
 		).toEqual(["--b=9", "--c=3", "--d=4"]);
+	});
+});
+
+describe("tunnel trust", () => {
+	const newt = (networks: Record<string, Record<string, string>>) => ({
+		Config: { Image: "fosrl/newt:latest" },
+		HostConfig: {},
+		Id: "newt",
+		Image: "sha256:newt",
+		NetworkSettings: { Networks: networks },
+		State: { Running: true },
+	});
+
+	test("trusts Newt's own addresses on the entrypoint, never its whole network", () => {
+		expect(
+			tunnelTrustFlags(
+				"websecure",
+				newt({
+					homerun: { GlobalIPv6Address: "fd00::5", IPAddress: "172.18.0.5" },
+				}),
+			),
+		).toEqual({
+			"entryPoints.websecure.forwardedHeaders.trustedIPs": "172.18.0.5,fd00::5",
+		});
+	});
+
+	test("a Newt with no address yet changes nothing", () => {
+		expect(
+			tunnelTrustFlags("websecure", newt({ homerun: { IPAddress: "" } })),
+		).toBeNull();
 	});
 });

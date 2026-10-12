@@ -1294,26 +1294,49 @@ and a `headers` middleware setting `X-Homerun-Blocked` to
 `homerun-error-pages.yml`, which only Traefik reads; `validBlockedProof`
 compares in constant time. Without it anyone reaching the app directly (its
 published port, the dashboard host) could forge `X-Forwarded-For` and get any
-address banned. With it, the address is the last `X-Forwarded-For` hop, not the
-first: Traefik's `ClientIP` matcher only looks at the connection's remote
-address, never XFF, and Traefik appends exactly that peer to XFF. Nothing is
-inserted for a request that can't lead to a ban (no proof, bans off, an address
-`bannableIp` refuses, one already banned), so `blocked_hit` rows per address are
-capped by the threshold. `bannableIp` refuses private, loopback, link-local,
-CGNAT, multicast and unspecified ranges (a Pangolin tunnel or Docker network)
-and Cloudflare's published edge ranges (`CLOUDFLARE_RANGES`, banning an edge
-bans everyone behind it; never trust `CF-Connecting-IP`, a client can send it).
-A ban is an `ip_ban` row; `IpBanService.sync()` rewrites `homerun-bans.yml`
-(JSON) with one router, `ClientIP(a) || …` minus the dashboard host, priority
-2e9 (under Traefik's 32-bit max), `ipAllowList` deny, `noop@internal`, removed
-when nobody is banned. `IpBanScheduler` lifts expired bans and drops hits older
-than a day every minute; boot and settings saves resync. Settings live in
+address banned. With it, the address is Traefik's `X-Real-Ip`, else the last
+`X-Forwarded-For` hop: Traefik strips both headers from an untrusted peer and
+sets `X-Real-Ip` to that peer, so it's the remote address `ClientIP` matches,
+except behind Homerun's own Newt. `syncNewt` sets
+`--entryPoints.<entrypoint>.forwardedHeaders.trustedIPs` to Newt's container
+addresses (`tunnelTrustFlags`), so Pangolin's `X-Real-Ip` (the visitor) survives
+and the bans router matches `Header(X-Real-Ip, a)` too. Never trust Newt's whole
+network: Docker's gateway is in it, and docker-proxy hands IPv6 visitors of a
+published port over from the gateway, so anyone could name their own address.
+Newt's address can change (a swarm task restarting); the trust is reapplied on
+every `syncNewt` (worker boot, settings save), and a stale one only means the
+tunnel is counted, never banned. Nothing is inserted for a request that can't
+lead to a ban (no proof, bans off, an address `bannableIp` refuses, one already
+banned), so `blocked_hit` rows per address are capped by the threshold.
+`bannableIp` refuses private, loopback, link-local, CGNAT, multicast and
+unspecified ranges (a Pangolin tunnel or Docker network) and Cloudflare's
+published edge ranges (`CLOUDFLARE_RANGES`, banning an edge bans everyone behind
+it; never trust `CF-Connecting-IP`, a client can send it). A ban is an `ip_ban`
+row; `IpBanService.sync()` rewrites `homerun-bans.yml` (JSON) with one router,
+`ClientIP(a) || …` minus the dashboard host, priority 2e9 (under Traefik's
+32-bit max), `ipAllowList` deny, `noop@internal`, removed when nobody is banned.
+`IpBanScheduler` lifts expired bans and drops hits older than a day every
+minute; boot and settings saves resync. Settings live in
 `instance_settings.ip_bans` (`withIpBanDefaults`, on, 10 hits / 10 min / 24 h),
 edited under Settings → IP bans; the bans (with Unban) and the addresses being
 counted (`BlockedHitDTO.addressesSince`, grouped per address over the window)
 are on Monitoring → Blocked IPs. A new ban dispatches the `security.ip_banned`
-channel event (`ipBanMessage`), off by default per channel. Not verified against
-a live Traefik.
+channel event (`ipBanMessage`), off by default per channel. With
+`instance_settings.crowdsec_url`/`crowdsec_machine_id`/`crowdsec_password_enc`
+set (Settings → IP bans), `CrowdsecService` also posts each ban to that LAPI as
+an alert carrying one `ban` decision shaped like `cscli decisions add`'s (origin
+`cscli`, so every bouncer applies it; a ban for good is 87600h), and Unban sends
+`DELETE /v1/decisions?ip=`, which drops CrowdSec's own decisions on it too. It
+logs in as a machine (`/v1/watchers/login`, JWT cached until `expire`): bouncer
+keys are read-only. Saving logs in first and refuses dead credentials. Expiry is
+left to CrowdSec. Monitoring → CrowdSec (`monitoring/crowdsec`, `new/`) reads
+the LAPI live from a streamed `load`: a machine can't `GET /v1/decisions`
+(bouncer only), so active decisions come from
+`GET /v1/alerts?has_active_decision=true`, flattened by `decisionsFrom` (time
+left is a Go duration, `goDurationMs`; simulated and expired ones dropped; CAPI
+is excluded by the LAPI's default); Delete is `DELETE /v1/decisions/{id}`, New
+decision posts `banAlert`. `ban`/`unban` log failures (`#push`), the page calls
+throw. Not verified against a live Traefik.
 
 ## Build servers (`remote_host` table, `RemoteHostDTO`, `/remote-hosts`)
 

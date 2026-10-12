@@ -59,12 +59,20 @@ describe("IP ban settings", () => {
 });
 
 describe("client address", () => {
-	test("is the last X-Forwarded-For hop, the peer Traefik saw", () => {
+	test("is Traefik's X-Real-Ip, else the last X-Forwarded-For hop", () => {
 		expect(
 			clientIpFrom(
 				new Headers({ "x-forwarded-for": "198.51.100.7, 203.0.113.9" }),
 			),
 		).toBe("203.0.113.9");
+		expect(
+			clientIpFrom(
+				new Headers({
+					"x-forwarded-for": "198.51.100.7, 172.18.0.5",
+					"x-real-ip": "198.51.100.7",
+				}),
+			),
+		).toBe("198.51.100.7");
 		expect(clientIpFrom(new Headers({ "x-real-ip": "203.0.113.9" }))).toBe(
 			"203.0.113.9",
 		);
@@ -183,7 +191,7 @@ describe("bans file", () => {
 			entryPoints: ["websecure"],
 			middlewares: ["homerun-banned"],
 			priority: BANS_ROUTER_PRIORITY,
-			rule: "(ClientIP(`203.0.113.9`) || ClientIP(`2001:db8::1`)) && !Host(`homerun.example.org`)",
+			rule: "(ClientIP(`203.0.113.9`) || Header(`X-Real-Ip`, `203.0.113.9`) || ClientIP(`2001:db8::1`) || Header(`X-Real-Ip`, `2001:db8::1`)) && !Host(`homerun.example.org`)",
 			service: "noop@internal",
 			tls: {},
 		});
@@ -200,7 +208,7 @@ describe("bans file", () => {
 			}) ?? "",
 		);
 		expect(config.http.routers["homerun-banned"].rule).toBe(
-			"ClientIP(`203.0.113.9`)",
+			"ClientIP(`203.0.113.9`) || Header(`X-Real-Ip`, `203.0.113.9`)",
 		);
 	});
 });

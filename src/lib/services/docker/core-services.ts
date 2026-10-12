@@ -17,14 +17,7 @@ import {
 	dashboardRouterPlan,
 } from "./dashboard.ts";
 import { MANAGED_LABEL } from "./labels.ts";
-import {
-	CORE_HASH_LABEL,
-	CORE_LABEL,
-	NEWT_CONTAINER_NAME,
-	type NewtCredentials,
-	newtContainerSpec,
-	newtSwarmServiceSpec,
-} from "./newt.ts";
+import { CORE_LABEL, type NewtEndpoint } from "./newt.ts";
 import { SWARM_REFRESH_SECONDS, swarmNetworkName } from "./swarm.ts";
 import {
 	TRAEFIK_METRICS_COMMAND,
@@ -231,14 +224,8 @@ interface RequiresSwarmMixin {
 	pullImage: (params: { image: string; tag: string }) => Promise<unknown>;
 }
 
-/** A swarm service inspect, as much of it as the Newt sync reads. */
-interface InspectedSwarmService {
-	ID: string;
-	Spec: { Labels?: Record<string, string> };
-}
-
 /** One row of the worker's container listing, as much of it as this file reads. */
-interface ListedContainer {
+export interface ListedContainer {
 	HostConfig?: { NetworkMode?: string };
 	Id: string;
 	Image: string;
@@ -249,7 +236,7 @@ interface ListedContainer {
 }
 
 /** A container inspect body, as much of it as this file reads. */
-interface InspectedContainer {
+export interface InspectedContainer {
 	Config: {
 		Cmd?: string[];
 		Image: string;
@@ -262,7 +249,7 @@ interface InspectedContainer {
 	NetworkSettings?: {
 		Networks?: Record<
 			string,
-			{ Aliases?: string[] | null; IPAMConfig?: unknown; IPAddress?: string }
+			{ Aliases?: string[] | null; IPAMConfig?: unknown } & NewtEndpoint
 		>;
 	};
 	State: { Running: boolean };
@@ -272,7 +259,7 @@ interface InspectedContainer {
  * Splits an image reference into the image and tag `pullImage` wants. A
  * reference with no tag pulls "latest", the same default the daemon applies.
  */
-function splitImageRef(ref: string): { image: string; tag: string } {
+export function splitImageRef(ref: string): { image: string; tag: string } {
 	const separator = ref.lastIndexOf(":");
 	const slash = ref.lastIndexOf("/");
 	if (separator === -1 || separator < slash) {
@@ -511,154 +498,6 @@ export function DockerCoreServicesMixin<
 				containers,
 				self?.labels["com.docker.compose.project"] ?? null,
 			);
-		}
-
-		/**
-		 * Whether a Pangolin tunnel client is already running on this host, so
-		 * the Pangolin settings can say "the tunnel is up" rather than leaving
-		 * the operator to guess why Resources resolve but nothing answers.
-		 * Matched on the image name, same shape as findTraefikContainer.
-		 */
-		async findNewtContainer(): Promise<InfraContainer | null> {
-			const containers = await this.worker.get<ListedContainer[]>(
-				"/v1/containers",
-				{ all: "1" },
-			);
-			const match =
-				containers.find(
-					(container) => container.Labels?.[CORE_LABEL] === "newt",
-				) ?? containers.find((container) => container.Image.includes("newt"));
-			if (!match) {
-				return null;
-			}
-			return {
-				id: match.Id,
-				image: match.Image,
-				name:
-					match.Names[0]?.replace(LEADING_SLASH_RE, "") ??
-					match.Id.slice(0, 12),
-				project: match.Labels?.["com.docker.compose.project"] ?? "",
-				service:
-					match.Labels?.["com.docker.compose.service"] ??
-					match.Labels?.[CORE_LABEL] ??
-					"",
-				state: match.State,
-			};
-		}
-
-		/**
-		 * Converges Homerun's own Newt tunnel onto `credentials`: a plain
-		 * container on the shared network in standalone mode, a one-replica
-		 * swarm service on the swarm overlay in swarm mode, removing whichever
-		 * of the two the current mode doesn't use first. Each is left alone
-		 * when it was created from the same spec and recreated otherwise;
-		 * null credentials remove both. It's core infrastructure, never a
-		 * service, so it carries the core label rather than the managed one.
-		 * Failures are logged, not thrown.
-		 */
-		async syncNewt(
-			credentials: NewtCredentials | null,
-			swarm: boolean,
-		): Promise<void> {
-			try {
-				if (swarm) {
-					await this.#convergeNewtContainer(null);
-					await this.#convergeNewtService(credentials);
-				} else {
-					await this.#convergeNewtService(null);
-					await this.#convergeNewtContainer(credentials);
-				}
-			} catch (err) {
-				logger.warn("Couldn't sync the Newt tunnel", err);
-			}
-		}
-
-		/** Converges the swarm-mode Newt service, removing it for null credentials. Throws on any Docker failure. */
-		async #convergeNewtService(
-			credentials: NewtCredentials | null,
-		): Promise<void> {
-			const existing = await this.worker
-				.get<InspectedSwarmService>(`/v1/swarm/services/${NEWT_CONTAINER_NAME}`)
-				.catch(() => null);
-
-			if (!credentials) {
-				if (existing) {
-					await this.removeSwarmService(existing.ID);
-					logger.info("Newt swarm service removed");
-				}
-				return;
-			}
-
-			const network = swarmNetworkName();
-			await this.ensureSwarmNetwork(network);
-			const info = await this.worker.get<{ Swarm?: { NodeID?: string } }>(
-				"/v1/info",
-			);
-			const nodeId = info.Swarm?.NodeID;
-			if (!nodeId) {
-				throw new Error("This host isn't a swarm node.");
-			}
-			const spec = newtSwarmServiceSpec(credentials, network, nodeId);
-			if (
-				existing?.Spec.Labels?.[CORE_HASH_LABEL] ===
-				spec.Labels[CORE_HASH_LABEL]
-			) {
-				return;
-			}
-			if (existing) {
-				await this.removeSwarmService(existing.ID);
-			}
-			await this.worker.post("/v1/swarm/services", spec);
-			logger.info("Newt swarm service created");
-		}
-
-		/** Converges the standalone Newt container, removing it for null credentials. Throws on any Docker failure. */
-		async #convergeNewtContainer(
-			credentials: NewtCredentials | null,
-		): Promise<void> {
-			const existing = await this.worker
-				.get<InspectedContainer>(
-					`/v1/containers/${NEWT_CONTAINER_NAME}/inspect`,
-				)
-				.catch(() => null);
-
-			if (!credentials) {
-				if (existing) {
-					await this.worker.delete(`/v1/containers/${existing.Id}`, {
-						force: "1",
-					});
-					logger.info("Newt container removed");
-				}
-				return;
-			}
-
-			await this.ensureSharedNetwork();
-			const spec = newtContainerSpec(credentials, config.docker.networkName);
-			if (
-				existing &&
-				existing.Config.Labels?.[CORE_HASH_LABEL] ===
-					spec.Labels?.[CORE_HASH_LABEL]
-			) {
-				if (!existing.State.Running) {
-					await this.worker.post(`/v1/containers/${NEWT_CONTAINER_NAME}/start`);
-					logger.info("Newt container started");
-				}
-				return;
-			}
-
-			await this.pullImage(splitImageRef(spec.Image ?? ""));
-			if (existing) {
-				await this.worker.delete(`/v1/containers/${existing.Id}`, {
-					force: "1",
-				});
-			}
-			const { name, ...body } = spec;
-			const created = await this.worker.post<{ id: string }>("/v1/containers", {
-				body,
-				name,
-			});
-			await this.worker.post(`/v1/containers/${created.id}/start`);
-			logger.info("Newt container created");
 		}
 
 		/**

@@ -76,19 +76,20 @@ export function normalizeIp(ip: string | null | undefined): string | null {
 }
 
 /**
- * The address Traefik saw the request come from, which is what its
- * `ClientIP` matcher compares a ban against: the last `X-Forwarded-For` hop
- * (Traefik appends its own peer to the list), else `X-Real-Ip`. Only
- * meaningful for a request known to have come through Traefik (anyone
- * reaching the app directly can write these headers), and behind another
- * proxy (Cloudflare, Pangolin) it's the proxy, not the visitor.
+ * The client address Traefik settled on, which the bans router matches on:
+ * its `X-Real-Ip`, which it sets to the peer it saw unless that peer is a
+ * trusted proxy (Homerun's own Newt tunnel, see `tunnelTrustFlags`) that
+ * already named the visitor, else the last `X-Forwarded-For` hop. Only
+ * meaningful for a request known to have come through Traefik, since anyone
+ * reaching the app directly can write these headers; behind an untrusted
+ * proxy (Cloudflare) it's the proxy, not the visitor.
  */
 export function clientIpFrom(headers: Headers): string | null {
 	const forwarded = (headers.get("x-forwarded-for") ?? "")
 		.split(",")
 		.map((hop) => hop.trim())
 		.filter(Boolean);
-	return normalizeIp(forwarded.at(-1) ?? headers.get("x-real-ip"));
+	return normalizeIp(headers.get("x-real-ip") ?? forwarded.at(-1));
 }
 
 export const CLOUDFLARE_RANGES = [
@@ -217,7 +218,7 @@ export function banExpiry(settings: IpBanSettings, now: Date): Date | null {
 		: new Date(now.getTime() + settings.durationHours * 3_600_000);
 }
 
-/** The Traefik dynamic config enforcing `ips` as bans, or null when there's nothing to ban. */
+/** The Traefik dynamic config enforcing `ips` as bans, on the peer address or the visitor a trusted proxy named, or null when there's nothing to ban. */
 export function bansConfig(
 	ips: string[],
 	options: { dashboardHost: string | null; entrypoint: string },
@@ -225,7 +226,9 @@ export function bansConfig(
 	if (ips.length === 0) {
 		return null;
 	}
-	const clients = ips.map((ip) => `ClientIP(\`${ip}\`)`).join(" || ");
+	const clients = ips
+		.map((ip) => `ClientIP(\`${ip}\`) || Header(\`X-Real-Ip\`, \`${ip}\`)`)
+		.join(" || ");
 	const rule = options.dashboardHost
 		? `(${clients}) && !Host(\`${options.dashboardHost}\`)`
 		: clients;
