@@ -282,6 +282,28 @@ path must be writable by the image's user (Renovate's image runs as non-root, so
 per-variable limit). `FilesScript` is exercised under a real `/bin/sh` in
 `tests/unit/go/internal/dockerapi/files_test.go`.
 
+**Container options** (image and script kinds, all dropped for exec):
+`cron_job.runAsUser` (Docker `User`, same `isRunAsUser` check as services),
+`cron_job.mounts` (`{ volumeId, containerPath, readOnly }[]`, jsonb rather than
+a join table, resolved to `Binds` from each storage volume's `source` in
+`prepareRun`, which fails the run when a volume is gone or the job targets a
+`"docker"` build server, where the volume doesn't exist),
+`cron_job.dockerSocket` and a per-file `mode` (`chmod` right after the `printf`
+in `FilesScript`). The socket is a toggle rather than a bind volume because a
+non-root user (Renovate runs as 12021) can't use it without the socket's group:
+`cronjob.go`'s `withSocket` binds `job.DockerSocket` (a remote host's default
+path) at `/var/run/docker.sock` and, locally, adds the socket file's gid to
+`GroupAdd`. It's root on the host, so `cronJobNeedsHostAccess` (exec **or** the
+socket) gates create, edit, run and delete exactly like a host command
+(`manageableCronJob` in `cron-job-form.ts` for every route action).
+
+**One route per tab**: `[cronJobId]/` is Runs (with the `runNow` action the
+layout's header button posts to), `configuration/` and `settings/` (plus
+`delete`). Each tab's form only carries its own fields, so `parseCronJobSection`
+overlays them on the stored row (`SECTION_FIELDS`, a missing checkbox is off)
+and runs the whole job through `parseCronJobInput` again, the same way the API's
+`PATCH` merges a partial body.
+
 A job with its schedule off is a manual task: **Run now** on its page, or
 `POST /api/v1/cron-jobs/{cronJobId}/run` (202 with the queue job id, same
 `enqueueCronJobRun` dedupe as the button).

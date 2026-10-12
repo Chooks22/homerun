@@ -207,9 +207,10 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
 - **[REST API & OpenAPI](docs/api-and-cli.md)**: everything in the dashboard is
   also a typed JSON API (`/api/v1`), authenticated by session or API key, with a
   live Swagger UI
-- **[MCP server](docs/api-and-cli.md#mcp-server-for-ai-agents)**: let Claude or
-  any MCP agent diagnose and fix your services; claude.ai signs in through an
-  OAuth client you register on the IDP page, Claude Code uses an API key instead
+- **[MCP server](docs/mcp.md)**: let Claude or any MCP agent diagnose and fix
+  your services; an agent that supports Client ID Metadata Documents only needs
+  the URL, others sign in through a client you register on the IDP page, and
+  Claude Code uses an API key
 - **[The `homerun` CLI](cmd/cli/README.md)**: a small (~6MB) standalone Go
   binary, logs in through a device-code flow and updates itself
 

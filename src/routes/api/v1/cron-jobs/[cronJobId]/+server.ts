@@ -1,3 +1,4 @@
+import { cronJobNeedsHostAccess } from "#lib/cron-job-script.js";
 import { CronJobDTO } from "#lib/dto/cron-job-dto.js";
 import { can } from "#lib/permissions.js";
 import { cronJobApiJson } from "#lib/server/api-json.js";
@@ -5,14 +6,17 @@ import { apiCaller, apiError, readApiBody } from "#lib/server/api-route.js";
 import { parseCronJobInput } from "#lib/server/cron-job-form.js";
 import { updateCronJobApiBody } from "#lib/server/validation/api-resources.js";
 
-/** The cron job, or the response refusing the caller: missing, or a host command job without host access. */
+/** The cron job, or the response refusing the caller: missing, or a host command or Docker socket job without host access. */
 async function ownJob(id: string, hostAccess: boolean) {
 	const job = await CronJobDTO.get(id);
 	if (!job) {
 		return apiError("Not found", 404);
 	}
-	return job.kind === "exec" && !hostAccess
-		? apiError("Managing a host command job needs write access to System.", 403)
+	return cronJobNeedsHostAccess(job) && !hostAccess
+		? apiError(
+				"Managing a host command or Docker socket job needs write access to System.",
+				403,
+			)
 		: job;
 }
 
@@ -41,10 +45,11 @@ export const PATCH = async ({ locals, params, request }) => {
 	if ("response" in body) {
 		return body.response;
 	}
-	const { envVars, files, ...fields } = body.data;
+	const { envVars, files, mounts, ...fields } = body.data;
 	const {
 		envVars: currentEnv,
 		files: currentFiles,
+		mounts: currentMounts,
 		registryPasswordEnc: _password,
 		...current
 	} = job.toJSON();
@@ -54,8 +59,11 @@ export const PATCH = async ({ locals, params, request }) => {
 				([, value]) => value !== null,
 			),
 		),
-		envVars ?? currentEnv ?? {},
-		files ?? currentFiles,
+		{
+			envVars: envVars ?? currentEnv ?? {},
+			files: files ?? currentFiles,
+			mounts: mounts ?? currentMounts,
+		},
 		{ hostAccess },
 	);
 	if ("error" in result) {

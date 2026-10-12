@@ -8,6 +8,7 @@ import {
 import type { CronJobDTO } from "#lib/dto/cron-job-dto.js";
 import { CronJobRunDTO } from "#lib/dto/cron-job-run-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
+import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
 import {
 	HOST_COMMAND_IMAGE,
@@ -25,7 +26,9 @@ const CRON_JOB_LABEL = "homerun.cronjob.id";
 /** What the Go worker's cron_job executor runs, see `internal/jobs/cronjob`'s `Spec`. */
 export interface CronJobRunSpec extends Record<string, unknown> {
 	auth: RegistryAuth | null;
+	binds: string[];
 	cmd: string[] | null;
+	dockerSocket: boolean;
 	env: string[];
 	files: CronJobFile[];
 	image: string;
@@ -40,6 +43,7 @@ export interface CronJobRunSpec extends Record<string, unknown> {
 	} | null;
 	runId: string;
 	timeoutSeconds: number;
+	user: string | null;
 	workingDir: string | null;
 }
 
@@ -93,13 +97,34 @@ function envList(envVars: Record<string, string>): string[] {
 	return Object.entries(envVars).map(([key, value]) => `${key}=${value}`);
 }
 
+/**
+ * Docker `Binds` entries for `job`'s volumes, each storage volume's source at
+ * its container path.
+ *
+ * @throws When a mounted volume no longer exists.
+ */
+async function bindsFor(job: CronJobDTO): Promise<string[]> {
+	return await Promise.all(
+		job.mounts.map(async (mount) => {
+			const volume = await StorageVolumeDTO.get(mount.volumeId);
+			if (!volume) {
+				throw new Error(
+					`The volume mounted at ${mount.containerPath} no longer exists.`,
+				);
+			}
+			return `${volume.source}:${mount.containerPath}${mount.readOnly ? ":ro" : ""}`;
+		}),
+	);
+}
+
 class CronJobServiceClass {
 	/**
 	 * Resolves what the Go worker runs for `job` : the image (a script's
 	 * runtime image, or the privileged `nsenter` host-command helper), command,
-	 * env, config files, registry auth and, for a container on a Docker-socket
-	 * build server, its connection. Throws for a job with no image, no source,
-	 * no command, or an agent host.
+	 * env, config files, volumes, user, Docker socket, registry auth and, for a
+	 * container on a Docker-socket build server, its connection. Throws for a
+	 * job with no image, no source, no command, an agent host, volumes on a
+	 * remote host, or a volume that's gone.
 	 */
 	async #specFor(job: CronJobDTO, runId: string): Promise<CronJobRunSpec> {
 		const labels = { [CRON_JOB_LABEL]: job.id, [MANAGED_LABEL]: "true" };
@@ -110,7 +135,9 @@ class CronJobServiceClass {
 			}
 			return {
 				auth: null,
+				binds: [],
 				cmd: hostCommandArgs(job.command),
+				dockerSocket: false,
 				env,
 				files: [],
 				image: `${HOST_COMMAND_IMAGE}:${HOST_COMMAND_TAG}`,
@@ -120,6 +147,7 @@ class CronJobServiceClass {
 				remote: null,
 				runId,
 				timeoutSeconds: job.timeoutSeconds,
+				user: null,
 				workingDir: null,
 			};
 		}
@@ -130,8 +158,15 @@ class CronJobServiceClass {
 				"This cron job's host is a Homerun Agent, which has no one-off run endpoint : pick a Docker-socket host, or this one.",
 			);
 		}
+		if (target.kind === "docker" && job.mounts.length > 0) {
+			throw new Error(
+				"Volumes live on this host : a job running on another host can't mount them.",
+			);
+		}
 		return {
 			...container,
+			binds: await bindsFor(job),
+			dockerSocket: job.dockerSocket,
 			env,
 			labels,
 			pidMode: null,
@@ -147,6 +182,7 @@ class CronJobServiceClass {
 					: null,
 			runId,
 			timeoutSeconds: job.timeoutSeconds,
+			user: job.runAsUser,
 		};
 	}
 

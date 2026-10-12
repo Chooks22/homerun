@@ -968,8 +968,53 @@
 							"name": "content",
 							"tf": "content",
 							"required": true
+						},
+						{
+							"kind": "string",
+							"name": "mode",
+							"tf": "mode",
+							"description": "Octal permissions set after writing it, like 600."
 						}
 					]
+				},
+				{
+					"kind": "objects",
+					"name": "mounts",
+					"tf": "mounts",
+					"description": "Storage volumes mounted into the container, on this host only.",
+					"fields": [
+						{
+							"kind": "string",
+							"name": "volumeId",
+							"tf": "volume_id",
+							"required": true
+						},
+						{
+							"kind": "string",
+							"name": "containerPath",
+							"tf": "container_path",
+							"required": true
+						},
+						{
+							"kind": "bool",
+							"name": "readOnly",
+							"tf": "read_only",
+							"default": false
+						}
+					]
+				},
+				{
+					"kind": "string",
+					"name": "runAsUser",
+					"tf": "run_as_user",
+					"description": "Docker User (uid, uid:gid, name or name:group), unset keeps the image's."
+				},
+				{
+					"kind": "bool",
+					"name": "dockerSocket",
+					"tf": "docker_socket",
+					"default": false,
+					"description": "Mount the Docker socket at /var/run/docker.sock, needs write access to System."
 				},
 				{
 					"kind": "string",

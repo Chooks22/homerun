@@ -3,6 +3,7 @@ import {
 	CRON_JOB_KINDS,
 	type CronJobFile,
 	type CronJobKind,
+	type CronJobMount,
 	type ScriptRuntime,
 } from "#lib/cron-job-script.js";
 import { db } from "#lib/server/db/lib.js";
@@ -18,16 +19,19 @@ import { BaseDTO } from "./base-dto";
 export interface NewCronJobInput {
 	command?: string | null;
 	description?: string | null;
+	dockerSocket?: boolean;
 	enabled: boolean;
 	envVars: Record<string, string>;
 	files?: CronJobFile[];
 	image?: string | null;
 	kind: CronJobKind;
+	mounts?: CronJobMount[];
 	name: string;
 	registryPasswordEnc?: string | null;
 	registryUrl?: string | null;
 	registryUsername?: string | null;
 	remoteHostId?: string | null;
+	runAsUser?: string | null;
 	runtime?: ScriptRuntime | null;
 	schedule: string;
 	source?: string | null;
@@ -41,17 +45,20 @@ export type CronJobUpdateInput = Partial<
 		CronJob,
 		| "command"
 		| "description"
+		| "dockerSocket"
 		| "enabled"
 		| "envVars"
 		| "files"
 		| "image"
 		| "kind"
 		| "lastRunAt"
+		| "mounts"
 		| "name"
 		| "registryPasswordEnc"
 		| "registryUrl"
 		| "registryUsername"
 		| "remoteHostId"
+		| "runAsUser"
 		| "runtime"
 		| "schedule"
 		| "source"
@@ -189,6 +196,7 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 			command: input.command ?? null,
 			createdAt: now,
 			description: input.description ?? null,
+			dockerSocket: input.dockerSocket ?? false,
 			enabled: input.enabled,
 			envVars: input.envVars,
 			files: input.files ?? [],
@@ -196,11 +204,13 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 			image: input.image ?? null,
 			kind: input.kind,
 			lastRunAt: null,
+			mounts: input.mounts ?? [],
 			name: input.name,
 			registryPasswordEnc: input.registryPasswordEnc ?? null,
 			registryUrl: input.registryUrl ?? null,
 			registryUsername: input.registryUsername ?? null,
 			remoteHostId: input.remoteHostId ?? null,
+			runAsUser: input.runAsUser ?? null,
 			runtime: input.runtime ?? null,
 			schedule: input.schedule,
 			source: input.source ?? null,
@@ -279,6 +289,18 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 	/** The config files written into the job's container before it starts. */
 	get files(): CronJobFile[] {
 		return this.row.files;
+	}
+	/** The storage volumes mounted into the job's container. */
+	get mounts(): CronJobMount[] {
+		return this.row.mounts;
+	}
+	/** The user the job's container runs as, null for the image's own. */
+	get runAsUser(): string | null {
+		return this.row.runAsUser;
+	}
+	/** Whether the job's container gets the Docker socket. */
+	get dockerSocket(): boolean {
+		return this.row.dockerSocket;
 	}
 	/** The runtime a script-kind job's source runs on, null for other kinds. */
 	get runtime(): ScriptRuntime | null {

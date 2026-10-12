@@ -56,8 +56,17 @@ export const SCRIPT_RUNTIME_SPECS: Record<ScriptRuntime, ScriptRuntimeSpec> = {
 
 export interface CronJobFile {
 	content: string;
+	mode?: string;
 	path: string;
 }
+
+export interface CronJobMount {
+	containerPath: string;
+	readOnly: boolean;
+	volumeId: string;
+}
+
+const FILE_MODE_RE = /^[0-7]{3,4}$/;
 
 export const MAX_CRON_JOB_FILES = 20;
 
@@ -94,6 +103,21 @@ export function invalidFilePath(path: string): string | null {
 		return `"${path}" has an empty, "." or ".." segment.`;
 	}
 	return null;
+}
+
+/** Why `mode` can't be a config file's permissions, or null when it can : three or four octal digits. */
+export function invalidFileMode(mode: string): string | null {
+	return FILE_MODE_RE.test(mode)
+		? null
+		: `"${mode}" isn't an octal file mode like 600 or 0644.`;
+}
+
+/** Whether managing `job` needs write access to System : a host command, or a container given the Docker socket. */
+export function cronJobNeedsHostAccess(job: {
+	dockerSocket: boolean;
+	kind: CronJobKind;
+}): boolean {
+	return job.kind === "exec" || job.dockerSocket;
 }
 
 /** What a job runs, for a list row or a page subtitle. */

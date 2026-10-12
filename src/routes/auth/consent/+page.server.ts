@@ -14,6 +14,9 @@ export const load = async ({ locals, url }) => {
 	}
 	return {
 		appName: app.name,
+		discoveredFrom: clientId?.startsWith("https://")
+			? new URL(clientId).host
+			: null,
 		scopes: describeScopes(url.searchParams.get("scope")),
 		signedInAs: locals.user.email,
 	};

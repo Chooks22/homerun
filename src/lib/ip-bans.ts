@@ -5,15 +5,19 @@ export const BANS_ROUTER_PRIORITY = 2_000_000_000;
 export const MAX_BAN_WINDOW_MINUTES = 1440;
 
 export interface IpBanSettings {
+	disrespectMode: boolean;
 	durationHours: number;
 	enabled: boolean;
+	meanMode: boolean;
 	threshold: number;
 	windowMinutes: number;
 }
 
 export const DEFAULT_IP_BAN_SETTINGS: IpBanSettings = {
+	disrespectMode: false,
 	durationHours: 24,
 	enabled: true,
+	meanMode: false,
 	threshold: 10,
 	windowMinutes: 10,
 };
@@ -32,10 +36,13 @@ export function withIpBanDefaults(
 	stored: Partial<IpBanSettings> | null | undefined,
 ): IpBanSettings {
 	return {
+		disrespectMode:
+			stored?.disrespectMode ?? DEFAULT_IP_BAN_SETTINGS.disrespectMode,
 		durationHours:
 			whole(stored?.durationHours, 0, 8760) ??
 			DEFAULT_IP_BAN_SETTINGS.durationHours,
 		enabled: stored?.enabled ?? DEFAULT_IP_BAN_SETTINGS.enabled,
+		meanMode: stored?.meanMode ?? DEFAULT_IP_BAN_SETTINGS.meanMode,
 		threshold:
 			whole(stored?.threshold, 1, 1000) ?? DEFAULT_IP_BAN_SETTINGS.threshold,
 		windowMinutes:

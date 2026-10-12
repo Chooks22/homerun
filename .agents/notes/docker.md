@@ -1320,7 +1320,15 @@ Newt's address can change (a swarm task restarting); the trust is reapplied on
 every `syncNewt` (worker boot, settings save), and a stale one only means the
 tunnel is counted, never banned. Nothing is inserted for a request that can't
 lead to a ban (no proof, bans off, an address `bannableIp` refuses, one already
-banned), so `blocked_hit` rows per address are capped by the threshold.
+banned), so `blocked_hit` rows per address are capped by the threshold. **Mean
+mode and Disrespect mode** (`ipBans.meanMode`/`disrespectMode`, the jsonb so no
+migration) only change the blocked handler's answer, after the hit is recorded:
+`baitFor` (`src/lib/bait.ts`, pure) matches Traefik's `X-Replaced-Path` (the
+original path `replacePath` keeps) against secret-shaped paths and returns a
+fake file served `200`, with random realistic secrets, or insults under
+Disrespect; a non-bait path under Disrespect gets a plain-text insult `403`,
+otherwise the usual blocked page. No trickle/tarpit: a slow response would hold
+Bun's own connections open, so the junk for an archive is a fixed 512 KiB.
 `bannableIp` refuses private, loopback, link-local, CGNAT, multicast and
 unspecified ranges (a Pangolin tunnel or Docker network) and Cloudflare's
 published edge ranges (`CLOUDFLARE_RANGES`, banning an edge bans everyone behind

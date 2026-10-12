@@ -96,6 +96,22 @@
           />
         </div>
       </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <CheckBox
+          checked={data.ipBans.meanMode}
+          helperText="A blocked request for a secret-shaped path (.env, .git/config, wp-config.php, .aws/credentials, an SSH key, a SQL dump, an archive) gets a 200 and a fake file: realistic-looking random keys, or half a megabyte of junk for an archive."
+          id="meanMode"
+          label="Mean mode"
+          name="meanMode"
+        />
+        <CheckBox
+          checked={data.ipBans.disrespectMode}
+          helperText="Same fake files, every secret in them an insult (PROD_API_KEY=fuckyou), and any other blocked request gets an insult instead of the blocked page."
+          id="disrespectMode"
+          label="Disrespect mode"
+          name="disrespectMode"
+        />
+      </div>
       <p class="text-text-subtle text-xs">
         0 hours bans for good. The address is the one Traefik sees the request
         come from: behind Homerun's own Pangolin tunnel that's the visitor,

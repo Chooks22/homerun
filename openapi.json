@@ -1831,6 +1831,9 @@
 											"description": {
 												"type": ["string", "null"]
 											},
+											"dockerSocket": {
+												"type": "boolean"
+											},
 											"enabled": {
 												"type": "boolean"
 											},
@@ -1855,6 +1858,9 @@
 													"additionalProperties": false,
 													"properties": {
 														"content": {
+															"type": "string"
+														},
+														"mode": {
 															"type": "string"
 														},
 														"path": {
@@ -1887,6 +1893,25 @@
 													}
 												]
 											},
+											"mounts": {
+												"items": {
+													"additionalProperties": false,
+													"properties": {
+														"containerPath": {
+															"type": "string"
+														},
+														"readOnly": {
+															"type": "boolean"
+														},
+														"volumeId": {
+															"type": "string"
+														}
+													},
+													"required": ["containerPath", "readOnly", "volumeId"],
+													"type": "object"
+												},
+												"type": "array"
+											},
 											"name": {
 												"type": "string"
 											},
@@ -1900,6 +1925,9 @@
 												"type": ["string", "null"]
 											},
 											"remoteHostId": {
+												"type": ["string", "null"]
+											},
+											"runAsUser": {
 												"type": ["string", "null"]
 											},
 											"runtime": {
@@ -1939,6 +1967,7 @@
 											"command",
 											"createdAt",
 											"description",
+											"dockerSocket",
 											"enabled",
 											"envVars",
 											"files",
@@ -1946,11 +1975,13 @@
 											"image",
 											"kind",
 											"lastRunAt",
+											"mounts",
 											"name",
 											"registryPasswordSet",
 											"registryUrl",
 											"registryUsername",
 											"remoteHostId",
+											"runAsUser",
 											"runtime",
 											"schedule",
 											"source",
@@ -2030,6 +2061,11 @@
 									"description": {
 										"type": ["string", "null"]
 									},
+									"dockerSocket": {
+										"default": false,
+										"description": "Mount the Docker socket at /var/run/docker.sock, needs write access to System. Ignored for exec.",
+										"type": "boolean"
+									},
 									"enabled": {
 										"default": false,
 										"type": "boolean"
@@ -2053,6 +2089,10 @@
 												"content": {
 													"type": "string"
 												},
+												"mode": {
+													"description": "Octal permissions set after writing it, like 600.",
+													"type": "string"
+												},
 												"path": {
 													"description": "Absolute path inside the container.",
 													"minLength": 1,
@@ -2072,6 +2112,32 @@
 										"enum": ["image", "script", "exec"],
 										"type": "string"
 									},
+									"mounts": {
+										"default": [],
+										"description": "Storage volumes mounted into the container, on this host only. Ignored for exec.",
+										"items": {
+											"additionalProperties": false,
+											"properties": {
+												"containerPath": {
+													"description": "Absolute path inside the container.",
+													"minLength": 1,
+													"type": "string"
+												},
+												"readOnly": {
+													"default": false,
+													"type": "boolean"
+												},
+												"volumeId": {
+													"description": "The storage volume mounted there.",
+													"minLength": 1,
+													"type": "string"
+												}
+											},
+											"required": ["containerPath", "readOnly", "volumeId"],
+											"type": "object"
+										},
+										"type": "array"
+									},
 									"name": {
 										"maxLength": 100,
 										"minLength": 1,
@@ -2089,6 +2155,10 @@
 										"type": ["string", "null"]
 									},
 									"remoteHostId": {
+										"type": ["string", "null"]
+									},
+									"runAsUser": {
+										"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's. Ignored for exec.",
 										"type": ["string", "null"]
 									},
 									"runtime": {
@@ -2122,10 +2192,12 @@
 									}
 								},
 								"required": [
+									"dockerSocket",
 									"enabled",
 									"envVars",
 									"files",
 									"kind",
+									"mounts",
 									"name",
 									"schedule"
 								],
@@ -2152,6 +2224,9 @@
 										"description": {
 											"type": ["string", "null"]
 										},
+										"dockerSocket": {
+											"type": "boolean"
+										},
 										"enabled": {
 											"type": "boolean"
 										},
@@ -2176,6 +2251,9 @@
 												"additionalProperties": false,
 												"properties": {
 													"content": {
+														"type": "string"
+													},
+													"mode": {
 														"type": "string"
 													},
 													"path": {
@@ -2208,6 +2286,25 @@
 												}
 											]
 										},
+										"mounts": {
+											"items": {
+												"additionalProperties": false,
+												"properties": {
+													"containerPath": {
+														"type": "string"
+													},
+													"readOnly": {
+														"type": "boolean"
+													},
+													"volumeId": {
+														"type": "string"
+													}
+												},
+												"required": ["containerPath", "readOnly", "volumeId"],
+												"type": "object"
+											},
+											"type": "array"
+										},
 										"name": {
 											"type": "string"
 										},
@@ -2221,6 +2318,9 @@
 											"type": ["string", "null"]
 										},
 										"remoteHostId": {
+											"type": ["string", "null"]
+										},
+										"runAsUser": {
 											"type": ["string", "null"]
 										},
 										"runtime": {
@@ -2260,6 +2360,7 @@
 										"command",
 										"createdAt",
 										"description",
+										"dockerSocket",
 										"enabled",
 										"envVars",
 										"files",
@@ -2267,11 +2368,13 @@
 										"image",
 										"kind",
 										"lastRunAt",
+										"mounts",
 										"name",
 										"registryPasswordSet",
 										"registryUrl",
 										"registryUsername",
 										"remoteHostId",
+										"runAsUser",
 										"runtime",
 										"schedule",
 										"source",
@@ -2465,6 +2568,9 @@
 										"description": {
 											"type": ["string", "null"]
 										},
+										"dockerSocket": {
+											"type": "boolean"
+										},
 										"enabled": {
 											"type": "boolean"
 										},
@@ -2489,6 +2595,9 @@
 												"additionalProperties": false,
 												"properties": {
 													"content": {
+														"type": "string"
+													},
+													"mode": {
 														"type": "string"
 													},
 													"path": {
@@ -2521,6 +2630,25 @@
 												}
 											]
 										},
+										"mounts": {
+											"items": {
+												"additionalProperties": false,
+												"properties": {
+													"containerPath": {
+														"type": "string"
+													},
+													"readOnly": {
+														"type": "boolean"
+													},
+													"volumeId": {
+														"type": "string"
+													}
+												},
+												"required": ["containerPath", "readOnly", "volumeId"],
+												"type": "object"
+											},
+											"type": "array"
+										},
 										"name": {
 											"type": "string"
 										},
@@ -2534,6 +2662,9 @@
 											"type": ["string", "null"]
 										},
 										"remoteHostId": {
+											"type": ["string", "null"]
+										},
+										"runAsUser": {
 											"type": ["string", "null"]
 										},
 										"runtime": {
@@ -2573,6 +2704,7 @@
 										"command",
 										"createdAt",
 										"description",
+										"dockerSocket",
 										"enabled",
 										"envVars",
 										"files",
@@ -2580,11 +2712,13 @@
 										"image",
 										"kind",
 										"lastRunAt",
+										"mounts",
 										"name",
 										"registryPasswordSet",
 										"registryUrl",
 										"registryUsername",
 										"remoteHostId",
+										"runAsUser",
 										"runtime",
 										"schedule",
 										"source",
@@ -2690,6 +2824,9 @@
 									"description": {
 										"type": ["string", "null"]
 									},
+									"dockerSocket": {
+										"type": "boolean"
+									},
 									"enabled": {
 										"type": "boolean"
 									},
@@ -2709,6 +2846,10 @@
 												"content": {
 													"type": "string"
 												},
+												"mode": {
+													"description": "Octal permissions set after writing it, like 600.",
+													"type": "string"
+												},
 												"path": {
 													"description": "Absolute path inside the container.",
 													"minLength": 1,
@@ -2722,6 +2863,30 @@
 									},
 									"image": {
 										"type": ["string", "null"]
+									},
+									"mounts": {
+										"items": {
+											"additionalProperties": false,
+											"properties": {
+												"containerPath": {
+													"description": "Absolute path inside the container.",
+													"minLength": 1,
+													"type": "string"
+												},
+												"readOnly": {
+													"default": false,
+													"type": "boolean"
+												},
+												"volumeId": {
+													"description": "The storage volume mounted there.",
+													"minLength": 1,
+													"type": "string"
+												}
+											},
+											"required": ["containerPath", "readOnly", "volumeId"],
+											"type": "object"
+										},
+										"type": "array"
 									},
 									"name": {
 										"maxLength": 100,
@@ -2740,6 +2905,10 @@
 										"type": ["string", "null"]
 									},
 									"remoteHostId": {
+										"type": ["string", "null"]
+									},
+									"runAsUser": {
+										"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's. Ignored for exec.",
 										"type": ["string", "null"]
 									},
 									"runtime": {
@@ -2795,6 +2964,9 @@
 										"description": {
 											"type": ["string", "null"]
 										},
+										"dockerSocket": {
+											"type": "boolean"
+										},
 										"enabled": {
 											"type": "boolean"
 										},
@@ -2819,6 +2991,9 @@
 												"additionalProperties": false,
 												"properties": {
 													"content": {
+														"type": "string"
+													},
+													"mode": {
 														"type": "string"
 													},
 													"path": {
@@ -2851,6 +3026,25 @@
 												}
 											]
 										},
+										"mounts": {
+											"items": {
+												"additionalProperties": false,
+												"properties": {
+													"containerPath": {
+														"type": "string"
+													},
+													"readOnly": {
+														"type": "boolean"
+													},
+													"volumeId": {
+														"type": "string"
+													}
+												},
+												"required": ["containerPath", "readOnly", "volumeId"],
+												"type": "object"
+											},
+											"type": "array"
+										},
 										"name": {
 											"type": "string"
 										},
@@ -2864,6 +3058,9 @@
 											"type": ["string", "null"]
 										},
 										"remoteHostId": {
+											"type": ["string", "null"]
+										},
+										"runAsUser": {
 											"type": ["string", "null"]
 										},
 										"runtime": {
@@ -2903,6 +3100,7 @@
 										"command",
 										"createdAt",
 										"description",
+										"dockerSocket",
 										"enabled",
 										"envVars",
 										"files",
@@ -2910,11 +3108,13 @@
 										"image",
 										"kind",
 										"lastRunAt",
+										"mounts",
 										"name",
 										"registryPasswordSet",
 										"registryUrl",
 										"registryUsername",
 										"remoteHostId",
+										"runAsUser",
 										"runtime",
 										"schedule",
 										"source",

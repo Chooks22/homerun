@@ -149,6 +149,45 @@ func TestRunWritesFilesBeforeTheImageEntrypoint(t *testing.T) {
 	}
 }
 
+func TestRunMountsVolumesAndTheSocketAsAUser(t *testing.T) {
+	d := &fakeDaemon{}
+	job, _, err := jobs.Recorder("cron_job", cronjob.Spec{
+		Binds:          []string{"homerun-vol-cache:/tmp/renovate:ro"},
+		DockerSocket:   true,
+		Image:          "renovate/renovate:latest",
+		RunID:          "r1",
+		TimeoutSeconds: 60,
+		User:           "12021:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job.DockerSocket = testsupport.ServeUnixSocket(t, d)
+	if _, err := cronjob.Run(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	if d.created["User"] != "12021:0" {
+		t.Errorf("User = %v", d.created["User"])
+	}
+	host := d.created["HostConfig"].(map[string]any)
+	binds := host["Binds"].([]any)
+	if len(binds) != 2 || binds[0] != "homerun-vol-cache:/tmp/renovate:ro" || binds[1] != job.DockerSocket+":/var/run/docker.sock" {
+		t.Errorf("Binds = %v", binds)
+	}
+	if groups, ok := host["GroupAdd"].([]any); !ok || len(groups) != 1 {
+		t.Errorf("GroupAdd = %v", host["GroupAdd"])
+	}
+}
+
+func TestRunWithoutTheSocketAddsNoGroup(t *testing.T) {
+	d := &fakeDaemon{}
+	run(t, d, cronjob.Spec{Image: "busybox:latest", RunID: "r1", TimeoutSeconds: 60})
+	host := d.created["HostConfig"].(map[string]any)
+	if host["Binds"] != nil || host["GroupAdd"] != nil || d.created["User"] != nil {
+		t.Errorf("HostConfig = %v User = %v", host, d.created["User"])
+	}
+}
+
 func TestRunTimeout(t *testing.T) {
 	d := &fakeDaemon{hang: true, release: make(chan struct{})}
 	result := run(t, d, cronjob.Spec{Image: "busybox:latest", RunID: "r1", TimeoutSeconds: 0})

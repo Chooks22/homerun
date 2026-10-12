@@ -55,7 +55,7 @@ func TestFilesScriptWritesFilesThenExecs(t *testing.T) {
 	first := filepath.Join(dir, "it's", "config.js")
 	second := filepath.Join(dir, "plain.txt")
 	content := "module.exports = {\n  \"$HOME\": `x`,\n};\n"
-	files := []dockerapi.File{{Content: content, Path: first}, {Content: "", Path: second}}
+	files := []dockerapi.File{{Content: content, Mode: "600", Path: first}, {Content: "", Path: second}}
 	cmd := exec.Command("/bin/sh", "-c", dockerapi.FilesScript(files), "homerun-files", "/bin/sh", "-c", "env | grep -c HOMERUN_FILE_ || true")
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOMERUN_FILE_0=" + content, "HOMERUN_FILE_1="}
 	out, err := cmd.CombinedOutput()
@@ -68,6 +68,9 @@ func TestFilesScriptWritesFilesThenExecs(t *testing.T) {
 	written, err := os.ReadFile(first)
 	if err != nil || string(written) != content {
 		t.Errorf("first file = %q, %v", written, err)
+	}
+	if info, err := os.Stat(first); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("first file mode = %v, %v", info.Mode().Perm(), err)
 	}
 	if info, err := os.Stat(second); err != nil || info.Size() != 0 {
 		t.Errorf("second file = %v, %v", info, err)

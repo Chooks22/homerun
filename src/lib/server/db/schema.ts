@@ -19,6 +19,7 @@ import type { BuildMethod } from "#lib/build-methods.js";
 import type {
 	CronJobFile,
 	CronJobKind,
+	CronJobMount,
 	ScriptRuntime,
 } from "#lib/cron-job-script.js";
 import type { DeployTrigger } from "#lib/deploy-trigger.js";
@@ -1587,6 +1588,7 @@ export const cronJob = pgTable(
 		command: text("command"),
 		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 		description: text("description"),
+		dockerSocket: boolean("docker_socket").default(false).notNull(),
 		enabled: boolean("enabled").default(false).notNull(),
 		envVars: jsonb("env_vars").$type<Record<string, string>>().default({}),
 		files: jsonb("files").$type<CronJobFile[]>().default([]).notNull(),
@@ -1594,6 +1596,7 @@ export const cronJob = pgTable(
 		image: text("image"),
 		kind: text("kind").$type<CronJobKind>().notNull(),
 		lastRunAt: timestamp("last_run_at", { mode: "date" }),
+		mounts: jsonb("mounts").$type<CronJobMount[]>().default([]).notNull(),
 		name: text("name").notNull(),
 		// AES-256-GCM ciphertext : see $lib/services/secrets.
 		registryPasswordEnc: text("registry_password_enc"),
@@ -1605,6 +1608,7 @@ export const cronJob = pgTable(
 		remoteHostId: text("remote_host_id").references(() => remoteHost.id, {
 			onDelete: "set null",
 		}),
+		runAsUser: text("run_as_user"),
 		runtime: text("runtime").$type<ScriptRuntime>(),
 		// Standard 5-field cron expression, evaluated in the server's local
 		// time by the same matcher every other schedule in this app uses.

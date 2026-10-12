@@ -2457,12 +2457,14 @@ export interface operations {
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
 						description: string | null;
+						dockerSocket: boolean;
 						enabled: boolean;
 						envVars: {
 							[key: string]: string;
 						} | null;
 						files: {
 							content: string;
+							mode?: string;
 							path: string;
 						}[];
 						id: string;
@@ -2470,11 +2472,17 @@ export interface operations {
 						/** @enum {string} */
 						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
+						mounts: {
+							containerPath: string;
+							readOnly: boolean;
+							volumeId: string;
+						}[];
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runAsUser: string | null;
 						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
 						source: string | null;
@@ -2524,6 +2532,11 @@ export interface operations {
 				"application/json": {
 					command?: string | null;
 					description?: string | null;
+					/**
+					 * @description Mount the Docker socket at /var/run/docker.sock, needs write access to System. Ignored for exec.
+					 * @default false
+					 */
+					dockerSocket: boolean;
 					/** @default false */
 					enabled: boolean;
 					/** @default {} */
@@ -2536,6 +2549,8 @@ export interface operations {
 					 */
 					files: {
 						content: string;
+						/** @description Octal permissions set after writing it, like 600. */
+						mode?: string;
 						/** @description Absolute path inside the container. */
 						path: string;
 					}[];
@@ -2545,12 +2560,26 @@ export interface operations {
 					 * @enum {string}
 					 */
 					kind: "image" | "script" | "exec";
+					/**
+					 * @description Storage volumes mounted into the container, on this host only. Ignored for exec.
+					 * @default []
+					 */
+					mounts: {
+						/** @description Absolute path inside the container. */
+						containerPath: string;
+						/** @default false */
+						readOnly: boolean;
+						/** @description The storage volume mounted there. */
+						volumeId: string;
+					}[];
 					name: string;
 					/** @description Registry password. Write-only. */
 					registryPassword?: string;
 					registryUrl?: string | null;
 					registryUsername?: string | null;
 					remoteHostId?: string | null;
+					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's. Ignored for exec. */
+					runAsUser?: string | null;
 					/** @description The runtime a script job's source runs on. */
 					runtime?: ("bun" | "node" | "deno" | "python" | "shell") | null;
 					/** @description 5-field cron expression. */
@@ -2574,12 +2603,14 @@ export interface operations {
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
 						description: string | null;
+						dockerSocket: boolean;
 						enabled: boolean;
 						envVars: {
 							[key: string]: string;
 						} | null;
 						files: {
 							content: string;
+							mode?: string;
 							path: string;
 						}[];
 						id: string;
@@ -2587,11 +2618,17 @@ export interface operations {
 						/** @enum {string} */
 						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
+						mounts: {
+							containerPath: string;
+							readOnly: boolean;
+							volumeId: string;
+						}[];
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runAsUser: string | null;
 						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
 						source: string | null;
@@ -2664,12 +2701,14 @@ export interface operations {
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
 						description: string | null;
+						dockerSocket: boolean;
 						enabled: boolean;
 						envVars: {
 							[key: string]: string;
 						} | null;
 						files: {
 							content: string;
+							mode?: string;
 							path: string;
 						}[];
 						id: string;
@@ -2677,11 +2716,17 @@ export interface operations {
 						/** @enum {string} */
 						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
+						mounts: {
+							containerPath: string;
+							readOnly: boolean;
+							volumeId: string;
+						}[];
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runAsUser: string | null;
 						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
 						source: string | null;
@@ -2803,22 +2848,35 @@ export interface operations {
 				"application/json": {
 					command?: string | null;
 					description?: string | null;
+					dockerSocket?: boolean;
 					enabled?: boolean;
 					envVars?: {
 						[key: string]: string;
 					};
 					files?: {
 						content: string;
+						/** @description Octal permissions set after writing it, like 600. */
+						mode?: string;
 						/** @description Absolute path inside the container. */
 						path: string;
 					}[];
 					image?: string | null;
+					mounts?: {
+						/** @description Absolute path inside the container. */
+						containerPath: string;
+						/** @default false */
+						readOnly: boolean;
+						/** @description The storage volume mounted there. */
+						volumeId: string;
+					}[];
 					name?: string;
 					/** @description Registry password. Write-only. */
 					registryPassword?: string;
 					registryUrl?: string | null;
 					registryUsername?: string | null;
 					remoteHostId?: string | null;
+					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's. Ignored for exec. */
+					runAsUser?: string | null;
 					/** @description The runtime a script job's source runs on. */
 					runtime?: ("bun" | "node" | "deno" | "python" | "shell") | null;
 					/** @description 5-field cron expression. */
@@ -2842,12 +2900,14 @@ export interface operations {
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
 						description: string | null;
+						dockerSocket: boolean;
 						enabled: boolean;
 						envVars: {
 							[key: string]: string;
 						} | null;
 						files: {
 							content: string;
+							mode?: string;
 							path: string;
 						}[];
 						id: string;
@@ -2855,11 +2915,17 @@ export interface operations {
 						/** @enum {string} */
 						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
+						mounts: {
+							containerPath: string;
+							readOnly: boolean;
+							volumeId: string;
+						}[];
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runAsUser: string | null;
 						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
 						source: string | null;

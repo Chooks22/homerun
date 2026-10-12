@@ -12,11 +12,11 @@
 	const { files }: { files: CronJobFile[] } = $props();
 
 	let rows = $state<CronJobFile[]>(
-		untrack(() => files.map((file) => ({ ...file }))),
+		untrack(() => files.map((file) => ({ ...file, mode: file.mode ?? "" }))),
 	);
 
 	function addRow() {
-		rows.push({ content: "", path: "" });
+		rows.push({ content: "", mode: "", path: "" });
 	}
 
 	function removeRow(i: number) {
@@ -26,7 +26,7 @@
 
 <section class="panel rounded-md">
   <PanelHeader
-    description="Text files written into the container before its process starts, for a config file the image reads. The image needs /bin/sh, and the path must be writable by the image's user (/tmp always is)."
+    description="Text files written into the container before its process starts, for a config file the image reads. The image needs /bin/sh, and the path must be writable by the user the container runs as (/tmp always is). Mode is optional octal permissions, like 600 for a file holding a token."
     title="Config files"
   />
   <div class="space-y-4 p-5">
@@ -41,6 +41,16 @@
               placeholder="/tmp/config.json"
               type="text"
               bind:value={row.path}
+            />
+          </div>
+          <div class="w-28">
+            <label class={labelClass} for="fileMode-{i}">Mode</label>
+            <Input
+              id="fileMode-{i}"
+              name="fileMode"
+              placeholder="644"
+              type="text"
+              bind:value={row.mode}
             />
           </div>
           <Button

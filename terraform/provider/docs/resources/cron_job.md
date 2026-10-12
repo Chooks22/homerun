@@ -36,16 +36,22 @@ resource "homerun_cron_job" "example" {
 
 - `command` (String)
 - `description` (String)
+- `docker_socket` (Boolean) Mount the Docker socket at /var/run/docker.sock,
+  needs write access to System. Defaults to `false`.
 - `enabled` (Boolean) Defaults to `false`.
 - `env_vars` (Map of String, Sensitive)
 - `files` (List of Object) Text files written into the container before it
   starts. See the nested schema for `files` below.
 - `image` (String)
+- `mounts` (List of Object) Storage volumes mounted into the container, on this
+  host only. See the nested schema for `mounts` below.
 - `registry_password` (String, Sensitive) Write-only: the API never returns it,
   so Terraform can't detect a change made outside it.
 - `registry_url` (String)
 - `registry_username` (String)
 - `remote_host_id` (String)
+- `run_as_user` (String) Docker User (uid, uid:gid, name or name:group), unset
+  keeps the image's.
 - `runtime` (String) A script job's runtime: bun, node, deno, python or shell.
 - `source` (String) A script job's source code.
 - `tag` (String) Defaults to `"latest"`.
@@ -62,6 +68,21 @@ Required:
 
 - `content` (String)
 - `path` (String)
+
+Optional:
+
+- `mode` (String) Octal permissions set after writing it, like 600.
+
+### Nested schema for `mounts`
+
+Required:
+
+- `container_path` (String)
+- `volume_id` (String)
+
+Optional:
+
+- `read_only` (Boolean) Defaults to `false`.
 
 ## Import
 

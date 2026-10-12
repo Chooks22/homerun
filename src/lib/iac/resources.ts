@@ -352,7 +352,28 @@ export const IAC_RESOURCES: IacResource[] = [
 				fields: [
 					attr("path", "string", required),
 					attr("content", "string", required),
+					attr("mode", "string", {
+						description: "Octal permissions set after writing it, like 600.",
+					}),
 				],
+			}),
+			attr("mounts", "objects", {
+				description:
+					"Storage volumes mounted into the container, on this host only.",
+				fields: [
+					attr("volumeId", "string", required),
+					attr("containerPath", "string", required),
+					attr("readOnly", "bool", off),
+				],
+			}),
+			attr("runAsUser", "string", {
+				description:
+					"Docker User (uid, uid:gid, name or name:group), unset keeps the image's.",
+			}),
+			attr("dockerSocket", "bool", {
+				...off,
+				description:
+					"Mount the Docker socket at /var/run/docker.sock, needs write access to System.",
 			}),
 			attr("registryUrl", "string"),
 			attr("registryUsername", "string"),

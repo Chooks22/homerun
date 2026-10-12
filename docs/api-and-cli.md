@@ -277,65 +277,10 @@ request.
 
 ## MCP server for AI agents
 
-Homerun serves an [MCP](https://modelcontextprotocol.io) server at
-`https://<your dashboard>/api/v1/mcp`, so an AI agent can diagnose and fix your
-services for you. It only runs when the Dashboard URL is `https` (or plain HTTP
-on `localhost`), since MCP clients refuse anything else; on any other address
-the endpoint answers 404 saying so. The dashboard also has to be reachable from
-wherever the agent runs.
-
-Nothing can connect to it until you allow it: MCP clients can't register
-themselves, an admin creates each one.
-
-- **claude.ai** (and Claude Desktop, which uses the same connectors): on the
-  **IDP** page (under Integrations), click **Register app**, then **Claude
-  connector**, then **Register app**. In Claude, open Settings → Connectors →
-  Add custom connector, paste the MCP URL above, and under Advanced settings the
-  client ID and secret Homerun just showed you. Claude sends you to Homerun's
-  sign-in page, Homerun asks you to allow it, and from then on it acts as you.
-- **Claude Code**, or anything headless: no OAuth client needed, pass an API key
-  instead, created under Profile → API Keys. A key with read permissions only
-  gives an agent that can diagnose but not change anything.
-
-```bash
-claude mcp add --transport http homerun \
-  https://<your dashboard>/api/v1/mcp --header "x-api-key: <key>"
-```
-
-It reads: `list_services`, `get_service`, `get_service_config`, `service_logs`,
-`list_deployments` (each deploy attempt's error and log), `list_revisions`,
-`list_dependencies`, `list_stacks`, `system_stats`, `instance_status`,
-`list_volumes`, `list_backups`, `get_job`, `list_jobs`, `list_redirects`,
-`list_object_stores`, `list_buckets` and `get_bucket`. It changes:
-`update_service`, `set_dependencies`, `deploy_service`, `restart_service`,
-`start_service`, `stop_service`, `rollback_service`, `run_backup`,
-`create_redirect`, `update_redirect`, `delete_redirect`, `create_bucket`,
-`update_bucket` (expiry and public access) and `delete_bucket` (empty buckets
-only). Deleting a service is deliberately not a tool. Every tool goes through
-the REST API with your own permissions, checked per call, so a read-only account
-or an API key with read permissions can diagnose but not change anything.
-
-Secrets don't reach the agent, the rest stays readable:
-
-- An env var whose name has a secret-looking part (`PASSWORD`, `SECRET`,
-  `TOKEN`, `KEY`, `CREDENTIAL`, `PRIVATE`, `SALT`…), or one marked secret by
-  hand (see [Marking a variable secret](env-vars.md#marking-a-variable-secret)),
-  shows as `[redacted]` regardless of its name.
-- Any other value is shown as is, except a URL's password
-  (`postgres://app:[redacted]@db:5432/app`).
-- A `--requirepass` or `--password` argument in a command is also redacted, in
-  logs too.
-
-`update_service` merges env changes into what's stored: send only the vars to
-change, `null` deletes one. Anything sent back exactly as the agent read it,
-redaction included, keeps its stored value, and a placeholder that matches
-nothing stored is refused rather than written. A secret under a name that
-doesn't look like one (`TMDB_API`) is caught only once you mark it secret under
-Environments & Deployments → Environment Variables; an app that prints its own
-secrets in some other form still leaks them in its logs. To disconnect Claude,
-revoke it under Profile → API Keys (it can't refresh its access any more, and
-the token it holds expires within the hour), or delete its app on the IDP page
-to cut it off for everyone.
+Homerun also serves an MCP server at `https://<your dashboard>/api/v1/mcp`, so
+an AI agent can diagnose and fix your services with the same permissions as the
+API. Connecting an agent, the tools it gets and how secrets are kept from it are
+on their own page: [MCP server for AI agents](mcp.md).
 
 ## CLI
 

@@ -131,8 +131,7 @@ sync by hand.
   requests for `.env`, `.git` and other probed paths, and banning addresses that
   keep trying.
 - **[Sign in with Homerun](sign-in-with-homerun.md)**: Homerun as an OIDC
-  provider for the apps you host, and registering the client Claude needs to use
-  the MCP server.
+  provider for the apps you host, and the OAuth clients AI agents sign in with.
 
 ## Operations and maintenance
 
@@ -150,9 +149,11 @@ sync by hand.
 - **[Status pages](status-pages.md)**: private or public uptime pages.
 - **[Upgrading Homerun](upgrading.md)**: the one-click update, and upgrading by
   hand.
-- **[API & CLI](api-and-cli.md)**: the REST API, the live Swagger UI, the
-  `homerun` CLI, and the MCP server for AI agents (Claude needs an OAuth client
-  registered first).
+- **[API & CLI](api-and-cli.md)**: the REST API, the live Swagger UI and the
+  `homerun` CLI.
+- **[MCP server for AI agents](mcp.md)**: connecting Claude or any MCP agent (by
+  URL alone, a registered client, or an API key), what it can do, how secrets
+  are kept from it, and revoking it.
 - **[Infrastructure as code](infrastructure-as-code.md)**: the Terraform
   provider, Pulumi, generating a configuration from what's running, Terraform
   state with versions, diff, rollback and locking, and drift between a state and

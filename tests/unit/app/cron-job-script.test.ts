@@ -14,9 +14,8 @@ const {
 	parseScriptRuntime,
 	scriptPath,
 } = await import("../../../src/lib/cron-job-script");
-const { parseCronJobForm, parseCronJobInput } = await import(
-	"../../../src/lib/server/cron-job-form"
-);
+const { parseCronJobForm, parseCronJobInput, parseCronJobSection } =
+	await import("../../../src/lib/server/cron-job-form");
 
 const base = { enabled: "on", name: "renovate", schedule: "0 3 * * *" };
 
@@ -160,13 +159,27 @@ describe("parseCronJobForm", () => {
 			content: "",
 			path: `/tmp/${i}`,
 		}));
-		expect(parseCronJobInput(fields, {}, many, { hostAccess: false })).toEqual({
+		expect(
+			parseCronJobInput(
+				fields,
+				{ envVars: {}, files: many, mounts: [] },
+				{ hostAccess: false },
+			),
+		).toEqual({
 			error: "At most 20 config files.",
 		});
 		expect(
-			parseCronJobInput(fields, {}, [{ content: "a\0b", path: "/tmp/x" }], {
-				hostAccess: false,
-			}),
+			parseCronJobInput(
+				fields,
+				{
+					envVars: {},
+					files: [{ content: "a\0b", path: "/tmp/x" }],
+					mounts: [],
+				},
+				{
+					hostAccess: false,
+				},
+			),
 		).toMatchObject({ error: expect.stringContaining("NUL") });
 	});
 
@@ -202,8 +215,11 @@ describe("parseCronJobForm", () => {
 	test("refuses an oversized file", () => {
 		const result = parseCronJobInput(
 			{ ...base, image: "alpine", kind: "image" },
-			{},
-			[{ content: "x".repeat(64_001), path: "/tmp/big" }],
+			{
+				envVars: {},
+				files: [{ content: "x".repeat(64_001), path: "/tmp/big" }],
+				mounts: [],
+			},
 			{ hostAccess: false },
 		);
 		expect(result).toEqual({ error: '"/tmp/big" is over 64 kB.' });
@@ -212,10 +228,176 @@ describe("parseCronJobForm", () => {
 	test("drops config files from a host command", () => {
 		const result = parseCronJobInput(
 			{ ...base, command: "df -h", kind: "exec" },
-			{},
-			[{ content: "x", path: "/tmp/x" }],
+			{ envVars: {}, files: [{ content: "x", path: "/tmp/x" }], mounts: [] },
 			{ hostAccess: true },
 		);
 		expect(result).toMatchObject({ parsed: { files: [], kind: "exec" } });
+	});
+});
+
+describe("container options", () => {
+	const fields = { ...base, image: "renovate/renovate", kind: "image" };
+
+	test("keeps a user, the socket, volumes and file modes", () => {
+		const data = form({ ...fields, dockerSocket: "on", runAsUser: "12021:0" }, [
+			["/tmp/config.js", "{}"],
+		]);
+		data.append("fileMode", "600");
+		data.append("mountVolumeId", "v1");
+		data.append("mountPath", " /tmp/renovate ");
+		data.append("mountReadOnly", "0");
+		data.append("mountVolumeId", "");
+		data.append("mountPath", "");
+		data.append("mountReadOnly", "0");
+		expect(parseCronJobForm(data, { hostAccess: true })).toMatchObject({
+			parsed: {
+				dockerSocket: true,
+				files: [{ content: "{}", mode: "600", path: "/tmp/config.js" }],
+				mounts: [
+					{ containerPath: "/tmp/renovate", readOnly: false, volumeId: "v1" },
+				],
+				runAsUser: "12021:0",
+			},
+		});
+	});
+
+	test("refuses the socket without host access, a bad user, mode or mount", () => {
+		expect(
+			parseCronJobInput(
+				{ ...fields, dockerSocket: true },
+				{ envVars: {}, files: [], mounts: [] },
+				{
+					hostAccess: false,
+				},
+			),
+		).toEqual({
+			error: "Giving a job the Docker socket needs write access to System.",
+		});
+		expect(
+			parseCronJobInput(
+				{ ...fields, runAsUser: "root; rm" },
+				{ envVars: {}, files: [], mounts: [] },
+				{
+					hostAccess: false,
+				},
+			),
+		).toEqual({ error: "Use uid, uid:gid, name or name:group." });
+		expect(
+			parseCronJobInput(
+				fields,
+				{
+					envVars: {},
+					files: [{ content: "", mode: "999", path: "/a" }],
+					mounts: [],
+				},
+				{
+					hostAccess: false,
+				},
+			),
+		).toMatchObject({ error: expect.stringContaining("octal") });
+		expect(
+			parseCronJobInput(
+				fields,
+				{
+					envVars: {},
+					files: [],
+					mounts: [{ containerPath: "/cache", readOnly: false, volumeId: "" }],
+				},
+				{ hostAccess: false },
+			),
+		).toEqual({ error: 'Pick a volume for "/cache".' });
+	});
+
+	test("a host command keeps none of them", () => {
+		expect(
+			parseCronJobInput(
+				{
+					...base,
+					command: "df",
+					dockerSocket: true,
+					kind: "exec",
+					runAsUser: "1000",
+				},
+				{
+					envVars: {},
+					files: [],
+					mounts: [
+						{ containerPath: "/cache", readOnly: false, volumeId: "v1" },
+					],
+				},
+				{ hostAccess: true },
+			),
+		).toMatchObject({
+			parsed: { dockerSocket: false, mounts: [], runAsUser: null },
+		});
+	});
+});
+
+describe("parseCronJobSection", () => {
+	const stored = {
+		command: null,
+		createdAt: new Date(),
+		description: "old",
+		dockerSocket: false,
+		enabled: true,
+		envVars: { TOKEN: "x" },
+		files: [{ content: "{}", path: "/tmp/config.js" }],
+		id: "j1",
+		image: "renovate/renovate",
+		kind: "image" as const,
+		lastRunAt: null,
+		mounts: [{ containerPath: "/cache", readOnly: false, volumeId: "v1" }],
+		name: "renovate",
+		registryPasswordEnc: null,
+		registryUrl: null,
+		registryUsername: null,
+		remoteHostId: null,
+		runAsUser: "12021",
+		runtime: null,
+		schedule: "0 3 * * *",
+		source: null,
+		tag: "latest",
+		timeoutSeconds: 900,
+		updatedAt: new Date(),
+		userId: "u1",
+	};
+
+	test("settings change only the settings, an unchecked box turns it off", () => {
+		const data = new FormData();
+		data.set("name", "renovate nightly");
+		data.set("schedule", "0 4 * * *");
+		expect(
+			parseCronJobSection(stored, data, "settings", { hostAccess: false }),
+		).toMatchObject({
+			parsed: {
+				description: null,
+				enabled: false,
+				envVars: { TOKEN: "x" },
+				image: "renovate/renovate",
+				mounts: stored.mounts,
+				name: "renovate nightly",
+				runAsUser: "12021",
+				schedule: "0 4 * * *",
+			},
+		});
+	});
+
+	test("configuration replaces the container side and keeps the settings", () => {
+		const data = new FormData();
+		data.set("kind", "image");
+		data.set("image", "alpine");
+		expect(
+			parseCronJobSection(stored, data, "configuration", { hostAccess: false }),
+		).toMatchObject({
+			parsed: {
+				enabled: true,
+				envVars: {},
+				files: [],
+				image: "alpine",
+				mounts: [],
+				name: "renovate",
+				runAsUser: null,
+			},
+		});
 	});
 });

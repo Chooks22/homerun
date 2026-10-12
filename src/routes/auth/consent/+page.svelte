@@ -63,6 +63,14 @@
       </ul>
     </div>
 
+    {#if data.discoveredFrom}
+      <p class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-600">
+        This app described itself from <strong>{data.discoveredFrom}</strong>:
+        its name is whatever that site says. Only allow it if you started this
+        from an app you trust that lives there.
+      </p>
+    {/if}
+
     <p class="text-text-subtle text-xs">Signed in as {data.signedInAs}</p>
 
     <div class="flex flex-col gap-2 sm:flex-row-reverse">

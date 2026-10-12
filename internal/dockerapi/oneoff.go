@@ -21,6 +21,7 @@ type OneOffConfig struct {
 	Entrypoint  []string
 	Env         []string
 	Files       []File
+	GroupAdd    []string
 	Image       string
 	Labels      map[string]string
 	NetworkMode string
@@ -28,6 +29,7 @@ type OneOffConfig struct {
 	PidMode     string
 	Privileged  bool
 	Timeout     time.Duration
+	User        string
 	WorkingDir  string
 }
 
@@ -140,6 +142,9 @@ func (c *Client) createOneOff(ctx context.Context, config OneOffConfig) (string,
 	if config.NetworkMode != "" {
 		hostConfig["NetworkMode"] = config.NetworkMode
 	}
+	if len(config.GroupAdd) > 0 {
+		hostConfig["GroupAdd"] = config.GroupAdd
+	}
 	body := map[string]any{
 		"Cmd":        config.Cmd,
 		"Env":        config.Env,
@@ -153,6 +158,9 @@ func (c *Client) createOneOff(ctx context.Context, config OneOffConfig) (string,
 	}
 	if config.WorkingDir != "" {
 		body["WorkingDir"] = config.WorkingDir
+	}
+	if config.User != "" {
+		body["User"] = config.User
 	}
 	response, err := c.request(ctx, http.MethodPost, "/containers/create", nil, body, nil)
 	if err != nil {

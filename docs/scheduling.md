@@ -51,7 +51,28 @@ script that writes the files and then runs the image's own entrypoint and
 command, so the image needs `/bin/sh`, and the path must be writable by the user
 the image runs as: `/tmp` always is, a root-owned directory isn't for an image
 that runs as non-root, such as Renovate. Up to 20 files of 64 kB each, text
-only.
+only. A file can carry a **mode** (octal, like `600` for one holding a token),
+set right after it's written.
+
+They also take what the container itself runs with:
+
+- **User**: `uid`, `uid:gid`, `name` or `name:group`, blank for the image's own.
+  The container writes its config files as that user.
+- **Volumes**: storage volumes (from **Volumes**) mounted at a container path,
+  optionally read-only, for a cache or data that outlives a run, such as the
+  Renovate cache. A fresh named volume takes the owner of the image's own
+  directory at that path when the image has one; at a path the image doesn't
+  have, it's root-owned and a non-root user can't write to it. A volume lives on
+  this server, so a job running on another build server can't mount one.
+- **Docker socket**: mounts the Docker socket at `/var/run/docker.sock` and adds
+  the socket's group to the container, so a non-root user can use it. That's
+  root on the host, so it **needs write access to System**, both to set it and
+  to manage or run a job that has it.
+
+A job's page has three tabs: **Runs** (each run's exit code and output, plus
+**Run now** in the header), **Configuration** (what runs and how: everything
+above) and **Settings** (name, schedule, timeout, the schedule toggle, and
+deleting the job).
 
 Give it a 5-field cron schedule, a timeout (default 900s, the job is killed past
 it), and turn the schedule on or off without deleting the job. With the schedule

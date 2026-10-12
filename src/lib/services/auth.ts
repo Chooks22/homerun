@@ -1,5 +1,7 @@
 import process from "node:process";
 import { apiKey } from "@better-auth/api-key";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { mcp } from "@better-auth/mcp";
 import {
 	type OAuthOptions,
@@ -145,7 +147,13 @@ function oidcProviderPlugins(origin: string | undefined) {
 			jwt: { issuer: oidcIssuer(origin) },
 		}),
 		...(mcpAllowed(origin)
-			? [mcp({ ...provider, resource: mcpResource(origin) })]
+			? [
+					mcp({ ...provider, resource: mcpResource(origin) }),
+					cimd({
+						fetchClientMetadataResource,
+						metadataProfile: "mcp-2026-07-28",
+					}),
+				]
 			: [oauthProvider(provider)]),
 	];
 }

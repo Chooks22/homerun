@@ -92,11 +92,13 @@ describe("MCP server", () => {
 		);
 		expect(server.status).toBe(200);
 		const serverBody = (await server.json()) as {
+			client_id_metadata_document_supported?: boolean;
 			issuer: string;
 			registration_endpoint?: string;
 		};
 		expect(resourceBody.authorization_servers).toEqual([serverBody.issuer]);
 		expect(serverBody.registration_endpoint).toBeUndefined();
+		expect(serverBody.client_id_metadata_document_supported).toBe(true);
 	});
 
 	test("an API key lists the tools and runs one", async () => {
@@ -145,6 +147,25 @@ describe("MCP server", () => {
 			},
 		);
 		expect(registered.status).toBeGreaterThanOrEqual(400);
+	});
+
+	test("a metadata document URL on a private address is refused, never fetched", async () => {
+		const { origin } = integrationContext();
+		const { challenge } = await pkcePair();
+		const authorizeUrl = new URL(`${origin}/api/v1/auth/oauth2/authorize`);
+		for (const [name, value] of Object.entries({
+			client_id: "https://127.0.0.1/client.json",
+			code_challenge: challenge,
+			code_challenge_method: "S256",
+			redirect_uri: "https://127.0.0.1/callback",
+			response_type: "code",
+			scope: "openid",
+		})) {
+			authorizeUrl.searchParams.set(name, value);
+		}
+		const authorized = await nativeFetch(authorizeUrl, { redirect: "manual" });
+		expect(authorized.status).toBe(400);
+		expect(await authorized.json()).toMatchObject({ error: "invalid_client" });
 	});
 
 	test("a connector an admin created, with its client ID and secret, gets a token the MCP endpoint accepts", async () => {

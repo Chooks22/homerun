@@ -4,15 +4,16 @@
 	import CheckBox from "#lib/components/check-box.svelte";
 	import CodeEditor from "#lib/components/code-editor.svelte";
 	import CronJobFiles from "#lib/components/cron-job-files.svelte";
+	import CronJobMounts from "#lib/components/cron-job-mounts.svelte";
 	import EnvPasteButton from "#lib/components/env-paste-button.svelte";
 	import { inputClass, labelClass } from "#lib/components/form-styles.js";
-	import ScheduleField from "#lib/components/schedule-field.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
 	import {
 		type CronJobFile,
 		type CronJobKind,
+		type CronJobMount,
 		SCRIPT_RUNTIME_SPECS,
 		SCRIPT_RUNTIMES,
 		type ScriptRuntime,
@@ -21,38 +22,38 @@
 	import { mergeEnvRows, type ParsedEnvVar } from "#lib/env-parse.js";
 	import { languageFor } from "#lib/highlight.js";
 
-	interface CronHostOption {
+	interface Option {
 		id: string;
 		name: string;
 	}
 
 	interface CronJobValues {
 		command: string | null;
-		description: string | null;
-		enabled: boolean;
+		dockerSocket: boolean;
 		envVars: Record<string, string>;
 		files: CronJobFile[];
 		image: string | null;
 		kind: CronJobKind;
-		name: string;
+		mounts: CronJobMount[];
 		registryUrl: string | null;
 		registryUsername: string | null;
 		remoteHostId: string | null;
+		runAsUser: string | null;
 		runtime: ScriptRuntime | null;
-		schedule: string;
 		source: string | null;
 		tag: string | null;
-		timeoutSeconds: number;
 	}
 
 	const {
-		canUseExec,
+		hostAccess,
 		remoteHosts = [],
 		values,
+		volumes = [],
 	}: {
-		canUseExec: boolean;
-		remoteHosts?: CronHostOption[];
+		hostAccess: boolean;
+		remoteHosts?: Option[];
 		values: CronJobValues;
+		volumes?: Option[];
 	} = $props();
 
 	function initialEnvRows(): ParsedEnvVar[] {
@@ -113,36 +114,11 @@
 <input name="kind" type="hidden" value={kind}>
 
 <section class="panel space-y-4 rounded-md p-5">
-  <div class="grid gap-3 sm:grid-cols-2">
-    <div>
-      <label class={labelClass} for="name">Name</label>
-      <Input
-        id="name"
-        name="name"
-        placeholder="Nightly database dump"
-        type="text"
-        value={values.name}
-      />
-    </div>
-    <ScheduleField id="schedule" name="schedule" value={values.schedule} />
-  </div>
-
   <div>
-    <label class={labelClass} for="description">Description (optional)</label>
-    <Input
-      id="description"
-      name="description"
-      placeholder="What this job does"
-      type="text"
-      value={values.description ?? ""}
-    />
-  </div>
-
-  <div>
-    <p class={labelClass}>Run as</p>
+    <p class={labelClass}>Type</p>
     <div class="flex flex-wrap gap-2">
       {#each KINDS as option (option.value)}
-        {@const locked = option.value === "exec" && !canUseExec}
+        {@const locked = option.value === "exec" && !hostAccess}
         <button
           class="min-w-40 flex-1 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all {kindClass(option.value)}"
           disabled={locked}
@@ -264,24 +240,30 @@
     </div>
   {/if}
 
-  <div>
-    <label class={labelClass} for="timeoutSeconds">Timeout (seconds)</label>
-    <Input
-      id="timeoutSeconds"
-      name="timeoutSeconds"
-      placeholder="900"
-      type="number"
-      value={String(values.timeoutSeconds)}
-    />
-  </div>
-
-  <CheckBox
-    checked={values.enabled}
-    helperText="Run this job on its schedule. Off, it only runs when you press Run now or call the API, for a one-off task."
-    id="enabled"
-    label="Enable schedule"
-    name="enabled"
-  />
+  {#if kind !== "exec"}
+    <div>
+      <label class={labelClass} for="runAsUser">User (optional)</label>
+      <Input
+        id="runAsUser"
+        name="runAsUser"
+        placeholder="12021"
+        type="text"
+        value={values.runAsUser ?? ""}
+      />
+      <p class="text-text-subtle mt-1 text-xs">
+        uid, uid:gid, name or name:group. Blank runs as the image's own user.
+      </p>
+    </div>
+    {#if hostAccess}
+      <CheckBox
+        checked={values.dockerSocket}
+        helperText="Mounts this host's Docker socket at /var/run/docker.sock, with its group added so a non-root user can use it. That's root on the host: only users with write access to System can set or manage it."
+        id="dockerSocket"
+        label="Docker socket"
+        name="dockerSocket"
+      />
+    {/if}
+  {/if}
 </section>
 
 <section class="panel rounded-md">
@@ -328,6 +310,7 @@
 
 {#if kind !== "exec"}
   <CronJobFiles files={values.files} />
+  <CronJobMounts mounts={values.mounts} {volumes} />
 {/if}
 
 {#if kind === "image"}

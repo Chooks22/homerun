@@ -75,10 +75,10 @@ a dependency-only link has no variables and is gone at once.
 The lock icon next to a row in the Environment Variables section marks that
 variable secret, independent of its name: useful for something that doesn't look
 secret, like `TMDB_API`. A secret value is a password field here, and is always
-redacted for an AI agent through the
-[MCP server](api-and-cli.md#mcp-server-for-ai-agents), whatever it's called. A
-variable a template fills with a generated password starts out marked. Only the
-dashboard can set or clear the mark, the REST API's `PATCH` ignores it if sent.
+redacted for an AI agent through the [MCP server](mcp.md), whatever it's called.
+A variable a template fills with a generated password starts out marked. Only
+the dashboard can set or clear the mark, the REST API's `PATCH` ignores it if
+sent.
 
 ![Two variables marked secret: their values are password fields and their locks are closed](images/env-vars-secret.webp)
 

@@ -7,10 +7,6 @@ When done delete the entry, no bloat.
 
 ## Small
 
-- [ ] better-auth 1.7.7 wants an `issuer` column on `account` that `schema.ts`
-      lacks: every sign-up (and so the integration suite's bootstrap) answers
-      500 with "The field "issuer" does not exist in the "account" Drizzle
-      schema"
 - [ ] Route `screenshots.yaml` and `e2e.yaml` Docker Hub pulls through
       mirror.gcr.io like the integration job, they can flake on an anonymous
       pull refusal the same way

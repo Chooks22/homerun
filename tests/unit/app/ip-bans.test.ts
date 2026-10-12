@@ -17,8 +17,10 @@ describe("IP ban settings", () => {
 	test("nothing stored gives the defaults: on, 10 hits in 10 minutes, 24 hours", () => {
 		expect(withIpBanDefaults(null)).toEqual(DEFAULT_IP_BAN_SETTINGS);
 		expect(DEFAULT_IP_BAN_SETTINGS).toEqual({
+			disrespectMode: false,
 			durationHours: 24,
 			enabled: true,
+			meanMode: false,
 			threshold: 10,
 			windowMinutes: 10,
 		});
@@ -27,14 +29,18 @@ describe("IP ban settings", () => {
 	test("stored values are kept, out-of-range ones fall back", () => {
 		expect(
 			withIpBanDefaults({
+				disrespectMode: true,
 				durationHours: 0,
 				enabled: false,
+				meanMode: true,
 				threshold: 3,
 				windowMinutes: 5,
 			}),
 		).toEqual({
+			disrespectMode: true,
 			durationHours: 0,
 			enabled: false,
+			meanMode: true,
 			threshold: 3,
 			windowMinutes: 5,
 		});

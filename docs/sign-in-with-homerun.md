@@ -93,16 +93,17 @@ sent, and deletion).
 
 ![The IDP page listing registered apps with their users, last use and on/off switch](images/idp-apps.webp)
 
-**Connecting Claude.** claude.ai and Claude Desktop reach Homerun's
-[MCP server](api-and-cli.md#mcp-server-for-ai-agents) as an app registered here:
-Claude can't register itself, so a Homerun connector in Claude fails to
-authenticate until an admin creates its client. On the **Register app** page,
-click **Claude connector** (it fills in Claude's callback URL, a confidential
-client with PKCE and the consent screen on), then **Register app**, and paste
-the MCP URL, client ID and secret the next screen shows into Claude's Settings →
-Connectors → Add custom connector (the ID and secret go under Advanced
-settings). The button only shows once the Dashboard URL is `https` (or plain
-HTTP on `localhost`).
+**Connecting Claude.** An AI agent reaches Homerun's [MCP server](mcp.md)
+through this same provider. One that supports Client ID Metadata Documents signs
+in with nothing registered here, and then shows up in this list. For one that
+needs a client ID and secret, such as a claude.ai connector that can't sign in
+by URL alone, register it: on the **Register app** page, click **Claude
+connector** (it fills in Claude's callback URL, a confidential client with PKCE
+and the consent screen on), then **Register app**, and paste the MCP URL, client
+ID and secret the next screen shows into Claude's Settings → Connectors → Add
+custom connector (the ID and secret go under Advanced settings). The button only
+shows once the Dashboard URL is `https` (or plain HTTP on `localhost`). See
+[MCP server for AI agents](mcp.md) for the rest.
 
 **Configuring the app.** Most apps only need three values:
 

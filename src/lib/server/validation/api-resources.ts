@@ -83,12 +83,28 @@ export const updateVolumeMountApiBody = volumeMountApiBody
 
 const cronJobFile = z.object({
 	content: z.string(),
+	mode: z
+		.string()
+		.optional()
+		.describe("Octal permissions set after writing it, like 600."),
 	path: text.min(1).describe("Absolute path inside the container."),
+});
+
+const cronJobMount = z.object({
+	containerPath: text.min(1).describe("Absolute path inside the container."),
+	readOnly: z.boolean().default(false),
+	volumeId: z.string().min(1).describe("The storage volume mounted there."),
 });
 
 export const cronJobApiBody = z.object({
 	command: nullableText,
 	description: nullableText,
+	dockerSocket: z
+		.boolean()
+		.default(false)
+		.describe(
+			"Mount the Docker socket at /var/run/docker.sock, needs write access to System. Ignored for exec.",
+		),
 	enabled: z.boolean().default(false),
 	envVars: z.record(z.string(), z.string()).default({}),
 	files: z
@@ -103,11 +119,20 @@ export const cronJobApiBody = z.object({
 		.describe(
 			"image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System).",
 		),
+	mounts: z
+		.array(cronJobMount)
+		.default([])
+		.describe(
+			"Storage volumes mounted into the container, on this host only. Ignored for exec.",
+		),
 	name: text.min(1).max(100),
 	registryPassword: secret("Registry password.").optional(),
 	registryUrl: nullableText,
 	registryUsername: nullableText,
 	remoteHostId: z.string().nullable().optional(),
+	runAsUser: nullableText.describe(
+		"Docker User (uid, uid:gid, name or name:group), null keeps the image's. Ignored for exec.",
+	),
 	runtime: z
 		.enum(SCRIPT_RUNTIMES)
 		.nullable()
@@ -127,8 +152,10 @@ export const updateCronJobApiBody = cronJobApiBody
 	.omit({ kind: true })
 	.extend({
 		enabled: z.boolean(),
+		dockerSocket: z.boolean(),
 		envVars: z.record(z.string(), z.string()),
 		files: z.array(cronJobFile),
+		mounts: z.array(cronJobMount),
 	})
 	.partial();
 

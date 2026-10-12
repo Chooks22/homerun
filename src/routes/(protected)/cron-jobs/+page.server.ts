@@ -3,7 +3,7 @@ import { CronJobDTO } from "#lib/dto/cron-job-dto.js";
 import { CronJobRunDTO } from "#lib/dto/cron-job-run-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
-import { can } from "#lib/permissions.js";
+import { manageableCronJob } from "#lib/server/cron-job-form.js";
 import { parseListQuery } from "#lib/server/list-query.js";
 import { enqueueCronJobRun } from "#lib/services/cron-job-queue.js";
 import { resolve } from "$app/paths";
@@ -40,16 +40,14 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 		const formData = await request.formData();
-		const jobId = formData.get("jobId") as string | null;
-		const job = jobId ? await CronJobDTO.get(jobId) : null;
-		if (!job) {
-			return fail(404, { error: "Cron job not found." });
+		const found = await manageableCronJob(
+			formData.get("jobId") as string | null,
+			locals.permissions,
+		);
+		if ("error" in found) {
+			return fail(found.status, { error: found.error });
 		}
-		if (job.kind === "exec" && !can(locals.permissions, "system", "write")) {
-			return fail(403, {
-				error: "A host command job needs write access to System.",
-			});
-		}
+		const { job } = found;
 
 		await job.delete();
 		logger.info(`Cron job deleted: job=${job.id} user=${locals.user.id}`);
@@ -61,16 +59,14 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 		const formData = await request.formData();
-		const jobId = formData.get("jobId") as string | null;
-		const job = jobId ? await CronJobDTO.get(jobId) : null;
-		if (!job) {
-			return fail(404, { error: "Cron job not found." });
+		const found = await manageableCronJob(
+			formData.get("jobId") as string | null,
+			locals.permissions,
+		);
+		if ("error" in found) {
+			return fail(found.status, { error: found.error });
 		}
-		if (job.kind === "exec" && !can(locals.permissions, "system", "write")) {
-			return fail(403, {
-				error: "A host command job needs write access to System.",
-			});
-		}
+		const { job } = found;
 
 		const entry = await enqueueCronJobRun(job);
 		logger.info(`Cron job run queued: job=${job.id} queued=${entry.id}`);

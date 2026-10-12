@@ -141,6 +141,7 @@
 				{ "slug": "status-pages", "icon": "heart-pulse" },
 				{ "slug": "upgrading", "icon": "circle-arrow-up" },
 				{ "slug": "api-and-cli", "icon": "terminal" },
+				{ "slug": "mcp", "icon": "bot" },
 				{
 					"slug": "infrastructure-as-code",
 					"title": "Infrastructure as code",

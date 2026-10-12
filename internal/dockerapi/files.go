@@ -10,9 +10,10 @@ import (
 const fileEnvPrefix = "HOMERUN_FILE_"
 
 // File is a text file a one-off container gets written before its own
-// process starts.
+// process starts, chmod'ed to Mode (octal, like "600") when one is set.
 type File struct {
 	Content string `json:"content"`
+	Mode    string `json:"mode,omitempty"`
 	Path    string `json:"path"`
 }
 
@@ -53,6 +54,9 @@ func FilesScript(files []File) string {
 		variable := fmt.Sprintf("%s%d", fileEnvPrefix, i)
 		fmt.Fprintf(&script, "mkdir -p %s\n", shellQuote(path.Dir(file.Path)))
 		fmt.Fprintf(&script, "printf '%%s' \"$%s\" > %s\n", variable, shellQuote(file.Path))
+		if file.Mode != "" {
+			fmt.Fprintf(&script, "chmod %s %s\n", shellQuote(file.Mode), shellQuote(file.Path))
+		}
 		fmt.Fprintf(&script, "unset %s\n", variable)
 	}
 	script.WriteString("exec \"$@\"\n")

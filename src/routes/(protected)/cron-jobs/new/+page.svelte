@@ -3,6 +3,7 @@
 	import { onMount } from "svelte";
 	import Alert from "#lib/components/alert.svelte";
 	import CronJobFields from "#lib/components/cron-job-fields.svelte";
+	import CronJobSettingsFields from "#lib/components/cron-job-settings-fields.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
 	import { title } from "#lib/store/title.js";
@@ -49,27 +50,35 @@
       success: "Cron job created.",
     })}
   >
+    <CronJobSettingsFields
+      values={{
+        description: null,
+        enabled: true,
+        name: "",
+        schedule: "0 3 * * *",
+        timeoutSeconds: 900,
+      }}
+    />
     <CronJobFields
-      canUseExec={data.canUseExec}
+      hostAccess={data.hostAccess}
       remoteHosts={data.remoteHosts}
       values={{
         command: null,
-        remoteHostId: null,
-        description: null,
-        enabled: true,
+        dockerSocket: false,
         envVars: {},
         files: [],
         image: null,
         kind: "image",
-        name: "",
+        mounts: [],
         registryUrl: null,
         registryUsername: null,
+        remoteHostId: null,
+        runAsUser: null,
         runtime: null,
-        schedule: "0 3 * * *",
         source: null,
         tag: "latest",
-        timeoutSeconds: 900,
       }}
+      volumes={data.volumes}
     />
 
     <Button disabled={submitting} type="submit">

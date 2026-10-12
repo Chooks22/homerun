@@ -62,8 +62,10 @@ export const actions = {
 		}
 		const settings = await InstanceSettingsDTO.get();
 		await settings.updateIpBans({
+			disrespectMode: formData.get("disrespectMode") === "on",
 			durationHours,
 			enabled: formData.get("enabled") === "on",
+			meanMode: formData.get("meanMode") === "on",
 			threshold,
 			windowMinutes,
 		});

@@ -6,8 +6,11 @@ package cronjob
 import (
 	"context"
 	"errors"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -18,12 +21,15 @@ import (
 const (
 	flushInterval  = time.Second
 	maxOutputBytes = 64_000
+	dockerSocket   = "/var/run/docker.sock"
 )
 
 // Spec is what the app's cron_job prepare step hands the worker.
 type Spec struct {
 	Auth           *dockerapi.AuthConfig `json:"auth"`
+	Binds          []string              `json:"binds"`
 	Cmd            []string              `json:"cmd"`
+	DockerSocket   bool                  `json:"dockerSocket"`
 	Env            []string              `json:"env"`
 	Files          []dockerapi.File      `json:"files"`
 	Image          string                `json:"image"`
@@ -33,6 +39,7 @@ type Spec struct {
 	Remote         *dockerapi.RemoteHost `json:"remote"`
 	RunID          string                `json:"runId"`
 	TimeoutSeconds int                   `json:"timeoutSeconds"`
+	User           string                `json:"user"`
 	WorkingDir     string                `json:"workingDir"`
 }
 
@@ -58,19 +65,23 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 		client = remote
 	}
 
+	binds, groups := withSocket(spec, job.DockerSocket)
 	flusher := newFlusher(job, spec.RunID)
 	stop := flusher.start()
 	result, err := client.RunOneOff(ctx, dockerapi.OneOffConfig{
 		Auth:       spec.Auth,
+		Binds:      binds,
 		Cmd:        spec.Cmd,
 		Env:        spec.Env,
 		Files:      spec.Files,
+		GroupAdd:   groups,
 		Image:      spec.Image,
 		Labels:     spec.Labels,
 		OnOutput:   flusher.push,
 		PidMode:    spec.PidMode,
 		Privileged: spec.Privileged,
 		Timeout:    time.Duration(spec.TimeoutSeconds) * time.Second,
+		User:       spec.User,
 		WorkingDir: spec.WorkingDir,
 	})
 	stop()
@@ -83,6 +94,33 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 		"output":   Tail(output, maxOutputBytes),
 		"timedOut": result.TimedOut,
 	}, nil
+}
+
+// withSocket adds the Docker socket to spec's binds when it asks for it, at
+// /var/run/docker.sock: the local daemon's own socket, or a remote host's
+// default one. Locally the socket's group is added too, so a container running
+// as a non-root user can still talk to the daemon.
+func withSocket(spec Spec, localSocket string) ([]string, []string) {
+	if !spec.DockerSocket {
+		return spec.Binds, nil
+	}
+	source := localSocket
+	if spec.Remote != nil {
+		source = dockerSocket
+	}
+	binds := append(append([]string{}, spec.Binds...), source+":"+dockerSocket)
+	if spec.Remote != nil {
+		return binds, nil
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		return binds, nil
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return binds, nil
+	}
+	return binds, []string{strconv.FormatUint(uint64(stat.Gid), 10)}
 }
 
 // Tail returns the last limit bytes of text, cut on a rune boundary.

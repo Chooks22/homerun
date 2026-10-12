@@ -1,6 +1,7 @@
 {
 	"dependencies": {
 		"@better-auth/api-key": "1.7.7",
+		"@better-auth/cimd": "1.7.7",
 		"@better-auth/mcp": "1.7.7",
 		"@better-auth/oauth-provider": "1.7.7",
 		"@better-auth/passkey": "1.7.7",
@@ -83,6 +84,7 @@
 	"name": "homerun",
 	"overrides": {
 		"@better-auth/api-key": "$better-auth",
+		"@better-auth/cimd": "$better-auth",
 		"@better-auth/core": "$better-auth",
 		"@better-auth/drizzle-adapter": "$better-auth",
 		"@better-auth/kysely-adapter": "$better-auth",

@@ -68,6 +68,25 @@ or you lift them.
 The dashboard's own address is never blocked by a ban, so a banned admin can
 still sign in and lift it.
 
+### Mean mode and Disrespect mode
+
+Two more toggles on **Settings → IP bans**, both off by default, change what a
+blocked request gets back while it still counts towards a ban:
+
+- **Mean mode**: a request for a secret-shaped path (`.env` and `.env.*`,
+  `.git/config`, `wp-config.php` and other PHP configs, `.aws/credentials`, an
+  SSH private key, a `.sql` dump, an archive or `.bak`) gets a `200` and a fake
+  file instead of the blocked page. The secrets in it look real (an `AKIA…` AWS
+  key, an `sk_live_…` Stripe key) but are random, and an archive is half a
+  megabyte of junk. A scanner that trusts it wastes its time on dead
+  credentials.
+- **Disrespect mode**: the same fake files, with every secret an insult
+  (`PROD_API_KEY=fuckyou`) and an archive's bytes spelling one out, and any
+  other blocked path gets a one-line insult instead of the blocked page.
+
+Both only answer paths you blocked on a service: add `.env`, `.git` or `*.sql`
+to its blocked paths for scanners to get there.
+
 To hear about bans as they happen, turn on **IP banned** for a channel under
 **Profile → Notifications** (it's off by default): each new ban sends the
 address, until when, the host it was hitting and the reason, linking to Blocked

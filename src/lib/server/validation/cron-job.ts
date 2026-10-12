@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CRON_JOB_KINDS, SCRIPT_RUNTIMES } from "#lib/cron-job-script.js";
+import { isRunAsUser } from "#lib/service-runtime.js";
 
 const optionalNumber = (schema: z.ZodNumber | z.ZodCoercedNumber) =>
 	z.preprocess(
@@ -11,6 +12,10 @@ export const cronJobSchema = z
 	.object({
 		command: z.string().optional(),
 		description: z.string().optional(),
+		dockerSocket: z.preprocess(
+			(val) => val === "on" || val === true,
+			z.boolean(),
+		),
 		enabled: z.preprocess((val) => val === "on" || val === true, z.boolean()),
 		image: z.string().optional(),
 		kind: z.enum(CRON_JOB_KINDS),
@@ -19,6 +24,13 @@ export const cronJobSchema = z
 		registryUrl: z.string().optional(),
 		registryUsername: z.string().optional(),
 		remoteHostId: z.string().optional(),
+		runAsUser: z
+			.string()
+			.trim()
+			.default("")
+			.refine((value) => !value || isRunAsUser(value), {
+				message: "Use uid, uid:gid, name or name:group.",
+			}),
 		runtime: z.enum(SCRIPT_RUNTIMES).optional(),
 		schedule: z.string().min(1, "Schedule is required."),
 		source: z.string().optional(),

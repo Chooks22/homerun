@@ -1111,22 +1111,36 @@ else as an API key. Real, tested finding: better-auth's own `auth.api.verifyJWT`
 can't be used, it always enforces an audience of the base URL, which no access
 token has. An anonymous call gets a 401 with
 `WWW-Authenticate: Bearer resource_metadata=".../.well-known/oauth-protected-resource/api/v1/mcp"`.
-Clients can't register themselves (no dynamic registration, no CIMD): open
-registration let anything on the internet create a client, which only a consent
-screen then stood in front of. An admin creates the claude.ai connector under
+**No dynamic registration, but CIMD.** RFC 7591 registration stays off: it
+stored a client ID and secret for anything on the internet, with only a consent
+screen in front. Client ID Metadata Documents (the MCP spec's registration
+method) are on through the official `@better-auth/cimd` plugin, registered next
+to `mcp()` in `oidcProviderPlugins` with the `mcp-2026-07-28` metadata profile
+and the plugin's own `@better-auth/cimd/node` transport, which resolves DNS
+once, refuses any non-public address and pins the connection. Verified by hand
+that Bun honours `node:https`'s `lookup` override, which that pinning relies on:
+a request to a real host pinned to a bogus address fails. A CIMD client must be
+public (`none`) or `private_key_jwt`, so nothing secret is stored; it lands in
+`oauth_client` with `client_discovery_id = "cimd"`, shows on `/idp` like any
+app, and a metadata refresh keeps `disabled`/`skipConsent`, so switching it off
+sticks while deleting it only lasts until its next sign-in. Its name comes from
+the remote document, so `/auth/consent` shows the `client_id` URL's host
+(`discoveredFrom`) next to it. An admin can still pre-register a client under
 IDP (`/idp`) → Register app (the **Claude connector** preset fills in
-`https://claude.ai/api/mcp/auth_callback`, confidential, PKCE, consent on) and
-pastes its ID and secret into Claude's connector form. `mcp()` binds every
-client created that way to the MCP resource
-(`clientRegistrationDefaultResources`), so its access tokens carry the MCP
-audience. Claude Code and other headless agents use an API key header instead.
-MCP clients look for discovery at the site root, not under the auth base path,
-so `src/routes/.well-known/[...path]` hands every root `/.well-known/*` request
-to `auth.handler`, whose `mcp()` plugin answers the protected-resource and
-authorization-server documents. `tests/integration/mcp.test.ts` walks the whole
-claude.ai flow: an admin creates the client through the Apps form, then sign in,
-authorize, consent, token (client secret over Basic auth), tool call; and open
-registration is refused.
+`https://claude.ai/api/mcp/auth_callback`, confidential, PKCE, consent on) for
+an agent that asks for an ID and secret. `mcp()` binds every client, registered
+or discovered, to the MCP resource (`clientRegistrationDefaultResources`), so
+its access tokens carry the MCP audience. Claude Code and other headless agents
+use an API key header instead. MCP clients look for discovery at the site root,
+not under the auth base path, so `src/routes/.well-known/[...path]` hands every
+root `/.well-known/*` request to `auth.handler`, whose `mcp()` plugin answers
+the protected-resource and authorization-server documents.
+`tests/integration/mcp.test.ts` walks the whole claude.ai flow: an admin creates
+the client through the Apps form, then sign in, authorize, consent, token
+(client secret over Basic auth), tool call; open registration is refused,
+discovery advertises `client_id_metadata_document_supported`, and a metadata
+document URL on a private address gets `invalid_client` before any fetch. A full
+CIMD sign-in isn't in the suite: the transport only fetches public HTTPS hosts.
 
 ## Homerun as an OIDC provider (`@better-auth/oauth-provider`, `src/lib/oidc-provider.ts`, `/idp`, `/auth/consent`)
 
@@ -1138,11 +1152,11 @@ the MCP endpoint as a protected resource and can't be registered next to a plain
 scopes `openid profile email offline_access groups`, claims from
 `oidcClaimsFor`: `groups` is `[user.role]`, `preferred_username` the email's
 local part). `@better-auth/oauth-provider` is pinned to the installed
-better-auth version (1.7.1); the two move together. Issuer is
-`<config.auth.origin>/issuer` (the `jwt` plugin's `issuer`, `oidcIssuer()`),
-while the endpoints stay under `/api/v1/auth` (`oidcEndpointBase()`): the
-discovery document's `issuer` comes from the jwt option and its endpoints from
-`baseURL`, and the provider's `onRequest` answers
+better-auth version (1.7.7), like `@better-auth/cimd`; they move together.
+Issuer is `<config.auth.origin>/issuer` (the `jwt` plugin's `issuer`,
+`oidcIssuer()`), while the endpoints stay under `/api/v1/auth`
+(`oidcEndpointBase()`): the discovery document's `issuer` comes from the jwt
+option and its endpoints from `baseURL`, and the provider's `onRequest` answers
 `<issuer path>/.well-known/openid-configuration` whatever path the request has,
 so `src/routes/issuer/.well-known/[...path]` just hands the request to
 `auth.handler` (as the root `.well-known` route does for

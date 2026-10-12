@@ -1,3 +1,4 @@
+import { cronJobNeedsHostAccess } from "#lib/cron-job-script.js";
 import { CronJobDTO } from "#lib/dto/cron-job-dto.js";
 import { can } from "#lib/permissions.js";
 import { apiCaller, apiError } from "#lib/server/api-route.js";
@@ -12,9 +13,12 @@ export const POST = async ({ locals, params }) => {
 	if (!job) {
 		return apiError("Not found", 404);
 	}
-	if (job.kind === "exec" && !can(caller.permissions, "system", "write")) {
+	if (
+		cronJobNeedsHostAccess(job) &&
+		!can(caller.permissions, "system", "write")
+	) {
 		return apiError(
-			"Running a host command job needs write access to System.",
+			"Running a host command or Docker socket job needs write access to System.",
 			403,
 		);
 	}
