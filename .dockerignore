@@ -50,6 +50,7 @@ Thumbs.db
 
 # Notes and prose aren't needed by any image.
 docs/
+!docs/architecture.md
 README.md
 CONTRIBUTING.md
 CHANGELOG.md
