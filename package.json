@@ -51,7 +51,7 @@
 		"@xterm/xterm": "6.0.0",
 		"agnix": "0.54.0",
 		"auth": "1.7.1",
-		"bits-ui": "2.19.0",
+		"bits-ui": "2.19.5",
 		"clsx": "2.1.1",
 		"devalue": "5.9.4",
 		"dockerode": "5.0.1",
