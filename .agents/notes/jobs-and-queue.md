@@ -201,7 +201,9 @@ A fourth scheduler doesn't fit `DueScheduler` and extends `BaseScheduler`
 directly: `StatsSampler` (`src/lib/services/stats/stats-sampler.ts`) has no
 schedule expression and no per-row `lastRunAt`, it just samples every tick, see
 Recorded resource history in `observability.md`. It's also the only one with
-`runOnStart = true`.
+`runOnStart = true`. `UpdateCheckScheduler` (`cron/update-check-scheduler.ts`)
+is another plain `BaseScheduler` on a 10-minute tick, see Version pinning and
+update checks in `services-and-templates.md`.
 
 `DueScheduler` extends `BaseScheduler` (`cron/base-scheduler.ts`), which owns
 the shared "60s `setInterval`, HMR-safe via a `globalThis`-backed registry keyed

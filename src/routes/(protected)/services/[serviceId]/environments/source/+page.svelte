@@ -26,6 +26,7 @@
 	import { enhance } from "$app/forms";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import VersionPanel from "./version-panel.svelte";
 	import WatchPathsFields from "./watch-paths-fields.svelte";
 	import WebhookPanel from "./webhook-panel.svelte";
 
@@ -334,3 +335,9 @@
     />
   </form>
 </section>
+
+{#if svc.buildSource === "image" && !svc.previewParentId}
+  <div class="mt-5">
+    <VersionPanel labelClass={label} service={svc} />
+  </div>
+{/if}

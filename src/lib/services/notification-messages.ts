@@ -8,6 +8,10 @@ import {
 	type ImageScanFinding,
 	type SeverityCounts,
 } from "#lib/image-scan.js";
+import type {
+	ImageUpdateAvailable,
+	ImageUpdateTrial,
+} from "#lib/image-versions.js";
 import {
 	deployEvent,
 	deployStartedEvent,
@@ -615,5 +619,55 @@ export function cronJobMessage(
 		serviceName: null,
 		timestamp,
 		title: outcome.success ? `${job.name} ran` : `${job.name} failed`,
+	};
+}
+
+const SHORT_DIGEST_RE = /^(sha256:)?(.{12}).*$/;
+
+export interface UpdateAvailableMessageInput {
+	currentTag: string;
+	image: string;
+	origin: string | null;
+	service: { id: string; name: string };
+	trial: ImageUpdateTrial | null;
+	update: ImageUpdateAvailable;
+}
+
+/** Builds the notification channel message for a newer image found by an update check, with its trial run's outcome when one ran. */
+export function updateAvailableMessage(
+	input: UpdateAvailableMessageInput,
+	timestamp: string,
+): ChannelMessage {
+	const { service, trial, update } = input;
+	const sameTag = update.tag === input.currentTag;
+	const fields: MessageField[] = [
+		{ name: "Running", value: `${input.image}:${input.currentTag}` },
+		{
+			name: "Available",
+			value: sameTag
+				? `${input.image}:${update.tag} (new digest ${update.digest?.replace(SHORT_DIGEST_RE, "$1$2") ?? "unknown"})`
+				: `${input.image}:${update.tag}`,
+		},
+	];
+	if (trial) {
+		fields.push({
+			name: "Trial run",
+			value: trial.status === "passed" ? "Started cleanly" : "Failed",
+		});
+	}
+	return {
+		detail: trial?.status === "failed" ? trial.message : null,
+		event: "update.available",
+		fields,
+		link: dashboardLink(
+			input.origin,
+			`/services/${service.id}/environments/source`,
+		),
+		serviceId: service.id,
+		serviceName: service.name,
+		timestamp,
+		title: sameTag
+			? `${service.name} has a newer ${update.tag} image`
+			: `${service.name} can update to ${update.tag}`,
 	};
 }

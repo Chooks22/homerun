@@ -33,6 +33,7 @@ import type {
 	ImageScanStatus,
 	SeverityCounts,
 } from "#lib/image-scan.js";
+import type { ImageUpdateState } from "#lib/image-versions.js";
 import type { IpBanSettings } from "#lib/ip-bans.js";
 import type { ObjectStoreKind } from "#lib/object-storage.js";
 import type { AuthPathsMode } from "#lib/path-patterns.js";
@@ -1263,6 +1264,13 @@ export const service = pgTable(
 		uptimeEnabled: boolean("uptime_enabled").default(true).notNull(),
 		tracesEnabled: boolean("traces_enabled").default(false).notNull(),
 		tag: text("tag").default("latest").notNull(),
+		pinnedFromTag: text("pinned_from_tag"),
+		pinnedLocally: boolean("pinned_locally").default(false).notNull(),
+		updateCheckEnabled: boolean("update_check_enabled")
+			.default(false)
+			.notNull(),
+		updateTrialEnabled: boolean("update_trial_enabled").default(true).notNull(),
+		updateCheck: jsonb("update_check").$type<ImageUpdateState | null>(),
 		updatedAt: timestamp("updated_at", { mode: "date" })
 			.$onUpdate(() => new Date())
 			.notNull(),
@@ -1713,6 +1721,7 @@ export const notification = pgTable(
 				| "deploy_rolled_back"
 				| "resource_alert"
 				| "update_failed"
+				| "update_available"
 				| "docker_wedged"
 				| "error_issue"
 				| "scheduled_summary"

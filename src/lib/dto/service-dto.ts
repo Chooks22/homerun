@@ -33,6 +33,7 @@ import { runtimeOptionsFrom } from "#lib/service-runtime.js";
 import type { ContainerStatus, PullPolicy } from "#lib/types.js";
 import { BaseDTO } from "./base-dto";
 import type { NewServiceInput, ServiceUpdateInput } from "./service-input";
+import { NEW_SERVICE_VERSION_COLUMNS } from "./service-input";
 
 const preview = alias(service, "preview");
 
@@ -449,6 +450,7 @@ export class ServiceDTO extends BaseDTO<Service> {
 			...ServiceDTO.#buildColumns(input),
 			...ServiceDTO.#runtimeColumns(input),
 			...ServiceDTO.#gitTriggerColumns(input),
+			...NEW_SERVICE_VERSION_COLUMNS,
 			autoRollback: false,
 			containerId: null,
 			containerPort: input.containerPort,

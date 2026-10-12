@@ -465,6 +465,44 @@ per-service opt-out, and a `missing` pull policy scanning the local image. **Not
 verified live**: swarm pinning, git-build scans, cross-host registry scans,
 rootless Docker's fallback, and the Scan now job through the worker.
 
+## Version pinning and update checks (`src/lib/image-versions.ts`, `ImageVersionService`, `cron/update-check-scheduler.ts`)
+
+Image-built services only (not previews). Config lives on `service`:
+`pinnedFromTag` (the floating tag a pin replaced, null when not pinned),
+`pinnedLocally`, `updateCheckEnabled`, `updateTrialEnabled`; the last check's
+outcome is one `updateCheck` jsonb (`ImageUpdateState`: available tag+digest,
+trial status/message, `notifiedKey` so an update is announced once). The UI is
+`environments/source/version-panel.svelte`, its actions on that route.
+
+- **Pin lookup** compares the live revision's `imageDigest` (falling back to the
+  local image behind `image:tag`) with registry tag digests.
+  `ApiService.listTags` goes through Docker Hub's own tag API when it can
+  (digests come with the tags, one request per 100), otherwise v2 `tags/list`
+  plus a manifest HEAD for at most 60 version-shaped tags. The digest compared
+  is the manifest list's, the same one Docker keeps in `RepoDigests`.
+- **Local pin** tags the live revision's image **id** (not `image:tag`, which a
+  later pull may have moved) via the worker's `POST /v1/images/tag`, and forces
+  `pullPolicy: "missing"`; unpinning or applying an update puts `always` back.
+- **Update rule** (`newerVersionTag`): stable candidates only, at least the
+  current tag's precision, same variant suffix, a prerelease suffix
+  (`nightly|dev|rc|beta|...`) waits for the suffix-less release of equal or
+  higher numbers. A non-version tag compares the registry digest with the live
+  one instead; a locally pinned non-version tag is never checked.
+- **Trial** gates on the deploy's own readiness check (`dockerHealthcheck` of
+  the service's command, else `listeningHealthcheck` on its port) set as the
+  container's `Healthcheck`: a bare "still running after N seconds" passed apps
+  that retry their database for longer than N before exiting.
+- **Trial** runs in the app process over the worker's control API, not as a job:
+  losing one to a restart costs nothing, the next check redoes it (a persisted
+  `running` trial is treated as never run). No volumes and the default `bridge`
+  network on purpose: on the `homerun` network the new version could reach the
+  real database and migrate it. "Check now" passes `background: true` so the
+  request returns once the registry answered (Bun's idle timeout would kill a
+  multi-minute trial); an in-memory set stops two checks of one service
+  overlapping.
+- The scheduler ticks every 10 minutes and checks services last checked over 6
+  hours ago, one at a time.
+
 ## Compose import (`src/lib/compose-import.ts`, `src/lib/services/compose-import.service.ts`, `(protected)/services/import/`)
 
 Paste a `docker-compose.yaml`, get Homerun rows. Two halves, deliberately split:

@@ -26,6 +26,7 @@ import { IpBanScheduler } from "./cron/ip-ban-scheduler.ts";
 import { MirrorGcScheduler } from "./cron/mirror-gc-scheduler.ts";
 import { SwarmDnsWatch } from "./cron/swarm-dns-watch.ts";
 import { TraceRetentionScheduler } from "./cron/trace-retention-scheduler.ts";
+import { UpdateCheckScheduler } from "./cron/update-check-scheduler.ts";
 import { WorkstationAutoStopScheduler } from "./cron/workstation-auto-stop-scheduler.ts";
 import { enqueueCronJobRun } from "./cron-job-queue.ts";
 import { DeploymentService } from "./deploy.service.ts";
@@ -91,6 +92,8 @@ class CronServiceClass {
 	private readonly coreServicesWatch = new CoreServicesWatch();
 
 	private readonly swarmDnsWatch = new SwarmDnsWatch();
+
+	private readonly updateCheckScheduler = new UpdateCheckScheduler();
 
 	private readonly workstationAutoStopScheduler =
 		new WorkstationAutoStopScheduler();
@@ -159,6 +162,11 @@ class CronServiceClass {
 	/** Starts the watch that re-asserts the core services every time the worker (re)starts. */
 	startCoreServicesWatch(): void {
 		this.coreServicesWatch.start();
+	}
+
+	/** Starts the image update checker for services that opted into it. */
+	startUpdateCheckScheduler(): void {
+		this.updateCheckScheduler.start();
 	}
 
 	/** Starts the watch that restarts a swarm service whose slug dropped out of Docker's DNS. */

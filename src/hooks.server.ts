@@ -297,6 +297,7 @@ export const init = async () => {
 	CronService.startStatsSampler();
 	CronService.startUptimeProbe();
 	CronService.startMirrorGcScheduler();
+	CronService.startUpdateCheckScheduler();
 	CronService.startGitPollScheduler();
 	CronService.startErrorRetention();
 	CronService.startTraceRetention();

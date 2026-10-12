@@ -387,3 +387,32 @@ func TestSwarmLogsFallBackToTheServiceWhenNoTaskIsCurrent(t *testing.T) {
 		t.Errorf("body = %q", body)
 	}
 }
+
+func TestTagImageNeedsSourceRepositoryAndTagAndMapsAMissingImageTo404(t *testing.T) {
+	api := newAPI(t, &fakeDaemon{bodies: map[string]string{"/images/sha256:abc/tag": ``}})
+	post := func(body string) (int, string) {
+		request, err := http.NewRequest(http.MethodPost, api.URL+"/v1/images/tag", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Authorization", "Bearer "+token)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = response.Body.Close() }()
+		read, _ := io.ReadAll(response.Body)
+		return response.StatusCode, string(read)
+	}
+	if status, body := post(`{"source":"sha256:abc"}`); status != http.StatusBadRequest ||
+		!strings.Contains(body, "repository is required") || !strings.Contains(body, "tag is required") {
+		t.Fatalf("want a 400 naming the missing fields, got %d %s", status, body)
+	}
+	if status, body := post(`{"source":"sha256:abc","repository":"gitea/gitea","tag":"1.25.0-dev"}`); status != http.StatusOK {
+		t.Fatalf("want the tag to succeed, got %d %s", status, body)
+	}
+	if status, _ := post(`{"source":"sha256:gone","repository":"gitea/gitea","tag":"1.25.0-dev"}`); status != http.StatusNotFound {
+		t.Fatalf("a missing image must answer 404, got %d", status)
+	}
+}

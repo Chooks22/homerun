@@ -11,6 +11,7 @@ import {
 	updateSourceSchema,
 } from "#lib/server/validation/service.js";
 import { GitWebhookService } from "#lib/services/git-webhook.service.js";
+import { ImageVersionService } from "#lib/services/image-version.service.js";
 import { PreviewService } from "#lib/services/preview.service.js";
 import { encryptSecret } from "#lib/services/secrets.js";
 import { parseWatchPaths } from "#lib/watch-paths.js";
@@ -258,5 +259,108 @@ export const actions = {
 			`Service source updated: service=${svc.id} buildSource=${input.buildSource} user=${locals.user.id}`,
 		);
 		return { success: true };
+	},
+	findPin: async ({ params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const svc = await ServiceDTO.get(params.serviceId);
+		if (!svc) {
+			return fail(404, { error: "Service not found." });
+		}
+		try {
+			return { pin: await ImageVersionService.findPinCandidates(svc) };
+		} catch (err) {
+			return fail(400, {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+	},
+	pin: async ({ request, params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const svc = await ServiceDTO.get(params.serviceId);
+		if (!svc) {
+			return fail(404, { error: "Service not found." });
+		}
+		const formData = await request.formData();
+		const local = formData.get("choice") === "local";
+		const tag = String(
+			(local ? formData.get("localTag") : formData.get("choice")) ?? "",
+		).trim();
+		try {
+			await ImageVersionService.pin(svc, tag, { local });
+		} catch (err) {
+			return fail(400, {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+		logger.info(
+			`Service pinned: service=${svc.id} tag=${tag} user=${locals.user.id}`,
+		);
+		return { tag };
+	},
+	unpin: async ({ params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const svc = await ServiceDTO.get(params.serviceId);
+		if (!svc) {
+			return fail(404, { error: "Service not found." });
+		}
+		await ImageVersionService.unpin(svc);
+		return { tag: svc.tag };
+	},
+	updateWatch: async ({ request, params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const svc = await ServiceDTO.get(params.serviceId);
+		if (!svc) {
+			return fail(404, { error: "Service not found." });
+		}
+		const formData = await request.formData();
+		const updateCheckEnabled = formData.get("updateCheckEnabled") === "on";
+		await svc.update({
+			updateCheckEnabled,
+			updateTrialEnabled: formData.get("updateTrialEnabled") === "on",
+			...(updateCheckEnabled ? {} : { updateCheck: null }),
+		});
+		if (updateCheckEnabled && !svc.toJSON().updateCheck) {
+			await ImageVersionService.check(svc, { background: true });
+		}
+		return { success: true };
+	},
+	checkUpdates: async ({ params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const svc = await ServiceDTO.get(params.serviceId);
+		if (!svc) {
+			return fail(404, { error: "Service not found." });
+		}
+		const state = await ImageVersionService.check(svc, { background: true });
+		if (state?.error) {
+			return fail(502, { error: state.error });
+		}
+		return { available: state?.available?.tag ?? null };
+	},
+	applyUpdate: async ({ params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const svc = await ServiceDTO.get(params.serviceId);
+		if (!svc) {
+			return fail(404, { error: "Service not found." });
+		}
+		try {
+			await ImageVersionService.applyUpdate(svc, locals.user.id);
+		} catch (err) {
+			return fail(400, {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+		return { tag: svc.tag };
 	},
 };

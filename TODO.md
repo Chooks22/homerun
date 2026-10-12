@@ -15,6 +15,9 @@ When done delete the entry, no bloat.
 
 ## Medium
 
+- [ ] Version pinning and update checks in the REST API, the CLI, the MCP tools
+      and the Terraform provider (pin/unpin, watch toggles, apply update), only
+      the Source tab has them today
 - [ ] MCP tools for what has no REST route yet: DNS domains and records, uptime
       and monitoring, the registry, remote hosts, users, system logs, Docker
       cleanup; and a call on whether credential-holding admin config (DNS

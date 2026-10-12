@@ -16,6 +16,7 @@ func (s *Server) mountImages(r chi.Router) {
 	r.Post("/v1/images/pull", httpapi.H(s.pullImage))
 	r.Get("/v1/images/inspect", httpapi.H(s.inspectImage))
 	r.Get("/v1/images/id", httpapi.H(s.imageID))
+	r.Post("/v1/images/tag", httpapi.H(s.tagImage))
 	r.Delete("/v1/images/{id}", httpapi.H(s.removeImage))
 }
 
@@ -104,6 +105,42 @@ func (s *Server) removeImage(w http.ResponseWriter, r *http.Request) error {
 	err := s.docker.RemoveImage(r.Context(), chi.URLParam(r, "id"), force)
 	if errors.Is(err, dockerapi.ErrNotFound) {
 		return httpapi.Answer(w, http.StatusOK, map[string]bool{"ok": true})
+	}
+	if err != nil {
+		return err
+	}
+	return httpapi.Answer(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// tagImageBody is a tag request: the image to tag, by id or reference, and
+// the repository and tag to give it.
+type tagImageBody struct {
+	Repository string `json:"repository"`
+	Source     string `json:"source"`
+	Tag        string `json:"tag"`
+}
+
+// tagImage tags a local image as repository:tag, without touching any
+// registry.
+func (s *Server) tagImage(w http.ResponseWriter, r *http.Request) error {
+	var input tagImageBody
+	if !httpapi.DecodeJSON(w, r, &input) {
+		return nil
+	}
+	var issues []httpapi.ValidationIssue
+	for _, field := range []struct{ name, value string }{
+		{"source", input.Source}, {"repository", input.Repository}, {"tag", input.Tag},
+	} {
+		if field.value == "" {
+			issues = append(issues, httpapi.ValidationIssue{Message: field.name + " is required", Path: []string{field.name}})
+		}
+	}
+	if len(issues) > 0 {
+		return httpapi.Invalid(w, "Invalid request body", issues)
+	}
+	err := s.docker.TagImage(r.Context(), input.Source, input.Repository, input.Tag)
+	if errors.Is(err, dockerapi.ErrNotFound) {
+		return httpapi.Error(w, http.StatusNotFound, "No such image.")
 	}
 	if err != nil {
 		return err

@@ -50,9 +50,11 @@ webhook, or an email address under **Notifications → Settings → Channels** (
 pick which events each one gets on that page's **General** tab: a git build or a
 deploy started (not sent for scheduled runs), build succeeded/failed, a build
 stopped by failing [status checks](status-checks.md), scheduled update
-succeeded/failed, manual deploy succeeded/failed, a new revision found unhealthy
-or [rolled back](revisions-and-rollback.md), an image scan finding
-[critical vulnerabilities](image-scanning.md), a service going down or
+succeeded/failed, an
+[update available](deploy-source-and-builds.md#version-pinning-and-update-checks)
+for a service watching for one, manual deploy succeeded/failed, a new revision
+found unhealthy or [rolled back](revisions-and-rollback.md), an image scan
+finding [critical vulnerabilities](image-scanning.md), a service going down or
 recovering (from its [uptime probe](observability.md#uptime)), the server
 crossing a [resource limit](dashboard.md) or recovering from one, a new or
 regressed [error issue](error-tracking.md), a [volume backup](backups.md)
@@ -60,10 +62,10 @@ succeeding or failing (after its retry), a
 [backup destination running low on space](backups.md#storage-space), a
 [cron job](scheduling.md) run succeeding or failing, and an address
 [banned for hitting blocked paths](blocked-paths-and-ip-bans.md). A new channel
-starts subscribed to build and update failures, status checks failures,
-unhealthy revisions, rollbacks, both resource alerts, new and regressed errors,
-backup failures, low backup storage, and cron job failures; turn on the rest you
-want from that matrix.
+starts subscribed to build and update failures, available updates, status checks
+failures, unhealthy revisions, rollbacks, both resource alerts, new and
+regressed errors, backup failures, low backup storage, and cron job failures;
+turn on the rest you want from that matrix.
 
 ![Notification settings' Channels tab, with the form to add one above a Discord and an email channel](images/notifications-channels.webp)
 

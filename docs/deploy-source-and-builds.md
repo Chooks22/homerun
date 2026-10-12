@@ -17,6 +17,45 @@ Every service is either:
   the build produces a fresh local image tag
   (`homerun-build-<slug>:<timestamp>`) every deploy.
 
+## Version pinning and update checks
+
+An image-built service's **Environments & Deployments → Source** tab has a
+**Version** panel below the source form.
+
+**Pin version** finds the tags the running image is published under in its
+registry (the same digest as the revision that's live) and swaps the floating
+tag (`:latest`, `:nightly`) for the one you pick, most specific release first.
+The image doesn't change, so nothing redeploys. When no published tag matches,
+which is what a nightly build usually looks like, it offers to tag the running
+image on this host instead, suggesting the image's
+`org.opencontainers.image.version` label when it has one (the default pick is a
+stable version tag, never another floating one like `:nightly`); the service's
+pull policy then moves to **If missing**, since no registry has that tag. Start
+a local tag with the version the build is ahead of (`1.25.0-dev`) and update
+checks will spot that release when it ships. **Unpin** puts the service back on
+the tag it was pinned from, picked up on the next deploy. A local tag only
+exists on the manager node in [swarm mode](swarm-mode.md).
+
+**Watch for updates** checks the registry every 6 hours: a version tag looks for
+a newer stable release on the same track (`1.24.3` → `1.24.4`, `-rootless` stays
+`-rootless`, a prerelease or `-dev` pin waits for its release, release
+candidates are ignored), a floating tag for a new image behind it. A new update
+sends an **Update available** [notification](notifications.md), once per update,
+and the panel shows it with **Update now**, which moves the service to the new
+tag and deploys it, and **Check now**.
+
+With **Try new versions before notifying** on (the default), the new version is
+started first in a throwaway container with the service's env vars, command and
+entrypoint, but no volumes, no published ports, no Traefik route and only
+Docker's default bridge network, so it can't reach the live service's data or
+database. It passes once it's ready by the same check a deploy gates traffic on
+(the service's healthcheck command, else its port listening), or is still
+running after 20 seconds when healthchecks are off; the outcome, with the last
+log lines of a failure, rides along in the notification. The container is
+removed either way; the pulled image stays for the real deploy. An app that
+can't start without its database or its data fails this trial, so turn it off
+for those.
+
 ## Build methods
 
 ![The Source section's build method picker, open on the six methods](images/source-build-methods.webp)

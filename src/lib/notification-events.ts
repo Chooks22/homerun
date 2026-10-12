@@ -53,6 +53,13 @@ export const NOTIFICATION_EVENTS: NotificationEventInfo[] = [
 	},
 	{
 		description:
+			"A service watching for updates has a newer image, with the outcome of its trial run when trials are on.",
+		event: "update.available",
+		group: "Updates",
+		label: "Update available",
+	},
+	{
+		description:
 			"A deploy of an image, a rollback or a preview promote started. Not sent for scheduled runs.",
 		event: "deploy.started",
 		group: "Deploys",
@@ -182,6 +189,7 @@ export const DEFAULT_NOTIFICATION_EVENTS: NotificationEvent[] = [
 	"build.failed",
 	"build.checks_failed",
 	"update.failed",
+	"update.available",
 	"deploy.unhealthy",
 	"deploy.rolled_back",
 	"resource.warning",

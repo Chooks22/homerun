@@ -73,6 +73,7 @@ export type NotificationEvent =
 	| "deploy.rolled_back"
 	| "update.failed"
 	| "update.succeeded"
+	| "update.available"
 	| "deploy.failed"
 	| "deploy.succeeded"
 	| "image.vulnerable"

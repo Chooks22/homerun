@@ -172,6 +172,27 @@ export type ServiceUpdateInput = Partial<
 		| "tracesEnabled"
 		| "uptimeEnabled"
 		| "tag"
+		| "pinnedFromTag"
+		| "pinnedLocally"
+		| "updateCheck"
+		| "updateCheckEnabled"
+		| "updateTrialEnabled"
 	>
 > &
 	Parameters<typeof runtimeOptionsFrom>[0];
+
+/** The version-pinning and update-check columns of a new service: not pinned, not watching for updates, trials on for when it does. */
+export const NEW_SERVICE_VERSION_COLUMNS: Pick<
+	Service,
+	| "pinnedFromTag"
+	| "pinnedLocally"
+	| "updateCheck"
+	| "updateCheckEnabled"
+	| "updateTrialEnabled"
+> = {
+	pinnedFromTag: null,
+	pinnedLocally: false,
+	updateCheck: null,
+	updateCheckEnabled: false,
+	updateTrialEnabled: true,
+};
