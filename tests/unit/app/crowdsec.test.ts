@@ -301,14 +301,21 @@ describe("CrowdSec page calls", () => {
 						},
 					]),
 		);
-		const result = await CrowdsecService.activeDecisions();
+		const result = await CrowdsecService.activeDecisions({
+			limit: 50,
+			offset: 0,
+		});
 		expect(result.truncated).toBe(false);
-		expect(result.decisions.map((decision) => decision.value)).toEqual([
+		expect(result.total).toBe(1);
+		expect(result.items.map((decision) => decision.value)).toEqual([
 			"198.51.100.7",
 		]);
 		expect(calls.at(-1)?.url).toBe(
-			"https://lapi.example.org/v1/alerts?has_active_decision=true&limit=500",
+			"https://lapi.example.org/v1/alerts?has_active_decision=true&include_capi=false&limit=500",
 		);
+		expect(
+			(await CrowdsecService.activeDecisions({ limit: 50, offset: 50 })).items,
+		).toEqual([]);
 	});
 
 	test("an empty answer is no decision and no alert", async () => {
@@ -316,11 +323,16 @@ describe("CrowdSec page calls", () => {
 		lapi((url) =>
 			url.endsWith("/login") ? loggedIn("t6") : new Response("null"),
 		);
-		expect(await CrowdsecService.activeDecisions()).toEqual({
-			decisions: [],
+		const page = { limit: 50, offset: 0 };
+		expect(await CrowdsecService.activeDecisions(page)).toEqual({
+			items: [],
+			total: 0,
 			truncated: false,
 		});
-		expect(await CrowdsecService.recentAlerts()).toEqual([]);
+		expect(await CrowdsecService.recentAlerts(page)).toEqual({
+			items: [],
+			total: 0,
+		});
 	});
 
 	test("recent alerts are the last day's, newest first", async () => {
@@ -333,10 +345,11 @@ describe("CrowdSec page calls", () => {
 						{ id: 2, scenario: "b" },
 					]),
 		);
-		const alerts = await CrowdsecService.recentAlerts();
-		expect(alerts.map((entry) => entry.id)).toEqual([2, 1]);
+		const alerts = await CrowdsecService.recentAlerts({ limit: 1, offset: 0 });
+		expect(alerts.items.map((entry) => entry.id)).toEqual([2]);
+		expect(alerts.total).toBe(2);
 		expect(calls.at(-1)?.url).toBe(
-			"https://lapi.example.org/v1/alerts?limit=100&since=24h",
+			"https://lapi.example.org/v1/alerts?include_capi=false&limit=500&since=24h",
 		);
 	});
 
@@ -359,11 +372,66 @@ describe("CrowdSec page calls", () => {
 
 	test("the page calls refuse when CrowdSec isn't set up", async () => {
 		settingsWith(null);
-		await expect(CrowdsecService.recentAlerts()).rejects.toThrow(
-			"isn't set up",
-		);
+		await expect(
+			CrowdsecService.recentAlerts({ limit: 50, offset: 0 }),
+		).rejects.toThrow("isn't set up");
 		await expect(
 			CrowdsecService.addDecision({ durationHours: 1, ip: "x", reason: "y" }),
 		).rejects.toThrow("isn't set up");
+	});
+
+	test("the community blocklist is searched, paged, and read once a minute until a delete", async () => {
+		settingsWith({ ...credentials, machineId: "blocklist" });
+		const blocklistAlert = {
+			decisions: [
+				{
+					duration: "100h",
+					id: 11,
+					origin: "CAPI",
+					scenario: "http:scan",
+					type: "ban",
+					value: "185.220.101.0",
+				},
+				{
+					duration: "100h",
+					id: 12,
+					origin: "CAPI",
+					scenario: "ssh:bruteforce",
+					type: "ban",
+					value: "203.0.113.50",
+				},
+			],
+			id: 20,
+			scenario: "update : +2/-0 IPs",
+			source: { scope: "crowdsecurity/community-blocklist", value: "" },
+		};
+		const { calls } = lapi((url) => {
+			if (url.endsWith("/login")) {
+				return loggedIn("t9");
+			}
+			return url.includes("/v1/alerts")
+				? Response.json([blocklistAlert])
+				: Response.json({ nbDeleted: "1" });
+		});
+		const all = await CrowdsecService.blocklist({ limit: 1, offset: 0, q: "" });
+		expect(all.total).toBe(2);
+		expect(all.items.map((decision) => decision.id)).toEqual([12]);
+		expect(
+			(await CrowdsecService.blocklist({ limit: 50, offset: 0, q: "SSH" }))
+				.items[0]?.value,
+		).toBe("203.0.113.50");
+		expect(
+			(await CrowdsecService.blocklist({ limit: 50, offset: 0, q: "185.220" }))
+				.total,
+		).toBe(1);
+		const reads = () =>
+			calls.filter((call) => call.url.includes("/v1/alerts")).length;
+		expect(reads()).toBe(1);
+		expect(calls.find((call) => call.url.includes("/v1/alerts"))?.url).toBe(
+			"https://lapi.example.org/v1/alerts?has_active_decision=true&limit=500&origin=CAPI",
+		);
+		await CrowdsecService.deleteDecision(11);
+		await CrowdsecService.blocklist({ limit: 50, offset: 0, q: "" });
+		expect(reads()).toBe(2);
 	});
 });

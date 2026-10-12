@@ -1,42 +1,33 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { Logger } from "#lib/logger.js";
 import { can, permissionDeniedMessage } from "#lib/permissions.js";
+import { type ListQuery, parseListQuery } from "#lib/server/list-query.js";
 import { CrowdsecService } from "#lib/services/crowdsec.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("CrowdSec");
 
-/** The LAPI's decisions in force and last day of alerts, or why they couldn't be read. */
-async function crowdsecView() {
+/** One page of the LAPI's own decisions in force, or why they couldn't be read. */
+async function decisionsPage(query: ListQuery) {
 	try {
-		const [active, alerts] = await Promise.all([
-			CrowdsecService.activeDecisions(),
-			CrowdsecService.recentAlerts(),
-		]);
-		return { ...active, alerts, error: null };
+		return { ...(await CrowdsecService.activeDecisions(query)), error: null };
 	} catch (err) {
 		return {
-			alerts: [],
-			decisions: [],
 			error: err instanceof Error ? err.message : "Couldn't reach CrowdSec.",
+			items: [],
+			total: 0,
 			truncated: false,
 		};
 	}
 }
 
-export const load = async ({ locals, parent }) => {
-	await parent();
-	if (!can(locals.permissions, "settings", "read")) {
-		throw redirect(302, resolve("/(protected)/monitoring"));
-	}
-	const configured = Boolean(
-		(await InstanceSettingsDTO.get()).crowdsecCredentials(),
-	);
+export const load = async ({ parent, url }) => {
+	const { crowdsecConfigured, preferences } = await parent();
+	const query = parseListQuery(url, {}, preferences.perPage);
 	return {
-		canWrite: can(locals.permissions, "settings", "write"),
-		configured,
-		view: configured ? crowdsecView() : null,
+		decisions: crowdsecConfigured ? decisionsPage(query) : null,
+		page: query.page,
+		perPage: query.perPage,
 	};
 };
 

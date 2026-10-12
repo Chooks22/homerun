@@ -110,17 +110,20 @@ failed push shows up among Homerun's own errors on
 [System Logs](system-logs.md), and the ban still applies in Homerun's own
 Traefik.
 
-**Monitoring → CrowdSec** (admins) reads the Local API live:
+**Monitoring → CrowdSec** (admins) reads the Local API live, in three tabs, each
+paged:
 
-- **Active decisions**: every decision CrowdSec's bouncers enforce right now,
-  with the address's country and network when CrowdSec knows them, its reason
-  and origin and when it ends. Bans Homerun pushed are marked **Homerun**. The
-  community blocklist is left out, as `cscli alerts list` does. **Delete** lifts
-  one decision; it doesn't lift Homerun's own ban on the same address, which
-  stays under Blocked IPs.
-- **New decision** bans an address through CrowdSec only, for a number of hours
-  (0 for ten years) with a reason. Homerun's own Traefik isn't told.
-- **Recent alerts**: what CrowdSec's scenarios caught in the last 24 hours.
+- **Decisions**: every decision CrowdSec's bouncers enforce right now from its
+  own scenarios, manual bans and Homerun's, with the address's country and
+  network when CrowdSec knows them, its reason and origin and when it ends. Bans
+  Homerun pushed are marked **Homerun**. **Delete** lifts one decision; it
+  doesn't lift Homerun's own ban on the same address, which stays under Blocked
+  IPs. **New decision** bans an address through CrowdSec only, for a number of
+  hours (0 for ten years) with a reason. Homerun's own Traefik isn't told.
+- **Alerts**: what CrowdSec's scenarios caught in the last 24 hours.
+- **Community blocklist**: the addresses the CrowdSec community reported, tens
+  of thousands of them, searchable by address or scenario. Homerun reads the
+  list at most once a minute.
 
 A firewall bouncer drops everything from a banned address, the dashboard
 included when it's served through the same server. Homerun's own exception for

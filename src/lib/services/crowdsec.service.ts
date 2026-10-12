@@ -52,6 +52,7 @@ interface LapiAlert {
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const PAGE_SIZE = 500;
+const BLOCKLIST_CACHE_MS = 60_000;
 const FOREVER = "87600h";
 const HOMERUN_SCENARIO_PREFIX = "homerun: ";
 const DURATION_PART_RE = /(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)/g;
@@ -169,6 +170,7 @@ export function banAlert(params: {
 class CrowdsecServiceClass {
 	private readonly logger = new Logger("CrowdSec");
 	#session: { expiresAt: number; key: string; token: string } | null = null;
+	#blocklist: { at: number; decisions: CrowdsecDecision[] } | null = null;
 
 	/**
 	 * Logs in to the LAPI as the machine in `credentials` and returns its
@@ -250,39 +252,93 @@ class CrowdsecServiceClass {
 	 */
 	async deleteDecision(id: number): Promise<void> {
 		await this.#request(`/v1/decisions/${id}`, { method: "DELETE" });
+		this.#blocklist = null;
 	}
 
 	/**
-	 * The decisions in force, newest first, read off the alerts that carry
-	 * one (a machine can't list decisions directly). The community blocklist
-	 * is left out, as `cscli alerts list` does; `truncated` says the LAPI had
-	 * more alerts than one page.
+	 * One page of the community blocklist's decisions in force, newest first,
+	 * narrowed to those whose address or scenario contains `q`. The whole
+	 * list is tens of thousands of addresses and megabytes from the LAPI, so
+	 * it's read once a minute at most and paged here.
 	 *
 	 * @throws When CrowdSec isn't configured or the LAPI refuses it.
 	 */
-	async activeDecisions(): Promise<{
-		decisions: CrowdsecDecision[];
+	async blocklist(page: { limit: number; offset: number; q: string }): Promise<{
+		items: CrowdsecDecision[];
+		total: number;
+	}> {
+		if (
+			!this.#blocklist ||
+			Date.now() - this.#blocklist.at > BLOCKLIST_CACHE_MS
+		) {
+			const alerts = (await this.#request(
+				`/v1/alerts?${new URLSearchParams({ has_active_decision: "true", limit: String(PAGE_SIZE), origin: "CAPI" })}`,
+			)) as LapiAlert[] | null;
+			this.#blocklist = {
+				at: Date.now(),
+				decisions: decisionsFrom(alerts ?? [], new Date()),
+			};
+		}
+		const needle = page.q.trim().toLowerCase();
+		const matching = needle
+			? this.#blocklist.decisions.filter(
+					(decision) =>
+						decision.value.includes(needle) ||
+						decision.scenario.toLowerCase().includes(needle),
+				)
+			: this.#blocklist.decisions;
+		return {
+			items: matching.slice(page.offset, page.offset + page.limit),
+			total: matching.length,
+		};
+	}
+
+	/**
+	 * One page of the decisions in force, newest first, read off the alerts
+	 * that carry one (a machine can't list decisions directly). The community
+	 * blocklist is left out (`include_capi=false`): each of its alerts carries
+	 * 15,000 decisions. `total` counts what the newest `PAGE_SIZE` alerts
+	 * hold, and `truncated` says the LAPI had more alerts than that.
+	 *
+	 * @throws When CrowdSec isn't configured or the LAPI refuses it.
+	 */
+	async activeDecisions(page: { limit: number; offset: number }): Promise<{
+		items: CrowdsecDecision[];
+		total: number;
 		truncated: boolean;
 	}> {
 		const alerts = (await this.#request(
-			`/v1/alerts?${new URLSearchParams({ has_active_decision: "true", limit: String(PAGE_SIZE) })}`,
+			`/v1/alerts?${new URLSearchParams({ has_active_decision: "true", include_capi: "false", limit: String(PAGE_SIZE) })}`,
 		)) as LapiAlert[] | null;
+		const decisions = decisionsFrom(alerts ?? [], new Date());
 		return {
-			decisions: decisionsFrom(alerts ?? [], new Date()),
+			items: decisions.slice(page.offset, page.offset + page.limit),
+			total: decisions.length,
 			truncated: (alerts ?? []).length >= PAGE_SIZE,
 		};
 	}
 
 	/**
-	 * The alerts of the last 24 hours, newest first.
+	 * One page of the last 24 hours' alerts, newest first, the community
+	 * blocklist's left out.
 	 *
 	 * @throws When CrowdSec isn't configured or the LAPI refuses it.
 	 */
-	async recentAlerts(): Promise<CrowdsecAlert[]> {
-		const alerts = (await this.#request(
-			`/v1/alerts?${new URLSearchParams({ limit: "100", since: "24h" })}`,
-		)) as LapiAlert[] | null;
-		return (alerts ?? []).map(alertFrom).sort((a, b) => b.id - a.id);
+	async recentAlerts(page: { limit: number; offset: number }): Promise<{
+		items: CrowdsecAlert[];
+		total: number;
+	}> {
+		const alerts = (
+			((await this.#request(
+				`/v1/alerts?${new URLSearchParams({ include_capi: "false", limit: String(PAGE_SIZE), since: "24h" })}`,
+			)) as LapiAlert[] | null) ?? []
+		)
+			.map(alertFrom)
+			.sort((a, b) => b.id - a.id);
+		return {
+			items: alerts.slice(page.offset, page.offset + page.limit),
+			total: alerts.length,
+		};
 	}
 
 	/** Runs `call` when CrowdSec is configured, logging a failure instead of throwing it. */

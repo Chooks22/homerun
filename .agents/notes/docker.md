@@ -1342,14 +1342,22 @@ an alert carrying one `ban` decision shaped like `cscli decisions add`'s (origin
 `DELETE /v1/decisions?ip=`, which drops CrowdSec's own decisions on it too. It
 logs in as a machine (`/v1/watchers/login`, JWT cached until `expire`): bouncer
 keys are read-only. Saving logs in first and refuses dead credentials. Expiry is
-left to CrowdSec. Monitoring → CrowdSec (`monitoring/crowdsec`, `new/`) reads
-the LAPI live from a streamed `load`: a machine can't `GET /v1/decisions`
-(bouncer only), so active decisions come from
+left to CrowdSec. Monitoring → CrowdSec (`monitoring/crowdsec` = Decisions,
+`alerts/`, `blocklist/`, `new/`, sub-tabs through `SectionNav` in its
+`+layout.svelte`, whose `+layout.server.ts` holds the settings-read guard and
+whether it's set up) reads the LAPI live from a streamed `load`: a machine can't
+`GET /v1/decisions` (bouncer only), so active decisions come from
 `GET /v1/alerts?has_active_decision=true`, flattened by `decisionsFrom` (time
-left is a Go duration, `goDurationMs`; simulated and expired ones dropped; CAPI
-is excluded by the LAPI's default); Delete is `DELETE /v1/decisions/{id}`, New
-decision posts `banAlert`. `ban`/`unban` log failures (`#push`), the page calls
-throw. Not verified against a live Traefik.
+left is a Go duration, `goDurationMs`; simulated and expired ones dropped). Both
+Decisions and Alerts pass `include_capi=false`: the LAPI includes the community
+blocklist by default, one alert carrying 15,000 decisions, and a 4.6 MB answer
+flattened to 30k rows killed the browser tab. The Community blocklist tab reads
+`origin=CAPI` (never `origin=lists`, which took 53 s for nothing on a real
+LAPI), flattened once and cached a minute in `CrowdsecService.blocklist` (a
+delete clears it), searched in memory. Every list is paged server-side
+(`parseListQuery`), so only one page reaches the browser. Delete is
+`DELETE /v1/decisions/{id}`, New decision posts `banAlert`. `ban`/`unban` log
+failures (`#push`), the page calls throw. Not verified against a live Traefik.
 
 ## Build servers (`remote_host` table, `RemoteHostDTO`, `/remote-hosts`)
 
