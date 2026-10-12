@@ -28,7 +28,7 @@
 		"@fontsource-variable/pixelify-sans": "5.3.0",
 		"@fontsource/dejavu-sans": "5.3.0",
 		"@fontsource/vt323": "5.3.0",
-		"@happy-dom/global-registrator": "20.11.6",
+		"@happy-dom/global-registrator": "20.14.6",
 		"@internationalized/date": "3.12.4",
 		"@j178/prek": "0.5.3",
 		"@jridgewell/gen-mapping": "0.3.13",
