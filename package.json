@@ -64,7 +64,7 @@
 		"only-allow": "1.2.2",
 		"openapi-typescript": "7.13.0",
 		"oxlint": "1.83.0",
-		"oxlint-tsgolint": "7.0.2002",
+		"oxlint-tsgolint": "7.0.2004",
 		"prettier": "3.9.6",
 		"shadcn-svelte": "1.5.0",
 		"svelte": "5.57.1",
