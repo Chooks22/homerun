@@ -27,12 +27,13 @@ export const POST = async ({ locals, request }) => {
 	if ("response" in body) {
 		return body.response;
 	}
-	const { envVars, ...fields } = body.data;
+	const { envVars, files, ...fields } = body.data;
 	const result = parseCronJobInput(
 		Object.fromEntries(
 			Object.entries(fields).filter(([, value]) => value !== null),
 		),
 		envVars,
+		files,
 		{ hostAccess: can(caller.permissions, "system", "write") },
 	);
 	if ("error" in result) {

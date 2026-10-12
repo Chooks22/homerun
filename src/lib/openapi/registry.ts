@@ -415,6 +415,24 @@ export const routes: RouteDef[] = [
 	},
 	{
 		description:
+			"Queues a run of the cron job now, whether or not its schedule is enabled, which is how a manual-only job is triggered from outside. A run already queued is returned instead of a second one. Poll GET /jobs/{jobId} until it finishes.",
+		method: "post",
+		path: "/cron-jobs/{cronJobId}/run",
+		pathParams: [{ description: "Cron job id", name: "cronJobId" }],
+		responses: {
+			202: { description: "Run queued", schema: queuedJobResponse },
+			401: unauthorized,
+			403: {
+				description: "A host command job without write access to System",
+				schema: errorResponse,
+			},
+			404: notFound,
+		},
+		summary: "Run a cron job now",
+		tags: ["Cron jobs"],
+	},
+	{
+		description:
 			"The URL and secret a git provider sends push events to when deploy-on-push is on, and whether Homerun registered the webhook itself. Add it by hand in the repository's settings when registered is false.",
 		method: "get",
 		path: "/services/{serviceId}/webhook",

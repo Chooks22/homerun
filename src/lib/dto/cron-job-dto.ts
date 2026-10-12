@@ -1,4 +1,10 @@
 import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
+import {
+	CRON_JOB_KINDS,
+	type CronJobFile,
+	type CronJobKind,
+	type ScriptRuntime,
+} from "#lib/cron-job-script.js";
 import { db } from "#lib/server/db/lib.js";
 import { type CronJob, cronJob } from "#lib/server/db/schema.js";
 import {
@@ -14,14 +20,17 @@ export interface NewCronJobInput {
 	description?: string | null;
 	enabled: boolean;
 	envVars: Record<string, string>;
+	files?: CronJobFile[];
 	image?: string | null;
-	kind: "image" | "exec";
+	kind: CronJobKind;
 	name: string;
 	registryPasswordEnc?: string | null;
 	registryUrl?: string | null;
 	registryUsername?: string | null;
 	remoteHostId?: string | null;
+	runtime?: ScriptRuntime | null;
 	schedule: string;
+	source?: string | null;
 	tag?: string | null;
 	timeoutSeconds: number;
 	userId: string;
@@ -34,6 +43,7 @@ export type CronJobUpdateInput = Partial<
 		| "description"
 		| "enabled"
 		| "envVars"
+		| "files"
 		| "image"
 		| "kind"
 		| "lastRunAt"
@@ -42,15 +52,18 @@ export type CronJobUpdateInput = Partial<
 		| "registryUrl"
 		| "registryUsername"
 		| "remoteHostId"
+		| "runtime"
 		| "schedule"
+		| "source"
 		| "tag"
 		| "timeoutSeconds"
 	>
 >;
 
 /**
- * Wraps the `cron_job` table : a user-defined scheduled job, either a one-off
- * container from an image or a shell command run on the app host.
+ * Wraps the `cron_job` table : a user-defined scheduled job, a one-off
+ * container from an image, inline source code run on a runtime image, or a
+ * shell command run on the app host.
  */
 export class CronJobDTO extends BaseDTO<CronJob> {
 	/** Loads one cron job by id; null when missing. */
@@ -92,8 +105,8 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 			conditions.push(
 				inArray(
 					cronJob.kind,
-					kinds.filter((k): k is "image" | "exec" =>
-						["image", "exec"].includes(k),
+					kinds.filter((k): k is CronJobKind =>
+						CRON_JOB_KINDS.some((kind) => kind === k),
 					),
 				),
 			);
@@ -178,6 +191,7 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 			description: input.description ?? null,
 			enabled: input.enabled,
 			envVars: input.envVars,
+			files: input.files ?? [],
 			id: crypto.randomUUID(),
 			image: input.image ?? null,
 			kind: input.kind,
@@ -187,7 +201,9 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 			registryUrl: input.registryUrl ?? null,
 			registryUsername: input.registryUsername ?? null,
 			remoteHostId: input.remoteHostId ?? null,
+			runtime: input.runtime ?? null,
 			schedule: input.schedule,
+			source: input.source ?? null,
 			tag: input.tag ?? "latest",
 			timeoutSeconds: input.timeoutSeconds,
 			updatedAt: now,
@@ -226,8 +242,8 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 	}
 
 	/**
-	 * Whether the job runs a one-off container from an image or a shell command
-	 * on the app host.
+	 * Whether the job runs a one-off container from an image, inline source on
+	 * a runtime image, or a shell command on the app host.
 	 */
 	get kind(): CronJob["kind"] {
 		return this.row.kind;
@@ -259,6 +275,18 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 	/** The job's environment variables, empty when none are stored. */
 	get envVars(): Record<string, string> {
 		return this.row.envVars ?? {};
+	}
+	/** The config files written into the job's container before it starts. */
+	get files(): CronJobFile[] {
+		return this.row.files;
+	}
+	/** The runtime a script-kind job's source runs on, null for other kinds. */
+	get runtime(): ScriptRuntime | null {
+		return this.row.runtime;
+	}
+	/** A script-kind job's source code, null for other kinds. */
+	get source(): string | null {
+		return this.row.source;
 	}
 	/** How long a run may take before it is killed. */
 	get timeoutSeconds(): number {

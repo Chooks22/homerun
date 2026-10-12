@@ -20,12 +20,18 @@ waiting its turn is never queued twice.
 ## Cron jobs
 
 **Cron Jobs** in the sidebar is the other half of scheduling: a task on a
-schedule that isn't tied to a service. Each job runs one of two ways:
+schedule, or run on demand, that isn't tied to a service. Each job runs one of
+three ways:
 
 - **Container**: an image (plus optional tag, command override, env vars, and
   private-registry credentials) run as a throwaway container. Homerun pulls the
   image if it's missing, runs it to completion, keeps its stdout/stderr, and
-  removes the container.
+  removes the container. Renovate is the typical one: `renovate/renovate` with
+  `RENOVATE_TOKEN` and friends as env vars, and its config as a config file.
+- **Source code**: paste a script and pick a runtime (Bun, Node.js, Deno, Python
+  or `sh`), and it runs on the official Alpine image for that runtime, written
+  to `/homerun/main.<ext>`. Install dependencies from the script itself if it
+  needs any (Bun and Deno fetch npm imports on their own).
 - **Host command**: a shell command run through `sh -c` on the Docker host
   itself, not inside Homerun's container: a throwaway privileged `alpine:3`
   helper sharing the host's PID namespace uses `nsenter` to step into the host's
@@ -37,12 +43,26 @@ schedule that isn't tied to a service. Each job runs one of two ways:
 
 ![A cron job's page: its schedule, image, command, timeout and Run now](images/scheduling-cron-job.webp)
 
+Container and source code jobs also take **config files**: any number of text
+files, each an absolute path and its content, written into the container before
+its process starts, so an image that reads a config file gets one without
+building your own image. Homerun wraps the image's entrypoint in a `/bin/sh`
+script that writes the files and then runs the image's own entrypoint and
+command, so the image needs `/bin/sh`, and the path must be writable by the user
+the image runs as: `/tmp` always is, a root-owned directory isn't for an image
+that runs as non-root, such as Renovate. Up to 20 files of 64 kB each, text
+only.
+
 Give it a 5-field cron schedule, a timeout (default 900s, the job is killed past
-it), and turn the schedule on or off without deleting the job. Runs go through
-the same [job queue](#the-job-queue) as deploys and backups, so **Run now**
-returns immediately and one job never runs twice concurrently. Each run's exit
-code and captured output are kept on the job's page, and enabled jobs also show
-up on the Scheduling page next to cron redeploys and backups.
+it), and turn the schedule on or off without deleting the job. With the schedule
+off it's a one-off task: it only runs when you press **Run now**, or when
+something calls `POST /api/v1/cron-jobs/{cronJobId}/run` with an API key (a CI
+step, another service), which queues a run and answers `202` with the queue
+job's id to poll on `GET /api/v1/jobs/{jobId}`. Runs go through the same
+[job queue](#the-job-queue) as deploys and backups, so **Run now** returns
+immediately and one job never runs twice concurrently. Each run's exit code and
+captured output are kept on the job's page, and enabled jobs also show up on the
+Scheduling page next to cron redeploys and backups.
 
 ## The Scheduling page
 

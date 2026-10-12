@@ -230,7 +230,7 @@ unrestricted. Covered by `tests/unit/app/cron-expression.test.ts`.
 ## Cron jobs (`cron_job`/`cron_job_run` tables, `CronJobDTO`, `src/lib/services/cron-job.service.ts`, `/cron-jobs`)
 
 A user-defined scheduled task that isn't tied to a service, unlike
-`service.cronSchedule` (which redeploys an existing service). Two kinds:
+`service.cronSchedule` (which redeploys an existing service). Three kinds:
 
 - **`kind: "image"`** runs a throwaway container: image + tag, an optional
   command override, env vars, and optional private-registry credentials
@@ -256,11 +256,41 @@ A user-defined scheduled task that isn't tied to a service, unlike
   actions, so neither can skip it) rather than only hidden in the UI : it is
   root on the host, the same class of power the Docker socket already gives.
 
-Both kinds run as a throwaway one-off container **in the Go worker now**, not
-through `DockerService.runOneOff` in-process (see "Executed by the Go worker"
-below); `CronJobService.prepareRun`/`finishRun` write one `cron_job_run` row per
-attempt on every path including a spec that couldn't even be built, same shape
-as the backup/restore worker jobs (see S3 backups below). A run keeps
+- **`kind: "script"`** ("Source code") is inline source (`cron_job.source`) run
+  on a fixed runtime image (`cron_job.runtime`, the table is
+  `SCRIPT_RUNTIME_SPECS` in `src/lib/cron-job-script.ts`: Bun, Node, Deno,
+  Python, `sh`, all official Alpine images). It isn't a separate executor:
+  `CronJobService`'s `#containerFor` turns it into an ordinary container spec,
+  the source becoming the first config file (`/homerun/main.<ext>`) and the
+  command the runtime's interpreter on it, working dir `/homerun`.
+
+**Config files** (`cron_job.files`, `{ path, content }[]`, image and script
+kinds, dropped for exec) are written into the container before its process
+starts by `internal/dockerapi`'s `WithFiles`, applied inside `RunOneOff`: it
+inspects the image for its `Entrypoint`/`Cmd`, replaces the entrypoint with
+`/bin/sh -c <FilesScript> homerun-files` and passes the original argv
+(configured or image entrypoint, then configured or image command, with Docker's
+rule that an overridden entrypoint drops the image's command) as the script's
+`"$@"`. Each file's content travels in its own `HOMERUN_FILE_<n>` env var,
+written with `printf '%s'` (no `base64` needed in the image), unset, then
+`exec "$@"`. **Deliberately not Docker's archive API**:
+`PUT /containers/<id>/archive` on a never-started container is the call that
+hung dockerd in the backup incident below. Costs: the image needs `/bin/sh`, the
+path must be writable by the image's user (Renovate's image runs as non-root, so
+`/tmp`), text only (a NUL byte is refused), 20 files of 64 kB at most
+(`MAX_CRON_JOB_FILES`/`MAX_CRON_JOB_FILE_BYTES`, under Linux's 128 kB
+per-variable limit). `FilesScript` is exercised under a real `/bin/sh` in
+`tests/unit/go/internal/dockerapi/files_test.go`.
+
+A job with its schedule off is a manual task: **Run now** on its page, or
+`POST /api/v1/cron-jobs/{cronJobId}/run` (202 with the queue job id, same
+`enqueueCronJobRun` dedupe as the button).
+
+All three kinds run as a throwaway one-off container **in the Go worker now**,
+not through `DockerService.runOneOff` in-process (see "Executed by the Go
+worker" below); `CronJobService.prepareRun`/`finishRun` write one `cron_job_run`
+row per attempt on every path including a spec that couldn't even be built, same
+shape as the backup/restore worker jobs (see S3 backups below). A run keeps
 `exitCode`, `success`, `error`, and the captured stdout+stderr
 (`CronJobRunDTO.finish` keeps the **last** 64k characters rather than the first,
 since a failure's useful output is at the end).

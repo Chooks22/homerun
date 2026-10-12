@@ -16,6 +16,11 @@ import {
 } from "drizzle-orm/pg-core";
 import type { DestinationType } from "#lib/backup-destinations.js";
 import type { BuildMethod } from "#lib/build-methods.js";
+import type {
+	CronJobFile,
+	CronJobKind,
+	ScriptRuntime,
+} from "#lib/cron-job-script.js";
 import type { DeployTrigger } from "#lib/deploy-trigger.js";
 import type { ErrorPagesSettings } from "#lib/error-pages.js";
 import type { StoredErrorEvent } from "#lib/error-tracking/event.js";
@@ -1585,10 +1590,10 @@ export const cronJob = pgTable(
 		description: text("description"),
 		enabled: boolean("enabled").default(false).notNull(),
 		envVars: jsonb("env_vars").$type<Record<string, string>>().default({}),
+		files: jsonb("files").$type<CronJobFile[]>().default([]).notNull(),
 		id: text("id").primaryKey(),
 		image: text("image"),
-		// "image" | "exec"
-		kind: text("kind").$type<"image" | "exec">().notNull(),
+		kind: text("kind").$type<CronJobKind>().notNull(),
 		lastRunAt: timestamp("last_run_at", { mode: "date" }),
 		name: text("name").notNull(),
 		// AES-256-GCM ciphertext : see $lib/services/secrets.
@@ -1601,9 +1606,11 @@ export const cronJob = pgTable(
 		remoteHostId: text("remote_host_id").references(() => remoteHost.id, {
 			onDelete: "set null",
 		}),
+		runtime: text("runtime").$type<ScriptRuntime>(),
 		// Standard 5-field cron expression, evaluated in the server's local
 		// time by the same matcher every other schedule in this app uses.
 		schedule: text("schedule").notNull(),
+		source: text("source"),
 		tag: text("tag").default("latest"),
 		timeoutSeconds: integer("timeout_seconds").default(900).notNull(),
 		updatedAt: timestamp("updated_at", { mode: "date" })

@@ -2,13 +2,24 @@
 	import { Plus, Trash2 } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
+	import CodeEditor from "#lib/components/code-editor.svelte";
+	import CronJobFiles from "#lib/components/cron-job-files.svelte";
 	import EnvPasteButton from "#lib/components/env-paste-button.svelte";
 	import { inputClass, labelClass } from "#lib/components/form-styles.js";
 	import ScheduleField from "#lib/components/schedule-field.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
+	import {
+		type CronJobFile,
+		type CronJobKind,
+		SCRIPT_RUNTIME_SPECS,
+		SCRIPT_RUNTIMES,
+		type ScriptRuntime,
+		scriptPath,
+	} from "#lib/cron-job-script.js";
 	import { mergeEnvRows, type ParsedEnvVar } from "#lib/env-parse.js";
+	import { languageFor } from "#lib/highlight.js";
 
 	interface CronHostOption {
 		id: string;
@@ -20,13 +31,16 @@
 		description: string | null;
 		enabled: boolean;
 		envVars: Record<string, string>;
+		files: CronJobFile[];
 		image: string | null;
-		kind: "image" | "exec";
+		kind: CronJobKind;
 		name: string;
 		registryUrl: string | null;
 		registryUsername: string | null;
 		remoteHostId: string | null;
+		runtime: ScriptRuntime | null;
 		schedule: string;
+		source: string | null;
 		tag: string | null;
 		timeoutSeconds: number;
 	}
@@ -49,7 +63,27 @@
 		return rows.length > 0 ? rows : [{ key: "", value: "" }];
 	}
 
-	let kind = $state<"image" | "exec">(untrack(() => values.kind));
+	const KINDS: { hint: string; label: string; value: CronJobKind }[] = [
+		{
+			hint: "A throwaway container from an image",
+			label: "Container",
+			value: "image",
+		},
+		{
+			hint: "Your code, run on a runtime image",
+			label: "Source code",
+			value: "script",
+		},
+		{
+			hint: "A shell command on the Docker host itself",
+			label: "Host command",
+			value: "exec",
+		},
+	];
+
+	let kind = $state<CronJobKind>(untrack(() => values.kind));
+	let runtime = $state<ScriptRuntime>(untrack(() => values.runtime ?? "bun"));
+	let source = $state(untrack(() => values.source ?? ""));
 	let remoteHostId = $state(untrack(() => values.remoteHostId ?? ""));
 	let showRegistry = $state(untrack(() => !!values.registryUsername));
 	let envRows = $state<ParsedEnvVar[]>(untrack(initialEnvRows));
@@ -69,7 +103,7 @@
 		envRows = mergeEnvRows(envRows, imported, (row) => row);
 	}
 
-	function kindClass(value: "image" | "exec"): string {
+	function kindClass(value: CronJobKind): string {
 		return value === kind
 			? "border-accent bg-accent-light text-accent"
 			: "border-border text-text-muted";
@@ -106,34 +140,23 @@
 
   <div>
     <p class={labelClass}>Run as</p>
-    <div class="flex gap-2">
-      <button
-        class="flex-1 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all {kindClass('image')}"
-        onclick={() => {
-          kind = "image";
-        }}
-        type="button"
-      >
-        Container
-        <span class="text-text-subtle block text-xs font-normal">
-          A throwaway container from an image
-        </span>
-      </button>
-      <button
-        class="flex-1 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all {kindClass('exec')}"
-        disabled={!canUseExec}
-        onclick={() => {
-          kind = "exec";
-        }}
-        type="button"
-      >
-        Host command
-        <span class="text-text-subtle block text-xs font-normal">
-          {canUseExec
-            ? "A shell command on the Docker host itself"
-            : "Needs write access to System"}
-        </span>
-      </button>
+    <div class="flex flex-wrap gap-2">
+      {#each KINDS as option (option.value)}
+        {@const locked = option.value === "exec" && !canUseExec}
+        <button
+          class="min-w-40 flex-1 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all {kindClass(option.value)}"
+          disabled={locked}
+          onclick={() => {
+            kind = option.value;
+          }}
+          type="button"
+        >
+          {option.label}
+          <span class="text-text-subtle block text-xs font-normal">
+            {locked ? "Needs write access to System" : option.hint}
+          </span>
+        </button>
+      {/each}
     </div>
   </div>
 
@@ -162,7 +185,39 @@
         />
       </div>
     </div>
+  {/if}
 
+  {#if kind === "script"}
+    <div>
+      <label class={labelClass} for="runtime">Runtime</label>
+      <Select.Root name="runtime" type="single" bind:value={runtime}>
+        <Select.Trigger class="w-full sm:w-64" id="runtime">
+          {SCRIPT_RUNTIME_SPECS[runtime].label}
+        </Select.Trigger>
+        <Select.Content>
+          {#each SCRIPT_RUNTIMES as value (value)}
+            <Select.Item label={SCRIPT_RUNTIME_SPECS[value].label} {value} />
+          {/each}
+        </Select.Content>
+      </Select.Root>
+      <p class="text-text-subtle mt-1 text-xs">
+        Runs <code>{SCRIPT_RUNTIME_SPECS[runtime].run(scriptPath(runtime)).join(" ")}</code>
+        on <code>{SCRIPT_RUNTIME_SPECS[runtime].image}</code>. A non-zero exit
+        fails the run.
+      </p>
+    </div>
+    <div>
+      <p class={labelClass}>Source code</p>
+      <CodeEditor
+        aria-label="Source code"
+        language={languageFor(scriptPath(runtime))}
+        name="source"
+        bind:value={source}
+      />
+    </div>
+  {/if}
+
+  {#if kind !== "exec"}
     {#if remoteHosts.length > 0}
       <div>
         <label class={labelClass} for="remoteHostId">Run on</label>
@@ -186,26 +241,28 @@
     {/if}
   {/if}
 
-  <div>
-    <label class={labelClass} for="command">
-      {kind === "exec" ? "Command" : "Command override (optional)"}
-    </label>
-    <Input
-      class=""
-      id="command"
-      name="command"
-      placeholder={kind === "exec"
-        ? "/usr/local/bin/backup.sh"
-        : 'pg_dump -h db app'}
-      type="text"
-      value={values.command ?? ""}
-    />
-    <p class="text-text-subtle mt-1 text-xs">
-      {kind === "exec"
-        ? "Runs through sh -c as root on the Docker host, outside every container. Only this job's env vars are set."
-        : "Blank runs the image's own entrypoint. Quotes group arguments; a JSON array is taken as-is."}
-    </p>
-  </div>
+  {#if kind !== "script"}
+    <div>
+      <label class={labelClass} for="command">
+        {kind === "exec" ? "Command" : "Command override (optional)"}
+      </label>
+      <Input
+        class=""
+        id="command"
+        name="command"
+        placeholder={kind === "exec"
+          ? "/usr/local/bin/backup.sh"
+          : 'pg_dump -h db app'}
+        type="text"
+        value={values.command ?? ""}
+      />
+      <p class="text-text-subtle mt-1 text-xs">
+        {kind === "exec"
+          ? "Runs through sh -c as root on the Docker host, outside every container. Only this job's env vars are set."
+          : "Blank runs the image's own entrypoint. Quotes group arguments; a JSON array is taken as-is."}
+      </p>
+    </div>
+  {/if}
 
   <div>
     <label class={labelClass} for="timeoutSeconds">Timeout (seconds)</label>
@@ -220,7 +277,7 @@
 
   <CheckBox
     checked={values.enabled}
-    helperText="Run this job on its schedule. Turn off to keep it around without it firing."
+    helperText="Run this job on its schedule. Off, it only runs when you press Run now or call the API, for a one-off task."
     id="enabled"
     label="Enable schedule"
     name="enabled"
@@ -268,6 +325,10 @@
     </div>
   </div>
 </section>
+
+{#if kind !== "exec"}
+  <CronJobFiles files={values.files} />
+{/if}
 
 {#if kind === "image"}
   <section class="panel rounded-md p-5">

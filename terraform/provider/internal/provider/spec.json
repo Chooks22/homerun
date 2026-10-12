@@ -898,7 +898,7 @@
 					"tf": "kind",
 					"forceNew": true,
 					"required": true,
-					"description": "image (a container) or exec (a host command, needs write access to System)."
+					"description": "image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System)."
 				},
 				{
 					"kind": "string",
@@ -934,10 +934,42 @@
 					"default": "latest"
 				},
 				{
+					"kind": "string",
+					"name": "runtime",
+					"tf": "runtime",
+					"description": "A script job's runtime: bun, node, deno, python or shell."
+				},
+				{
+					"kind": "string",
+					"name": "source",
+					"tf": "source",
+					"description": "A script job's source code."
+				},
+				{
 					"kind": "stringMap",
 					"name": "envVars",
 					"tf": "env_vars",
 					"sensitive": true
+				},
+				{
+					"kind": "objects",
+					"name": "files",
+					"tf": "files",
+					"description": "Text files written into the container before it starts.",
+					"fields": [
+						{
+							"kind": "string",
+							"name": "path",
+							"tf": "path",
+							"required": true
+						},
+						{
+							"kind": "string",
+							"name": "content",
+							"tf": "content",
+							"required": true
+						}
+					]
 				},
 				{
 					"kind": "string",
@@ -975,7 +1007,7 @@
 				}
 			],
 			"collectionPath": "/cron-jobs",
-			"description": "A scheduled job: a container or a host command.",
+			"description": "A scheduled job: a container, source code on a runtime image, or a host command.",
 			"importId": ["id"],
 			"itemPath": "/cron-jobs/{id}",
 			"label": "name",

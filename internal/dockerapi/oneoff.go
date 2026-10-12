@@ -20,6 +20,7 @@ type OneOffConfig struct {
 	Cmd         []string
 	Entrypoint  []string
 	Env         []string
+	Files       []File
 	Image       string
 	Labels      map[string]string
 	NetworkMode string
@@ -55,7 +56,8 @@ func (w *outputWriter) Write(chunk []byte) (int, error) {
 	return len(chunk), nil
 }
 
-// RunOneOff pulls config.Image if the daemon lacks it, runs it to completion
+// RunOneOff pulls config.Image if the daemon lacks it, writes config.Files
+// into it ahead of its own process (see WithFiles), runs it to completion
 // and returns its exit code with stdout and stderr kept apart, streaming each
 // chunk to config.OnOutput as it arrives. Past config.Timeout the container is
 // killed and the result reports TimedOut rather than an error. The container is
@@ -69,6 +71,11 @@ func (c *Client) RunOneOff(ctx context.Context, config OneOffConfig) (OneOffResu
 		if err := c.PullImage(ctx, config.Image, config.Auth, nil); err != nil {
 			return OneOffResult{}, err
 		}
+	}
+
+	config, err = c.withImageFiles(ctx, config)
+	if err != nil {
+		return OneOffResult{}, err
 	}
 
 	id, err := c.createOneOff(ctx, config)

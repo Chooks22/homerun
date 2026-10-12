@@ -168,3 +168,5 @@ Garage
 OpenTofu
 IPs
 [Uu]nmanaged
+Deno
+npm

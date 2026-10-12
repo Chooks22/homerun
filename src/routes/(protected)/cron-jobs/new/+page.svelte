@@ -21,8 +21,9 @@
   <div>
     <h1 class="text-text text-lg font-semibold tracking-tight">New Cron Job</h1>
     <p class="text-text-muted mt-0.5 text-sm">
-      Runs on a 5-field cron schedule, through the same job queue as deploys
-      and backups.
+      A container, your own source code, or a host command, run on a
+      schedule or on demand through the same job queue as deploys and
+      backups.
     </p>
   </div>
 
@@ -57,12 +58,15 @@
         description: null,
         enabled: true,
         envVars: {},
+        files: [],
         image: null,
         kind: "image",
         name: "",
         registryUrl: null,
         registryUsername: null,
+        runtime: null,
         schedule: "0 3 * * *",
+        source: null,
         tag: "latest",
         timeoutSeconds: 900,
       }}

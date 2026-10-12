@@ -176,6 +176,26 @@ export interface paths {
 		patch: operations["patch_cron_jobs__cronJobId_"];
 		trace?: never;
 	};
+	"/cron-jobs/{cronJobId}/run": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Run a cron job now
+		 * @description Queues a run of the cron job now, whether or not its schedule is enabled, which is how a manual-only job is triggered from outside. A run already queued is returned instead of a second one. Poll GET /jobs/{jobId} until it finishes.
+		 */
+		post: operations["post_cron_jobs__cronJobId__run"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/dns-connections": {
 		parameters: {
 			query?: never;
@@ -2441,17 +2461,23 @@ export interface operations {
 						envVars: {
 							[key: string]: string;
 						} | null;
+						files: {
+							content: string;
+							path: string;
+						}[];
 						id: string;
 						image: string | null;
 						/** @enum {string} */
-						kind: "image" | "exec";
+						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
+						source: string | null;
 						tag: string | null;
 						timeoutSeconds: number;
 						/** @description ISO 8601 timestamp */
@@ -2504,17 +2530,33 @@ export interface operations {
 					envVars: {
 						[key: string]: string;
 					};
+					/**
+					 * @description Text files written into the container before it starts. Ignored for exec.
+					 * @default []
+					 */
+					files: {
+						content: string;
+						/** @description Absolute path inside the container. */
+						path: string;
+					}[];
 					image?: string | null;
-					/** @enum {string} */
-					kind: "image" | "exec";
+					/**
+					 * @description image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System).
+					 * @enum {string}
+					 */
+					kind: "image" | "script" | "exec";
 					name: string;
 					/** @description Registry password. Write-only. */
 					registryPassword?: string;
 					registryUrl?: string | null;
 					registryUsername?: string | null;
 					remoteHostId?: string | null;
+					/** @description The runtime a script job's source runs on. */
+					runtime?: ("bun" | "node" | "deno" | "python" | "shell") | null;
 					/** @description 5-field cron expression. */
 					schedule: string;
+					/** @description A script job's source code. */
+					source?: string | null;
 					tag?: string | null;
 					timeoutSeconds?: number;
 				};
@@ -2536,17 +2578,23 @@ export interface operations {
 						envVars: {
 							[key: string]: string;
 						} | null;
+						files: {
+							content: string;
+							path: string;
+						}[];
 						id: string;
 						image: string | null;
 						/** @enum {string} */
-						kind: "image" | "exec";
+						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
+						source: string | null;
 						tag: string | null;
 						timeoutSeconds: number;
 						/** @description ISO 8601 timestamp */
@@ -2620,17 +2668,23 @@ export interface operations {
 						envVars: {
 							[key: string]: string;
 						} | null;
+						files: {
+							content: string;
+							path: string;
+						}[];
 						id: string;
 						image: string | null;
 						/** @enum {string} */
-						kind: "image" | "exec";
+						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
+						source: string | null;
 						tag: string | null;
 						timeoutSeconds: number;
 						/** @description ISO 8601 timestamp */
@@ -2753,6 +2807,11 @@ export interface operations {
 					envVars?: {
 						[key: string]: string;
 					};
+					files?: {
+						content: string;
+						/** @description Absolute path inside the container. */
+						path: string;
+					}[];
 					image?: string | null;
 					name?: string;
 					/** @description Registry password. Write-only. */
@@ -2760,8 +2819,12 @@ export interface operations {
 					registryUrl?: string | null;
 					registryUsername?: string | null;
 					remoteHostId?: string | null;
+					/** @description The runtime a script job's source runs on. */
+					runtime?: ("bun" | "node" | "deno" | "python" | "shell") | null;
 					/** @description 5-field cron expression. */
 					schedule?: string;
+					/** @description A script job's source code. */
+					source?: string | null;
 					tag?: string | null;
 					timeoutSeconds?: number;
 				};
@@ -2783,17 +2846,23 @@ export interface operations {
 						envVars: {
 							[key: string]: string;
 						} | null;
+						files: {
+							content: string;
+							path: string;
+						}[];
 						id: string;
 						image: string | null;
 						/** @enum {string} */
-						kind: "image" | "exec";
+						kind: "image" | "script" | "exec";
 						lastRunAt: string | null;
 						name: string;
 						registryPasswordSet: boolean;
 						registryUrl: string | null;
 						registryUsername: string | null;
 						remoteHostId: string | null;
+						runtime: ("bun" | "node" | "deno" | "python" | "shell") | null;
 						schedule: string;
+						source: string | null;
 						tag: string | null;
 						timeoutSeconds: number;
 						/** @description ISO 8601 timestamp */
@@ -2835,6 +2904,69 @@ export interface operations {
 					"application/json": {
 						/** @example You don't have permission to change Services. */
 						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	post_cron_jobs__cronJobId__run: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Cron job id */
+				cronJobId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Run queued */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						jobId: string;
+						/** @enum {string} */
+						status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description A host command job without write access to System */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
 					};
 				};
 			};

@@ -25,6 +25,7 @@ type Spec struct {
 	Auth           *dockerapi.AuthConfig `json:"auth"`
 	Cmd            []string              `json:"cmd"`
 	Env            []string              `json:"env"`
+	Files          []dockerapi.File      `json:"files"`
 	Image          string                `json:"image"`
 	Labels         map[string]string     `json:"labels"`
 	PidMode        string                `json:"pidMode"`
@@ -32,6 +33,7 @@ type Spec struct {
 	Remote         *dockerapi.RemoteHost `json:"remote"`
 	RunID          string                `json:"runId"`
 	TimeoutSeconds int                   `json:"timeoutSeconds"`
+	WorkingDir     string                `json:"workingDir"`
 }
 
 // Run executes one cron job run: it runs the spec's container on the local
@@ -62,12 +64,14 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 		Auth:       spec.Auth,
 		Cmd:        spec.Cmd,
 		Env:        spec.Env,
+		Files:      spec.Files,
 		Image:      spec.Image,
 		Labels:     spec.Labels,
 		OnOutput:   flusher.push,
 		PidMode:    spec.PidMode,
 		Privileged: spec.Privileged,
 		Timeout:    time.Duration(spec.TimeoutSeconds) * time.Second,
+		WorkingDir: spec.WorkingDir,
 	})
 	stop()
 	if err != nil {

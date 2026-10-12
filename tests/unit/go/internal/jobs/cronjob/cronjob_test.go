@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/jobs"
 	"github.com/orochibraru/homerun/internal/jobs/cronjob"
 )
@@ -22,6 +23,7 @@ type fakeDaemon struct {
 	killed  bool
 	removed bool
 	exit    int
+	image   string
 	hang    bool
 	release chan struct{}
 }
@@ -31,7 +33,11 @@ func (d *fakeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
 	case strings.HasPrefix(path, "/images/") && strings.HasSuffix(path, "/json"):
-		w.WriteHeader(http.StatusNotFound)
+		if d.image == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write([]byte(d.image))
 	case path == "/images/create":
 		d.mu.Lock()
 		d.pulled = r.URL.Query().Get("fromImage") + ":" + r.URL.Query().Get("tag")
@@ -116,6 +122,30 @@ func TestRunHostCommand(t *testing.T) {
 	}
 	if d.created["Labels"].(map[string]any)["homerun.cronjob.id"] != "j1" {
 		t.Errorf("Labels = %v", d.created["Labels"])
+	}
+}
+
+func TestRunWritesFilesBeforeTheImageEntrypoint(t *testing.T) {
+	d := &fakeDaemon{image: `{"Config":{"Entrypoint":["/entry.sh"],"Cmd":["renovate"]}}`}
+	run(t, d, cronjob.Spec{
+		Files:          []dockerapi.File{{Content: "{}", Path: "/tmp/config.json"}},
+		Image:          "renovate/renovate:latest",
+		RunID:          "r1",
+		TimeoutSeconds: 60,
+		WorkingDir:     "/homerun",
+	})
+	entrypoint := d.created["Entrypoint"].([]any)
+	if entrypoint[0] != "/bin/sh" || !strings.Contains(entrypoint[2].(string), "'/tmp/config.json'") {
+		t.Errorf("Entrypoint = %v", entrypoint)
+	}
+	if cmd := d.created["Cmd"].([]any); len(cmd) != 2 || cmd[0] != "/entry.sh" || cmd[1] != "renovate" {
+		t.Errorf("Cmd = %v", cmd)
+	}
+	if env := d.created["Env"].([]any); len(env) != 1 || env[0] != "HOMERUN_FILE_0={}" {
+		t.Errorf("Env = %v", env)
+	}
+	if d.created["WorkingDir"] != "/homerun" {
+		t.Errorf("WorkingDir = %v", d.created["WorkingDir"])
 	}
 }
 

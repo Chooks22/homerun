@@ -122,7 +122,7 @@ and so on).
 | Service dependency   | `/service-dependencies`, `/service-dependencies/:id` (no update)                                 |
 | Volume               | `/volumes`, `/volumes/:id`                                                                       |
 | Volume mount         | `/volume-mounts`, `/volume-mounts/:id`                                                           |
-| Cron job             | `/cron-jobs`, `/cron-jobs/:id`                                                                   |
+| Cron job             | `/cron-jobs`, `/cron-jobs/:id`, plus `POST /cron-jobs/:id/run` (queue a run now)                 |
 | Redirect             | `/redirects`, `/redirects/:id`                                                                   |
 | Notification channel | `/notification-channels`, `/notification-channels/:id` (the caller's own)                        |
 | Backup destination   | `/backup-destinations`, `/backup-destinations/:id`                                               |

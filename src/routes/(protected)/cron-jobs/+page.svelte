@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { Clock, Play, Plus, Terminal, Trash2 } from "@lucide/svelte";
+	import {
+		Clock,
+		FileCode,
+		Play,
+		Plus,
+		Terminal,
+		Trash2,
+	} from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
@@ -12,6 +19,7 @@
 	import RunStatusBadge from "#lib/components/run-status-badge.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import ViewModeToggle from "#lib/components/view-mode-toggle.svelte";
+	import { describeCronJobTarget } from "#lib/cron-job-script.js";
 	import { timeAgo } from "#lib/formatting.js";
 	import { BASE_SORTS } from "#lib/list-sorts.js";
 	import { title } from "#lib/store/title.js";
@@ -34,8 +42,8 @@
 			kind: job.kind,
 			name: job.name,
 			subtitle: [
-				job.schedule,
-				job.kind === "exec" ? job.command : `${job.image}:${job.tag}`,
+				job.enabled ? job.schedule : "manual only",
+				describeCronJobTarget(job),
 				job.lastRunAt ? `last run ${timeAgo(job.lastRunAt)}` : null,
 			]
 				.filter(Boolean)
@@ -51,6 +59,7 @@
 			label: "Type",
 			options: [
 				{ label: "Container", value: "image" },
+				{ label: "Source code", value: "script" },
 				{ label: "Host command", value: "exec" },
 			],
 		},
@@ -79,6 +88,8 @@
   <div class="bg-accent/10 text-accent flex size-10 shrink-0 items-center justify-center rounded-md">
     {#if job.kind === "exec"}
       <Terminal class="size-5" />
+    {:else if job.kind === "script"}
+      <FileCode class="size-5" />
     {:else}
       <Clock class="size-5" />
     {/if}
@@ -88,7 +99,7 @@
 {#snippet badge(job: JobRow)}
   {#if !job.enabled}
     <span class="bg-surface-2 text-text-subtle shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold">
-      Disabled
+      Manual
     </span>
   {/if}
 {/snippet}

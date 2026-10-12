@@ -10,6 +10,7 @@
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
+	import { describeCronJobTarget } from "#lib/cron-job-script.js";
 	import { timeAgo } from "#lib/formatting.js";
 	import { getCronJobRuns } from "#lib/remote/cron-runs.remote.js";
 	import { title } from "#lib/store/title.js";
@@ -48,8 +49,8 @@
     <div>
       <h1 class="text-text text-lg font-semibold tracking-tight">{job.name}</h1>
       <p class="text-text-muted mt-0.5 text-sm">
-        {job.schedule}
-        · {job.kind === "exec" ? "host command" : `${job.image}:${job.tag}`}
+        {job.enabled ? job.schedule : "manual only"}
+        · {job.kind === "exec" ? "host command" : describeCronJobTarget(job)}
         {#if job.lastRunAt}
           · last run {timeAgo(job.lastRunAt)}
         {/if}
@@ -106,12 +107,15 @@
         description: job.description,
         enabled: job.enabled,
         envVars: job.envVars ?? {},
+        files: job.files,
         image: job.image,
         kind: job.kind,
         name: job.name,
         registryUrl: job.registryUrl,
         registryUsername: job.registryUsername,
+        runtime: job.runtime,
         schedule: job.schedule,
+        source: job.source,
         tag: job.tag,
         timeoutSeconds: job.timeoutSeconds,
       }}

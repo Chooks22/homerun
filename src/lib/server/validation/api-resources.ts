@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DESTINATION_TYPES } from "#lib/backup-destinations.js";
+import { CRON_JOB_KINDS, SCRIPT_RUNTIMES } from "#lib/cron-job-script.js";
 import { isNotificationEvent } from "#lib/notification-events.js";
 
 const text = z.string().trim();
@@ -80,19 +81,44 @@ export const updateVolumeMountApiBody = volumeMountApiBody
 	.extend({ readOnly: z.boolean() })
 	.partial();
 
+const cronJobFile = z.object({
+	content: z.string(),
+	path: text.min(1).describe("Absolute path inside the container."),
+});
+
 export const cronJobApiBody = z.object({
 	command: nullableText,
 	description: nullableText,
 	enabled: z.boolean().default(false),
 	envVars: z.record(z.string(), z.string()).default({}),
+	files: z
+		.array(cronJobFile)
+		.default([])
+		.describe(
+			"Text files written into the container before it starts. Ignored for exec.",
+		),
 	image: nullableText,
-	kind: z.enum(["image", "exec"]),
+	kind: z
+		.enum(CRON_JOB_KINDS)
+		.describe(
+			"image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System).",
+		),
 	name: text.min(1).max(100),
 	registryPassword: secret("Registry password.").optional(),
 	registryUrl: nullableText,
 	registryUsername: nullableText,
 	remoteHostId: z.string().nullable().optional(),
+	runtime: z
+		.enum(SCRIPT_RUNTIMES)
+		.nullable()
+		.optional()
+		.describe("The runtime a script job's source runs on."),
 	schedule,
+	source: z
+		.string()
+		.nullable()
+		.optional()
+		.describe("A script job's source code."),
 	tag: nullableText,
 	timeoutSeconds: z.number().int().min(10).max(86_400).optional(),
 });
@@ -102,6 +128,7 @@ export const updateCronJobApiBody = cronJobApiBody
 	.extend({
 		enabled: z.boolean(),
 		envVars: z.record(z.string(), z.string()),
+		files: z.array(cronJobFile),
 	})
 	.partial();
 

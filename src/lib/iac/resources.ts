@@ -333,7 +333,7 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("kind", "string", {
 				...replace,
 				description:
-					"image (a container) or exec (a host command, needs write access to System).",
+					"image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System).",
 			}),
 			attr("schedule", "string", required),
 			attr("enabled", "bool", off),
@@ -341,7 +341,19 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("command", "string"),
 			attr("image", "string"),
 			attr("tag", "string", { default: "latest" }),
+			attr("runtime", "string", {
+				description:
+					"A script job's runtime: bun, node, deno, python or shell.",
+			}),
+			attr("source", "string", { description: "A script job's source code." }),
 			attr("envVars", "stringMap", { sensitive: true }),
+			attr("files", "objects", {
+				description: "Text files written into the container before it starts.",
+				fields: [
+					attr("path", "string", required),
+					attr("content", "string", required),
+				],
+			}),
 			attr("registryUrl", "string"),
 			attr("registryUsername", "string"),
 			attr("registryPassword", "string", secret),
@@ -350,7 +362,8 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("timeoutSeconds", "int", { default: 900 }),
 		],
 		collectionPath: "/cron-jobs",
-		description: "A scheduled job: a container or a host command.",
+		description:
+			"A scheduled job: a container, source code on a runtime image, or a host command.",
 		importId: ["id"],
 		itemPath: "/cron-jobs/{id}",
 		label: "name",

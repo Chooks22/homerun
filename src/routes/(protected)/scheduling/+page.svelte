@@ -4,6 +4,7 @@
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import ErrorBoundary from "#lib/components/error-boundary.svelte";
 	import JobQueuePanel from "#lib/components/job-queue-panel.svelte";
+	import { describeCronJobTarget } from "#lib/cron-job-script.js";
 	import { title } from "#lib/store/title.js";
 	import { resolve } from "$app/paths";
 
@@ -98,7 +99,7 @@
                 </p>
                 <p class="text-text-muted mt-0.5 truncate text-xs">
                   {job.schedule}
-                  · {job.kind === "exec" ? "host command" : `${job.image}:${job.tag}`}
+                  · {job.kind === "exec" ? "host command" : describeCronJobTarget(job)}
                 </p>
               </div>
               <p class="text-text-subtle shrink-0 text-xs">

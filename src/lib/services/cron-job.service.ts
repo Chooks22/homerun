@@ -1,4 +1,10 @@
 import { parseCommand } from "#lib/command-parse.js";
+import {
+	type CronJobFile,
+	SCRIPT_DIR,
+	SCRIPT_RUNTIME_SPECS,
+	scriptPath,
+} from "#lib/cron-job-script.js";
 import type { CronJobDTO } from "#lib/dto/cron-job-dto.js";
 import { CronJobRunDTO } from "#lib/dto/cron-job-run-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
@@ -21,6 +27,7 @@ export interface CronJobRunSpec extends Record<string, unknown> {
 	auth: RegistryAuth | null;
 	cmd: string[] | null;
 	env: string[];
+	files: CronJobFile[];
 	image: string;
 	labels: Record<string, string>;
 	pidMode: string | null;
@@ -33,6 +40,7 @@ export interface CronJobRunSpec extends Record<string, unknown> {
 	} | null;
 	runId: string;
 	timeoutSeconds: number;
+	workingDir: string | null;
 }
 
 /** What the Go executor reports for a finished run. */
@@ -87,16 +95,16 @@ function envList(envVars: Record<string, string>): string[] {
 
 class CronJobServiceClass {
 	/**
-	 * Resolves what the Go worker runs for `job` : the image (or the privileged
-	 * `nsenter` host-command helper), command, env, registry auth and, for an
-	 * image job on a Docker-socket build server, its connection. Throws the
-	 * same messages the in-process runner reported for a job with no image, no
-	 * command, or an agent host.
+	 * Resolves what the Go worker runs for `job` : the image (a script's
+	 * runtime image, or the privileged `nsenter` host-command helper), command,
+	 * env, config files, registry auth and, for a container on a Docker-socket
+	 * build server, its connection. Throws for a job with no image, no source,
+	 * no command, or an agent host.
 	 */
 	async #specFor(job: CronJobDTO, runId: string): Promise<CronJobRunSpec> {
 		const labels = { [CRON_JOB_LABEL]: job.id, [MANAGED_LABEL]: "true" };
 		const env = envList(job.envVars);
-		if (job.kind !== "image") {
+		if (job.kind === "exec") {
 			if (!job.command) {
 				throw new Error("No command set on this cron job.");
 			}
@@ -104,6 +112,7 @@ class CronJobServiceClass {
 				auth: null,
 				cmd: hostCommandArgs(job.command),
 				env,
+				files: [],
 				image: `${HOST_COMMAND_IMAGE}:${HOST_COMMAND_TAG}`,
 				labels,
 				pidMode: "host",
@@ -111,23 +120,19 @@ class CronJobServiceClass {
 				remote: null,
 				runId,
 				timeoutSeconds: job.timeoutSeconds,
+				workingDir: null,
 			};
 		}
-		if (!job.image) {
-			throw new Error("No image set on this cron job.");
-		}
+		const container = this.#containerFor(job);
 		const target = await RemoteHostDTO.resolveBuildTarget(job.remoteHostId);
 		if (target.kind === "agent") {
 			throw new Error(
 				"This cron job's host is a Homerun Agent, which has no one-off run endpoint : pick a Docker-socket host, or this one.",
 			);
 		}
-		const cmd = job.command ? parseCommand(job.command) : [];
 		return {
-			auth: authFor(job) ?? null,
-			cmd: cmd.length > 0 ? cmd : null,
+			...container,
 			env,
-			image: `${job.image}:${job.tag ?? "latest"}`,
 			labels,
 			pidMode: null,
 			privileged: false,
@@ -142,6 +147,41 @@ class CronJobServiceClass {
 					: null,
 			runId,
 			timeoutSeconds: job.timeoutSeconds,
+		};
+	}
+
+	/**
+	 * The image, command, files and auth of a container job : an image job's
+	 * own image and command override, or a script job's runtime image running
+	 * its source, written to the runtime's file under `SCRIPT_DIR`.
+	 */
+	#containerFor(
+		job: CronJobDTO,
+	): Pick<CronJobRunSpec, "auth" | "cmd" | "files" | "image" | "workingDir"> {
+		if (job.kind === "script") {
+			if (!job.runtime || !job.source) {
+				throw new Error("No runtime or source code set on this cron job.");
+			}
+			const runtime = SCRIPT_RUNTIME_SPECS[job.runtime];
+			const path = scriptPath(job.runtime);
+			return {
+				auth: null,
+				cmd: runtime.run(path),
+				files: [{ content: job.source, path }, ...job.files],
+				image: runtime.image,
+				workingDir: SCRIPT_DIR,
+			};
+		}
+		if (!job.image) {
+			throw new Error("No image set on this cron job.");
+		}
+		const cmd = job.command ? parseCommand(job.command) : [];
+		return {
+			auth: authFor(job) ?? null,
+			cmd: cmd.length > 0 ? cmd : null,
+			files: job.files,
+			image: `${job.image}:${job.tag ?? "latest"}`,
+			workingDir: null,
 		};
 	}
 

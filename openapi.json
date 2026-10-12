@@ -1892,6 +1892,22 @@
 													}
 												]
 											},
+											"files": {
+												"items": {
+													"additionalProperties": false,
+													"properties": {
+														"content": {
+															"type": "string"
+														},
+														"path": {
+															"type": "string"
+														}
+													},
+													"required": ["content", "path"],
+													"type": "object"
+												},
+												"type": "array"
+											},
 											"id": {
 												"type": "string"
 											},
@@ -1906,7 +1922,7 @@
 												]
 											},
 											"kind": {
-												"enum": ["image", "exec"],
+												"enum": ["image", "script", "exec"],
 												"type": "string"
 											},
 											"lastRunAt": {
@@ -1956,8 +1972,29 @@
 													}
 												]
 											},
+											"runtime": {
+												"anyOf": [
+													{
+														"enum": ["bun", "node", "deno", "python", "shell"],
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
 											"schedule": {
 												"type": "string"
+											},
+											"source": {
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
 											},
 											"tag": {
 												"anyOf": [
@@ -1988,6 +2025,7 @@
 											"description",
 											"enabled",
 											"envVars",
+											"files",
 											"id",
 											"image",
 											"kind",
@@ -1997,7 +2035,9 @@
 											"registryUrl",
 											"registryUsername",
 											"remoteHostId",
+											"runtime",
 											"schedule",
+											"source",
 											"tag",
 											"timeoutSeconds",
 											"updatedAt",
@@ -2102,6 +2142,26 @@
 										},
 										"type": "object"
 									},
+									"files": {
+										"default": [],
+										"description": "Text files written into the container before it starts. Ignored for exec.",
+										"items": {
+											"additionalProperties": false,
+											"properties": {
+												"content": {
+													"type": "string"
+												},
+												"path": {
+													"description": "Absolute path inside the container.",
+													"minLength": 1,
+													"type": "string"
+												}
+											},
+											"required": ["content", "path"],
+											"type": "object"
+										},
+										"type": "array"
+									},
 									"image": {
 										"anyOf": [
 											{
@@ -2113,7 +2173,8 @@
 										]
 									},
 									"kind": {
-										"enum": ["image", "exec"],
+										"description": "image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System).",
+										"enum": ["image", "script", "exec"],
 										"type": "string"
 									},
 									"name": {
@@ -2156,10 +2217,33 @@
 											}
 										]
 									},
+									"runtime": {
+										"anyOf": [
+											{
+												"enum": ["bun", "node", "deno", "python", "shell"],
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										],
+										"description": "The runtime a script job's source runs on."
+									},
 									"schedule": {
 										"description": "5-field cron expression.",
 										"minLength": 1,
 										"type": "string"
+									},
+									"source": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										],
+										"description": "A script job's source code."
 									},
 									"tag": {
 										"anyOf": [
@@ -2177,7 +2261,14 @@
 										"type": "integer"
 									}
 								},
-								"required": ["enabled", "envVars", "kind", "name", "schedule"],
+								"required": [
+									"enabled",
+									"envVars",
+									"files",
+									"kind",
+									"name",
+									"schedule"
+								],
 								"type": "object"
 							}
 						}
@@ -2234,6 +2325,22 @@
 												}
 											]
 										},
+										"files": {
+											"items": {
+												"additionalProperties": false,
+												"properties": {
+													"content": {
+														"type": "string"
+													},
+													"path": {
+														"type": "string"
+													}
+												},
+												"required": ["content", "path"],
+												"type": "object"
+											},
+											"type": "array"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -2248,7 +2355,7 @@
 											]
 										},
 										"kind": {
-											"enum": ["image", "exec"],
+											"enum": ["image", "script", "exec"],
 											"type": "string"
 										},
 										"lastRunAt": {
@@ -2298,8 +2405,29 @@
 												}
 											]
 										},
+										"runtime": {
+											"anyOf": [
+												{
+													"enum": ["bun", "node", "deno", "python", "shell"],
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
+										},
 										"schedule": {
 											"type": "string"
+										},
+										"source": {
+											"anyOf": [
+												{
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
 										},
 										"tag": {
 											"anyOf": [
@@ -2330,6 +2458,7 @@
 										"description",
 										"enabled",
 										"envVars",
+										"files",
 										"id",
 										"image",
 										"kind",
@@ -2339,7 +2468,9 @@
 										"registryUrl",
 										"registryUsername",
 										"remoteHostId",
+										"runtime",
 										"schedule",
+										"source",
 										"tag",
 										"timeoutSeconds",
 										"updatedAt",
@@ -2563,6 +2694,22 @@
 												}
 											]
 										},
+										"files": {
+											"items": {
+												"additionalProperties": false,
+												"properties": {
+													"content": {
+														"type": "string"
+													},
+													"path": {
+														"type": "string"
+													}
+												},
+												"required": ["content", "path"],
+												"type": "object"
+											},
+											"type": "array"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -2577,7 +2724,7 @@
 											]
 										},
 										"kind": {
-											"enum": ["image", "exec"],
+											"enum": ["image", "script", "exec"],
 											"type": "string"
 										},
 										"lastRunAt": {
@@ -2627,8 +2774,29 @@
 												}
 											]
 										},
+										"runtime": {
+											"anyOf": [
+												{
+													"enum": ["bun", "node", "deno", "python", "shell"],
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
+										},
 										"schedule": {
 											"type": "string"
+										},
+										"source": {
+											"anyOf": [
+												{
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
 										},
 										"tag": {
 											"anyOf": [
@@ -2659,6 +2827,7 @@
 										"description",
 										"enabled",
 										"envVars",
+										"files",
 										"id",
 										"image",
 										"kind",
@@ -2668,7 +2837,9 @@
 										"registryUrl",
 										"registryUsername",
 										"remoteHostId",
+										"runtime",
 										"schedule",
+										"source",
 										"tag",
 										"timeoutSeconds",
 										"updatedAt",
@@ -2797,6 +2968,24 @@
 										},
 										"type": "object"
 									},
+									"files": {
+										"items": {
+											"additionalProperties": false,
+											"properties": {
+												"content": {
+													"type": "string"
+												},
+												"path": {
+													"description": "Absolute path inside the container.",
+													"minLength": 1,
+													"type": "string"
+												}
+											},
+											"required": ["content", "path"],
+											"type": "object"
+										},
+										"type": "array"
+									},
 									"image": {
 										"anyOf": [
 											{
@@ -2847,10 +3036,33 @@
 											}
 										]
 									},
+									"runtime": {
+										"anyOf": [
+											{
+												"enum": ["bun", "node", "deno", "python", "shell"],
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										],
+										"description": "The runtime a script job's source runs on."
+									},
 									"schedule": {
 										"description": "5-field cron expression.",
 										"minLength": 1,
 										"type": "string"
+									},
+									"source": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										],
+										"description": "A script job's source code."
 									},
 									"tag": {
 										"anyOf": [
@@ -2924,6 +3136,22 @@
 												}
 											]
 										},
+										"files": {
+											"items": {
+												"additionalProperties": false,
+												"properties": {
+													"content": {
+														"type": "string"
+													},
+													"path": {
+														"type": "string"
+													}
+												},
+												"required": ["content", "path"],
+												"type": "object"
+											},
+											"type": "array"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -2938,7 +3166,7 @@
 											]
 										},
 										"kind": {
-											"enum": ["image", "exec"],
+											"enum": ["image", "script", "exec"],
 											"type": "string"
 										},
 										"lastRunAt": {
@@ -2988,8 +3216,29 @@
 												}
 											]
 										},
+										"runtime": {
+											"anyOf": [
+												{
+													"enum": ["bun", "node", "deno", "python", "shell"],
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
+										},
 										"schedule": {
 											"type": "string"
+										},
+										"source": {
+											"anyOf": [
+												{
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
 										},
 										"tag": {
 											"anyOf": [
@@ -3020,6 +3269,7 @@
 										"description",
 										"enabled",
 										"envVars",
+										"files",
 										"id",
 										"image",
 										"kind",
@@ -3029,7 +3279,9 @@
 										"registryUrl",
 										"registryUsername",
 										"remoteHostId",
+										"runtime",
 										"schedule",
+										"source",
 										"tag",
 										"timeoutSeconds",
 										"updatedAt",
@@ -3122,6 +3374,116 @@
 					}
 				],
 				"summary": "Update a cron job",
+				"tags": ["Cron jobs"]
+			}
+		},
+		"/cron-jobs/{cronJobId}/run": {
+			"post": {
+				"description": "Queues a run of the cron job now, whether or not its schedule is enabled, which is how a manual-only job is triggered from outside. A run already queued is returned instead of a second one. Poll GET /jobs/{jobId} until it finishes.",
+				"operationId": "post_cron_jobs__cronJobId__run",
+				"parameters": [
+					{
+						"description": "Cron job id",
+						"in": "path",
+						"name": "cronJobId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"202": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"jobId": {
+											"type": "string"
+										},
+										"status": {
+											"enum": [
+												"queued",
+												"running",
+												"succeeded",
+												"failed",
+												"cancelled"
+											],
+											"type": "string"
+										}
+									},
+									"required": ["jobId", "status"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Run queued"
+					},
+					"401": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Unauthorized"
+					},
+					"403": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "A host command job without write access to System"
+					},
+					"404": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Not found"
+					}
+				},
+				"security": [
+					{
+						"apiKey": []
+					},
+					{
+						"bearerAuth": []
+					}
+				],
+				"summary": "Run a cron job now",
 				"tags": ["Cron jobs"]
 			}
 		},

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DESTINATION_TYPES } from "#lib/backup-destinations.js";
+import { CRON_JOB_KINDS, SCRIPT_RUNTIMES } from "#lib/cron-job-script.js";
 import { updateStackApiBody } from "#lib/server/validation/api.js";
 import {
 	backupDestinationApiBody,
@@ -85,16 +86,19 @@ export const cronJobResponse = z.object({
 	description: z.string().nullable(),
 	enabled: z.boolean(),
 	envVars: z.record(z.string(), z.string()).nullable(),
+	files: z.array(z.object({ content: z.string(), path: z.string() })),
 	id: z.string(),
 	image: z.string().nullable(),
-	kind: z.enum(["image", "exec"]),
+	kind: z.enum(CRON_JOB_KINDS),
 	lastRunAt: timestamp.nullable(),
 	name: z.string(),
 	registryPasswordSet: z.boolean(),
 	registryUrl: z.string().nullable(),
 	registryUsername: z.string().nullable(),
 	remoteHostId: z.string().nullable(),
+	runtime: z.enum(SCRIPT_RUNTIMES).nullable(),
 	schedule: z.string(),
+	source: z.string().nullable(),
 	tag: z.string().nullable(),
 	timeoutSeconds: z.number().int(),
 	updatedAt: timestamp,

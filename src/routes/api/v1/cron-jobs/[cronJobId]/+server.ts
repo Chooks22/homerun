@@ -41,9 +41,10 @@ export const PATCH = async ({ locals, params, request }) => {
 	if ("response" in body) {
 		return body.response;
 	}
-	const { envVars, ...fields } = body.data;
+	const { envVars, files, ...fields } = body.data;
 	const {
 		envVars: currentEnv,
+		files: currentFiles,
 		registryPasswordEnc: _password,
 		...current
 	} = job.toJSON();
@@ -54,6 +55,7 @@ export const PATCH = async ({ locals, params, request }) => {
 			),
 		),
 		envVars ?? currentEnv ?? {},
+		files ?? currentFiles,
 		{ hostAccess },
 	);
 	if ("error" in result) {

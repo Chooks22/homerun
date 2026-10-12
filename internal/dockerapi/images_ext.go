@@ -15,12 +15,19 @@ import (
 type ImageInspect struct {
 	Architecture string `json:"Architecture"`
 	Config       struct {
+		ImageConfig
 		Healthcheck *struct {
 			Test []string `json:"Test"`
 		} `json:"Healthcheck"`
 	} `json:"Config"`
 	ID          string   `json:"Id"`
 	RepoDigests []string `json:"RepoDigests"`
+}
+
+// ImageConfig is what an image runs when a container doesn't say otherwise.
+type ImageConfig struct {
+	Cmd        []string `json:"Cmd"`
+	Entrypoint []string `json:"Entrypoint"`
 }
 
 // Digest is the image's first registry digest, empty when it never came from
