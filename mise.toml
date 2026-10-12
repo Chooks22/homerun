@@ -1,7 +1,7 @@
 [tools]
 bun = "1.4.3"
-go = "1.27.1"
-prek = "0.4.12"
+go = "1.27.2"
+prek = "0.5.5"
 
 [tasks.docker]
 description = "Check for a reachable Docker daemon and compose v2, create the homerun network"

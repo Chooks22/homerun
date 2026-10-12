@@ -1,6 +1,6 @@
 module github.com/orochibraru/homerun/terraform/provider
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.19.0

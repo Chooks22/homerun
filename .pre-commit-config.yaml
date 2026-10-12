@@ -53,7 +53,7 @@ repos:
         name: Look for hardcoded secrets
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.50.1
+    rev: v1.51.1
     hooks:
       - id: typos
         name: Look for typos
@@ -86,7 +86,7 @@ repos:
         name: Pin Github Actions
         entry: pinact run
         language: golang
-        language_version: 1.27.1
+        language_version: 1.27.2
         additional_dependencies:
           [github.com/suzuki-shunsuke/pinact/v5/cmd/pinact@v5.0.0]
         files: ^\.github/workflows/.*\.ya?ml$

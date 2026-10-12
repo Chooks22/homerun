@@ -935,14 +935,7 @@
 										"additionalProperties": false,
 										"properties": {
 											"error": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"finishedAt": {
 												"anyOf": [
@@ -972,15 +965,8 @@
 												"description": "How many times its job has been claimed"
 											},
 											"jobId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The queue job running it, GET /jobs/{jobId} has its log"
+												"description": "The queue job running it, GET /jobs/{jobId} has its log",
+												"type": ["string", "null"]
 											},
 											"jobProgressAt": {
 												"anyOf": [
@@ -1012,15 +998,8 @@
 												]
 											},
 											"key": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The object key in the bucket"
+												"description": "The object key in the bucket",
+												"type": ["string", "null"]
 											},
 											"kind": {
 												"enum": ["backup", "restore"],
@@ -1043,15 +1022,8 @@
 												"type": "string"
 											},
 											"success": {
-												"anyOf": [
-													{
-														"type": "boolean"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "null while running"
+												"description": "null while running",
+												"type": ["boolean", "null"]
 											},
 											"volumeId": {
 												"type": "string"
@@ -1850,28 +1822,14 @@
 										"additionalProperties": false,
 										"properties": {
 											"command": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"createdAt": {
 												"description": "ISO 8601 timestamp",
 												"type": "string"
 											},
 											"description": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"enabled": {
 												"type": "boolean"
@@ -1912,14 +1870,7 @@
 												"type": "string"
 											},
 											"image": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"kind": {
 												"enum": ["image", "script", "exec"],
@@ -1943,34 +1894,13 @@
 												"type": "boolean"
 											},
 											"registryUrl": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"registryUsername": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"remoteHostId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"runtime": {
 												"anyOf": [
@@ -1987,24 +1917,10 @@
 												"type": "string"
 											},
 											"source": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"tag": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"timeoutSeconds": {
 												"maximum": 9007199254740991,
@@ -2109,24 +2025,10 @@
 								"additionalProperties": false,
 								"properties": {
 									"command": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"enabled": {
 										"default": false,
@@ -2163,14 +2065,7 @@
 										"type": "array"
 									},
 									"image": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"kind": {
 										"description": "image (a container), script (source code on a runtime image) or exec (a host command, needs write access to System).",
@@ -2188,34 +2083,13 @@
 										"type": "string"
 									},
 									"registryUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"registryUsername": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"remoteHostId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"runtime": {
 										"anyOf": [
@@ -2235,25 +2109,11 @@
 										"type": "string"
 									},
 									"source": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "A script job's source code."
+										"description": "A script job's source code.",
+										"type": ["string", "null"]
 									},
 									"tag": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"timeoutSeconds": {
 										"maximum": 86400,
@@ -2283,28 +2143,14 @@
 									"additionalProperties": false,
 									"properties": {
 										"command": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"enabled": {
 											"type": "boolean"
@@ -2345,14 +2191,7 @@
 											"type": "string"
 										},
 										"image": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"kind": {
 											"enum": ["image", "script", "exec"],
@@ -2376,34 +2215,13 @@
 											"type": "boolean"
 										},
 										"registryUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"registryUsername": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"remoteHostId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"runtime": {
 											"anyOf": [
@@ -2420,24 +2238,10 @@
 											"type": "string"
 										},
 										"source": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"timeoutSeconds": {
 											"maximum": 9007199254740991,
@@ -2652,28 +2456,14 @@
 									"additionalProperties": false,
 									"properties": {
 										"command": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"enabled": {
 											"type": "boolean"
@@ -2714,14 +2504,7 @@
 											"type": "string"
 										},
 										"image": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"kind": {
 											"enum": ["image", "script", "exec"],
@@ -2745,34 +2528,13 @@
 											"type": "boolean"
 										},
 										"registryUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"registryUsername": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"remoteHostId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"runtime": {
 											"anyOf": [
@@ -2789,24 +2551,10 @@
 											"type": "string"
 										},
 										"source": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"timeoutSeconds": {
 											"maximum": 9007199254740991,
@@ -2937,24 +2685,10 @@
 								"additionalProperties": false,
 								"properties": {
 									"command": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"enabled": {
 										"type": "boolean"
@@ -2987,14 +2721,7 @@
 										"type": "array"
 									},
 									"image": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"name": {
 										"maxLength": 100,
@@ -3007,34 +2734,13 @@
 										"type": "string"
 									},
 									"registryUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"registryUsername": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"remoteHostId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"runtime": {
 										"anyOf": [
@@ -3054,25 +2760,11 @@
 										"type": "string"
 									},
 									"source": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "A script job's source code."
+										"description": "A script job's source code.",
+										"type": ["string", "null"]
 									},
 									"tag": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"timeoutSeconds": {
 										"maximum": 86400,
@@ -3094,28 +2786,14 @@
 									"additionalProperties": false,
 									"properties": {
 										"command": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"enabled": {
 											"type": "boolean"
@@ -3156,14 +2834,7 @@
 											"type": "string"
 										},
 										"image": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"kind": {
 											"enum": ["image", "script", "exec"],
@@ -3187,34 +2858,13 @@
 											"type": "boolean"
 										},
 										"registryUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"registryUsername": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"remoteHostId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"runtime": {
 											"anyOf": [
@@ -3231,24 +2881,10 @@
 											"type": "string"
 										},
 										"source": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"timeoutSeconds": {
 											"maximum": 9007199254740991,
@@ -4124,14 +3760,7 @@
 										"additionalProperties": false,
 										"properties": {
 											"baseUrl": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"clientId": {
 												"type": "string"
@@ -4228,15 +3857,8 @@
 								"additionalProperties": false,
 								"properties": {
 									"baseUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "Required for Gitea (self-hosted only)."
+										"description": "Required for Gitea (self-hosted only).",
+										"type": ["string", "null"]
 									},
 									"clientId": {
 										"minLength": 1,
@@ -4282,14 +3904,7 @@
 									"additionalProperties": false,
 									"properties": {
 										"baseUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"clientId": {
 											"type": "string"
@@ -4496,14 +4111,7 @@
 									"additionalProperties": false,
 									"properties": {
 										"baseUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"clientId": {
 											"type": "string"
@@ -4626,15 +4234,8 @@
 								"additionalProperties": false,
 								"properties": {
 									"baseUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "Required for Gitea (self-hosted only)."
+										"description": "Required for Gitea (self-hosted only).",
+										"type": ["string", "null"]
 									},
 									"clientId": {
 										"minLength": 1,
@@ -4668,14 +4269,7 @@
 									"additionalProperties": false,
 									"properties": {
 										"baseUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"clientId": {
 											"type": "string"
@@ -4983,26 +4577,12 @@
 												"type": "string"
 											},
 											"scope": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "What the project manages: stack:<id> or service:<id>"
+												"description": "What the project manages: stack:<id> or service:<id>",
+												"type": ["string", "null"]
 											},
 											"serial": {
-												"anyOf": [
-													{
-														"type": "number"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The latest state's serial, null before the first write"
+												"description": "The latest state's serial, null before the first write",
+												"type": ["number", "null"]
 											},
 											"slug": {
 												"type": "string"
@@ -5015,15 +4595,8 @@
 												"type": "string"
 											},
 											"updatedAt": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "When the latest state was written"
+												"description": "When the latest state was written",
+												"type": ["string", "null"]
 											}
 										},
 										"required": [
@@ -5120,15 +4693,8 @@
 										"type": "string"
 									},
 									"scope": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "What the project manages: stack:<id> or service:<id>"
+										"description": "What the project manages: stack:<id> or service:<id>",
+										"type": ["string", "null"]
 									},
 									"storeId": {
 										"description": "The object store holding the bucket",
@@ -5174,26 +4740,12 @@
 											"type": "string"
 										},
 										"scope": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "What the project manages: stack:<id> or service:<id>"
+											"description": "What the project manages: stack:<id> or service:<id>",
+											"type": ["string", "null"]
 										},
 										"serial": {
-											"anyOf": [
-												{
-													"type": "number"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The latest state's serial, null before the first write"
+											"description": "The latest state's serial, null before the first write",
+											"type": ["number", "null"]
 										},
 										"slug": {
 											"type": "string"
@@ -5206,15 +4758,8 @@
 											"type": "string"
 										},
 										"updatedAt": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "When the latest state was written"
+											"description": "When the latest state was written",
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -5442,26 +4987,12 @@
 											"type": "string"
 										},
 										"scope": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "What the project manages: stack:<id> or service:<id>"
+											"description": "What the project manages: stack:<id> or service:<id>",
+											"type": ["string", "null"]
 										},
 										"serial": {
-											"anyOf": [
-												{
-													"type": "number"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The latest state's serial, null before the first write"
+											"description": "The latest state's serial, null before the first write",
+											"type": ["number", "null"]
 										},
 										"slug": {
 											"type": "string"
@@ -5474,15 +5005,8 @@
 											"type": "string"
 										},
 										"updatedAt": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "When the latest state was written"
+											"description": "When the latest state was written",
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -6341,24 +5865,10 @@
 																"type": "string"
 															},
 															"serviceId": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"serviceName": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"stage": {
 																"anyOf": [
@@ -6410,15 +5920,8 @@
 																"type": "string"
 															},
 															"workerId": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																],
-																"description": "The Go worker holding the job's lease"
+																"description": "The Go worker holding the job's lease",
+																"type": ["string", "null"]
 															}
 														},
 														"required": [
@@ -6447,15 +5950,8 @@
 													"type": "boolean"
 												},
 												"reason": {
-													"anyOf": [
-														{
-															"type": "string"
-														},
-														{
-															"type": "null"
-														}
-													],
-													"description": "Why an update can't start right now, null when ready"
+													"description": "Why an update can't start right now, null when ready",
+													"type": ["string", "null"]
 												},
 												"runningJobs": {
 													"type": "number"
@@ -6789,15 +6285,8 @@
 									"additionalProperties": false,
 									"properties": {
 										"exitCode": {
-											"anyOf": [
-												{
-													"type": "number"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The updater's exit code once it has exited, 0 on success"
+											"description": "The updater's exit code once it has exited, 0 on success",
+											"type": ["number", "null"]
 										},
 										"log": {
 											"description": "The updater's output lines",
@@ -6812,15 +6301,8 @@
 											"type": "string"
 										},
 										"version": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The version the updater is installing"
+											"description": "The version the updater is installing",
+											"type": ["string", "null"]
 										}
 									},
 									"required": ["exitCode", "log", "state", "version"],
@@ -6946,24 +6428,10 @@
 												"type": "string"
 											},
 											"serviceId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"serviceName": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"stage": {
 												"anyOf": [
@@ -7015,15 +6483,8 @@
 												"type": "string"
 											},
 											"workerId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The Go worker holding the job's lease"
+												"description": "The Go worker holding the job's lease",
+												"type": ["string", "null"]
 											}
 										},
 										"required": [
@@ -7147,14 +6608,7 @@
 											"type": "string"
 										},
 										"error": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"finishedAt": {
 											"anyOf": [
@@ -7219,14 +6673,7 @@
 											]
 										},
 										"serviceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"stage": {
 											"anyOf": [
@@ -7407,14 +6854,7 @@
 												"type": "string"
 											},
 											"lastError": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"name": {
 												"type": "string"
@@ -7588,14 +7028,7 @@
 											"type": "string"
 										},
 										"lastError": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"name": {
 											"type": "string"
@@ -7831,14 +7264,7 @@
 											"type": "string"
 										},
 										"lastError": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"name": {
 											"type": "string"
@@ -8028,14 +7454,7 @@
 											"type": "string"
 										},
 										"lastError": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"name": {
 											"type": "string"
@@ -10681,14 +10100,7 @@
 												"type": "string"
 											},
 											"domain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"id": {
 												"description": "The environment's own service id",
@@ -10788,14 +10200,7 @@
 										"type": "boolean"
 									},
 									"domain": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"envOverrides": {
 										"additionalProperties": {
@@ -10849,14 +10254,7 @@
 											"type": "string"
 										},
 										"domain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"description": "The environment's own service id",
@@ -11065,14 +10463,7 @@
 											"type": "string"
 										},
 										"domain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"description": "The environment's own service id",
@@ -11193,14 +10584,7 @@
 								"additionalProperties": false,
 								"properties": {
 									"domain": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"envOverrides": {
 										"additionalProperties": {
@@ -11238,14 +10622,7 @@
 											"type": "string"
 										},
 										"domain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"description": "The environment's own service id",
@@ -11462,24 +10839,10 @@
 												"type": "boolean"
 											},
 											"buildCacheRegistryId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"buildServerRemoteHostId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"buildSource": {
 												"enum": ["image", "git"],
@@ -11492,38 +10855,17 @@
 												"type": "array"
 											},
 											"category": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The app's type, a template category like database"
+												"description": "The app's type, a template category like database",
+												"type": ["string", "null"]
 											},
 											"channelBranch": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelCanary": {
 												"type": "boolean"
 											},
 											"channelCanaryDomain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelTagPattern": {
 												"type": "string"
@@ -11545,14 +10887,7 @@
 												]
 											},
 											"containerId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"containerPort": {
 												"maximum": 9007199254740991,
@@ -11560,14 +10895,7 @@
 												"type": "integer"
 											},
 											"cpuLimit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"createdAt": {
 												"description": "ISO 8601 timestamp",
@@ -11590,14 +10918,7 @@
 												]
 											},
 											"cronSchedule": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"currentStatus": {
 												"enum": [
@@ -11678,35 +10999,14 @@
 												"type": "object"
 											},
 											"environmentName": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it."
+												"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it.",
+												"type": ["string", "null"]
 											},
 											"gitBakeFile": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitBuildContext": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitBuildMethod": {
 												"enum": [
@@ -11720,24 +11020,10 @@
 												"type": "string"
 											},
 											"gitBuildTarget": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitDockerfilePath": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitIgnorePaths": {
 												"description": "Repo path globs whose changes alone never deploy on push",
@@ -11747,57 +11033,22 @@
 												"type": "array"
 											},
 											"gitLastSeenCommit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitPollEnabled": {
 												"type": "boolean"
 											},
 											"gitProviderId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitRepo": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitUrl": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitWatchPaths": {
 												"description": "Repo path globs a push has to change a file under to deploy, empty for any file",
@@ -11807,37 +11058,16 @@
 												"type": "array"
 											},
 											"gitWebhookError": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitWebhookId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitWebhookReconnect": {
 												"type": "boolean"
 											},
 											"healthcheckCommand": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"healthcheckDisabled": {
 												"type": "boolean"
@@ -11903,15 +11133,8 @@
 												]
 											},
 											"icon": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL"
+												"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL",
+												"type": ["string", "null"]
 											},
 											"id": {
 												"type": "string"
@@ -11982,14 +11205,7 @@
 												"type": "boolean"
 											},
 											"previewBranch": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"previewBranchExclude": {
 												"items": {
@@ -12010,14 +11226,7 @@
 												"type": "boolean"
 											},
 											"previewDomainTemplate": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"previewEnvOverrides": {
 												"additionalProperties": {
@@ -12032,14 +11241,7 @@
 												"type": "boolean"
 											},
 											"previewParentId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"previewPrNumber": {
 												"anyOf": [
@@ -12054,14 +11256,7 @@
 												]
 											},
 											"previewPrTitle": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"previewReportGithub": {
 												"type": "boolean"
@@ -12070,14 +11265,7 @@
 												"type": "boolean"
 											},
 											"primaryDomain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"privileged": {
 												"type": "boolean"
@@ -12116,24 +11304,10 @@
 												"type": "boolean"
 											},
 											"registryUrl": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"registryUsername": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"replicas": {
 												"maximum": 9007199254740991,
@@ -12160,14 +11334,7 @@
 												"type": "string"
 											},
 											"runAsUser": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"secretEnvKeys": {
 												"items": {
@@ -12179,24 +11346,10 @@
 												"type": "string"
 											},
 											"stackId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"swarmServiceId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"tag": {
 												"type": "string"
@@ -12468,24 +11621,10 @@
 												"type": "boolean"
 											},
 											"buildCacheRegistryId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"buildServerRemoteHostId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"buildSource": {
 												"default": "image",
@@ -12502,34 +11641,13 @@
 												"type": "array"
 											},
 											"category": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelBranch": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelCanaryDomain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelTagPattern": {
 												"minLength": 1,
@@ -12566,36 +11684,15 @@
 												"type": "boolean"
 											},
 											"cronSchedule": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "5-field cron expression the service is redeployed on."
+												"description": "5-field cron expression the service is redeployed on.",
+												"type": ["string", "null"]
 											},
 											"customSslCert": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "PEM certificate, sent with customSslKey. null on both removes them. Never returned."
+												"description": "PEM certificate, sent with customSslKey. null on both removes them. Never returned.",
+												"type": ["string", "null"]
 											},
 											"customSslKey": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"defaultDomainEnabled": {
 												"type": "boolean"
@@ -12669,15 +11766,8 @@
 												"type": "object"
 											},
 											"environmentName": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The environment this service's deployments are recorded under, e.g. staging. null or production resets it to production. Canaries and previews keep canary and preview."
+												"description": "The environment this service's deployments are recorded under, e.g. staging. null or production resets it to production. Canaries and previews keep canary and preview.",
+												"type": ["string", "null"]
 											},
 											"gitBakeFile": {
 												"type": "string"
@@ -12814,14 +11904,7 @@
 												]
 											},
 											"icon": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"image": {
 												"type": "string"
@@ -12918,14 +12001,7 @@
 												"type": "boolean"
 											},
 											"previewDomainTemplate": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"previewEnvOverrides": {
 												"additionalProperties": {
@@ -12950,14 +12026,7 @@
 												"type": "boolean"
 											},
 											"primaryDomain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"privileged": {
 												"default": false,
@@ -13030,15 +12099,8 @@
 												"type": "string"
 											},
 											"runAsUser": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's"
+												"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
+												"type": ["string", "null"]
 											},
 											"secretEnvKeys": {
 												"description": "envVars keys the dashboard masks.",
@@ -13156,24 +12218,10 @@
 												"type": "boolean"
 											},
 											"buildCacheRegistryId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"buildServerRemoteHostId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"buildSource": {
 												"enum": ["image", "git"],
@@ -13188,34 +12236,13 @@
 												"type": "array"
 											},
 											"category": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelBranch": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelCanaryDomain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"channelTagPattern": {
 												"minLength": 1,
@@ -13246,49 +12273,21 @@
 												"type": "integer"
 											},
 											"cpuLimit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"cronEnabled": {
 												"type": "boolean"
 											},
 											"cronSchedule": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "5-field cron expression the service is redeployed on."
+												"description": "5-field cron expression the service is redeployed on.",
+												"type": ["string", "null"]
 											},
 											"customSslCert": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "PEM certificate, sent with customSslKey. null on both removes them. Never returned."
+												"description": "PEM certificate, sent with customSslKey. null on both removes them. Never returned.",
+												"type": ["string", "null"]
 											},
 											"customSslKey": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"defaultDomainEnabled": {
 												"type": "boolean"
@@ -13358,35 +12357,14 @@
 												"type": "object"
 											},
 											"environmentName": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The environment this service's deployments are recorded under, e.g. staging. null or production resets it to production. Canaries and previews keep canary and preview."
+												"description": "The environment this service's deployments are recorded under, e.g. staging. null or production resets it to production. Canaries and previews keep canary and preview.",
+												"type": ["string", "null"]
 											},
 											"gitBakeFile": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitBuildContext": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitBuildMethod": {
 												"enum": [
@@ -13411,14 +12389,7 @@
 												]
 											},
 											"gitDockerfilePath": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitIgnorePaths": {
 												"description": "Repo path globs whose changes never deploy on push, same syntax as gitWatchPaths: a push deploys when a changed file matches the watch paths and none of these.",
@@ -13434,44 +12405,16 @@
 												"type": "boolean"
 											},
 											"gitProviderId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitRepo": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitUrl": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitWatchPaths": {
 												"description": "Repo path globs (apps/api/**, *.md) a push has to change a file under to deploy the service or one of its environments. Empty lets every file through. A pattern without a slash matches at any depth, a folder path everything under it. Only applies when the push payload lists its files (not on Bitbucket, not when polling).",
@@ -13558,14 +12501,7 @@
 												]
 											},
 											"icon": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"image": {
 												"minLength": 1,
@@ -13669,14 +12605,7 @@
 												"type": "boolean"
 											},
 											"previewDomainTemplate": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"previewEnvOverrides": {
 												"additionalProperties": {
@@ -13701,14 +12630,7 @@
 												"type": "boolean"
 											},
 											"primaryDomain": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"privileged": {
 												"type": "boolean"
@@ -13746,24 +12668,10 @@
 												"type": "string"
 											},
 											"registryUrl": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"registryUsername": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"replicas": {
 												"maximum": 50,
@@ -13792,15 +12700,8 @@
 												"type": "string"
 											},
 											"runAsUser": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's"
+												"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
+												"type": ["string", "null"]
 											},
 											"secretEnvKeys": {
 												"description": "envVars keys the dashboard masks.",
@@ -13814,14 +12715,7 @@
 												"type": "string"
 											},
 											"stackId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"tag": {
 												"minLength": 1,
@@ -13912,24 +12806,10 @@
 											"type": "boolean"
 										},
 										"buildCacheRegistryId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"buildServerRemoteHostId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"buildSource": {
 											"enum": ["image", "git"],
@@ -13942,38 +12822,17 @@
 											"type": "array"
 										},
 										"category": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The app's type, a template category like database"
+											"description": "The app's type, a template category like database",
+											"type": ["string", "null"]
 										},
 										"channelBranch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"channelCanary": {
 											"type": "boolean"
 										},
 										"channelCanaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"channelTagPattern": {
 											"type": "string"
@@ -13995,14 +12854,7 @@
 											]
 										},
 										"containerId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"containerPort": {
 											"maximum": 9007199254740991,
@@ -14010,14 +12862,7 @@
 											"type": "integer"
 										},
 										"cpuLimit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
@@ -14040,14 +12885,7 @@
 											]
 										},
 										"cronSchedule": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"currentStatus": {
 											"enum": [
@@ -14128,35 +12966,14 @@
 											"type": "object"
 										},
 										"environmentName": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it."
+											"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it.",
+											"type": ["string", "null"]
 										},
 										"gitBakeFile": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitBuildContext": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitBuildMethod": {
 											"enum": [
@@ -14170,24 +12987,10 @@
 											"type": "string"
 										},
 										"gitBuildTarget": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitDockerfilePath": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitIgnorePaths": {
 											"description": "Repo path globs whose changes alone never deploy on push",
@@ -14197,57 +13000,22 @@
 											"type": "array"
 										},
 										"gitLastSeenCommit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitPollEnabled": {
 											"type": "boolean"
 										},
 										"gitProviderId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitRepo": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWatchPaths": {
 											"description": "Repo path globs a push has to change a file under to deploy, empty for any file",
@@ -14257,37 +13025,16 @@
 											"type": "array"
 										},
 										"gitWebhookError": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWebhookId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWebhookReconnect": {
 											"type": "boolean"
 										},
 										"healthcheckCommand": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"healthcheckDisabled": {
 											"type": "boolean"
@@ -14353,15 +13100,8 @@
 											]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL"
+											"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL",
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -14432,14 +13172,7 @@
 											"type": "boolean"
 										},
 										"previewBranch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewBranchExclude": {
 											"items": {
@@ -14460,14 +13193,7 @@
 											"type": "boolean"
 										},
 										"previewDomainTemplate": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewEnvOverrides": {
 											"additionalProperties": {
@@ -14482,14 +13208,7 @@
 											"type": "boolean"
 										},
 										"previewParentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewPrNumber": {
 											"anyOf": [
@@ -14504,14 +13223,7 @@
 											]
 										},
 										"previewPrTitle": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewReportGithub": {
 											"type": "boolean"
@@ -14520,14 +13232,7 @@
 											"type": "boolean"
 										},
 										"primaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"privileged": {
 											"type": "boolean"
@@ -14566,24 +13271,10 @@
 											"type": "boolean"
 										},
 										"registryUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"registryUsername": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"replicas": {
 											"maximum": 9007199254740991,
@@ -14605,14 +13296,7 @@
 											"type": "string"
 										},
 										"runAsUser": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"secretEnvKeys": {
 											"items": {
@@ -14624,24 +13308,10 @@
 											"type": "string"
 										},
 										"stackId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"swarmServiceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
 											"type": "string"
@@ -15063,24 +13733,10 @@
 											"type": "boolean"
 										},
 										"buildCacheRegistryId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"buildServerRemoteHostId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"buildSource": {
 											"enum": ["image", "git"],
@@ -15093,38 +13749,17 @@
 											"type": "array"
 										},
 										"category": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The app's type, a template category like database"
+											"description": "The app's type, a template category like database",
+											"type": ["string", "null"]
 										},
 										"channelBranch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"channelCanary": {
 											"type": "boolean"
 										},
 										"channelCanaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"channelTagPattern": {
 											"type": "string"
@@ -15146,14 +13781,7 @@
 											]
 										},
 										"containerId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"containerPort": {
 											"maximum": 9007199254740991,
@@ -15161,14 +13789,7 @@
 											"type": "integer"
 										},
 										"cpuLimit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
@@ -15191,14 +13812,7 @@
 											]
 										},
 										"cronSchedule": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"currentStatus": {
 											"enum": [
@@ -15279,35 +13893,14 @@
 											"type": "object"
 										},
 										"environmentName": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it."
+											"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it.",
+											"type": ["string", "null"]
 										},
 										"gitBakeFile": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitBuildContext": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitBuildMethod": {
 											"enum": [
@@ -15321,24 +13914,10 @@
 											"type": "string"
 										},
 										"gitBuildTarget": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitDockerfilePath": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitIgnorePaths": {
 											"description": "Repo path globs whose changes alone never deploy on push",
@@ -15348,57 +13927,22 @@
 											"type": "array"
 										},
 										"gitLastSeenCommit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitPollEnabled": {
 											"type": "boolean"
 										},
 										"gitProviderId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitRepo": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWatchPaths": {
 											"description": "Repo path globs a push has to change a file under to deploy, empty for any file",
@@ -15408,37 +13952,16 @@
 											"type": "array"
 										},
 										"gitWebhookError": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWebhookId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWebhookReconnect": {
 											"type": "boolean"
 										},
 										"healthcheckCommand": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"healthcheckDisabled": {
 											"type": "boolean"
@@ -15504,15 +14027,8 @@
 											]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL"
+											"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL",
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -15583,14 +14099,7 @@
 											"type": "boolean"
 										},
 										"previewBranch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewBranchExclude": {
 											"items": {
@@ -15611,14 +14120,7 @@
 											"type": "boolean"
 										},
 										"previewDomainTemplate": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewEnvOverrides": {
 											"additionalProperties": {
@@ -15633,14 +14135,7 @@
 											"type": "boolean"
 										},
 										"previewParentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewPrNumber": {
 											"anyOf": [
@@ -15655,14 +14150,7 @@
 											]
 										},
 										"previewPrTitle": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewReportGithub": {
 											"type": "boolean"
@@ -15671,14 +14159,7 @@
 											"type": "boolean"
 										},
 										"primaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"privileged": {
 											"type": "boolean"
@@ -15717,24 +14198,10 @@
 											"type": "boolean"
 										},
 										"registryUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"registryUsername": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"replicas": {
 											"maximum": 9007199254740991,
@@ -15756,14 +14223,7 @@
 											"type": "string"
 										},
 										"runAsUser": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"secretEnvKeys": {
 											"items": {
@@ -15775,24 +14235,10 @@
 											"type": "string"
 										},
 										"stackId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"swarmServiceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
 											"type": "string"
@@ -16085,24 +14531,10 @@
 										"type": "boolean"
 									},
 									"buildCacheRegistryId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"buildServerRemoteHostId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"buildSource": {
 										"enum": ["image", "git"],
@@ -16117,34 +14549,13 @@
 										"type": "array"
 									},
 									"category": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"channelBranch": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"channelCanaryDomain": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"channelTagPattern": {
 										"minLength": 1,
@@ -16175,49 +14586,21 @@
 										"type": "integer"
 									},
 									"cpuLimit": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"cronEnabled": {
 										"type": "boolean"
 									},
 									"cronSchedule": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "5-field cron expression the service is redeployed on."
+										"description": "5-field cron expression the service is redeployed on.",
+										"type": ["string", "null"]
 									},
 									"customSslCert": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "PEM certificate, sent with customSslKey. null on both removes them. Never returned."
+										"description": "PEM certificate, sent with customSslKey. null on both removes them. Never returned.",
+										"type": ["string", "null"]
 									},
 									"customSslKey": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"defaultDomainEnabled": {
 										"type": "boolean"
@@ -16287,35 +14670,14 @@
 										"type": "object"
 									},
 									"environmentName": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "The environment this service's deployments are recorded under, e.g. staging. null or production resets it to production. Canaries and previews keep canary and preview."
+										"description": "The environment this service's deployments are recorded under, e.g. staging. null or production resets it to production. Canaries and previews keep canary and preview.",
+										"type": ["string", "null"]
 									},
 									"gitBakeFile": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitBuildContext": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitBuildMethod": {
 										"enum": [
@@ -16340,14 +14702,7 @@
 										]
 									},
 									"gitDockerfilePath": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitIgnorePaths": {
 										"description": "Repo path globs whose changes never deploy on push, same syntax as gitWatchPaths: a push deploys when a changed file matches the watch paths and none of these.",
@@ -16363,44 +14718,16 @@
 										"type": "boolean"
 									},
 									"gitProviderId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitRef": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitRepo": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"gitWatchPaths": {
 										"description": "Repo path globs (apps/api/**, *.md) a push has to change a file under to deploy the service or one of its environments. Empty lets every file through. A pattern without a slash matches at any depth, a folder path everything under it. Only applies when the push payload lists its files (not on Bitbucket, not when polling).",
@@ -16487,14 +14814,7 @@
 										]
 									},
 									"icon": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"image": {
 										"minLength": 1,
@@ -16598,14 +14918,7 @@
 										"type": "boolean"
 									},
 									"previewDomainTemplate": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"previewEnvOverrides": {
 										"additionalProperties": {
@@ -16630,14 +14943,7 @@
 										"type": "boolean"
 									},
 									"primaryDomain": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"privileged": {
 										"type": "boolean"
@@ -16675,24 +14981,10 @@
 										"type": "string"
 									},
 									"registryUrl": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"registryUsername": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"replicas": {
 										"maximum": 50,
@@ -16716,15 +15008,8 @@
 										"type": "string"
 									},
 									"runAsUser": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's"
+										"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
+										"type": ["string", "null"]
 									},
 									"secretEnvKeys": {
 										"description": "envVars keys the dashboard masks.",
@@ -16738,14 +15023,7 @@
 										"type": "string"
 									},
 									"stackId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"tag": {
 										"minLength": 1,
@@ -16828,24 +15106,10 @@
 											"type": "boolean"
 										},
 										"buildCacheRegistryId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"buildServerRemoteHostId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"buildSource": {
 											"enum": ["image", "git"],
@@ -16858,38 +15122,17 @@
 											"type": "array"
 										},
 										"category": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The app's type, a template category like database"
+											"description": "The app's type, a template category like database",
+											"type": ["string", "null"]
 										},
 										"channelBranch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"channelCanary": {
 											"type": "boolean"
 										},
 										"channelCanaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"channelTagPattern": {
 											"type": "string"
@@ -16911,14 +15154,7 @@
 											]
 										},
 										"containerId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"containerPort": {
 											"maximum": 9007199254740991,
@@ -16926,14 +15162,7 @@
 											"type": "integer"
 										},
 										"cpuLimit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
@@ -16956,14 +15185,7 @@
 											]
 										},
 										"cronSchedule": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"currentStatus": {
 											"enum": [
@@ -17044,35 +15266,14 @@
 											"type": "object"
 										},
 										"environmentName": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it."
+											"description": "Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it.",
+											"type": ["string", "null"]
 										},
 										"gitBakeFile": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitBuildContext": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitBuildMethod": {
 											"enum": [
@@ -17086,24 +15287,10 @@
 											"type": "string"
 										},
 										"gitBuildTarget": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitDockerfilePath": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitIgnorePaths": {
 											"description": "Repo path globs whose changes alone never deploy on push",
@@ -17113,57 +15300,22 @@
 											"type": "array"
 										},
 										"gitLastSeenCommit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitPollEnabled": {
 											"type": "boolean"
 										},
 										"gitProviderId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitRepo": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWatchPaths": {
 											"description": "Repo path globs a push has to change a file under to deploy, empty for any file",
@@ -17173,37 +15325,16 @@
 											"type": "array"
 										},
 										"gitWebhookError": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWebhookId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"gitWebhookReconnect": {
 											"type": "boolean"
 										},
 										"healthcheckCommand": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"healthcheckDisabled": {
 											"type": "boolean"
@@ -17269,15 +15400,8 @@
 											]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL"
+											"description": "A bundled template icon file name, a Dashboard Icons name as di:<name>, or an uploaded data:image URL",
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -17348,14 +15472,7 @@
 											"type": "boolean"
 										},
 										"previewBranch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewBranchExclude": {
 											"items": {
@@ -17376,14 +15493,7 @@
 											"type": "boolean"
 										},
 										"previewDomainTemplate": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewEnvOverrides": {
 											"additionalProperties": {
@@ -17398,14 +15508,7 @@
 											"type": "boolean"
 										},
 										"previewParentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewPrNumber": {
 											"anyOf": [
@@ -17420,14 +15523,7 @@
 											]
 										},
 										"previewPrTitle": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"previewReportGithub": {
 											"type": "boolean"
@@ -17436,14 +15532,7 @@
 											"type": "boolean"
 										},
 										"primaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"privileged": {
 											"type": "boolean"
@@ -17482,24 +15571,10 @@
 											"type": "boolean"
 										},
 										"registryUrl": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"registryUsername": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"replicas": {
 											"maximum": 9007199254740991,
@@ -17521,14 +15596,7 @@
 											"type": "string"
 										},
 										"runAsUser": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"secretEnvKeys": {
 											"items": {
@@ -17540,24 +15608,10 @@
 											"type": "string"
 										},
 										"stackId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"swarmServiceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
 											"type": "string"
@@ -17805,15 +15859,8 @@
 									"additionalProperties": false,
 									"properties": {
 										"branch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The branch whose pushes deploy the canary"
+											"description": "The branch whose pushes deploy the canary",
+											"type": ["string", "null"]
 										},
 										"canary": {
 											"anyOf": [
@@ -17821,24 +15868,10 @@
 													"additionalProperties": false,
 													"properties": {
 														"gitRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"hostname": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"id": {
 															"type": "string"
@@ -17879,28 +15912,14 @@
 											"description": "The canary service Homerun manages, null while channels are off"
 										},
 										"canaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"enabled": {
 											"type": "boolean"
 										},
 										"stableRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The ref the stable service (this one) builds: the last tag deployed, or its branch until the first tag"
+											"description": "The ref the stable service (this one) builds: the last tag deployed, or its branch until the first tag",
+											"type": ["string", "null"]
 										},
 										"tagPattern": {
 											"description": "Glob a pushed tag must match to deploy the stable service",
@@ -18012,15 +16031,8 @@
 										"type": "string"
 									},
 									"canaryDomain": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "A custom domain for the canary, null for none (it keeps its default <slug>-canary hostname). Omit to keep the current one."
+										"description": "A custom domain for the canary, null for none (it keeps its default <slug>-canary hostname). Omit to keep the current one.",
+										"type": ["string", "null"]
 									},
 									"enabled": {
 										"description": "Turn release channels on or off. Off deletes the canary service.",
@@ -18047,15 +16059,8 @@
 									"additionalProperties": false,
 									"properties": {
 										"branch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The branch whose pushes deploy the canary"
+											"description": "The branch whose pushes deploy the canary",
+											"type": ["string", "null"]
 										},
 										"canary": {
 											"anyOf": [
@@ -18063,24 +16068,10 @@
 													"additionalProperties": false,
 													"properties": {
 														"gitRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"hostname": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"id": {
 															"type": "string"
@@ -18121,28 +16112,14 @@
 											"description": "The canary service Homerun manages, null while channels are off"
 										},
 										"canaryDomain": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"enabled": {
 											"type": "boolean"
 										},
 										"stableRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The ref the stable service (this one) builds: the last tag deployed, or its branch until the first tag"
+											"description": "The ref the stable service (this one) builds: the last tag deployed, or its branch until the first tag",
+											"type": ["string", "null"]
 										},
 										"tagPattern": {
 											"description": "Glob a pushed tag must match to deploy the stable service",
@@ -18273,14 +16250,7 @@
 											"additionalProperties": false,
 											"properties": {
 												"cpuLimit": {
-													"anyOf": [
-														{
-															"type": "string"
-														},
-														{
-															"type": "null"
-														}
-													]
+													"type": ["string", "null"]
 												},
 												"memoryLimitMb": {
 													"anyOf": [
@@ -18400,14 +16370,7 @@
 													"type": "string"
 												},
 												"primaryDomain": {
-													"anyOf": [
-														{
-															"type": "string"
-														},
-														{
-															"type": "null"
-														}
-													]
+													"type": ["string", "null"]
 												},
 												"publishedPorts": {
 													"items": {
@@ -18498,14 +16461,7 @@
 													"additionalProperties": false,
 													"properties": {
 														"command": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"disabled": {
 															"type": "boolean"
@@ -18582,14 +16538,7 @@
 													"type": "boolean"
 												},
 												"runAsUser": {
-													"anyOf": [
-														{
-															"type": "string"
-														},
-														{
-															"type": "null"
-														}
-													]
+													"type": ["string", "null"]
 												}
 											},
 											"required": [
@@ -18677,14 +16626,7 @@
 															"type": "boolean"
 														},
 														"schedule": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														}
 													},
 													"required": ["enabled", "schedule"],
@@ -18694,29 +16636,15 @@
 													"type": "boolean"
 												},
 												"category": {
-													"anyOf": [
-														{
-															"type": "string"
-														},
-														{
-															"type": "null"
-														}
-													]
+													"type": ["string", "null"]
 												},
 												"environment": {
 													"description": "The environment its deployments are recorded under: production unless renamed, canary or preview for a child service.",
 													"type": "string"
 												},
 												"icon": {
-													"anyOf": [
-														{
-															"type": "string"
-														},
-														{
-															"type": "null"
-														}
-													],
-													"description": "A bundled template icon file name, \"uploaded\" for a custom image, or null."
+													"description": "A bundled template icon file name, \"uploaded\" for a custom image, or null.",
+													"type": ["string", "null"]
 												},
 												"stack": {
 													"anyOf": [
@@ -18772,70 +16700,28 @@
 																	"type": "boolean"
 																},
 																"bakeFile": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"buildCacheBuiltin": {
 																	"type": "boolean"
 																},
 																"buildCacheRegistryId": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"buildContext": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"buildMethod": {
 																	"type": "string"
 																},
 																"buildServerRemoteHostId": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"buildTarget": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"dockerfilePath": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"ignorePaths": {
 																	"items": {
@@ -18847,14 +16733,7 @@
 																	"type": "boolean"
 																},
 																"ref": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"requireStatusChecks": {
 																	"type": "boolean"
@@ -18866,14 +16745,7 @@
 																	"type": "array"
 																},
 																"url": {
-																	"anyOf": [
-																		{
-																			"type": "string"
-																		},
-																		{
-																			"type": "null"
-																		}
-																	]
+																	"type": ["string", "null"]
 																},
 																"watchPaths": {
 																	"items": {
@@ -18935,24 +16807,10 @@
 															"type": "boolean"
 														},
 														"url": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"username": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														}
 													},
 													"required": ["passwordSet", "url", "username"],
@@ -19640,15 +17498,8 @@
 												"type": "string"
 											},
 											"errorMessage": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Why the deploy failed, null unless status is failed"
+												"description": "Why the deploy failed, null unless status is failed",
+												"type": ["string", "null"]
 											},
 											"finishedAt": {
 												"anyOf": [
@@ -19663,69 +17514,27 @@
 												]
 											},
 											"gitCommit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"id": {
 												"type": "string"
 											},
 											"imageDigest": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"imageRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"log": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The deploy's progress lines as the dashboard shows them: pull, scan, rollout, and the Docker error when it failed"
+												"description": "The deploy's progress lines as the dashboard shows them: pull, scan, rollout, and the Docker error when it failed",
+												"type": ["string", "null"]
 											},
 											"rollbackOfDeploymentId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The deployment whose image this one redeployed: the revision a rollback went back to, or the preview revision a promote deployed"
+												"description": "The deployment whose image this one redeployed: the revision a rollback went back to, or the preview revision a promote deployed",
+												"type": ["string", "null"]
 											},
 											"startedAt": {
 												"anyOf": [
@@ -19953,29 +17762,15 @@
 												"type": "integer"
 											},
 											"culprit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The innermost in-app frame, function (file), or the transaction"
+												"description": "The innermost in-app frame, function (file), or the transaction",
+												"type": ["string", "null"]
 											},
 											"fingerprint": {
 												"description": "The grouping hash",
 												"type": "string"
 											},
 											"firstRelease": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"firstSeen": {
 												"description": "ISO 8601 timestamp",
@@ -19985,24 +17780,10 @@
 												"type": "string"
 											},
 											"lastEnvironment": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"lastRelease": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"lastSeen": {
 												"description": "ISO 8601 timestamp",
@@ -20013,14 +17794,7 @@
 												"type": "string"
 											},
 											"platform": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"regressedAt": {
 												"anyOf": [
@@ -20056,14 +17830,7 @@
 												"type": "string"
 											},
 											"type": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"usersAffected": {
 												"description": "Distinct users named by the retained events",
@@ -20072,14 +17839,7 @@
 												"type": "integer"
 											},
 											"value": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											}
 										},
 										"required": [
@@ -20224,15 +17984,8 @@
 											"type": "integer"
 										},
 										"culprit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The innermost in-app frame, function (file), or the transaction"
+											"description": "The innermost in-app frame, function (file), or the transaction",
+											"type": ["string", "null"]
 										},
 										"event": {
 											"anyOf": [
@@ -20244,54 +17997,19 @@
 																"additionalProperties": false,
 																"properties": {
 																	"category": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"level": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"message": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"timestamp": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"type": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	}
 																},
 																"required": [
@@ -20319,24 +18037,10 @@
 															"type": "object"
 														},
 														"culprit": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"environment": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"eventId": {
 															"description": "The SDK's event id",
@@ -20353,14 +18057,7 @@
 																			"additionalProperties": false,
 																			"properties": {
 																				"absPath": {
-																					"anyOf": [
-																						{
-																							"type": "string"
-																						},
-																						{
-																							"type": "null"
-																						}
-																					]
+																					"type": ["string", "null"]
 																				},
 																				"colno": {
 																					"anyOf": [
@@ -20375,34 +18072,13 @@
 																					]
 																				},
 																				"contextLine": {
-																					"anyOf": [
-																						{
-																							"type": "string"
-																						},
-																						{
-																							"type": "null"
-																						}
-																					]
+																					"type": ["string", "null"]
 																				},
 																				"filename": {
-																					"anyOf": [
-																						{
-																							"type": "string"
-																						},
-																						{
-																							"type": "null"
-																						}
-																					]
+																					"type": ["string", "null"]
 																				},
 																				"function": {
-																					"anyOf": [
-																						{
-																							"type": "string"
-																						},
-																						{
-																							"type": "null"
-																						}
-																					]
+																					"type": ["string", "null"]
 																				},
 																				"inApp": {
 																					"type": "boolean"
@@ -20420,14 +18096,7 @@
 																					]
 																				},
 																				"module": {
-																					"anyOf": [
-																						{
-																							"type": "string"
-																						},
-																						{
-																							"type": "null"
-																						}
-																					]
+																					"type": ["string", "null"]
 																				},
 																				"postContext": {
 																					"items": {
@@ -20459,54 +18128,19 @@
 																		"type": "array"
 																	},
 																	"handled": {
-																		"anyOf": [
-																			{
-																				"type": "boolean"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["boolean", "null"]
 																	},
 																	"mechanism": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"module": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"type": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	},
 																	"value": {
-																		"anyOf": [
-																			{
-																				"type": "string"
-																			},
-																			{
-																				"type": "null"
-																			}
-																		]
+																		"type": ["string", "null"]
 																	}
 																},
 																"required": [
@@ -20541,58 +18175,23 @@
 															"type": "string"
 														},
 														"message": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"newerEventId": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"olderEventId": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"platform": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"receivedAt": {
 															"description": "ISO 8601 timestamp",
 															"type": "string"
 														},
 														"release": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"request": {
 															"anyOf": [
@@ -20600,24 +18199,10 @@
 																	"additionalProperties": false,
 																	"properties": {
 																		"method": {
-																			"anyOf": [
-																				{
-																					"type": "string"
-																				},
-																				{
-																					"type": "null"
-																				}
-																			]
+																			"type": ["string", "null"]
 																		},
 																		"url": {
-																			"anyOf": [
-																				{
-																					"type": "string"
-																				},
-																				{
-																					"type": "null"
-																				}
-																			]
+																			"type": ["string", "null"]
 																		}
 																	},
 																	"required": ["method", "url"],
@@ -20629,24 +18214,10 @@
 															]
 														},
 														"sdk": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"serverName": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"sourceLinks": {
 															"additionalProperties": {
@@ -20660,6 +18231,9 @@
 														},
 														"tags": {
 															"items": {
+																"items": false,
+																"maxItems": 2,
+																"minItems": 2,
 																"prefixItems": [
 																	{
 																		"type": "string"
@@ -20680,14 +18254,7 @@
 															"type": "string"
 														},
 														"transaction": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"user": {
 															"anyOf": [
@@ -20695,44 +18262,16 @@
 																	"additionalProperties": false,
 																	"properties": {
 																		"email": {
-																			"anyOf": [
-																				{
-																					"type": "string"
-																				},
-																				{
-																					"type": "null"
-																				}
-																			]
+																			"type": ["string", "null"]
 																		},
 																		"id": {
-																			"anyOf": [
-																				{
-																					"type": "string"
-																				},
-																				{
-																					"type": "null"
-																				}
-																			]
+																			"type": ["string", "null"]
 																		},
 																		"ipAddress": {
-																			"anyOf": [
-																				{
-																					"type": "string"
-																				},
-																				{
-																					"type": "null"
-																				}
-																			]
+																			"type": ["string", "null"]
 																		},
 																		"username": {
-																			"anyOf": [
-																				{
-																					"type": "string"
-																				},
-																				{
-																					"type": "null"
-																				}
-																			]
+																			"type": ["string", "null"]
 																		}
 																	},
 																	"required": [
@@ -20793,14 +18332,7 @@
 											"type": "string"
 										},
 										"firstRelease": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"firstSeen": {
 											"description": "ISO 8601 timestamp",
@@ -20810,24 +18342,10 @@
 											"type": "string"
 										},
 										"lastEnvironment": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"lastRelease": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"lastSeen": {
 											"description": "ISO 8601 timestamp",
@@ -20838,14 +18356,7 @@
 											"type": "string"
 										},
 										"platform": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"regressedAt": {
 											"anyOf": [
@@ -20881,14 +18392,7 @@
 											"type": "string"
 										},
 										"type": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"usersAffected": {
 											"maximum": 9007199254740991,
@@ -20896,14 +18400,7 @@
 											"type": "integer"
 										},
 										"value": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -21056,29 +18553,15 @@
 											"type": "integer"
 										},
 										"culprit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The innermost in-app frame, function (file), or the transaction"
+											"description": "The innermost in-app frame, function (file), or the transaction",
+											"type": ["string", "null"]
 										},
 										"fingerprint": {
 											"description": "The grouping hash",
 											"type": "string"
 										},
 										"firstRelease": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"firstSeen": {
 											"description": "ISO 8601 timestamp",
@@ -21088,24 +18571,10 @@
 											"type": "string"
 										},
 										"lastEnvironment": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"lastRelease": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"lastSeen": {
 											"description": "ISO 8601 timestamp",
@@ -21116,14 +18585,7 @@
 											"type": "string"
 										},
 										"platform": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"regressedAt": {
 											"anyOf": [
@@ -21159,24 +18621,10 @@
 											"type": "string"
 										},
 										"type": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"value": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -21441,14 +18889,7 @@
 										"additionalProperties": false,
 										"properties": {
 											"branch": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"deployment": {
 												"anyOf": [
@@ -21461,14 +18902,7 @@
 																"type": "string"
 															},
 															"errorMessage": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"finishedAt": {
 																"anyOf": [
@@ -21483,25 +18917,11 @@
 																]
 															},
 															"gitCommit": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																],
-																"description": "The commit it built, null until the build checked it out"
+																"description": "The commit it built, null until the build checked it out",
+																"type": ["string", "null"]
 															},
 															"gitRef": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"id": {
 																"type": "string"
@@ -21537,15 +18957,8 @@
 												"description": "The preview's latest deploy attempt, failed or in flight ones included"
 											},
 											"gitRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "What a git service's preview builds: the pull request's head SHA, or its branch when the provider sent no full SHA. Null for an image-based service's preview"
+												"description": "What a git service's preview builds: the pull request's head SHA, or its branch when the provider sent no full SHA. Null for an image-based service's preview",
+												"type": ["string", "null"]
 											},
 											"hostnames": {
 												"items": {
@@ -21583,24 +18996,10 @@
 																]
 															},
 															"gitCommit": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"gitRef": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"health": {
 																"anyOf": [
@@ -21619,38 +19018,17 @@
 																]
 															},
 															"healthReason": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"id": {
 																"description": "The revision's deployment id on the preview",
 																"type": "string"
 															},
 															"imageDigest": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															},
 															"imageRef": {
-																"anyOf": [
-																	{
-																		"type": "string"
-																	},
-																	{
-																		"type": "null"
-																	}
-																]
+																"type": ["string", "null"]
 															}
 														},
 														"required": [
@@ -21688,25 +19066,11 @@
 												"type": "string"
 											},
 											"title": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"url": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The preview's main URL, null when nothing routes to it"
+												"description": "The preview's main URL, null when nothing routes to it",
+												"type": ["string", "null"]
 											}
 										},
 										"required": [
@@ -21971,14 +19335,7 @@
 									"additionalProperties": false,
 									"properties": {
 										"branch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"deployment": {
 											"anyOf": [
@@ -21991,14 +19348,7 @@
 															"type": "string"
 														},
 														"errorMessage": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"finishedAt": {
 															"anyOf": [
@@ -22013,25 +19363,11 @@
 															]
 														},
 														"gitCommit": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															],
-															"description": "The commit it built, null until the build checked it out"
+															"description": "The commit it built, null until the build checked it out",
+															"type": ["string", "null"]
 														},
 														"gitRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"id": {
 															"type": "string"
@@ -22067,15 +19403,8 @@
 											"description": "The preview's latest deploy attempt, failed or in flight ones included"
 										},
 										"gitRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "What a git service's preview builds: the pull request's head SHA, or its branch when the provider sent no full SHA. Null for an image-based service's preview"
+											"description": "What a git service's preview builds: the pull request's head SHA, or its branch when the provider sent no full SHA. Null for an image-based service's preview",
+											"type": ["string", "null"]
 										},
 										"hostnames": {
 											"items": {
@@ -22113,24 +19442,10 @@
 															]
 														},
 														"gitCommit": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"gitRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"health": {
 															"anyOf": [
@@ -22149,38 +19464,17 @@
 															]
 														},
 														"healthReason": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"id": {
 															"description": "The revision's deployment id on the preview",
 															"type": "string"
 														},
 														"imageDigest": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"imageRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														}
 													},
 													"required": [
@@ -22218,25 +19512,11 @@
 											"type": "string"
 										},
 										"title": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"url": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The preview's main URL, null when nothing routes to it"
+											"description": "The preview's main URL, null when nothing routes to it",
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -22409,14 +19689,7 @@
 									"additionalProperties": false,
 									"properties": {
 										"branch": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"deployment": {
 											"anyOf": [
@@ -22429,14 +19702,7 @@
 															"type": "string"
 														},
 														"errorMessage": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"finishedAt": {
 															"anyOf": [
@@ -22451,25 +19717,11 @@
 															]
 														},
 														"gitCommit": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															],
-															"description": "The commit it built, null until the build checked it out"
+															"description": "The commit it built, null until the build checked it out",
+															"type": ["string", "null"]
 														},
 														"gitRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"id": {
 															"type": "string"
@@ -22509,15 +19761,8 @@
 											"type": "string"
 										},
 										"gitRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "What a git service's preview builds: the pull request's head SHA, or its branch when the provider sent no full SHA. Null for an image-based service's preview"
+											"description": "What a git service's preview builds: the pull request's head SHA, or its branch when the provider sent no full SHA. Null for an image-based service's preview",
+											"type": ["string", "null"]
 										},
 										"hostnames": {
 											"items": {
@@ -22555,24 +19800,10 @@
 															]
 														},
 														"gitCommit": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"gitRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"health": {
 															"anyOf": [
@@ -22591,38 +19822,17 @@
 															]
 														},
 														"healthReason": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"id": {
 															"description": "The revision's deployment id on the preview",
 															"type": "string"
 														},
 														"imageDigest": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														},
 														"imageRef": {
-															"anyOf": [
-																{
-																	"type": "string"
-																},
-																{
-																	"type": "null"
-																}
-															]
+															"type": ["string", "null"]
 														}
 													},
 													"required": [
@@ -22660,25 +19870,11 @@
 											"type": "string"
 										},
 										"title": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"url": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The preview's main URL, null when nothing routes to it"
+											"description": "The preview's main URL, null when nothing routes to it",
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -22858,24 +20054,10 @@
 											"type": "string"
 										},
 										"gitCommit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"imageRef": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"jobId": {
 											"description": "The deploy job, poll GET /jobs/{jobId} to follow it",
@@ -23169,24 +20351,10 @@
 												"type": "string"
 											},
 											"gitCommit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"gitRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"health": {
 												"anyOf": [
@@ -23206,49 +20374,21 @@
 												"description": "Health of its latest run. watching and healthy only ever appear on the current revision; unhealthy and rolled_back are kept as history; null otherwise"
 											},
 											"healthReason": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Why the health watch judged it unhealthy or rolled it back (a failing healthcheck, a restart loop, failed swarm tasks and their error), null otherwise"
+												"description": "Why the health watch judged it unhealthy or rolled it back (a failing healthcheck, a restart loop, failed swarm tasks and their error), null otherwise",
+												"type": ["string", "null"]
 											},
 											"id": {
 												"description": "The revision's original deployment id, what POST /services/{serviceId}/revisions/{revisionId}/deploy takes",
 												"type": "string"
 											},
 											"imageDigest": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"imageId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"imageRef": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"lastDeployedAt": {
 												"anyOf": [
@@ -23647,36 +20787,15 @@
 												"type": "object"
 											},
 											"deploymentId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "null = scanned on demand, not during a deploy"
+												"description": "null = scanned on demand, not during a deploy",
+												"type": ["string", "null"]
 											},
 											"digest": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"error": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Why a failed or skipped scan has no findings"
+												"description": "Why a failed or skipped scan has no findings",
+												"type": ["string", "null"]
 											},
 											"fixableCounts": {
 												"anyOf": [
@@ -24046,36 +21165,15 @@
 											"type": "object"
 										},
 										"deploymentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "null = scanned on demand, not during a deploy"
+											"description": "null = scanned on demand, not during a deploy",
+											"type": ["string", "null"]
 										},
 										"digest": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"error": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Why a failed or skipped scan has no findings"
+											"description": "Why a failed or skipped scan has no findings",
+											"type": ["string", "null"]
 										},
 										"findings": {
 											"description": "Sorted most severe first, capped at 200 : totalFindings has the real count",
@@ -24083,14 +21181,7 @@
 												"additionalProperties": false,
 												"properties": {
 													"fixedVersion": {
-														"anyOf": [
-															{
-																"type": "string"
-															},
-															{
-																"type": "null"
-															}
-														]
+														"type": ["string", "null"]
 													},
 													"id": {
 														"type": "string"
@@ -24112,14 +21203,7 @@
 														"type": "string"
 													},
 													"title": {
-														"anyOf": [
-															{
-																"type": "string"
-															},
-															{
-																"type": "null"
-															}
-														]
+														"type": ["string", "null"]
 													}
 												},
 												"required": [
@@ -24364,36 +21448,15 @@
 											"type": "object"
 										},
 										"deploymentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "null = scanned on demand, not during a deploy"
+											"description": "null = scanned on demand, not during a deploy",
+											"type": ["string", "null"]
 										},
 										"digest": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"error": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Why a failed or skipped scan has no findings"
+											"description": "Why a failed or skipped scan has no findings",
+											"type": ["string", "null"]
 										},
 										"findings": {
 											"description": "Sorted most severe first, capped at 200 : totalFindings has the real count",
@@ -24401,14 +21464,7 @@
 												"additionalProperties": false,
 												"properties": {
 													"fixedVersion": {
-														"anyOf": [
-															{
-																"type": "string"
-															},
-															{
-																"type": "null"
-															}
-														]
+														"type": ["string", "null"]
 													},
 													"id": {
 														"type": "string"
@@ -24430,14 +21486,7 @@
 														"type": "string"
 													},
 													"title": {
-														"anyOf": [
-															{
-																"type": "string"
-															},
-															{
-																"type": "null"
-															}
-														]
+														"type": ["string", "null"]
 													}
 												},
 												"required": [
@@ -25259,29 +22308,15 @@
 									"additionalProperties": false,
 									"properties": {
 										"error": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Why Homerun couldn't register the webhook itself, if it couldn't"
+											"description": "Why Homerun couldn't register the webhook itself, if it couldn't",
+											"type": ["string", "null"]
 										},
 										"polling": {
 											"description": "Whether Homerun polls the branch head every two minutes instead of, or as well as, waiting for deliveries",
 											"type": "boolean"
 										},
 										"providerName": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"reconnect": {
 											"anyOf": [
@@ -25313,15 +22348,8 @@
 											"type": "string"
 										},
 										"url": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Where the provider should send push events"
+											"description": "Where the provider should send push events",
+											"type": ["string", "null"]
 										}
 									},
 									"required": [
@@ -25452,24 +22480,10 @@
 												"type": "string"
 											},
 											"description": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"icon": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"id": {
 												"type": "string"
@@ -25478,15 +22492,8 @@
 												"type": "string"
 											},
 											"parentId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "The stack this one is nested in, null at the top level."
+												"description": "The stack this one is nested in, null at the top level.",
+												"type": ["string", "null"]
 											},
 											"slug": {
 												"type": "string"
@@ -25576,24 +22583,10 @@
 								"additionalProperties": false,
 								"properties": {
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"icon": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"name": {
 										"maxLength": 100,
@@ -25601,15 +22594,8 @@
 										"type": "string"
 									},
 									"parentId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "The stack to nest this one in, null for a top-level stack."
+										"description": "The stack to nest this one in, null for a top-level stack.",
+										"type": ["string", "null"]
 									},
 									"slug": {
 										"pattern": "^[a-z0-9-]{1,63}$",
@@ -25636,24 +22622,10 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -25662,15 +22634,8 @@
 											"type": "string"
 										},
 										"parentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The stack this one is nested in, null at the top level."
+											"description": "The stack this one is nested in, null at the top level.",
+											"type": ["string", "null"]
 										},
 										"slug": {
 											"type": "string"
@@ -25895,24 +22860,10 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -25921,15 +22872,8 @@
 											"type": "string"
 										},
 										"parentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The stack this one is nested in, null at the top level."
+											"description": "The stack this one is nested in, null at the top level.",
+											"type": ["string", "null"]
 										},
 										"slug": {
 											"type": "string"
@@ -26046,24 +22990,10 @@
 								"additionalProperties": false,
 								"properties": {
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"icon": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"name": {
 										"maxLength": 100,
@@ -26071,15 +23001,8 @@
 										"type": "string"
 									},
 									"parentId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "The stack to nest this one in, null for a top-level stack."
+										"description": "The stack to nest this one in, null for a top-level stack.",
+										"type": ["string", "null"]
 									},
 									"slug": {
 										"pattern": "^[a-z0-9-]{1,63}$",
@@ -26105,24 +23028,10 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -26131,15 +23040,8 @@
 											"type": "string"
 										},
 										"parentId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "The stack this one is nested in, null at the top level."
+											"description": "The stack this one is nested in, null at the top level.",
+											"type": ["string", "null"]
 										},
 										"slug": {
 											"type": "string"
@@ -26272,14 +23174,7 @@
 												"type": "string"
 											},
 											"description": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"domains": {
 												"items": {
@@ -26320,14 +23215,7 @@
 												"type": "string"
 											},
 											"stackId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"updatedAt": {
 												"description": "ISO 8601 timestamp",
@@ -26416,14 +23304,7 @@
 								"additionalProperties": false,
 								"properties": {
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"domains": {
 										"description": "Domains a public page also answers on, e.g. status.example.com: Traefik routes them to the page, with TLS and DNS like a service's.",
@@ -26472,14 +23353,7 @@
 										"type": "string"
 									},
 									"stackId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									}
 								},
 								"required": ["isPublic", "name", "scope", "services", "slug"],
@@ -26501,14 +23375,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"domains": {
 											"items": {
@@ -26549,14 +23416,7 @@
 											"type": "string"
 										},
 										"stackId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"updatedAt": {
 											"description": "ISO 8601 timestamp",
@@ -26760,14 +23620,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"domains": {
 											"items": {
@@ -26808,14 +23661,7 @@
 											"type": "string"
 										},
 										"stackId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"updatedAt": {
 											"description": "ISO 8601 timestamp",
@@ -26931,14 +23777,7 @@
 								"additionalProperties": false,
 								"properties": {
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"domains": {
 										"description": "Domains a public page also answers on, e.g. status.example.com: Traefik routes them to the page, with TLS and DNS like a service's.",
@@ -26985,14 +23824,7 @@
 										"type": "string"
 									},
 									"stackId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									}
 								},
 								"type": "object"
@@ -27013,14 +23845,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"domains": {
 											"items": {
@@ -27061,14 +23886,7 @@
 											"type": "string"
 										},
 										"stackId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"updatedAt": {
 											"description": "ISO 8601 timestamp",
@@ -27197,24 +24015,10 @@
 											"type": "number"
 										},
 										"diskTotalGb": {
-											"anyOf": [
-												{
-													"type": "number"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["number", "null"]
 										},
 										"diskUsedGb": {
-											"anyOf": [
-												{
-													"type": "number"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["number", "null"]
 										},
 										"gpu": {
 											"anyOf": [
@@ -27364,14 +24168,7 @@
 												"type": "array"
 											},
 											"category": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"command": {
 												"anyOf": [
@@ -27392,14 +24189,7 @@
 												"type": "integer"
 											},
 											"cpuLimit": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"createdAt": {
 												"description": "ISO 8601 timestamp",
@@ -27407,14 +24197,7 @@
 												"type": "string"
 											},
 											"description": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"devices": {
 												"items": {
@@ -27458,14 +24241,7 @@
 												]
 											},
 											"icon": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"id": {
 												"type": "string"
@@ -27498,15 +24274,8 @@
 												"type": "string"
 											},
 											"ownerId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "null = built-in template"
+												"description": "null = built-in template",
+												"type": ["string", "null"]
 											},
 											"privileged": {
 												"description": "privileged, devices, capAdd and envFiles need host access : only an admin can deploy a template that sets any of them",
@@ -27541,14 +24310,7 @@
 												"type": "string"
 											},
 											"runAsUser": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"tag": {
 												"type": "string"
@@ -27669,14 +24431,7 @@
 											"type": "array"
 										},
 										"category": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"command": {
 											"anyOf": [
@@ -27697,14 +24452,7 @@
 											"type": "integer"
 										},
 										"cpuLimit": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
@@ -27712,14 +24460,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"devices": {
 											"items": {
@@ -27763,14 +24504,7 @@
 											]
 										},
 										"icon": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -27803,15 +24537,8 @@
 											"type": "string"
 										},
 										"ownerId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "null = built-in template"
+											"description": "null = built-in template",
+											"type": ["string", "null"]
 										},
 										"privileged": {
 											"description": "privileged, devices, capAdd and envFiles need host access : only an admin can deploy a template that sets any of them",
@@ -27846,14 +24573,7 @@
 											"type": "string"
 										},
 										"runAsUser": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"tag": {
 											"type": "string"
@@ -28651,45 +25371,17 @@
 												"description": "When the schedule fires next, null when backups are off"
 											},
 											"backupPreCommand": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"backupPreCommandServiceId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"backupPrefix": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"backupSchedule": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												],
-												"description": "Cron expression"
+												"description": "Cron expression",
+												"type": ["string", "null"]
 											},
 											"backupStopServices": {
 												"type": "boolean"
@@ -28699,14 +25391,7 @@
 												"type": "string"
 											},
 											"description": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"id": {
 												"type": "string"
@@ -28719,14 +25404,7 @@
 												"type": "string"
 											},
 											"s3DestinationId": {
-												"anyOf": [
-													{
-														"type": "string"
-													},
-													{
-														"type": "null"
-													}
-												]
+												"type": ["string", "null"]
 											},
 											"source": {
 												"description": "A host path for a bind, the Docker volume name otherwise",
@@ -28827,60 +25505,25 @@
 										"type": "boolean"
 									},
 									"backupPreCommand": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "A command run in backupPreCommandServiceId before each backup."
+										"description": "A command run in backupPreCommandServiceId before each backup.",
+										"type": ["string", "null"]
 									},
 									"backupPreCommandServiceId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"backupPrefix": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"backupSchedule": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "5-field cron expression."
+										"description": "5-field cron expression.",
+										"type": ["string", "null"]
 									},
 									"backupStopServices": {
 										"description": "Stop the services using the volume during a backup.",
 										"type": "boolean"
 									},
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"kind": {
 										"enum": ["bind", "volume"],
@@ -28892,14 +25535,7 @@
 										"type": "string"
 									},
 									"s3DestinationId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"source": {
 										"description": "An absolute host path (bind) or a Docker volume name.",
@@ -28948,45 +25584,17 @@
 											"description": "When the schedule fires next, null when backups are off"
 										},
 										"backupPreCommand": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupPreCommandServiceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupPrefix": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupSchedule": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Cron expression"
+											"description": "Cron expression",
+											"type": ["string", "null"]
 										},
 										"backupStopServices": {
 											"type": "boolean"
@@ -28996,14 +25604,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -29016,14 +25617,7 @@
 											"type": "string"
 										},
 										"s3DestinationId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"source": {
 											"description": "A host path for a bind, the Docker volume name otherwise",
@@ -29259,45 +25853,17 @@
 											"description": "When the schedule fires next, null when backups are off"
 										},
 										"backupPreCommand": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupPreCommandServiceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupPrefix": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupSchedule": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Cron expression"
+											"description": "Cron expression",
+											"type": ["string", "null"]
 										},
 										"backupStopServices": {
 											"type": "boolean"
@@ -29307,14 +25873,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -29327,14 +25886,7 @@
 											"type": "string"
 										},
 										"s3DestinationId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"source": {
 											"description": "A host path for a bind, the Docker volume name otherwise",
@@ -29462,60 +26014,25 @@
 										"type": "boolean"
 									},
 									"backupPreCommand": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "A command run in backupPreCommandServiceId before each backup."
+										"description": "A command run in backupPreCommandServiceId before each backup.",
+										"type": ["string", "null"]
 									},
 									"backupPreCommandServiceId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"backupPrefix": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"backupSchedule": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										],
-										"description": "5-field cron expression."
+										"description": "5-field cron expression.",
+										"type": ["string", "null"]
 									},
 									"backupStopServices": {
 										"description": "Stop the services using the volume during a backup.",
 										"type": "boolean"
 									},
 									"description": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									},
 									"name": {
 										"maxLength": 100,
@@ -29523,14 +26040,7 @@
 										"type": "string"
 									},
 									"s3DestinationId": {
-										"anyOf": [
-											{
-												"type": "string"
-											},
-											{
-												"type": "null"
-											}
-										]
+										"type": ["string", "null"]
 									}
 								},
 								"type": "object"
@@ -29573,45 +26083,17 @@
 											"description": "When the schedule fires next, null when backups are off"
 										},
 										"backupPreCommand": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupPreCommandServiceId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupPrefix": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"backupSchedule": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											],
-											"description": "Cron expression"
+											"description": "Cron expression",
+											"type": ["string", "null"]
 										},
 										"backupStopServices": {
 											"type": "boolean"
@@ -29621,14 +26103,7 @@
 											"type": "string"
 										},
 										"description": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"id": {
 											"type": "string"
@@ -29641,14 +26116,7 @@
 											"type": "string"
 										},
 										"s3DestinationId": {
-											"anyOf": [
-												{
-													"type": "string"
-												},
-												{
-													"type": "null"
-												}
-											]
+											"type": ["string", "null"]
 										},
 										"source": {
 											"description": "A host path for a bind, the Docker volume name otherwise",
