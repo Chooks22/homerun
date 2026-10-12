@@ -87,13 +87,15 @@ restores, cron jobs, Docker cleanups) is a trace of its own, under **Monitoring
 → Traces**. The job's span carries its type, id, attempt and outcome, with a
 child span for its execution and for recording the outcome, and inside the
 execution a span per stage: the image pull, build or rollback image, the scan,
-starting the container or swarm service, and the backup or restore. A failed
-job's trace shows which stage broke, with the error recorded on it, and how long
-each stage took.
+starting the container or swarm service, the backup or restore, and a cron job's
+container run with its exit code (a non-zero exit or a timeout marks it failed).
+A failed job's trace shows which stage broke, with the error recorded on it, and
+how long each stage took.
 
 These traces are written straight to the database by the worker, so they're
 recorded with or without the collector running. A build server's agent records
 none.
 
 A job's page under **Scheduling** shows its trace too, one per attempt, as the
-same waterfall, with a link to the full trace.
+same waterfall, with a link to the full trace, and so does each cron job run's
+**Traces** tab (see [Scheduling](scheduling.md#cron-jobs)).

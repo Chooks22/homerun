@@ -14,6 +14,11 @@ import (
 	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/jobs"
 	"github.com/orochibraru/homerun/internal/jobs/cronjob"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 type fakeDaemon struct {
@@ -193,6 +198,30 @@ func TestRunTimeout(t *testing.T) {
 	result := run(t, d, cronjob.Spec{Image: "busybox:latest", RunID: "r1", TimeoutSeconds: 0})
 	if result["timedOut"] != true || result["exitCode"] != 9 || !d.killed {
 		t.Errorf("result = %v killed = %v", result, d.killed)
+	}
+}
+
+func TestRunRecordsAContainerSpan(t *testing.T) {
+	exporter := tracetest.NewInMemoryExporter()
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter)))
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	run(t, &fakeDaemon{exit: 2}, cronjob.Spec{Image: "busybox:latest", RunID: "r1", TimeoutSeconds: 60})
+
+	spans := exporter.GetSpans()
+	if len(spans) != 1 || spans[0].Name != "run container" {
+		t.Fatalf("spans = %v", spans)
+	}
+	attributes := map[attribute.Key]attribute.Value{}
+	for _, kv := range spans[0].Attributes {
+		attributes[kv.Key] = kv.Value
+	}
+	if attributes["process.exit.code"].AsInt64() != 2 || attributes["homerun.cronjob.run.id"].AsString() != "r1" {
+		t.Errorf("attributes = %v", spans[0].Attributes)
+	}
+	if spans[0].Status.Code != codes.Error {
+		t.Errorf("status = %v, want an error for a non-zero exit", spans[0].Status)
 	}
 }
 

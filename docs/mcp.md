@@ -62,17 +62,25 @@ claude mcp add --transport http homerun \
 
 ## What it can do
 
-It reads: `list_services`, `get_service`, `get_service_config`, `service_logs`,
-`list_deployments` (each deploy attempt's error and log), `list_revisions`,
-`list_errors`, `get_error`, `list_dependencies`, `list_stacks`, `system_stats`,
-`instance_status`, `list_volumes`, `list_backups`, `get_job`, `list_jobs`,
-`list_redirects`, `list_object_stores`, `list_buckets` and `get_bucket`.
+| Area                    | Reads                                                                                                                                                                 | Changes                                                                                                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Services                | `list_services`, `get_service`, `get_service_config`, `service_logs`, `list_deployments` (each deploy attempt's error and log), `list_revisions`, `list_dependencies` | `create_service` (from scratch or a template), `update_service`, `set_dependencies`, `deploy_service`, `restart_service`, `start_service`, `stop_service`, `rollback_service` |
+| Errors                  | `list_errors`, `get_error`                                                                                                                                            | `update_error` (resolve, ignore or reopen an issue)                                                                                                                           |
+| Stacks and templates    | `list_stacks`, `get_stack`, `list_templates`, `get_template`                                                                                                          | `create_stack`, `update_stack`                                                                                                                                                |
+| Environments and canary | `list_environments`, `get_release_channels`                                                                                                                           | `create_environment`, `update_environment`, `set_release_channels`                                                                                                            |
+| Pull request previews   | `list_previews`, `get_preview`                                                                                                                                        | `promote_preview`                                                                                                                                                             |
+| Image scans             | `list_scans`, `get_scan` (with its findings)                                                                                                                          | `scan_service`                                                                                                                                                                |
+| Volumes and backups     | `list_volumes`, `list_volume_mounts`, `list_backups`, `list_backup_destinations`                                                                                      | `create_volume`, `update_volume` (its backup settings too), `mount_volume`, `update_volume_mount`, `unmount_volume`, `run_backup`                                             |
+| Cron jobs               | `list_cron_jobs`, `get_cron_job`, `list_cron_job_runs`, `get_cron_job_run` (a run's output)                                                                           | `create_cron_job`, `update_cron_job` (`enabled` turns its schedule on or off), `delete_cron_job`, `run_cron_job`                                                              |
+| Queue and instance      | `get_job`, `list_jobs`, `system_stats`, `instance_status`                                                                                                             |                                                                                                                                                                               |
+| Redirects               | `list_redirects`                                                                                                                                                      | `create_redirect`, `update_redirect`, `delete_redirect`                                                                                                                       |
+| Object storage          | `list_object_stores`, `list_buckets`, `get_bucket`                                                                                                                    | `create_bucket`, `update_bucket` (expiry and public access), `delete_bucket` (empty buckets only)                                                                             |
+| Status pages            | `list_status_pages`                                                                                                                                                   | `create_status_page`, `update_status_page`, `delete_status_page`                                                                                                              |
+| Notifications           | `list_notifications` (your own feed, the dashboard's bell), `list_notification_channels`                                                                              | `mark_notifications_read`, `create_notification_channel`, `update_notification_channel`, `delete_notification_channel`                                                        |
 
-It changes: `update_service`, `set_dependencies`, `deploy_service`,
-`restart_service`, `start_service`, `stop_service`, `rollback_service`,
-`run_backup`, `create_redirect`, `update_redirect`, `delete_redirect`,
-`create_bucket`, `update_bucket` (expiry and public access) and `delete_bucket`
-(empty buckets only). Deleting a service is deliberately not a tool.
+Deleting a service, a stack or an environment is deliberately not a tool: do it
+from the dashboard. Neither are workstations, users and sign-in, DNS, git
+providers, registries, remote hosts, IaC or updating Homerun.
 
 Every tool goes through the REST API with the caller's own permissions, checked
 per call: a read-only account, or an API key with read permissions, can diagnose
@@ -90,11 +98,12 @@ Secrets don't reach the agent, the rest stays readable:
 - Any other value is shown as is, except a URL's password
   (`postgres://app:[redacted]@db:5432/app`).
 - A `--requirepass` or `--password` argument in a command is also redacted, in
-  logs too.
+  logs too: service logs, deploy and job logs, a cron job's command and a cron
+  job run's output.
 
-`update_service` merges env changes into what's stored: send only the vars to
-change, `null` deletes one. A var sent back exactly as the agent read it, a
-`[redacted]` value included, stays unchanged.
+`update_service` and `update_cron_job` merge env changes into what's stored:
+send only the vars to change, `null` deletes one. A var, or a command, sent back
+exactly as the agent read it, a `[redacted]` value included, stays unchanged.
 
 ## Revoking access
 

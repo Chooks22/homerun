@@ -159,6 +159,7 @@ const OPEN_ROUTES = [
 	"/api/v1/auth-token",
 	"/api/v1/mcp",
 	"/api/v1/nodes",
+	"/api/v1/notifications",
 	"/api/v1/openapi.json",
 	"/api/v1/otlp",
 	"/api/v1/ready",

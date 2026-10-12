@@ -255,6 +255,23 @@ func openAPIDocument(baseURL string) object {
 					"tags":     []string{"Workstations"},
 				},
 			},
+			"/v1/workstations/{id}/connections": object{"get": object{
+				"description": "How many established TCP connections the IDE's container port holds open, read inside the running container: its open browser tabs. The app's idle auto-stop polls it.",
+				"parameters": []object{
+					workstationIDParameter,
+					{"in": "query", "name": "port", "required": true, "schema": object{"maximum": 65535, "minimum": 1, "type": "integer"}},
+				},
+				"responses": object{
+					"200": jsonResponse("The open connections", object{"properties": object{"connections": object{"type": "integer"}}, "required": []string{"connections"}, "type": "object"}),
+					"400": jsonResponse("Invalid port", errorSchema),
+					"401": jsonResponse("Unauthorized", errorSchema),
+					"404": jsonResponse("Not running", errorSchema),
+					"409": jsonResponse("Still starting", errorSchema),
+				},
+				"security": bearer,
+				"summary":  "Workstation connections",
+				"tags":     []string{"Workstations"},
+			}},
 			"/v1/workstations/{id}/logs": object{"get": object{
 				"description": "The container's stdout and stderr as plain text: the last `tail` lines (500 by default), then everything it writes after unless `follow=0`.",
 				"parameters": []object{

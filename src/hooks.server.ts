@@ -304,6 +304,7 @@ export const init = async () => {
 	CronService.startBackupCapacityScheduler();
 	CronService.startCoreServicesWatch();
 	CronService.startSwarmDnsWatch();
+	CronService.startWorkstationAutoStop();
 	void RedirectService.sync();
 	void IpBanService.sync();
 };

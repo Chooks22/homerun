@@ -54,6 +54,10 @@ export const cronJobWorkerJob: WorkerJob | null = {
 		return { exitCode: outcome.exitCode };
 	},
 	async prepare(entry) {
-		return CronJobService.prepareRun(await cronJobFor(entry));
+		const { scheduled } = cronJobPayload.parse(entry.payload);
+		return CronJobService.prepareRun(await cronJobFor(entry), {
+			jobId: entry.id,
+			trigger: scheduled ? "cron" : "manual",
+		});
 	},
 };

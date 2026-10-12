@@ -1473,6 +1473,20 @@ resource Pangolin serves its default certificate for it, which is what
 "workstations aren't routed" was. A failed sync is thrown after the container
 started, so it reaches the toast and `lastError`.
 
+**Auto-stop** (`autoStopMode` `idle`/`timer`, `autoStopMinutes`, `autoStopAt`
+the deadline) is set from the Overview, not the start form, so it sticks across
+starts. `start` arms `autoStopAt`, `stop` clears it, and
+`WorkstationAutoStopScheduler` (a `BaseScheduler` under `CronService`) runs
+`WorkstationService.autoStop` over `listAutoStopping()` every minute; the
+decision itself is the pure `autoStopStep` in `src/lib/workstations.ts`. Idle
+means no established connection to the IDE port, counted by the Go
+`GET /v1/workstations/{id}/connections` from `cat /proc/net/tcp{,6}` exec'd in
+the container: image-agnostic (code-server's own heartbeat isn't), and an open
+tab is "in use" because the IDE keeps a websocket. Traefik's pooled upstream
+connections linger up to its 90s idle timeout, which only delays a stop. A count
+that can't be read counts as in use, so a start in flight or an image without
+`cat` is never stopped by mistake.
+
 **Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`), not
 the per-app login wall, whose gate is service-shaped (`gatedService`,
 `AppAccessService`).

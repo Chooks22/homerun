@@ -299,14 +299,50 @@ socket) gates create, edit, run and delete exactly like a host command
 
 **One route per tab**: `[cronJobId]/` is Runs (with the `runNow` action the
 layout's header button posts to), `configuration/` and `settings/` (plus
-`delete`). Each tab's form only carries its own fields, so `parseCronJobSection`
-overlays them on the stored row (`SECTION_FIELDS`, a missing checkbox is off)
-and runs the whole job through `parseCronJobInput` again, the same way the API's
-`PATCH` merges a partial body.
+`delete`). A run has its own page, `[cronJobId]/runs/[runId]/`, nested inside
+the job's `TabNav` (Runs stays active) with a `SectionNav` for its own **Logs**
+(bare page) and **Traces** (`traces/`) tabs, a second `TabNav` there would fight
+the job's over the "tabs beside the page" sub-nav slot; its layout header shows
+status, trigger, timing and exit code and re-reads `getCronJobRun` every 2s
+while the run has no `finishedAt`, the Logs tab reading the same query instance.
+**`cron_job_run.jobId`** is the queue job that executed the run and
+**`cron_job_run.trigger`** (`"cron"`/`"manual"`, from the payload's `scheduled`)
+what started it, both stamped by `prepareRun` from the queue entry and null on
+runs from before they existed. `jobId` is how the Traces tab finds the run's
+trace (`TraceSpanDTO.spansOfJob`, the same lookup as the Scheduling job page),
+and how the Runs tab tells a queued run from the previous one: `getCronJobRuns`
+also returns the cron job's active queue job
+(`JobDTO.findActive("cron_job", "cron_job:<id>")`), and `latestCronJobRun`
+(`cron-job-script.ts`) shows "waiting" until a run row carrying that job id
+exists, then that run with its live output. **Run now** navigates to Runs and
+`refresh()`es `getCronJobRuns` on success, which is what starts the poll; it
+keeps polling while something is waiting or unfinished. The Traces tab
+`refreshAll()`s every 2s while the run has no spans yet and either hasn't
+finished or finished under 30s ago, since the worker's batch exporter writes the
+spans a few seconds after the job span ends. The worker's
+`internal/jobs/cronjob` adds a `run container` span around `RunOneOff` with
+`process.exit.code` and `homerun.cronjob.timed_out`, failed on a non-zero exit
+or a timeout.
+
+**New volume from the job form**: `cron-job-mounts.svelte` opens a dialog with
+the same `NewVolumeFields` as Storage → New volume (its `idPrefix` keeps the ids
+clear of the job form's own `name`/`description`) in its own `<form>`, portaled
+out of the job form so it never nests, and calls the `createStorageVolume`
+remote command (`volumes.remote.ts`, write on `storage`,
+`VolumeSettingsService.create` like every other volume create), then adds the
+volume to the picker's options and a mount row selecting it. Each tab's form
+only carries its own fields, so `parseCronJobSection` overlays them on the
+stored row (`SECTION_FIELDS`, a missing checkbox is off) and runs the whole job
+through `parseCronJobInput` again, the same way the API's `PATCH` merges a
+partial body.
 
 A job with its schedule off is a manual task: **Run now** on its page, or
 `POST /api/v1/cron-jobs/{cronJobId}/run` (202 with the queue job id, same
-`enqueueCronJobRun` dedupe as the button).
+`enqueueCronJobRun` dedupe as the button). Its runs are readable over the API
+too, `GET /api/v1/cron-jobs/{cronJobId}/runs` (newest first, `limit` up to 100,
+`outputLength` instead of the output) and `.../runs/{runId}` (one run with its
+output), which is what the MCP server's `list_cron_job_runs`/`get_cron_job_run`
+call.
 
 All three kinds run as a throwaway one-off container **in the Go worker now**,
 not through `DockerService.runOneOff` in-process (see "Executed by the Go
@@ -494,9 +530,10 @@ by definition, it's a shell command on the host of this app's own Docker daemon.
 demuxed stdout/stderr streams it already collects, and `internal/jobs/cronjob`'s
 own `flusher` (the Go port of the old in-process `OutputFlusher`) batches those
 chunks into `CronJobRunDTO.appendOutput` once a second (one write a second, not
-one per chunk). The job's page re-reads `getCronJobRuns` every 2s while any run
-has no `finishedAt`, so a long job shows progress instead of a spinner and then
-a wall of text.
+one per chunk). The job's Runs tab re-reads `getCronJobRuns` every 2s while a
+run is queued or has no `finishedAt`, and the run's own page re-reads
+`getCronJobRun`, so a long job shows progress instead of a spinner and then a
+wall of text.
 
 ## Restoring an S3 backup
 

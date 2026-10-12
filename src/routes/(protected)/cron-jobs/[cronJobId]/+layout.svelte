@@ -9,9 +9,11 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { describeCronJobTarget } from "#lib/cron-job-script.js";
 	import { timeAgo } from "#lib/formatting.js";
+	import { getCronJobRuns } from "#lib/remote/cron-runs.remote.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
+	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
@@ -69,7 +71,13 @@
       use:enhance={enhanceToast({
         error: "Couldn't queue that run.",
         loading: "Queueing the run",
-        success: "Run queued : it shows up under Runs.",
+        onSuccess: async () => {
+          if (page.url.pathname !== runsHref) {
+            await goto(runsHref);
+          }
+          await getCronJobRuns(job.id).refresh();
+        },
+        success: "Run queued : its output follows under Runs.",
       })}
     >
       <Button size="sm" type="submit" variant="outline">

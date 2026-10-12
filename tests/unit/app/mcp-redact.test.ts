@@ -7,6 +7,7 @@ import {
 	redactSecrets,
 	redactText,
 	restoreArgv,
+	restoreMaskedText,
 } from "../../../src/lib/server/mcp-redact";
 
 const stored = {
@@ -90,6 +91,20 @@ describe("MCP secret redaction", () => {
 		});
 	});
 
+	test("a shell command, a log and a run's output lose their inline secrets", () => {
+		expect(
+			redactSecrets({
+				command: "pg_dump postgres://app:hunter2@db/app",
+				log: "redis-server --requirepass s3cret",
+				output: "dial redis://:gitea@cache:6379",
+			}),
+		).toEqual({
+			command: `pg_dump postgres://app:${REDACTED}@db/app`,
+			log: `redis-server --requirepass ${REDACTED}`,
+			output: `dial redis://:${REDACTED}@cache:6379`,
+		});
+	});
+
 	test("a non-JSON body still loses its inline secrets", () => {
 		expect(redactText("dial redis://:gitea@gitea-redis:6379 failed")).toBe(
 			`dial redis://:${REDACTED}@gitea-redis:6379 failed`,
@@ -145,5 +160,23 @@ describe("update_service's env merge", () => {
 			restoreArgv(["valkey-server", "--requirepass", REDACTED], command),
 		).toEqual(command);
 		expect(() => restoreArgv(["--password", REDACTED], null)).toThrow();
+	});
+});
+
+describe("update_cron_job's command", () => {
+	const stored = "pg_dump postgres://app:hunter2@db/app";
+
+	test("sent back as read, it keeps the stored one", () => {
+		expect(
+			restoreMaskedText("command", maskInlineSecrets(stored), stored),
+		).toBe(stored);
+		expect(restoreMaskedText("command", "echo hi", stored)).toBe("echo hi");
+	});
+
+	test("a placeholder that matches nothing stored is refused", () => {
+		expect(() =>
+			restoreMaskedText("command", `curl -u a:${REDACTED}@x`, stored),
+		).toThrow(/command/);
+		expect(() => restoreMaskedText("command", `x ${REDACTED}`, null)).toThrow();
 	});
 });

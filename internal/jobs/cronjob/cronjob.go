@@ -6,6 +6,7 @@ package cronjob
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +17,9 @@ import (
 
 	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/jobs"
+	"github.com/orochibraru/homerun/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -68,6 +72,10 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 	binds, groups := withSocket(spec, job.DockerSocket)
 	flusher := newFlusher(job, spec.RunID)
 	stop := flusher.start()
+	ctx, span := tracing.Tracer().Start(ctx, "run container", trace.WithAttributes(
+		attribute.String("container.image.name", spec.Image),
+		attribute.String("homerun.cronjob.run.id", spec.RunID),
+	))
 	result, err := client.RunOneOff(ctx, dockerapi.OneOffConfig{
 		Auth:       spec.Auth,
 		Binds:      binds,
@@ -85,6 +93,7 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 		WorkingDir: spec.WorkingDir,
 	})
 	stop()
+	endRunSpan(span, result, err)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +103,28 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 		"output":   Tail(output, maxOutputBytes),
 		"timedOut": result.TimedOut,
 	}, nil
+}
+
+// endRunSpan records how the container ended on span and ends it: a run that
+// timed out or exited non-zero is marked failed, like an executor error.
+func endRunSpan(span trace.Span, result dockerapi.OneOffResult, err error) {
+	defer span.End()
+	if err != nil {
+		tracing.Record(span, err)
+		return
+	}
+	span.SetAttributes(
+		attribute.Int("process.exit.code", result.ExitCode),
+		attribute.Bool("homerun.cronjob.timed_out", result.TimedOut),
+	)
+	switch {
+	case result.TimedOut:
+		tracing.Record(span, errors.New("the container timed out"))
+	case result.ExitCode != 0:
+		tracing.Record(span, fmt.Errorf("the container exited with code %d", result.ExitCode))
+	default:
+		tracing.Record(span, nil)
+	}
 }
 
 // withSocket adds the Docker socket to spec's binds when it asks for it, at

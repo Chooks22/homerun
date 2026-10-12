@@ -19,7 +19,6 @@
 	import TemplateIcon from "#lib/components/template-icon.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
-	import UnreadNotifications from "#lib/components/unread-notifications.svelte";
 	import { timeAgo } from "#lib/formatting.js";
 	import { can } from "#lib/permissions.js";
 	import {
@@ -223,10 +222,6 @@
       </div>
     </div>
   {/if}
-
-  <ErrorBoundary title="Notifications didn't load.">
-    <UnreadNotifications />
-  </ErrorBoundary>
 
   {#if data.frontPageTemplates.length > 0}
     <section class="panel mb-4 rounded-xl">

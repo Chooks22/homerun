@@ -3,7 +3,14 @@
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import { slugify } from "#lib/slug.js";
 
-	let { kind = $bindable("volume") }: { kind?: "bind" | "volume" } = $props();
+	let {
+		idPrefix = "",
+		kind = $bindable("volume"),
+	}: {
+		/** Prefixes the inputs' ids, for a page whose own form already uses `name` or `description`. */
+		idPrefix?: string;
+		kind?: "bind" | "volume";
+	} = $props();
 
 	let name = $state("");
 	let source = $state("");
@@ -34,11 +41,11 @@
   "shared chrome, not shared shape" split as $lib/server/form-styles.ts.
 -->
 <div>
-  <label class={label} for="name">
+  <label class={label} for="{idPrefix}name">
     Name <span class="text-red-500">*</span>
   </label>
   <Input
-    id="name"
+    id="{idPrefix}name"
     name="name"
     placeholder="e.g. Media library"
     required
@@ -88,13 +95,13 @@
 </div>
 
 <div>
-  <label class={label} for="source">
+  <label class={label} for="{idPrefix}source">
     {kind === "bind" ? "Host path" : "Volume name"}
     <span class="text-red-500">*</span>
   </label>
   <Input
     class=""
-    id="source"
+    id="{idPrefix}source"
     name="source"
     oninput={() => {
       sourceEdited = source !== "";
@@ -116,10 +123,10 @@
 </div>
 
 <div>
-  <label class={label} for="description">Description</label>
+  <label class={label} for="{idPrefix}description">Description</label>
   <Textarea
     class="resize-none"
-    id="description"
+    id="{idPrefix}description"
     name="description"
     placeholder="Optional"
     rows={2}

@@ -4,10 +4,6 @@
 
 `/` (Overview) is the landing page after sign-in:
 
-- **Unread notifications**, only while something is unread: how many, the latest
-  five, **Mark all read** and a link to the [Notifications](notifications.md)
-  page.
-
 - **Deploy an app**, in [simple mode](ui-modes.md) only: popular templates with
   a **Quick Deploy** button each, above everything else.
 

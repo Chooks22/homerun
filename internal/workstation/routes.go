@@ -18,6 +18,7 @@ const defaultLogTail = 500
 func (m *Manager) Mount(r chi.Router) {
 	r.Put("/v1/workstations/{id}", httpapi.H(m.upRoute))
 	r.Get("/v1/workstations/{id}", httpapi.H(m.statusRoute))
+	r.Get("/v1/workstations/{id}/connections", httpapi.H(m.connectionsRoute))
 	r.Get("/v1/workstations/{id}/logs", httpapi.H(m.logsRoute))
 	r.Post("/v1/workstations/{id}/stop", httpapi.H(m.stopRoute))
 	r.Delete("/v1/workstations/{id}", httpapi.H(m.removeRoute))
@@ -73,6 +74,31 @@ func (m *Manager) statusRoute(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.Answer(w, http.StatusOK, status)
+}
+
+// connectionsRoute answers GET /v1/workstations/{id}/connections?port= with
+// how many connections the IDE's port holds open, 404 when nothing runs and
+// 409 while a start is in flight.
+func (m *Manager) connectionsRoute(w http.ResponseWriter, r *http.Request) error {
+	id, ok := workstationID(w, r)
+	if !ok {
+		return nil
+	}
+	port, err := strconv.Atoi(r.URL.Query().Get("port"))
+	if err != nil || port < 1 || port > 65535 {
+		return httpapi.Invalid(w, "Invalid port",
+			[]httpapi.ValidationIssue{{Message: "port must be between 1 and 65535", Path: []string{"port"}}})
+	}
+	connections, err := m.Connections(r.Context(), id, port)
+	switch {
+	case errors.Is(err, ErrBusy):
+		return httpapi.Error(w, http.StatusConflict, err.Error())
+	case errors.Is(err, dockerapi.ErrNotFound):
+		return httpapi.Error(w, http.StatusNotFound, "This workstation isn't running.")
+	case err != nil:
+		return err
+	}
+	return httpapi.Answer(w, http.StatusOK, map[string]int{"connections": connections})
 }
 
 // stopRoute answers POST /v1/workstations/{id}/stop.

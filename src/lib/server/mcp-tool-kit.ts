@@ -26,3 +26,13 @@ export async function asResult(response: Response): Promise<CallToolResult> {
 		isError: !response.ok,
 	};
 }
+
+/** A thrown error as a failed tool result, for a refusal the tool makes itself before calling the API. */
+export function errorResult(err: unknown): CallToolResult {
+	return {
+		content: [
+			{ text: err instanceof Error ? err.message : String(err), type: "text" },
+		],
+		isError: true,
+	};
+}

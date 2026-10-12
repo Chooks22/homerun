@@ -196,6 +196,43 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/cron-jobs/{cronJobId}/runs": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List a cron job's runs
+		 * @description Newest first, without their output: read a run's output with GET /cron-jobs/{cronJobId}/runs/{runId}.
+		 */
+		get: operations["get_cron_jobs__cronJobId__runs"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/cron-jobs/{cronJobId}/runs/{runId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a cron job run, with its output */
+		get: operations["get_cron_jobs__cronJobId__runs__runId_"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/dns-connections": {
 		parameters: {
 			query?: never;
@@ -540,6 +577,43 @@ export interface paths {
 		 * @description Changes the fields sent and keeps the rest.
 		 */
 		patch: operations["patch_notification_channels__channelId_"];
+		trace?: never;
+	};
+	"/notifications": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List the caller's notifications
+		 * @description The caller's own in-app notifications, newest first.
+		 */
+		get: operations["get_notifications"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/notifications/read": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Mark the caller's notifications read */
+		post: operations["post_notifications_read"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
 		trace?: never;
 	};
 	"/object-stores": {
@@ -3050,6 +3124,173 @@ export interface operations {
 			};
 		};
 	};
+	get_cron_jobs__cronJobId__runs: {
+		parameters: {
+			query?: {
+				/** @description How many runs, 1 to 100 (default 20) */
+				limit?: string;
+			};
+			header?: never;
+			path: {
+				/** @description Cron job id */
+				cronJobId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The cron job's latest runs */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						cronJobId: string;
+						error: string | null;
+						exitCode: number | null;
+						finishedAt: string | null;
+						id: string;
+						/** @description The queue job that ran it, which its trace hangs off; null for runs older than this field */
+						jobId: string | null;
+						/** @description How many characters of output the run kept */
+						outputLength: number;
+						/** @description ISO 8601 timestamp */
+						startedAt: string;
+						/** @description null while the run is still going */
+						success: boolean | null;
+						/** @description null for runs older than this field */
+						trigger: ("cron" | "manual") | null;
+					}[];
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_cron_jobs__cronJobId__runs__runId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Cron job id */
+				cronJobId: string;
+				/** @description Run id */
+				runId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The run */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						cronJobId: string;
+						error: string | null;
+						exitCode: number | null;
+						finishedAt: string | null;
+						id: string;
+						/** @description The queue job that ran it, which its trace hangs off; null for runs older than this field */
+						jobId: string | null;
+						/** @description What the run printed, its newest 64k characters, appended to while it runs */
+						output: string;
+						/** @description ISO 8601 timestamp */
+						startedAt: string;
+						/** @description null while the run is still going */
+						success: boolean | null;
+						/** @description null for runs older than this field */
+						trigger: ("cron" | "manual") | null;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
 	get_dns_connections: {
 		parameters: {
 			query?: never;
@@ -5364,6 +5605,144 @@ export interface operations {
 					"application/json": {
 						error: string;
 						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_notifications: {
+		parameters: {
+			query?: {
+				/** @description How many, 1 to 200 (default 50) */
+				limit?: string;
+				/** @description true for the unread ones only */
+				unread?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The caller's notifications */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						detail: string | null;
+						id: string;
+						message: string;
+						readAt: string | null;
+						serviceId: string | null;
+						serviceSlug: string | null;
+						stackName: string | null;
+						/** @description deploy_failure, deploy_unhealthy, resource_alert, ... */
+						type: string;
+					}[];
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_notifications_read: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The notification to mark read. Omitted, every unread one is marked read. */
+					id?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Marked read */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						success: boolean;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
 					};
 				};
 			};

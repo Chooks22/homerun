@@ -8,31 +8,45 @@ import { z } from "zod";
 import { config } from "#lib/config.js";
 import { MCP_PATH, mcpAllowed } from "#lib/oidc-provider.js";
 import { APP_VERSION } from "#lib/server/app-version.js";
+import { registerCronJobTools } from "#lib/server/mcp-cron-job-tools.js";
+import { registerEnvironmentTools } from "#lib/server/mcp-environment-tools.js";
+import { registerNotificationTools } from "#lib/server/mcp-notification-tools.js";
 import { registerObjectStorageTools } from "#lib/server/mcp-object-storage-tools.js";
+import { registerPreviewTools } from "#lib/server/mcp-preview-tools.js";
 import {
 	mergeEnvChanges,
 	REDACTED,
 	restoreArgv,
 } from "#lib/server/mcp-redact.js";
 import { registerRedirectTools } from "#lib/server/mcp-redirect-tools.js";
+import { registerScanTools } from "#lib/server/mcp-scan-tools.js";
+import { registerStackTools } from "#lib/server/mcp-stack-tools.js";
+import { registerStatusPageTools } from "#lib/server/mcp-status-page-tools.js";
+import { registerTemplateTools } from "#lib/server/mcp-template-tools.js";
 import {
 	type ApiCall,
 	asResult,
 	change,
+	errorResult,
 	read,
 } from "#lib/server/mcp-tool-kit.js";
+import { registerVolumeTools } from "#lib/server/mcp-volume-tools.js";
 
 export type { ApiCall } from "#lib/server/mcp-tool-kit.js";
 
 const INSTRUCTIONS = `Homerun is a self-hosted PaaS: each service is one Docker container or swarm service, routed by Traefik at its domains.
 
-To diagnose a service: find its id with list_services, read get_service (status, container and swarm ids) and get_service_config (its settings grouped like the dashboard tabs), then service_logs, list_deployments (each deploy attempt's error and log, the place to look when a deploy failed) and list_revisions (each revision's health and the reason it failed). When the app reports errors through a Sentry SDK, list_errors and get_error give the grouped exceptions with stack traces and links to the source. Swarm logs can interleave every task generation, dead ones included, so check timestamps before blaming a line on the running task. Services in one stack reach each other by slug on the stack's network.
+To diagnose a service: find its id with list_services, read get_service (status, container and swarm ids) and get_service_config (its settings grouped like the dashboard tabs), then service_logs, list_deployments (each deploy attempt's error and log, the place to look when a deploy failed) and list_revisions (each revision's health and the reason it failed). When the app reports errors through a Sentry SDK, list_errors and get_error give the grouped exceptions with stack traces and links to the source, and update_error resolves or ignores one. Swarm logs can interleave every task generation, dead ones included, so check timestamps before blaming a line on the running task. Services in one stack reach each other by slug on the stack's network. list_notifications is the caller's in-app feed (failed or rolled back deploys, unhealthy revisions, app errors, resource alerts), a quick way to see what went wrong lately.
 
-For backups and other background work: list_volumes gives each volume's backup settings, list_backups every run with its outcome, error and its job's last progress, get_job a job's full log, attempts and progressAt (a running job whose progressAt stops moving is stuck), list_jobs what's queued, running or failed, and run_backup queues a backup now.
+Stacks group services: list_stacks, get_stack, create_stack and update_stack. create_service makes a service from scratch or from a template (list_templates, get_template); it isn't deployed until deploy_service. A service can have environments (list_environments, create_environment, update_environment: copies running another ref, each one a service of its own), pull request previews (list_previews, get_preview, and promote_preview deploys a healthy preview's image to its service) and release channels (get_release_channels, set_release_channels). list_scans, get_scan and scan_service cover its image's vulnerability scans.
+
+For backups and other background work: list_volumes gives each volume's backup settings, list_backups every run with its outcome, error and its job's last progress, get_job a job's full log, attempts and progressAt (a running job whose progressAt stops moving is stuck), list_jobs what's queued, running or failed, and run_backup queues a backup now. create_volume and update_volume change a volume and its backup settings (list_backup_destinations gives where it can back up to); list_volume_mounts, mount_volume, update_volume_mount and unmount_volume change where it's mounted, from the service's next deploy.
+
+Cron jobs run a container, a script or a host command on a schedule: list_cron_jobs and get_cron_job show their config, create_cron_job, update_cron_job (enabled turns the schedule on or off) and delete_cron_job change them, run_cron_job runs one now, list_cron_job_runs gives its latest runs and get_cron_job_run one run's output, the place to look when a job failed.
 
 Object storage (S3) is the built-in store and every S3-compatible provider connected to this instance: list_object_stores shows them, list_buckets and get_bucket a store's buckets with their expiry and whether they're public (a public bucket's objects are served to anyone at <instance>/public/<storeId>/<bucket>/<key>), create_bucket, update_bucket and delete_bucket (empty buckets only) change them.
 
-Redirects send a hostname, or a path under it, to another URL through Traefik, with no container: list_redirects shows them, create_redirect, update_redirect (enabled: false turns one off) and delete_redirect change them.
+Redirects send a hostname, or a path under it, to another URL through Traefik, with no container: list_redirects shows them, create_redirect, update_redirect (enabled: false turns one off) and delete_redirect change them. Status pages show services' uptime: list_status_pages, create_status_page, update_status_page and delete_status_page. Notification channels are where alerts are sent: list_notification_channels, create_notification_channel, update_notification_channel and delete_notification_channel; mark_notifications_read clears the in-app feed.
 
 To fix one: update_service changes settings (applied on the next deploy), deploy_service rolls them out, restart_service restarts without redeploying, rollback_service redeploys an earlier revision. Say what you're about to change before changing it.`;
 
@@ -129,6 +143,27 @@ function registerErrorTools(server: McpServer, api: ApiCall): void {
 						id,
 						`/errors/${encodeURIComponent(issueId)}${eventId ? `?event=${encodeURIComponent(eventId)}` : ""}`,
 					),
+				),
+			),
+	);
+	server.registerTool(
+		"update_error",
+		{
+			annotations: change,
+			description:
+				"Resolve, ignore or reopen an error issue. A resolved issue that happens again reopens as a regression and notifies; an ignored one keeps counting but never notifies.",
+			inputSchema: z.object({
+				issueId: z.string().describe("The issue's id, from list_errors"),
+				serviceId,
+				status: z.enum(["unresolved", "resolved", "ignored"]),
+			}),
+		},
+		async ({ issueId, serviceId: id, status }) =>
+			asResult(
+				await api(
+					"PATCH",
+					servicePath(id, `/errors/${encodeURIComponent(issueId)}`),
+					{ status },
 				),
 			),
 	);
@@ -271,17 +306,8 @@ function registerReadTools(server: McpServer, api: ApiCall): void {
 	);
 }
 
-/** Registers the read-only tools about the whole instance: stacks, host usage and version. */
+/** Registers the read-only tools about the whole instance: host usage and version. */
 function registerInstanceTools(server: McpServer, api: ApiCall): void {
-	server.registerTool(
-		"list_stacks",
-		{
-			annotations: read,
-			description: "List stacks, the groups services share a network in.",
-		},
-		async () => asResult(await api("GET", "/stacks?perPage=100")),
-	);
-
 	server.registerTool(
 		"system_stats",
 		{
@@ -444,15 +470,7 @@ async function updateService(
 		}
 		return asResult(await api("PATCH", servicePath(id), patch));
 	} catch (err) {
-		return {
-			content: [
-				{
-					text: err instanceof Error ? err.message : String(err),
-					type: "text",
-				},
-			],
-			isError: true,
-		};
+		return errorResult(err);
 	}
 }
 
@@ -560,7 +578,8 @@ function registerChangeTools(server: McpServer, api: ApiCall): void {
  * Homerun's MCP server: tools for an AI agent to diagnose and fix services,
  * each one a call to the REST API through `api`, so they run with the caller's
  * own permissions (a developer or read-only key can't do more here than on
- * the API). Deleting a service is deliberately not a tool.
+ * the API). Deleting a service, a stack or an environment is deliberately
+ * not a tool.
  */
 export function createHomerunMcpServer(api: ApiCall): McpServer {
 	const server = new McpServer(
@@ -576,6 +595,15 @@ export function createHomerunMcpServer(api: ApiCall): McpServer {
 	registerRedirectTools(server, api);
 	registerObjectStorageTools(server, api);
 	registerChangeTools(server, api);
+	registerStackTools(server, api);
+	registerTemplateTools(server, api);
+	registerEnvironmentTools(server, api);
+	registerPreviewTools(server, api);
+	registerScanTools(server, api);
+	registerVolumeTools(server, api);
+	registerCronJobTools(server, api);
+	registerStatusPageTools(server, api);
+	registerNotificationTools(server, api);
 	return server;
 }
 

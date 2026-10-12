@@ -1,6 +1,7 @@
 import { parseCommand } from "#lib/command-parse.js";
 import {
 	type CronJobFile,
+	type CronJobRunTrigger,
 	SCRIPT_DIR,
 	SCRIPT_RUNTIME_SPECS,
 	scriptPath,
@@ -223,12 +224,16 @@ class CronJobServiceClass {
 
 	/**
 	 * Starts a run of `job` for the Go worker : records its `cron_job_run` row
-	 * (which the worker streams output into) and returns the spec to execute.
-	 * A job that can't run (no image, no command, an agent host) has its run
-	 * finished as failed and `lastRunAt` stamped before this rethrows.
+	 * (which the worker streams output into), tied to the queue job `origin`
+	 * names, and returns the spec to execute. A job that can't run (no image,
+	 * no command, an agent host) has its run finished as failed and
+	 * `lastRunAt` stamped before this rethrows.
 	 */
-	async prepareRun(job: CronJobDTO): Promise<CronJobRunSpec> {
-		const run = await CronJobRunDTO.create(job.id);
+	async prepareRun(
+		job: CronJobDTO,
+		origin: { jobId: string; trigger: CronJobRunTrigger },
+	): Promise<CronJobRunSpec> {
+		const run = await CronJobRunDTO.create(job.id, origin);
 		logger.info(`Cron job started: job=${job.id} kind=${job.kind}`);
 		try {
 			return await this.#specFor(job, run.id);

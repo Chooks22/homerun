@@ -151,8 +151,8 @@ own feed, so no permission area gates it.
   gone). Held messages are in memory, so a restart drops the summary too.
 - `src/lib/remote/notifications.remote.ts`: `getNotifications` (the whole feed,
   for the page) and `getUnreadNotifications` (unread count plus the newest five
-  unread, for the bell and the dashboard's `unread-notifications.svelte`), and
-  one command per mutation, each refreshing both queries server-side.
+  unread, for the bell; the dashboard home deliberately doesn't repeat them),
+  and one command per mutation, each refreshing both queries server-side.
 - **Browser notifications** (`src/lib/notification-feed.ts`): the bell polls
   `getUnreadNotifications` every 30s and, in tab-only mode, shows a
   `Notification` for each unread id it hadn't seen (seeded from the first
@@ -598,7 +598,7 @@ service row).
 `TraceSpanDTO.spansOfJob` finds its traces (one per attempt) through the partial
 expression index `traceSpan_jobId_idx` on `attributes ->> 'homerun.job.id'`
 where `service_id` is null, and the Scheduling job page renders each one's
-waterfall.
+waterfall, as does a cron job run's Traces tab through `cron_job_run.jobId`.
 
 **Retention**: `TraceRetentionScheduler`, hourly, deletes spans that started
 before `traceRetentionDays` (7 by default, 1 to 90, Monitoring → Settings, which

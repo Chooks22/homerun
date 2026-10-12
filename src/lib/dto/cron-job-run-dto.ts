@@ -1,4 +1,5 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+import type { CronJobRunTrigger } from "#lib/cron-job-script.js";
 import { db } from "#lib/server/db/lib.js";
 import { type CronJobRun, cronJob, cronJobRun } from "#lib/server/db/schema.js";
 import { BaseDTO } from "./base-dto";
@@ -19,18 +20,24 @@ export interface CronJobRunResult {
 export class CronJobRunDTO extends BaseDTO<CronJobRun> {
 	/**
 	 * Inserts a new in-progress run for a cron job, stamped as started now with
-	 * empty output.
+	 * empty output, remembering the queue job executing it (whose id the
+	 * worker's trace spans carry) and what triggered it.
 	 */
-	static async create(cronJobId: string): Promise<CronJobRunDTO> {
+	static async create(
+		cronJobId: string,
+		origin: { jobId: string; trigger: CronJobRunTrigger },
+	): Promise<CronJobRunDTO> {
 		const row: CronJobRun = {
 			cronJobId,
 			error: null,
 			exitCode: null,
 			finishedAt: null,
 			id: crypto.randomUUID(),
+			jobId: origin.jobId,
 			output: "",
 			startedAt: new Date(),
 			success: null,
+			trigger: origin.trigger,
 		};
 		await db.insert(cronJobRun).values(row);
 		return new CronJobRunDTO(row);
@@ -42,6 +49,19 @@ export class CronJobRunDTO extends BaseDTO<CronJobRun> {
 			.select()
 			.from(cronJobRun)
 			.where(eq(cronJobRun.id, id))
+			.limit(1);
+		return row ? new CronJobRunDTO(row) : null;
+	}
+
+	/** Loads one run of one cron job; null when missing or when it belongs to another job. */
+	static async getForJob(
+		cronJobId: string,
+		id: string,
+	): Promise<CronJobRunDTO | null> {
+		const [row] = await db
+			.select()
+			.from(cronJobRun)
+			.where(and(eq(cronJobRun.id, id), eq(cronJobRun.cronJobId, cronJobId)))
 			.limit(1);
 		return row ? new CronJobRunDTO(row) : null;
 	}

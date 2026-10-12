@@ -154,6 +154,12 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"ExitCode":`+strconv.Itoa(e.exitCode)+`}`)
 	case r.URL.Path == "/containers/old/json":
 		_, _ = io.WriteString(w, `{"Id":"old","State":{"Running":true,"Status":"running"},"NetworkSettings":{"Ports":{"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"49153"}]}}}`)
+	case r.URL.Path == "/containers/old/exec":
+		_, _ = io.WriteString(w, `{"Id":"exec2"}`)
+	case r.URL.Path == "/exec/exec2/start":
+		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, byte(len(procNetTCP) >> 8), byte(len(procNetTCP) & 0xff)}, procNetTCP...))
+	case r.URL.Path == "/exec/exec2/json":
+		_, _ = io.WriteString(w, `{"ExitCode":0}`)
 	case r.URL.Path == "/containers/old/logs":
 		line := "listening on 0.0.0.0:8080\n"
 		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, 0, byte(len(line))}, line...))
@@ -301,5 +307,47 @@ func TestLogsStreamTheContainerOutputOr404(t *testing.T) {
 	body, _ := io.ReadAll(response.Body)
 	if response.StatusCode != http.StatusOK || string(body) != "listening on 0.0.0.0:8080\n" {
 		t.Errorf("the demuxed output, got %d %q", response.StatusCode, body)
+	}
+}
+
+const procNetTCP = `  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
+   0: 00000000:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 1
+   1: 0200A8C0:1F90 0300A8C0:D4E2 01 00000000:00000000 00:00000000 00000000  1000        0 2 1
+   2: 0200A8C0:1F90 0300A8C0:D4E4 06 00000000:00000000 00:00000000 00000000  1000        0 3 1
+   3: 0200A8C0:A1B2 5DB8D822:01BB 01 00000000:00000000 00:00000000 00000000  1000        0 4 1
+`
+
+func TestCountEstablishedOnlyCountsLiveConnectionsToThePort(t *testing.T) {
+	if got := workstation.CountEstablished(procNetTCP, 8080); got != 1 {
+		t.Errorf("one established connection to 8080, not the listener, TIME_WAIT or outbound, got %d", got)
+	}
+	if got := workstation.CountEstablished("", 8080); got != 0 {
+		t.Errorf("an empty table has none, got %d", got)
+	}
+}
+
+func TestConnectionsRouteReadsTheRunningContainer(t *testing.T) {
+	fake := &engine{listed: `[]`}
+	server := newServer(t, fake)
+	get := func(query string) (int, string) {
+		response, err := http.Get(server.URL + "/v1/workstations/" + id + "/connections" + query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = response.Body.Close() }()
+		body, _ := io.ReadAll(response.Body)
+		return response.StatusCode, strings.TrimSpace(string(body))
+	}
+	if code, _ := get("?port=8080"); code != http.StatusNotFound {
+		t.Errorf("nothing running is a 404, got %d", code)
+	}
+	if code, _ := get(""); code != http.StatusBadRequest {
+		t.Errorf("no port is a 400, got %d", code)
+	}
+	fake.mu.Lock()
+	fake.listed = `[{"Id":"old","State":"running"}]`
+	fake.mu.Unlock()
+	if code, body := get("?port=8080"); code != http.StatusOK || body != `{"connections":1}` {
+		t.Errorf("one open tab, got %d %s", code, body)
 	}
 }

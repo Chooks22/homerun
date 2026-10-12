@@ -525,3 +525,14 @@ export const redirectApiBody = z.object({
 			'A hostname with an optional path prefix, e.g. "old.example.com" or "example.com/blog"',
 	}),
 });
+
+/** `POST /notifications/read`'s body: one notification to mark read, or none for all of them. */
+export const markNotificationsReadApiBody = z.object({
+	id: z
+		.string()
+		.min(1)
+		.optional()
+		.describe(
+			"The notification to mark read. Omitted, every unread one is marked read.",
+		),
+});

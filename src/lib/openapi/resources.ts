@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { DESTINATION_TYPES } from "#lib/backup-destinations.js";
 import { CRON_JOB_KINDS, SCRIPT_RUNTIMES } from "#lib/cron-job-script.js";
-import { updateStackApiBody } from "#lib/server/validation/api.js";
+import {
+	markNotificationsReadApiBody,
+	updateStackApiBody,
+} from "#lib/server/validation/api.js";
 import {
 	backupDestinationApiBody,
 	bucketApiBody,
@@ -31,7 +34,12 @@ import {
 } from "#lib/server/validation/api-resources.js";
 import { volumeResponse } from "./backups";
 import type { ParamDef, ResponseDef, RouteDef } from "./registry";
-import { errorResponse, stackResponse, templateResponse } from "./schemas";
+import {
+	errorResponse,
+	stackResponse,
+	successResponse,
+	templateResponse,
+} from "./schemas";
 
 const timestamp = z.string().meta({ description: "ISO 8601 timestamp" });
 
@@ -118,6 +126,57 @@ export const cronJobResponse = z.object({
 	timeoutSeconds: z.number().int(),
 	updatedAt: timestamp,
 	userId: z.string(),
+});
+
+const cronJobRunFields = {
+	cronJobId: z.string(),
+	error: z.string().nullable(),
+	exitCode: z.number().int().nullable(),
+	finishedAt: timestamp.nullable(),
+	id: z.string(),
+	jobId: z.string().nullable().meta({
+		description:
+			"The queue job that ran it, which its trace hangs off; null for runs older than this field",
+	}),
+	startedAt: timestamp,
+	success: z
+		.boolean()
+		.nullable()
+		.meta({ description: "null while the run is still going" }),
+	trigger: z
+		.enum(["cron", "manual"])
+		.nullable()
+		.meta({ description: "null for runs older than this field" }),
+};
+
+export const cronJobRunSummaryResponse = z.object({
+	...cronJobRunFields,
+	outputLength: z
+		.number()
+		.int()
+		.meta({ description: "How many characters of output the run kept" }),
+});
+
+export const cronJobRunResponse = z.object({
+	...cronJobRunFields,
+	output: z.string().meta({
+		description:
+			"What the run printed, its newest 64k characters, appended to while it runs",
+	}),
+});
+
+export const notificationResponse = z.object({
+	createdAt: timestamp,
+	detail: z.string().nullable(),
+	id: z.string(),
+	message: z.string(),
+	readAt: timestamp.nullable(),
+	serviceId: z.string().nullable(),
+	serviceSlug: z.string().nullable(),
+	stackName: z.string().nullable(),
+	type: z.string().meta({
+		description: "deploy_failure, deploy_unhealthy, resource_alert, ...",
+	}),
 });
 
 export const notificationChannelResponse = z.object({
@@ -412,6 +471,75 @@ export const resourceRoutes: RouteDef[] = [
 		tag: "Cron jobs",
 		updateBody: updateCronJobApiBody,
 	}),
+	{
+		description:
+			"Newest first, without their output: read a run's output with GET /cron-jobs/{cronJobId}/runs/{runId}.",
+		method: "get",
+		path: "/cron-jobs/{cronJobId}/runs",
+		pathParams: [{ description: "Cron job id", name: "cronJobId" }],
+		queryParams: [
+			{ description: "How many runs, 1 to 100 (default 20)", name: "limit" },
+		],
+		responses: {
+			200: {
+				description: "The cron job's latest runs",
+				isArray: true,
+				schema: cronJobRunSummaryResponse,
+			},
+			400: invalid,
+			401: unauthorized,
+			404: notFound,
+		},
+		summary: "List a cron job's runs",
+		tags: ["Cron jobs"],
+	},
+	{
+		method: "get",
+		path: "/cron-jobs/{cronJobId}/runs/{runId}",
+		pathParams: [
+			{ description: "Cron job id", name: "cronJobId" },
+			{ description: "Run id", name: "runId" },
+		],
+		responses: {
+			200: { description: "The run", schema: cronJobRunResponse },
+			401: unauthorized,
+			404: notFound,
+		},
+		summary: "Get a cron job run, with its output",
+		tags: ["Cron jobs"],
+	},
+	{
+		description: "The caller's own in-app notifications, newest first.",
+		method: "get",
+		path: "/notifications",
+		queryParams: [
+			{ description: "How many, 1 to 200 (default 50)", name: "limit" },
+			{ description: "true for the unread ones only", name: "unread" },
+		],
+		responses: {
+			200: {
+				description: "The caller's notifications",
+				isArray: true,
+				schema: notificationResponse,
+			},
+			400: invalid,
+			401: unauthorized,
+		},
+		summary: "List the caller's notifications",
+		tags: ["Notifications"],
+	},
+	{
+		method: "post",
+		path: "/notifications/read",
+		requestBody: markNotificationsReadApiBody,
+		responses: {
+			200: { description: "Marked read", schema: successResponse },
+			400: invalid,
+			401: unauthorized,
+		},
+		summary: "Mark the caller's notifications read",
+		tags: ["Notifications"],
+	},
 	...crudRoutes({
 		createBody: notificationChannelApiBody,
 		idParam: { description: "Channel id", name: "channelId" },

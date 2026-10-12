@@ -70,3 +70,44 @@ export function repoDirectory(gitUrl: string): string {
 		return "project";
 	}
 }
+
+export const AUTO_STOP_MODES = ["idle", "timer"] as const;
+
+export type AutoStopMode = (typeof AUTO_STOP_MODES)[number];
+
+export type AutoStopStep =
+	| { at: Date; kind: "arm" }
+	| { kind: "stop" }
+	| { kind: "wait" };
+
+/**
+ * What the auto-stop pass does with one running workstation: push its
+ * deadline `minutes` out (idle mode while a browser is connected, or no
+ * deadline yet), stop it once the deadline passed, or wait.
+ */
+export function autoStopStep(input: {
+	active: boolean;
+	autoStopAt: Date | null;
+	minutes: number;
+	mode: AutoStopMode;
+	now: Date;
+}): AutoStopStep {
+	const at = new Date(input.now.getTime() + input.minutes * 60_000);
+	if ((input.mode === "idle" && input.active) || !input.autoStopAt) {
+		return { at, kind: "arm" };
+	}
+	return input.autoStopAt <= input.now ? { kind: "stop" } : { kind: "wait" };
+}
+
+/** How an auto-stop setting reads on the dashboard. */
+export function autoStopLabel(
+	mode: AutoStopMode | null,
+	minutes: number | null,
+): string {
+	if (!mode || !minutes) {
+		return "Off";
+	}
+	return mode === "idle"
+		? `After ${minutes} min with no browser connected`
+		: `${minutes} min after it starts`;
+}

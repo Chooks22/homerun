@@ -138,3 +138,31 @@ export function describeCronJobTarget(job: {
 	}
 	return `${job.image}:${job.tag ?? "latest"}`;
 }
+
+export type CronJobRunTrigger = "cron" | "manual";
+
+/** How a run's trigger reads on its page, "Unknown" for a run from before triggers were recorded. */
+export function cronJobRunTriggerLabel(
+	trigger: CronJobRunTrigger | null,
+): string {
+	if (trigger === "cron") {
+		return "Schedule";
+	}
+	return trigger === "manual" ? "Manual" : "Unknown";
+}
+
+/**
+ * The run a job's page shows as its latest. While the queue holds a run
+ * (`activeJobId`) whose row the worker hasn't created yet, that's none and
+ * `waiting`; otherwise the newest of `runs`, which come newest first.
+ */
+export function latestCronJobRun<T extends { jobId: string | null }>(
+	runs: T[],
+	activeJobId: string | null,
+): { run: T | null; waiting: boolean } {
+	const [newest] = runs;
+	if (activeJobId && newest?.jobId !== activeJobId) {
+		return { run: null, waiting: true };
+	}
+	return { run: newest ?? null, waiting: false };
+}

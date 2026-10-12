@@ -149,6 +149,7 @@ describe("WorkstationService.start", () => {
 		});
 		expect(spec.labels["traefik.enable"]).toBe("true");
 		expect(ws.update).toHaveBeenCalledWith({
+			autoStopAt: null,
 			desiredState: "running",
 			lastError: null,
 		});
@@ -212,6 +213,7 @@ describe("WorkstationService.start", () => {
 			"site not found",
 		);
 		expect(ws.update).toHaveBeenCalledWith({
+			autoStopAt: null,
 			desiredState: "running",
 			lastError: null,
 		});
@@ -281,7 +283,10 @@ describe("WorkstationService stop and remove", () => {
 		const ws = workstation();
 		await WorkstationService.stop(ws);
 		expect(post.mock.calls[0]?.[0]).toBe("/v1/workstations/ws1/stop");
-		expect(ws.update).toHaveBeenCalledWith({ desiredState: "stopped" });
+		expect(ws.update).toHaveBeenCalledWith({
+			autoStopAt: null,
+			desiredState: "stopped",
+		});
 	});
 
 	test("remove passes the volume choice and deletes the row", async () => {
@@ -310,6 +315,101 @@ describe("WorkstationService stop and remove", () => {
 		await WorkstationService.removeAllFor("u1");
 		expect(ok.delete).toHaveBeenCalled();
 		expect(broken.delete).not.toHaveBeenCalled();
+	});
+});
+
+describe("WorkstationService auto-stop", () => {
+	const now = new Date("2026-10-12T12:00:00Z");
+
+	test("start arms the countdown from the saved setting", async () => {
+		restorers.push(spyOn(WorkerClient, "put").mockResolvedValue({}));
+		const ws = workstation({
+			autoStopMinutes: 30,
+			autoStopMode: "timer",
+			gitUrl: null,
+		});
+		const before = Date.now();
+		await WorkstationService.start(ws);
+		const armed = ws.update.mock.calls[0]?.[0] as { autoStopAt: Date };
+		expect(armed.autoStopAt.getTime()).toBeGreaterThanOrEqual(
+			before + 30 * 60_000,
+		);
+	});
+
+	test("an open tab pushes an idle workstation's deadline out", async () => {
+		const get = spyOn(WorkerClient, "get").mockResolvedValue({
+			connections: 2,
+		});
+		restorers.push(get);
+		const ws = workstation({
+			autoStopAt: new Date(now.getTime() - 60_000),
+			autoStopMinutes: 15,
+			autoStopMode: "idle",
+		});
+		await WorkstationService.autoStop(ws, now);
+		expect(get).toHaveBeenCalledWith("/v1/workstations/ws1/connections", {
+			port: "8080",
+		});
+		expect(ws.update).toHaveBeenCalledWith({
+			autoStopAt: new Date(now.getTime() + 15 * 60_000),
+		});
+	});
+
+	test("an unreadable connection count never stops it", async () => {
+		const post = spyOn(WorkerClient, "post").mockResolvedValue({});
+		restorers.push(
+			post,
+			spyOn(WorkerClient, "get").mockRejectedValue(new Error("busy")),
+		);
+		const ws = workstation({
+			autoStopAt: new Date(now.getTime() - 60_000),
+			autoStopMinutes: 15,
+			autoStopMode: "idle",
+		});
+		await WorkstationService.autoStop(ws, now);
+		expect(post).not.toHaveBeenCalled();
+	});
+
+	test("a passed deadline stops it, idle or timed", async () => {
+		const post = spyOn(WorkerClient, "post").mockResolvedValue({});
+		restorers.push(
+			post,
+			spyOn(WorkerClient, "get").mockResolvedValue({ connections: 0 }),
+		);
+		for (const mode of ["idle", "timer"]) {
+			const ws = workstation({
+				autoStopAt: new Date(now.getTime() - 1),
+				autoStopMinutes: 15,
+				autoStopMode: mode,
+			});
+			await WorkstationService.autoStop(ws, now);
+			expect(ws.update).toHaveBeenCalledWith({
+				autoStopAt: null,
+				desiredState: "stopped",
+			});
+		}
+		expect(post).toHaveBeenCalledTimes(2);
+	});
+
+	test("setAutoStop restarts a running workstation's countdown and clears a stopped one's", async () => {
+		const running = workstation({ desiredState: "running" });
+		Object.assign(running, { desiredState: "running" });
+		await WorkstationService.setAutoStop(running, "timer", 45);
+		const saved = running.update.mock.calls[0]?.[0] as {
+			autoStopAt: Date;
+			autoStopMinutes: number;
+		};
+		expect(saved.autoStopMinutes).toBe(45);
+		expect(saved.autoStopAt).toBeInstanceOf(Date);
+
+		const stopped = workstation();
+		Object.assign(stopped, { desiredState: "stopped" });
+		await WorkstationService.setAutoStop(stopped, null, 45);
+		expect(stopped.update).toHaveBeenCalledWith({
+			autoStopAt: null,
+			autoStopMinutes: null,
+			autoStopMode: null,
+		});
 	});
 });
 

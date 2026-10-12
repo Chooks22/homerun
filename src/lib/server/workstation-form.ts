@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { parseDotEnv } from "#lib/env-parse.js";
 import {
+	AUTO_STOP_MODES,
+	type AutoStopMode,
 	DEFAULT_WORKSTATION_HOME,
 	DEFAULT_WORKSTATION_IMAGE,
 	DEFAULT_WORKSTATION_PORT,
@@ -127,6 +129,43 @@ export function parseNewWorkstation(
 		return { error: firstIssue(result.error) };
 	}
 	return { parsed: { ...result.data, env: envFrom(result.data.env) } };
+}
+
+const autoStopSchema = z.discriminatedUnion("autoStopMode", [
+	z.object({ autoStopMode: z.literal("off") }),
+	z.object({
+		autoStopMinutes: z.coerce
+			.number("Give the auto-stop delay in minutes.")
+			.int("The auto-stop delay must be whole minutes.")
+			.min(5, "The auto-stop delay must be at least 5 minutes.")
+			.max(10_080, "The auto-stop delay can't exceed a week."),
+		autoStopMode: z.enum(AUTO_STOP_MODES),
+	}),
+]);
+
+/**
+ * Validates the Overview's auto-stop form: off, or a mode with its delay.
+ *
+ * @returns The mode (null for off) and its minutes, or the first validation
+ *   error message.
+ */
+export function parseAutoStop(
+	formData: FormData,
+):
+	| { error: string }
+	| { parsed: { minutes: number | null; mode: AutoStopMode | null } } {
+	const result = autoStopSchema.safeParse(Object.fromEntries(formData));
+	if (!result.success) {
+		return { error: firstIssue(result.error) };
+	}
+	return result.data.autoStopMode === "off"
+		? { parsed: { minutes: null, mode: null } }
+		: {
+				parsed: {
+					minutes: result.data.autoStopMinutes,
+					mode: result.data.autoStopMode,
+				},
+			};
 }
 
 /** A fresh random IDE password, 24 URL-safe characters. */

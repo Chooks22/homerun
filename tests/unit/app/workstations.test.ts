@@ -3,6 +3,7 @@ import { parse } from "yaml";
 import { config } from "#lib/config.js";
 import {
 	generateWorkstationPassword,
+	parseAutoStop,
 	parseNewWorkstation,
 	parseWorkstationSettings,
 } from "#lib/server/workstation-form.js";
@@ -14,6 +15,8 @@ import {
 	workstationRouteYaml,
 } from "#lib/services/workstation/routing.js";
 import {
+	autoStopLabel,
+	autoStopStep,
 	DEFAULT_WORKSTATION_HOME,
 	DEFAULT_WORKSTATION_IMAGE,
 	isWorkstationBusy,
@@ -177,5 +180,65 @@ describe("workstation forms", () => {
 		const first = generateWorkstationPassword();
 		expect(first).toMatch(/^[A-Za-z0-9_-]{24}$/);
 		expect(generateWorkstationPassword()).not.toBe(first);
+	});
+});
+
+describe("auto-stop", () => {
+	const now = new Date("2026-10-12T12:00:00Z");
+	const later = new Date(now.getTime() + 30 * 60_000);
+	const passed = new Date(now.getTime() - 1);
+
+	test("autoStopStep arms, waits and stops", () => {
+		const base = { active: false, minutes: 30, now };
+		expect(autoStopStep({ ...base, autoStopAt: null, mode: "timer" })).toEqual({
+			at: later,
+			kind: "arm",
+		});
+		expect(autoStopStep({ ...base, autoStopAt: later, mode: "timer" })).toEqual(
+			{ kind: "wait" },
+		);
+		expect(
+			autoStopStep({ ...base, autoStopAt: passed, mode: "timer" }),
+		).toEqual({ kind: "stop" });
+		expect(
+			autoStopStep({
+				...base,
+				active: true,
+				autoStopAt: passed,
+				mode: "timer",
+			}),
+		).toEqual({ kind: "stop" });
+		expect(
+			autoStopStep({ ...base, active: true, autoStopAt: passed, mode: "idle" }),
+		).toEqual({ at: later, kind: "arm" });
+		expect(autoStopStep({ ...base, autoStopAt: passed, mode: "idle" })).toEqual(
+			{ kind: "stop" },
+		);
+	});
+
+	test("parseAutoStop takes off, or a mode with sane minutes", () => {
+		expect(parseAutoStop(form({ autoStopMode: "off" }))).toEqual({
+			parsed: { minutes: null, mode: null },
+		});
+		expect(
+			parseAutoStop(form({ autoStopMinutes: "45", autoStopMode: "idle" })),
+		).toEqual({ parsed: { minutes: 45, mode: "idle" } });
+		for (const minutes of ["", "2", "1.5", "20000"]) {
+			expect(
+				"error" in
+					parseAutoStop(
+						form({ autoStopMinutes: minutes, autoStopMode: "timer" }),
+					),
+			).toBe(true);
+		}
+		expect("error" in parseAutoStop(form({ autoStopMode: "sometimes" }))).toBe(
+			true,
+		);
+	});
+
+	test("autoStopLabel", () => {
+		expect(autoStopLabel(null, null)).toBe("Off");
+		expect(autoStopLabel("idle", 30)).toContain("no browser connected");
+		expect(autoStopLabel("timer", 30)).toContain("after it starts");
 	});
 });

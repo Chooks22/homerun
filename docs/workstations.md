@@ -71,6 +71,25 @@ the IDE itself is what stands in front of it.
 
 Deleting your account removes your workstations and their home volumes.
 
+## Auto-stop
+
+Off by default. The **Auto-stop** panel on the Overview stops the workstation
+for you, so an IDE you forgot about doesn't hold CPU and memory all night:
+
+- **When nobody uses it**: stops once no browser has been connected to the IDE
+  for the given number of minutes. Homerun checks every minute by counting the
+  open connections to the port the IDE listens on inside the container, so an
+  open IDE tab, even an idle one, keeps it running. If that count can't be read
+  (the image has no `cat`, or it's still starting), the workstation counts as in
+  use.
+- **After a set time**: stops that many minutes after it starts, open tab or
+  not.
+
+The delay is 5 minutes to a week. The setting sticks: every **Start** arms the
+countdown again, and saving it while the workstation runs restarts the countdown
+from now. The Status panel shows roughly when it'll stop. An auto-stop is a
+plain **Stop**: the container and home volume stay, **Start** brings it back.
+
 ## On an agent host
 
 The workstation's IDE port is published on an ephemeral port of the agent host,

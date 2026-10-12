@@ -2,8 +2,12 @@ import { fail, redirect } from "@sveltejs/kit";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { Logger } from "#lib/logger.js";
 import { workstationAction } from "#lib/server/workstation-actions.js";
-import { generateWorkstationPassword } from "#lib/server/workstation-form.js";
+import {
+	generateWorkstationPassword,
+	parseAutoStop,
+} from "#lib/server/workstation-form.js";
 import { encryptSecret } from "#lib/services/secrets.js";
+import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("Workstation");
@@ -15,6 +19,25 @@ export const load = async ({ params, parent }) => {
 };
 
 export const actions = {
+	autoStop: async ({ locals, params, request }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
+		if (!ws) {
+			return fail(404, { error: "Workstation not found." });
+		}
+		const result = parseAutoStop(await request.formData());
+		if ("error" in result) {
+			return fail(400, { error: result.error });
+		}
+		await WorkstationService.setAutoStop(
+			ws,
+			result.parsed.mode,
+			result.parsed.minutes,
+		);
+		return { ok: true };
+	},
 	resetPassword: async ({ locals, params }) => {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));

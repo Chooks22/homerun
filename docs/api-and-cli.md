@@ -114,25 +114,26 @@ id, update and delete, each with a UUID as its id (a bucket's is
 whether one is set instead (`registryPasswordSet`, `customSslSet`, `passwordSet`
 and so on).
 
-| Object               | Routes                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
-| Stack                | `/stacks`, `/stacks/:id`                                                                         |
-| Service              | `/services`, `/services/:id`                                                                     |
-| Service environment  | `/service-environments`, `/service-environments/:id`                                             |
-| Service dependency   | `/service-dependencies`, `/service-dependencies/:id` (no update)                                 |
-| Volume               | `/volumes`, `/volumes/:id`                                                                       |
-| Volume mount         | `/volume-mounts`, `/volume-mounts/:id`                                                           |
-| Cron job             | `/cron-jobs`, `/cron-jobs/:id`, plus `POST /cron-jobs/:id/run` (queue a run now)                 |
-| Redirect             | `/redirects`, `/redirects/:id`                                                                   |
-| Notification channel | `/notification-channels`, `/notification-channels/:id` (the caller's own)                        |
-| Backup destination   | `/backup-destinations`, `/backup-destinations/:id`                                               |
-| Status page          | `/status-pages`, `/status-pages/:id`                                                             |
-| DNS connection       | `/dns-connections`, `/dns-connections/:id` (DNS area)                                            |
-| Git provider         | `/git-providers`, `/git-providers/:id` (Git providers area)                                      |
-| Build cache registry | `/build-cache-registries`, `/build-cache-registries/:id`                                         |
-| Object store         | `/object-stores`, `/object-stores/:id` (Object storage area)                                     |
-| Bucket               | `/object-stores/:storeId/buckets`, `/object-stores/:storeId/buckets/:name` (Object storage area) |
-| Template             | `/templates`, `/templates/:id` (read only)                                                       |
+| Object               | Routes                                                                                                                                                                                   |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stack                | `/stacks`, `/stacks/:id`                                                                                                                                                                 |
+| Service              | `/services`, `/services/:id`                                                                                                                                                             |
+| Service environment  | `/service-environments`, `/service-environments/:id`                                                                                                                                     |
+| Service dependency   | `/service-dependencies`, `/service-dependencies/:id` (no update)                                                                                                                         |
+| Volume               | `/volumes`, `/volumes/:id`                                                                                                                                                               |
+| Volume mount         | `/volume-mounts`, `/volume-mounts/:id`                                                                                                                                                   |
+| Cron job             | `/cron-jobs`, `/cron-jobs/:id`, plus `POST /cron-jobs/:id/run` (queue a run now), `GET /cron-jobs/:id/runs` (latest runs) and `GET /cron-jobs/:id/runs/:runId` (one run with its output) |
+| Redirect             | `/redirects`, `/redirects/:id`                                                                                                                                                           |
+| Notification channel | `/notification-channels`, `/notification-channels/:id` (the caller's own)                                                                                                                |
+| Notification         | `GET /notifications` (the caller's own feed, `?unread=true` for the unread ones), `POST /notifications/read` (one by `id`, or all)                                                       |
+| Backup destination   | `/backup-destinations`, `/backup-destinations/:id`                                                                                                                                       |
+| Status page          | `/status-pages`, `/status-pages/:id`                                                                                                                                                     |
+| DNS connection       | `/dns-connections`, `/dns-connections/:id` (DNS area)                                                                                                                                    |
+| Git provider         | `/git-providers`, `/git-providers/:id` (Git providers area)                                                                                                                              |
+| Build cache registry | `/build-cache-registries`, `/build-cache-registries/:id`                                                                                                                                 |
+| Object store         | `/object-stores`, `/object-stores/:id` (Object storage area)                                                                                                                             |
+| Bucket               | `/object-stores/:storeId/buckets`, `/object-stores/:storeId/buckets/:name` (Object storage area)                                                                                         |
+| Template             | `/templates`, `/templates/:id` (read only)                                                                                                                                               |
 
 This is what the [Terraform provider](infrastructure-as-code.md) is built on,
 and the CLI has a command group for each, see

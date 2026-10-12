@@ -11,10 +11,6 @@ read**, drop one with its `x`, or **Clear all**.
 
 ![The Notifications page](images/notifications-bell.webp)
 
-While anything is unread, the [dashboard](dashboard.md) shows a summary at the
-top: how many, the latest five, and links to mark them all read or open the
-page.
-
 Scheduled work reports once per run in the feed too: the outcomes of cron
 redeploys, scheduled backups and cron jobs are held like the channel summary
 below, then show up as one `Scheduled tasks: 14 ok` entry listing every outcome

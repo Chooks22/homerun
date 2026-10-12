@@ -132,6 +132,81 @@ describe("MCP server", () => {
 		expect(missing.result?.content?.[0]?.text).toStartWith("HTTP 404");
 	});
 
+	test("an API key manages a cron job and reads its runs and the notification feed", async () => {
+		const key = { "x-api-key": integrationContext().apiKey };
+		await initialize(key);
+		const tool = async (name: string, args: Record<string, unknown> = {}) => {
+			const answer = await readRpc(
+				await rpc(key, "tools/call", { arguments: args, name }),
+			);
+			return {
+				isError: answer.result?.isError,
+				text: answer.result?.content?.[0]?.text ?? "",
+			};
+		};
+
+		const created = await tool("create_cron_job", {
+			command: "echo postgres://app:hunter2@db/app",
+			envVars: { API_TOKEN: "t0k3n", TZ: "UTC" },
+			image: "alpine",
+			kind: "image",
+			name: "MCP cron job",
+			schedule: "0 3 * * *",
+		});
+		expect(created.isError).toBeFalsy();
+		const job = JSON.parse(created.text) as {
+			command: string;
+			envVars: Record<string, string>;
+			id: string;
+		};
+		expect(job.envVars.API_TOKEN).toBe("[redacted]");
+		expect(job.command).not.toContain("hunter2");
+
+		const updated = await tool("update_cron_job", {
+			command: job.command,
+			cronJobId: job.id,
+			enabled: true,
+			envVars: { API_TOKEN: "[redacted]", TZ: null },
+		});
+		expect(updated.isError).toBeFalsy();
+		const after = await nativeFetch(
+			`${integrationContext().origin}/api/v1/cron-jobs/${job.id}`,
+			{ headers: key },
+		);
+		const stored = (await after.json()) as {
+			command: string;
+			enabled: boolean;
+			envVars: Record<string, string>;
+		};
+		expect(stored.enabled).toBe(true);
+		expect(stored.envVars).toEqual({ API_TOKEN: "t0k3n" });
+		expect(stored.command).toBe("echo postgres://app:hunter2@db/app");
+
+		const listed = await tool("list_cron_jobs", { search: "MCP cron" });
+		expect(JSON.parse(listed.text)).toContainEqual(
+			expect.objectContaining({ enabled: true, id: job.id }),
+		);
+		const runs = await tool("list_cron_job_runs", { cronJobId: job.id });
+		expect(runs.isError).toBeFalsy();
+		expect(JSON.parse(runs.text)).toEqual([]);
+		const missingRun = await tool("get_cron_job_run", {
+			cronJobId: job.id,
+			runId: "no-such-run",
+		});
+		expect(missingRun.text).toStartWith("HTTP 404");
+
+		const feed = await tool("list_notifications", { unread: true });
+		expect(Array.isArray(JSON.parse(feed.text))).toBe(true);
+		expect((await tool("mark_notifications_read")).isError).toBeFalsy();
+
+		expect(
+			(await tool("delete_cron_job", { cronJobId: job.id })).isError,
+		).toBeFalsy();
+		expect(
+			(await tool("get_cron_job", { cronJobId: job.id })).text,
+		).toStartWith("HTTP 404");
+	});
+
 	test("a client can't register itself", async () => {
 		const { origin } = integrationContext();
 		const registered = await nativeFetch(

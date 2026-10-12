@@ -24,6 +24,8 @@ import {
 	type WorkstationCheck,
 } from "#lib/workstation-self-test.js";
 import {
+	type AutoStopMode,
+	autoStopStep,
 	repoDirectory,
 	type WorkstationStatus,
 	workstationHostname,
@@ -65,6 +67,7 @@ export interface WorkstationSpec {
 
 /** A workstation's live status plus where to open it. */
 export interface WorkstationView {
+	autoStopAt: Date | null;
 	status: WorkstationStatus;
 	url: string | null;
 }
@@ -188,7 +191,11 @@ class WorkstationServiceClass {
 			await this.#call(target, "PUT", `/v1/workstations/${ws.id}`, {
 				body: spec,
 			});
-			await ws.update({ desiredState: "running", lastError: null });
+			await ws.update({
+				autoStopAt: this.#deadline(ws),
+				desiredState: "running",
+				lastError: null,
+			});
 			logger.info(`Workstation starting: workstation=${ws.id}`);
 			await this.#syncDns(ws);
 		} catch (error) {
@@ -207,9 +214,100 @@ class WorkstationServiceClass {
 	async stop(ws: WorkstationDTO): Promise<void> {
 		const target = await this.#target(ws);
 		await this.#call(target, "POST", `/v1/workstations/${ws.id}/stop`);
-		await ws.update({ desiredState: "stopped" });
+		await ws.update({ autoStopAt: null, desiredState: "stopped" });
 		await this.#removeRoute(ws);
 		logger.info(`Workstation stopped: workstation=${ws.id}`);
+	}
+
+	/** When `ws` auto-stops if it starts now, null when its auto-stop is off. */
+	#deadline(ws: WorkstationDTO, now = new Date()): Date | null {
+		const { autoStopMinutes, autoStopMode } = ws.toJSON();
+		return autoStopMode && autoStopMinutes
+			? new Date(now.getTime() + autoStopMinutes * 60_000)
+			: null;
+	}
+
+	/**
+	 * Saves `ws`'s auto-stop setting, `mode` null turning it off. A running
+	 * workstation's countdown restarts from now; a stopped one arms it on its
+	 * next start.
+	 */
+	async setAutoStop(
+		ws: WorkstationDTO,
+		mode: AutoStopMode | null,
+		minutes: number | null,
+	): Promise<void> {
+		const autoStopMinutes = mode ? minutes : null;
+		await ws.update({
+			autoStopAt:
+				mode && autoStopMinutes && ws.desiredState === "running"
+					? new Date(Date.now() + autoStopMinutes * 60_000)
+					: null,
+			autoStopMinutes,
+			autoStopMode: mode,
+		});
+		logger.info(
+			`Workstation auto-stop set: workstation=${ws.id} mode=${mode ?? "off"} minutes=${minutes ?? 0}`,
+		);
+	}
+
+	/**
+	 * How many connections `ws`'s IDE port holds open inside its container.
+	 *
+	 * @throws When it isn't running, is still starting, or the worker or agent
+	 *   can't read it.
+	 */
+	async connections(ws: WorkstationDTO): Promise<number> {
+		const target = await this.#target(ws);
+		const answer = await this.#call<{ connections: number }>(
+			target,
+			"GET",
+			`/v1/workstations/${ws.id}/connections`,
+			{ query: { port: String(ws.toJSON().port) } },
+		);
+		return answer.connections;
+	}
+
+	/**
+	 * One auto-stop pass over `ws`: in idle mode an open connection pushes the
+	 * deadline out (as does a connection count it can't read, so a start in
+	 * progress or an image without `cat` never counts as idle), and once the
+	 * deadline passes the workstation is stopped.
+	 *
+	 * @throws When stopping it fails.
+	 */
+	async autoStop(ws: WorkstationDTO, now: Date): Promise<void> {
+		const { autoStopAt, autoStopMinutes, autoStopMode } = ws.toJSON();
+		if (!autoStopMode || !autoStopMinutes) {
+			return;
+		}
+		const active =
+			autoStopMode === "idle" &&
+			(await this.connections(ws).then(
+				(count) => count > 0,
+				(error: unknown) => {
+					logger.warn(
+						`Couldn't read a workstation's connections, counting it as in use: workstation=${ws.id}`,
+						error,
+					);
+					return true;
+				},
+			));
+		const step = autoStopStep({
+			active,
+			autoStopAt,
+			minutes: autoStopMinutes,
+			mode: autoStopMode,
+			now,
+		});
+		if (step.kind === "arm") {
+			await ws.update({ autoStopAt: step.at });
+		} else if (step.kind === "stop") {
+			await this.stop(ws);
+			logger.info(
+				`Workstation auto-stopped: workstation=${ws.id} mode=${autoStopMode} minutes=${autoStopMinutes}`,
+			);
+		}
 	}
 
 	/**
@@ -267,19 +365,25 @@ class WorkstationServiceClass {
 			{ query: { port: String(ws.toJSON().port) } },
 		);
 		const host = this.hostname(ws);
+		const { autoStopAt } = ws.toJSON();
 		if (target.kind === "local") {
 			return {
+				autoStopAt,
 				status,
 				url: status.state === "running" ? `https://${host}` : null,
 			};
 		}
 		if (status.state !== "running" || status.hostPort === 0) {
 			await this.#removeRoute(ws);
-			return { status, url: null };
+			return { autoStopAt, status, url: null };
 		}
 		const upstream = `http://${target.address}:${status.hostPort}`;
 		const routed = await this.#writeRoute(ws, host, upstream);
-		return { status, url: routed ? `https://${host}` : upstream };
+		return {
+			autoStopAt,
+			status,
+			url: routed ? `https://${host}` : upstream,
+		};
 	}
 
 	/**

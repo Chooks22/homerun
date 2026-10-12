@@ -9,8 +9,10 @@ mock.module("$app/env", () => ({
 const {
 	SCRIPT_RUNTIME_SPECS,
 	SCRIPT_RUNTIMES,
+	cronJobRunTriggerLabel,
 	describeCronJobTarget,
 	invalidFilePath,
+	latestCronJobRun,
 	parseScriptRuntime,
 	scriptPath,
 } = await import("../../../src/lib/cron-job-script");
@@ -30,6 +32,44 @@ function form(fields: Record<string, string>, files: [string, string][]) {
 	}
 	return data;
 }
+
+describe("run helpers", () => {
+	const finished = { id: "r2", jobId: "q2" };
+	const older = { id: "r1", jobId: "q1" };
+
+	test("the newest run is the latest when nothing is queued", () => {
+		expect(latestCronJobRun([finished, older], null)).toEqual({
+			run: finished,
+			waiting: false,
+		});
+		expect(latestCronJobRun([], null)).toEqual({ run: null, waiting: false });
+	});
+
+	test("a queued run whose row doesn't exist yet is waited for", () => {
+		expect(latestCronJobRun([finished, older], "q3")).toEqual({
+			run: null,
+			waiting: true,
+		});
+		expect(latestCronJobRun([], "q3")).toEqual({ run: null, waiting: true });
+		expect(latestCronJobRun([{ id: "r0", jobId: null }], "q3")).toEqual({
+			run: null,
+			waiting: true,
+		});
+	});
+
+	test("the active queue job's own run is shown once it has a row", () => {
+		expect(latestCronJobRun([finished, older], "q2")).toEqual({
+			run: finished,
+			waiting: false,
+		});
+	});
+
+	test("triggers read as words, unknown for older runs", () => {
+		expect(cronJobRunTriggerLabel("cron")).toBe("Schedule");
+		expect(cronJobRunTriggerLabel("manual")).toBe("Manual");
+		expect(cronJobRunTriggerLabel(null)).toBe("Unknown");
+	});
+});
 
 describe("invalidFilePath", () => {
 	test("accepts an absolute file path", () => {

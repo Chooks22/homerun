@@ -63,16 +63,30 @@ They also take what the container itself runs with:
   Renovate cache. A fresh named volume takes the owner of the image's own
   directory at that path when the image has one; at a path the image doesn't
   have, it's root-owned and a non-root user can't write to it. A volume lives on
-  this server, so a job running on another build server can't mount one.
+  this server, so a job running on another build server can't mount one. **New
+  volume** under the list creates one without leaving the form (a Docker volume
+  or a host path, like **Volumes → New volume**, and it needs write access to
+  Volumes & backups) and adds it to the job's volumes, ready for its container
+  path.
 - **Docker socket**: mounts the Docker socket at `/var/run/docker.sock` and adds
   the socket's group to the container, so a non-root user can use it. That's
   root on the host, so it **needs write access to System**, both to set it and
   to manage or run a job that has it.
 
-A job's page has three tabs: **Runs** (each run's exit code and output, plus
-**Run now** in the header), **Configuration** (what runs and how: everything
-above) and **Settings** (name, schedule, timeout, the schedule toggle, and
-deleting the job).
+A job's page has three tabs: **Runs**, **Configuration** (what runs and how:
+everything above) and **Settings** (name, schedule, timeout, the schedule
+toggle, and deleting the job). **Runs** leads with the latest run: press **Run
+now** in the header and it shows the run queued, then running with its output
+filling in every couple of seconds, then its outcome and exit code. Below it,
+the run history lists each run with its start, trigger (the schedule or a manual
+run), exit code and duration. Click one for the run's own page: its status,
+trigger, start and finish, duration and exit code at the top, then a **Logs**
+tab with the full output (still following a run in progress) and a **Traces**
+tab with the worker's trace of the run (picking it up, running the container
+with its exit code, and recording the result), with a link to the full trace
+under **Monitoring → Traces**. A trace lands a few seconds after the run
+finishes and is kept for the trace retention set under **Monitoring →
+Settings**; runs from before this version have no trigger or trace recorded.
 
 Give it a 5-field cron schedule, a timeout (default 900s, the job is killed past
 it), and turn the schedule on or off without deleting the job. With the schedule
@@ -81,9 +95,10 @@ something calls `POST /api/v1/cron-jobs/{cronJobId}/run` with an API key (a CI
 step, another service), which queues a run and answers `202` with the queue
 job's id to poll on `GET /api/v1/jobs/{jobId}`. Runs go through the same
 [job queue](#the-job-queue) as deploys and backups, so **Run now** returns
-immediately and one job never runs twice concurrently. Each run's exit code and
-captured output are kept on the job's page, and enabled jobs also show up on the
-Scheduling page next to cron redeploys and backups.
+immediately and one job never runs twice concurrently. Each run's exit code,
+captured output (its last 64k characters) and trace are kept on the job's page,
+and enabled jobs also show up on the Scheduling page next to cron redeploys and
+backups.
 
 ## The Scheduling page
 

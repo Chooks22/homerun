@@ -1094,6 +1094,28 @@ are the REST routes' and nothing is duplicated. `/api/v1/mcp` is in
 `OPEN_ROUTES` (`permissions.ts`) because MCP sends every read as a POST; the
 inner REST calls are gated by the caller's permissions.
 
+Tools are grouped per dashboard area, each group a
+`register<Area>Tools(server, api)` in its own
+`src/lib/server/mcp-<area>-tools.ts` (stacks, templates, environments and
+release channels, previews, scans, volumes, cron jobs, status pages,
+notifications, redirects, object storage), with the service tools still in
+`mcp-server.ts`; `mcp-tool-kit.ts` holds the shared `asResult`/`errorResult` and
+annotations. A tool whose input matches a REST body reuses that route's zod
+schema (`cronJobApiBody`, `updateStatusPageApiBody.extend({ statusPageId })`…)
+instead of restating it, so the two can't drift. A list tool over rows that are
+big (services, cron jobs, templates) returns a summary and leaves the full row
+to its `get_` tool. A tool needing data no REST route serves gets a thin route
+first, never a DTO call: cron job runs (`GET /cron-jobs/{id}/runs` without
+output, `GET /cron-jobs/{id}/runs/{runId}` with it) and the caller's in-app feed
+(`GET /notifications`, `POST /notifications/read`, open like the dashboard's
+`/notifications`) were added that way. `INSTRUCTIONS` in `mcp-server.ts` names
+every tool by area, and `docs/mcp.md` has the same table: a new tool goes in
+both. Deleting a service, a stack or an environment stays out on purpose.
+`tests/unit/app/mcp-tools.test.ts` drives the real server through
+`createMcpHandler` with a recording fake `ApiCall` (no `initialize` needed): one
+row per tool asserting the REST method, path and body it sends, plus the
+summaries, filters and the redacted round-trips.
+
 Every value an agent reads goes through `mcp-redact.ts`'s `redactSecrets` first:
 `redactEnvValue` fully masks a secret-looking name (`PASSWORD`, `TOKEN`…) and,
 now, any name in that service's own `secretEnvKeys` (the lock toggle in
@@ -1102,7 +1124,13 @@ Data model in `data-and-config.md`) — a name marked secret is caught whatever
 it's called, e.g. `TMDB_API`. `update_service`'s env merge (`mergeEnvChanges` in
 `mcp-server.ts`'s `updateService`) is handed that same set, so a value it reads
 back unchanged from a marked var is still recognised as "unchanged" rather than
-rejected as a bad placeholder.
+rejected as a bad placeholder. A string under `command`, `log` or `output` (a
+cron job's shell command, a deploy or job log, a cron run's output) gets
+`maskInlineSecrets`, so URL passwords and `--password` arguments don't leak
+through JSON the way they never did through `service_logs`' plain text.
+`update_cron_job` merges env like `update_service` (the REST PATCH replaces the
+whole map) and `restoreMaskedText` puts back a command sent unchanged with its
+masked password.
 
 Auth: `hooks.server.ts` treats a Bearer credential shaped like a JWT as an MCP
 access token (`verifyMcpAccessToken` in `auth.ts`: `jose` against the `jwks`

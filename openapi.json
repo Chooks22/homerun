@@ -3323,6 +3323,380 @@
 				"tags": ["Cron jobs"]
 			}
 		},
+		"/cron-jobs/{cronJobId}/runs": {
+			"get": {
+				"description": "Newest first, without their output: read a run's output with GET /cron-jobs/{cronJobId}/runs/{runId}.",
+				"operationId": "get_cron_jobs__cronJobId__runs",
+				"parameters": [
+					{
+						"description": "Cron job id",
+						"in": "path",
+						"name": "cronJobId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "How many runs, 1 to 100 (default 20)",
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"additionalProperties": false,
+										"properties": {
+											"cronJobId": {
+												"type": "string"
+											},
+											"error": {
+												"type": ["string", "null"]
+											},
+											"exitCode": {
+												"anyOf": [
+													{
+														"maximum": 9007199254740991,
+														"minimum": -9007199254740991,
+														"type": "integer"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											"finishedAt": {
+												"anyOf": [
+													{
+														"description": "ISO 8601 timestamp",
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											"id": {
+												"type": "string"
+											},
+											"jobId": {
+												"description": "The queue job that ran it, which its trace hangs off; null for runs older than this field",
+												"type": ["string", "null"]
+											},
+											"outputLength": {
+												"description": "How many characters of output the run kept",
+												"maximum": 9007199254740991,
+												"minimum": -9007199254740991,
+												"type": "integer"
+											},
+											"startedAt": {
+												"description": "ISO 8601 timestamp",
+												"type": "string"
+											},
+											"success": {
+												"description": "null while the run is still going",
+												"type": ["boolean", "null"]
+											},
+											"trigger": {
+												"anyOf": [
+													{
+														"enum": ["cron", "manual"],
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												],
+												"description": "null for runs older than this field"
+											}
+										},
+										"required": [
+											"cronJobId",
+											"error",
+											"exitCode",
+											"finishedAt",
+											"id",
+											"jobId",
+											"startedAt",
+											"success",
+											"trigger",
+											"outputLength"
+										],
+										"type": "object"
+									},
+									"type": "array"
+								}
+							}
+						},
+						"description": "The cron job's latest runs"
+					},
+					"400": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Invalid body, or a value the instance refuses"
+					},
+					"401": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Unauthorized"
+					},
+					"403": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"error": {
+											"example": "You don't have permission to change Services.",
+											"type": "string"
+										}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access."
+					},
+					"404": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Not found"
+					}
+				},
+				"security": [
+					{
+						"apiKey": []
+					},
+					{
+						"bearerAuth": []
+					}
+				],
+				"summary": "List a cron job's runs",
+				"tags": ["Cron jobs"]
+			}
+		},
+		"/cron-jobs/{cronJobId}/runs/{runId}": {
+			"get": {
+				"operationId": "get_cron_jobs__cronJobId__runs__runId_",
+				"parameters": [
+					{
+						"description": "Cron job id",
+						"in": "path",
+						"name": "cronJobId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "Run id",
+						"in": "path",
+						"name": "runId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"cronJobId": {
+											"type": "string"
+										},
+										"error": {
+											"type": ["string", "null"]
+										},
+										"exitCode": {
+											"anyOf": [
+												{
+													"maximum": 9007199254740991,
+													"minimum": -9007199254740991,
+													"type": "integer"
+												},
+												{
+													"type": "null"
+												}
+											]
+										},
+										"finishedAt": {
+											"anyOf": [
+												{
+													"description": "ISO 8601 timestamp",
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											]
+										},
+										"id": {
+											"type": "string"
+										},
+										"jobId": {
+											"description": "The queue job that ran it, which its trace hangs off; null for runs older than this field",
+											"type": ["string", "null"]
+										},
+										"output": {
+											"description": "What the run printed, its newest 64k characters, appended to while it runs",
+											"type": "string"
+										},
+										"startedAt": {
+											"description": "ISO 8601 timestamp",
+											"type": "string"
+										},
+										"success": {
+											"description": "null while the run is still going",
+											"type": ["boolean", "null"]
+										},
+										"trigger": {
+											"anyOf": [
+												{
+													"enum": ["cron", "manual"],
+													"type": "string"
+												},
+												{
+													"type": "null"
+												}
+											],
+											"description": "null for runs older than this field"
+										}
+									},
+									"required": [
+										"cronJobId",
+										"error",
+										"exitCode",
+										"finishedAt",
+										"id",
+										"jobId",
+										"startedAt",
+										"success",
+										"trigger",
+										"output"
+									],
+									"type": "object"
+								}
+							}
+						},
+						"description": "The run"
+					},
+					"401": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Unauthorized"
+					},
+					"403": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"error": {
+											"example": "You don't have permission to change Services.",
+											"type": "string"
+										}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access."
+					},
+					"404": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Not found"
+					}
+				},
+				"security": [
+					{
+						"apiKey": []
+					},
+					{
+						"bearerAuth": []
+					}
+				],
+				"summary": "Get a cron job run, with its output",
+				"tags": ["Cron jobs"]
+			}
+		},
 		"/dns-connections": {
 			"get": {
 				"description": "Every DNS connection, in one response.",
@@ -7771,6 +8145,267 @@
 					}
 				],
 				"summary": "Update a notification channel",
+				"tags": ["Notifications"]
+			}
+		},
+		"/notifications": {
+			"get": {
+				"description": "The caller's own in-app notifications, newest first.",
+				"operationId": "get_notifications",
+				"parameters": [
+					{
+						"description": "How many, 1 to 200 (default 50)",
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "true for the unread ones only",
+						"in": "query",
+						"name": "unread",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"additionalProperties": false,
+										"properties": {
+											"createdAt": {
+												"description": "ISO 8601 timestamp",
+												"type": "string"
+											},
+											"detail": {
+												"type": ["string", "null"]
+											},
+											"id": {
+												"type": "string"
+											},
+											"message": {
+												"type": "string"
+											},
+											"readAt": {
+												"anyOf": [
+													{
+														"description": "ISO 8601 timestamp",
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											"serviceId": {
+												"type": ["string", "null"]
+											},
+											"serviceSlug": {
+												"type": ["string", "null"]
+											},
+											"stackName": {
+												"type": ["string", "null"]
+											},
+											"type": {
+												"description": "deploy_failure, deploy_unhealthy, resource_alert, ...",
+												"type": "string"
+											}
+										},
+										"required": [
+											"createdAt",
+											"detail",
+											"id",
+											"message",
+											"readAt",
+											"serviceId",
+											"serviceSlug",
+											"stackName",
+											"type"
+										],
+										"type": "object"
+									},
+									"type": "array"
+								}
+							}
+						},
+						"description": "The caller's notifications"
+					},
+					"400": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Invalid body, or a value the instance refuses"
+					},
+					"401": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Unauthorized"
+					},
+					"403": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"error": {
+											"example": "You don't have permission to change Services.",
+											"type": "string"
+										}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access."
+					}
+				},
+				"security": [
+					{
+						"apiKey": []
+					},
+					{
+						"bearerAuth": []
+					}
+				],
+				"summary": "List the caller's notifications",
+				"tags": ["Notifications"]
+			}
+		},
+		"/notifications/read": {
+			"post": {
+				"operationId": "post_notifications_read",
+				"parameters": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"additionalProperties": false,
+								"properties": {
+									"id": {
+										"description": "The notification to mark read. Omitted, every unread one is marked read.",
+										"minLength": 1,
+										"type": "string"
+									}
+								},
+								"type": "object"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"success": {
+											"type": "boolean"
+										}
+									},
+									"required": ["success"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Marked read"
+					},
+					"400": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Invalid body, or a value the instance refuses"
+					},
+					"401": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"additionalProperties": false,
+									"properties": {
+										"error": {
+											"type": "string"
+										},
+										"issues": {}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "Unauthorized"
+					},
+					"403": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"error": {
+											"example": "You don't have permission to change Services.",
+											"type": "string"
+										}
+									},
+									"required": ["error"],
+									"type": "object"
+								}
+							}
+						},
+						"description": "The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access."
+					}
+				},
+				"security": [
+					{
+						"apiKey": []
+					},
+					{
+						"bearerAuth": []
+					}
+				],
+				"summary": "Mark the caller's notifications read",
 				"tags": ["Notifications"]
 			}
 		},

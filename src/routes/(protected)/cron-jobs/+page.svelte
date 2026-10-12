@@ -203,7 +203,13 @@
         <PanelHeader title="Recent runs" />
         <div class="divide-border divide-y">
           {#each data.runs as entry (entry.run.id)}
-            <div class="flex items-center gap-3 px-5 py-3 text-sm">
+            <a
+              class="hover:bg-surface-2 flex items-center gap-3 px-5 py-3 text-sm transition-colors"
+              href={resolve("/(protected)/cron-jobs/[cronJobId]/runs/[runId]", {
+                cronJobId: entry.run.cronJobId,
+                runId: entry.run.id,
+              })}
+            >
               <RunStatusBadge iconOnly success={entry.run.success}>
                 {#snippet running()}
                   <Clock class="text-text-muted size-3.5 shrink-0" />
@@ -213,7 +219,7 @@
               <span class="text-text-muted ml-auto shrink-0 text-xs">
                 {timeAgo(entry.run.startedAt)}
               </span>
-            </div>
+            </a>
           {/each}
         </div>
       </section>

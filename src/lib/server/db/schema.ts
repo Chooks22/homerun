@@ -20,6 +20,7 @@ import type {
 	CronJobFile,
 	CronJobKind,
 	CronJobMount,
+	CronJobRunTrigger,
 	ScriptRuntime,
 } from "#lib/cron-job-script.js";
 import type { DeployTrigger } from "#lib/deploy-trigger.js";
@@ -546,6 +547,9 @@ export const remoteHost = pgTable(
 export const workstation = pgTable(
 	"workstation",
 	{
+		autoStopAt: timestamp("auto_stop_at", { mode: "date" }),
+		autoStopMinutes: integer("auto_stop_minutes"),
+		autoStopMode: text("auto_stop_mode", { enum: ["idle", "timer"] }),
 		cpuLimit: doublePrecision("cpu_limit"),
 		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 		desiredState: text("desired_state", { enum: ["running", "stopped"] })
@@ -1638,10 +1642,12 @@ export const cronJobRun = pgTable(
 		exitCode: integer("exit_code"),
 		finishedAt: timestamp("finished_at", { mode: "date" }),
 		id: text("id").primaryKey(),
+		jobId: text("job_id"),
 		output: text("output").default(""),
 		startedAt: timestamp("started_at", { mode: "date" }).notNull(),
 		// null while the run is still in progress, true/false once finalized.
 		success: boolean("success"),
+		trigger: text("trigger").$type<CronJobRunTrigger>(),
 	},
 	(table) => [index("cronJobRun_cronJobId_idx").on(table.cronJobId)],
 );

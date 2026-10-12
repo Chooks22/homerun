@@ -1,4 +1,12 @@
-import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	inArray,
+	isNotNull,
+	type SQL,
+} from "drizzle-orm";
 import { db } from "#lib/server/db/lib.js";
 import { type Workstation, workstation } from "#lib/server/db/schema.js";
 import {
@@ -31,6 +39,9 @@ export type NewWorkstationInput = Pick<
 export type WorkstationUpdateInput = Partial<
 	Pick<
 		Workstation,
+		| "autoStopAt"
+		| "autoStopMinutes"
+		| "autoStopMode"
 		| "cpuLimit"
 		| "desiredState"
 		| "env"
@@ -124,6 +135,20 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 		};
 	}
 
+	/** Every workstation, anyone's, that should be running with an auto-stop set, for the auto-stop scheduler. */
+	static async listAutoStopping(): Promise<WorkstationDTO[]> {
+		const rows = await db
+			.select()
+			.from(workstation)
+			.where(
+				and(
+					eq(workstation.desiredState, "running"),
+					isNotNull(workstation.autoStopMode),
+				),
+			);
+		return rows.map((row) => new WorkstationDTO(row));
+	}
+
 	/** Whether any workstation, anyone's, already uses `slug`. */
 	static async slugTaken(slug: string): Promise<boolean> {
 		const [row] = await db
@@ -139,6 +164,9 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 		const now = new Date();
 		const row: Workstation = {
 			...input,
+			autoStopAt: null,
+			autoStopMinutes: null,
+			autoStopMode: null,
 			createdAt: now,
 			desiredState: "stopped",
 			id: crypto.randomUUID(),

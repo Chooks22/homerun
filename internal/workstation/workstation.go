@@ -380,6 +380,57 @@ func (m *Manager) Logs(ctx context.Context, id string, tail int, follow bool) (i
 	return m.docker.ContainerLogsStream(ctx, containers[0].ID, tail, follow)
 }
 
+// Connections counts the established TCP connections to port inside
+// workstation id's running container (its open IDE tabs, and any connection
+// Traefik still pools to it), read from the container's own /proc/net/tcp and
+// tcp6. ErrBusy while a start is in flight, ErrNotFound when no container
+// runs.
+func (m *Manager) Connections(ctx context.Context, id string, port int) (int, error) {
+	m.mu.Lock()
+	op, ok := m.ops[id]
+	busy := ok && !op.done
+	m.mu.Unlock()
+	if busy {
+		return 0, ErrBusy
+	}
+	containers, err := m.docker.ListContainersByLabel(ctx, IDLabel+"="+id)
+	if err != nil {
+		return 0, err
+	}
+	if len(containers) == 0 || containers[0].State != "running" {
+		return 0, dockerapi.ErrNotFound
+	}
+	result, err := m.docker.ContainerExec(ctx, containers[0].ID, []string{"cat", "/proc/net/tcp", "/proc/net/tcp6"})
+	if err != nil {
+		return 0, fmt.Errorf("couldn't read the container's connections: %w", err)
+	}
+	if strings.TrimSpace(result.Stdout) == "" {
+		return 0, fmt.Errorf("couldn't read the container's connections: %s", strings.TrimSpace(result.Stderr))
+	}
+	return CountEstablished(result.Stdout, port), nil
+}
+
+// CountEstablished counts the ESTABLISHED entries of a /proc/net/tcp table
+// whose local port is port.
+func CountEstablished(table string, port int) int {
+	count := 0
+	for _, line := range strings.Split(table, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || fields[3] != "01" {
+			continue
+		}
+		separator := strings.LastIndex(fields[1], ":")
+		if separator < 0 {
+			continue
+		}
+		local, err := strconv.ParseInt(fields[1][separator+1:], 16, 32)
+		if err == nil && int(local) == port {
+			count++
+		}
+	}
+	return count
+}
+
 // Status reports an in-flight or failed start first, then the container
 // itself: missing, stopped, failed (exited non-zero) or running with the host
 // port it's published on (0 when it isn't).

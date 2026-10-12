@@ -2,6 +2,7 @@ export const REDACTED = "[redacted]";
 
 const ENV_MAP_KEYS = new Set(["envVars", "vars"]);
 const ARGV_KEYS = new Set(["command", "entrypoint"]);
+const TEXT_KEYS = new Set(["command", "log", "output"]);
 const SECRET_LIST_KEYS = ["secretEnvKeys", "secretKeys"];
 
 const SECRET_NAME_PARTS = new Set([
@@ -91,7 +92,8 @@ function redactArgv(argv: unknown[]): unknown[] {
 /**
  * A copy of an API body safe to hand an agent: env values masked by name
  * (secret-looking names and the ones marked secret next to them fully, any
- * other value only its URL passwords and password flags), password arguments masked in commands, and every
+ * other value only its URL passwords and password flags), password arguments masked in commands, URL passwords
+ * and password flags masked in a shell command, a log or a run's output, and every
  * encrypted `…Enc` field dropped, however deep they sit.
  */
 export function redactSecrets(value: unknown): unknown {
@@ -118,6 +120,8 @@ export function redactSecrets(value: unknown): unknown {
 			);
 		} else if (ARGV_KEYS.has(key) && Array.isArray(inner)) {
 			out[key] = redactArgv(inner);
+		} else if (TEXT_KEYS.has(key) && typeof inner === "string") {
+			out[key] = maskInlineSecrets(inner);
 		} else {
 			out[key] = redactSecrets(inner);
 		}
@@ -195,4 +199,27 @@ export function restoreArgv(
 			`Argument ${i + 1} still contains "${REDACTED}": send its real value, or send the command unchanged.`,
 		);
 	});
+}
+
+/**
+ * A text field `update_cron_job` writes (a shell command): sent back exactly
+ * as the agent read it, masked parts included, it keeps the stored value.
+ *
+ * @throws Error when it still holds a placeholder that doesn't match what's
+ *   stored, rather than writing the placeholder.
+ */
+export function restoreMaskedText(
+	name: string,
+	sent: string,
+	stored: string | null,
+): string {
+	if (!sent.includes(REDACTED)) {
+		return sent;
+	}
+	if (stored !== null && maskInlineSecrets(stored) === sent) {
+		return stored;
+	}
+	throw new Error(
+		`${name} still contains "${REDACTED}": send its real value, or leave it out to keep the stored one.`,
+	);
 }
