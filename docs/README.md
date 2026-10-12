@@ -109,6 +109,8 @@ sync by hand.
   S3-compatible providers, buckets, lifecycle and access keys.
 - **[Build servers & the Homerun Agent](remote-hosts-and-agent.md)**: building
   images on a second machine, the standalone agent and installer.
+- **[Workstations](workstations.md)**: dev boxes in the browser: an IDE with a
+  persistent home and your repository cloned, on this server or an agent host.
 - **[Machine terminals](machine-terminals.md)**: a browser shell on this server
   and every remote host over SSH, Homerun's key and host-key checking.
 

@@ -22,6 +22,7 @@ import {
 	sortOrder,
 } from "#lib/server/list-query.js";
 import { DockerService } from "./docker.service.ts";
+import { WorkstationService } from "./workstation.service.ts";
 
 const logger = new Logger("UserCleanup");
 
@@ -42,6 +43,8 @@ class UserServiceClass {
 	 * otherwise the oldest other admin, otherwise the oldest other account.
 	 * When the user is the last account there's nobody to hand over to, so
 	 * their containers and stack networks are removed and the rows cascade.
+	 * Their workstations are personal, never handed over: they're removed,
+	 * home volumes included, either way.
 	 *
 	 * Shared by two callers that must both get this treatment:
 	 * - auth.ts's `user.deleteUser.beforeDelete` hook (self-service account
@@ -54,6 +57,7 @@ class UserServiceClass {
 		userId: string,
 		actingUserId?: string,
 	): Promise<void> {
+		await WorkstationService.removeAllFor(userId);
 		const successorId =
 			actingUserId && actingUserId !== userId
 				? actingUserId

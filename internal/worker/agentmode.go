@@ -17,16 +17,17 @@ import (
 	"github.com/orochibraru/homerun/internal/hoststats"
 	"github.com/orochibraru/homerun/internal/httpapi"
 	"github.com/orochibraru/homerun/internal/logging"
+	"github.com/orochibraru/homerun/internal/workstation"
 )
 
-// runAgent is the worker on a remote build host: no Postgres, no job loop,
-// only the narrow HTTP surface a remote host needs (health, host stats, a git
-// build and exporting the image it built).
+// runAgent is the worker on a remote host: no Postgres, no job loop, only the
+// narrow HTTP surface a remote host needs (health, host stats, a git build,
+// exporting the image it built, and dev workstations).
 //
 // The route set is deliberately not the worker's Docker control API. That API
 // is exec, a terminal and arbitrary container creation, so on a host reached
-// over the network a leaked token would be the whole daemon; a build host only
-// ever needs to be asked to build.
+// over the network a leaked token would be the whole daemon; a remote host only
+// ever needs to be asked to build, or to run a workstation from a narrow spec.
 //
 // The token can't be derived from AUTH_SECRET here the way the local worker's
 // is, because a remote host doesn't have it. It's WORKER_TOKEN, else one
@@ -44,7 +45,8 @@ func runAgent(config Config) error {
 		return fmt.Errorf("docker isn't reachable at %s: %w", config.DockerSocketPath, err)
 	}
 
-	server := agent.NewServer(token, docker, agent.NewBuilder(docker, config.DockerSocketPath), hoststats.NewStatsSampler())
+	server := agent.NewServer(token, docker, agent.NewBuilder(docker, config.DockerSocketPath), hoststats.NewStatsSampler(),
+		workstation.NewManager(docker).Mount)
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
 	if err != nil {
 		return err

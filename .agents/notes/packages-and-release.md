@@ -389,32 +389,34 @@ own runtime).
 - **Agent mode** (`internal/worker/agentmode.go`'s `runAgent`), the **Homerun
   Worker with no `DATABASE_URL`**: a small token-authenticated HTTP server meant
   to run on a build server's own Docker daemon (`internal/agent/server.go`'s
-  `Server.Handler`, unchanged by the merge). Five routes: `GET /v1/health` and
-  `GET /v1/openapi.json` unauthenticated (the latter for the same "spec
-  describes shapes, not data" reason the main app's is public, health so a
-  monitor can probe liveness without holding the token), `POST /v1/build`,
-  `GET /v1/stats` and `GET /v1/images/save` behind
-  `Authorization: Bearer <token>`. It is **not** a deploy target : the
-  deploy/lifecycle/logs routes it used to carry were removed along with remote
-  deploys (see Build servers above), and `AgentClientService.verifyToken` probes
-  `/v1/stats` for exactly that reason. It deliberately never serves the worker's
-  own Docker control API (exec, terminal, arbitrary container creation) even
-  though the two now share a binary : agent mode's `runAgent` builds its own
-  narrower `http.Handler` rather than reusing `serveControlAPI`, so a leaked
-  agent-mode token still can't reach that surface. This is the alternative to
-  registering a build server by raw `tcp://`/`ssh://` Docker socket : instead of
-  exposing the daemon itself, the build server runs this binary in agent mode
-  and the main app only ever talks HTTP-plus-bearer-token to it. **Arch
-  detection is genuinely shared**, not just mirrored by hand:
-  `internal/release.Arch` (already `amd64`/`arm64`, no remapping needed) and
-  `internal/release.AssetSuffix` (the same, plus a `darwin-` prefix for macOS)
-  are the one place this repo maps a Go arch/platform onto a release-asset name;
-  `internal/installer/detect.go`'s `Arch()` and `internal/cli/update.go`'s
-  `assetSuffix()` both just call through to it now, rather than each keeping its
-  own hand-written copy. **Wired into the main app**: `remote_host.kind`
-  (`"docker"` | `"agent"`) + `agentUrl`/`agentTokenEnc` (schema.ts),
-  `AgentClientService` (`src/lib/services/agent-client.service.ts`, a thin HTTP
-  client over `build`/`stats`/`health`), and the Remote Hosts "new host" form's
+  `Server.Handler`, unchanged by the merge). Five routes of its own, plus the
+  four workstation routes mounted from `internal/workstation` (see Dev
+  workstations in `docker.md`): `GET /v1/health` and `GET /v1/openapi.json`
+  unauthenticated (the latter for the same "spec describes shapes, not data"
+  reason the main app's is public, health so a monitor can probe liveness
+  without holding the token), `POST /v1/build`, `GET /v1/stats` and
+  `GET /v1/images/save` behind `Authorization: Bearer <token>`. It is **not** a
+  deploy target : the deploy/lifecycle/logs routes it used to carry were removed
+  along with remote deploys (see Build servers above), and
+  `AgentClientService.verifyToken` probes `/v1/stats` for exactly that reason.
+  It deliberately never serves the worker's own Docker control API (exec,
+  terminal, arbitrary container creation) even though the two now share a binary
+  : agent mode's `runAgent` builds its own narrower `http.Handler` rather than
+  reusing `serveControlAPI`, so a leaked agent-mode token still can't reach that
+  surface. This is the alternative to registering a build server by raw
+  `tcp://`/`ssh://` Docker socket : instead of exposing the daemon itself, the
+  build server runs this binary in agent mode and the main app only ever talks
+  HTTP-plus-bearer-token to it. **Arch detection is genuinely shared**, not just
+  mirrored by hand: `internal/release.Arch` (already `amd64`/`arm64`, no
+  remapping needed) and `internal/release.AssetSuffix` (the same, plus a
+  `darwin-` prefix for macOS) are the one place this repo maps a Go
+  arch/platform onto a release-asset name; `internal/installer/detect.go`'s
+  `Arch()` and `internal/cli/update.go`'s `assetSuffix()` both just call through
+  to it now, rather than each keeping its own hand-written copy. **Wired into
+  the main app**: `remote_host.kind` (`"docker"` | `"agent"`) +
+  `agentUrl`/`agentTokenEnc` (schema.ts), `AgentClientService`
+  (`src/lib/services/agent-client.service.ts`, a thin HTTP client over
+  `build`/`stats`/`health`), and the Remote Hosts "new host" form's
   connection-type toggle; `deploy/worker-spec.ts`'s `buildServerSpec` embeds the
   resolved target's kind in the deploy spec, and `internal/jobs/deploy/build.go`
   branches on it to build through a remote `dockerapi.Client` (a `"docker"`

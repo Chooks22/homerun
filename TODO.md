@@ -15,6 +15,20 @@ When done delete the entry, no bloat.
 
 ## Medium
 
+- [ ] Workstations behind the per-app login wall: the gate is service-shaped
+      (`gatedService`, `AppAccessService`), a workstation only has the IDE's own
+      password today
+- [ ] Workstations in the REST API, the CLI and the Terraform provider
+- [ ] Workstations on a raw `docker` remote host (the worker's
+      `dockerapi.NewRemote`), only agent hosts can run one today
+- [ ] Workstation start never re-pulls an image it already has, so a `:latest`
+      IDE image never updates: add a "pull" toggle or always pull on Recreate
+- [ ] Deleting an agent host cascades its workstation rows but leaves their
+      containers on that host and their Traefik route file behind
+- [ ] A service created after a workstation can take the workstation's slug, and
+      the two then fight over the same hostname: check workstation slugs on
+      service creation too
+
 ## Large
 
 - [ ] Pulumi projects: generate a Pulumi program

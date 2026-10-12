@@ -99,6 +99,10 @@
 					"title": "Build servers & agent",
 					"icon": "server"
 				},
+				{
+					"slug": "workstations",
+					"icon": "laptop-minimal"
+				},
 				{ "slug": "machine-terminals", "icon": "square-terminal" }
 			]
 		},

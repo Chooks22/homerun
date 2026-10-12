@@ -1413,6 +1413,49 @@ implementation for a local build too, see Git-based builds in
 `services-and-templates.md`), so the repo has to be reachable from the build
 server.
 
+## Dev workstations (`workstation` table, `WorkstationService`, `/workstations`)
+
+A workstation is a long-lived browser IDE container (code-server by default)
+with a persistent home volume, owned by one user: `WorkstationDTO`'s finders all
+take the owner's `userId`, unlike the shared resources, and
+`UserService.cleanupUserResources` removes a deleted account's workstations,
+volumes included, through `WorkstationService.removeAllFor` instead of handing
+them over.
+
+**One Go implementation, two surfaces.** `internal/workstation`'s `Manager`
+(`PUT`/`GET`/`DELETE /v1/workstations/{id}`, `POST .../stop`) is mounted on the
+local worker's control API and on agent mode's API (`agent.NewServer`'s variadic
+`mounts`), so `WorkstationService` only picks the client: `WorkerClient` for
+this server, `AgentClientService.request` for an agent host. Agent mode stays
+narrow on purpose: the spec is an image, env, a port, limits and its own named
+volume, never a bind, a capability or privileged mode. A raw `"docker"` remote
+host can't run one.
+
+**The Go side is stateless apart from in-flight starts.** `PUT` answers 202 and
+runs the start in a goroutine (pull if missing, ensure
+`homerun-workstation-<id>`, force-remove any container labelled
+`homerun.workstation.id=<id>`, create, start, then `git clone` by `exec` inside
+the running container so the checkout belongs to its user and the home skeleton
+the image ships still lands in the fresh volume). `GET` reports the in-flight
+state (`pulling`/`starting`/`cloning`) or the failure, else the container's own.
+A worker restart mid-start just loses the progress: the next `GET` reads the
+container. Values reach the clone script as positional arguments only; the token
+is redacted from any error.
+
+**Routing.** Locally the app puts Traefik labels on the container (router and
+service `workstation-<slug>`, so they never clash with a service router named
+`<slug>`) and joins it to the Traefik network. On an agent the port is published
+on an ephemeral host port, and `WorkstationService.view` (called by the
+Overview's polled `workstationStatus` remote query) writes
+`homerun-workstation-<slug>.yml` into `traefik.dynamicConfigDir` pointing at
+`http://<agent hostname>:<port>`, only when the content changed, and drops it
+when the workstation isn't running. With no dynamic config dir the page links
+the published port directly.
+
+**Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`), not
+the per-app login wall, whose gate is service-shaped (`gatedService`,
+`AppAccessService`).
+
 ## Server enrollment (`node_enrollment`, `NodeEnrollmentService`, `/api/v1/nodes/`)
 
 "Add a server" on `/remote-hosts` (admin only) creates a `node_enrollment` row:

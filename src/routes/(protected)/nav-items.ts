@@ -20,6 +20,7 @@ import {
 	HardDrive,
 	History,
 	KeyRound,
+	LaptopMinimal,
 	LayoutDashboard,
 	LayoutGrid,
 	Network,
@@ -93,6 +94,13 @@ export const allNavItems: NavItem[] = [
 		href: resolve("deployments"),
 		icon: History,
 		label: "Deployments",
+	},
+	{
+		category: "Workspace",
+		exact: false,
+		href: resolve("workstations"),
+		icon: LaptopMinimal,
+		label: "Workstations",
 	},
 	{
 		category: "Operations",

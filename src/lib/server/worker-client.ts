@@ -68,6 +68,14 @@ class WorkerClientClass {
 	}
 
 	/**
+	 * A PUT with a JSON body, returning JSON.
+	 * @throws `WorkerRequestError` on a non-2xx answer.
+	 */
+	put<T>(path: string, body: unknown): Promise<T> {
+		return this.#json<T>("PUT", this.#path(path), body);
+	}
+
+	/**
 	 * A PUT whose body is a raw byte stream rather than JSON, for writing a
 	 * tar archive into a container.
 	 * @throws `WorkerRequestError` on a non-2xx answer.

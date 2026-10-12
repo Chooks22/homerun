@@ -22,13 +22,15 @@ import (
 type Server struct {
 	builder *Builder
 	docker  Docker
+	mounts  []func(chi.Router)
 	stats   *hoststats.StatsSampler
 	token   string
 }
 
-// NewServer builds the server for one daemon and one token.
-func NewServer(token string, docker Docker, builder *Builder, stats *hoststats.StatsSampler) *Server {
-	return &Server{builder: builder, docker: docker, stats: stats, token: token}
+// NewServer builds the server for one daemon and one token. Each mount adds
+// its own routes behind the same token, the way agent mode adds workstations.
+func NewServer(token string, docker Docker, builder *Builder, stats *hoststats.StatsSampler, mounts ...func(chi.Router)) *Server {
+	return &Server{builder: builder, docker: docker, mounts: mounts, stats: stats, token: token}
 }
 
 // Handler routes every request. /v1/health isn't logged: a monitor or the
@@ -48,6 +50,9 @@ func (s *Server) Handler() http.Handler {
 		authed.Get("/v1/stats", httpapi.H(s.statsRoute))
 		authed.Post("/v1/build", httpapi.H(s.build))
 		authed.Get("/v1/images/save", httpapi.H(s.saveImage))
+		for _, mount := range s.mounts {
+			mount(authed)
+		}
 	})
 	return router
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/orochibraru/homerun/internal/hoststats"
 	"github.com/orochibraru/homerun/internal/httpapi"
 	"github.com/orochibraru/homerun/internal/janitor"
+	"github.com/orochibraru/homerun/internal/workstation"
 )
 
 // Server answers the app's Docker control calls for one daemon.
@@ -30,22 +31,24 @@ type Server struct {
 	// /v1/health. Nil reports none.
 	Wedged func() []janitor.Wedged
 
-	bootID    string
-	docker    *dockerapi.Client
-	stats     *hoststats.StatsSampler
-	terminals *TerminalHub
-	token     string
+	bootID       string
+	docker       *dockerapi.Client
+	stats        *hoststats.StatsSampler
+	terminals    *TerminalHub
+	token        string
+	workstations *workstation.Manager
 }
 
 // NewServer builds the control surface over one daemon and one token. The
 // terminal hub's reaper runs for the life of ctx.
 func NewServer(ctx context.Context, token string, docker *dockerapi.Client) *Server {
 	return &Server{
-		bootID:    rand.Text(),
-		docker:    docker,
-		stats:     hoststats.NewStatsSampler(),
-		terminals: NewTerminalHub(ctx, docker),
-		token:     token,
+		bootID:       rand.Text(),
+		docker:       docker,
+		stats:        hoststats.NewStatsSampler(),
+		terminals:    NewTerminalHub(ctx, docker),
+		token:        token,
+		workstations: workstation.NewManager(docker),
 	}
 }
 
@@ -73,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 		s.mountNetworks(r)
 		s.mountSystem(r)
 		s.mountSwarm(r)
+		s.workstations.Mount(r)
 	})
 	return router
 }

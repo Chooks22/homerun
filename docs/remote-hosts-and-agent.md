@@ -98,12 +98,13 @@ with BuildKit in a `docker:cli` helper container that mounts the build server's
 
 Not a separate program any more: `homerun-worker` (`cmd/worker/`), the same
 binary the app itself runs next to, picks **agent mode** whenever it starts with
-no `DATABASE_URL` set. In agent mode it exposes git builds and host stats over a
-small token-authenticated HTTP API, the alternative to registering a build
-server by raw `tcp://`/`ssh://` socket. Instead of exposing (or SSH-tunneling
-into) the daemon itself, the build server runs the worker in agent mode and the
-main app talks to it over plain HTTP with a bearer token, this is what the
-"Homerun Agent" connection type on `/remote-hosts` (above) registers.
+no `DATABASE_URL` set. In agent mode it exposes git builds, dev workstations and
+host stats over a small token-authenticated HTTP API, the alternative to
+registering a build server by raw `tcp://`/`ssh://` socket. Instead of exposing
+(or SSH-tunneling into) the daemon itself, the build server runs the worker in
+agent mode and the main app talks to it over plain HTTP with a bearer token,
+this is what the "Homerun Agent" connection type on `/remote-hosts` (above)
+registers.
 
 ```sh
 go run ./cmd/worker   # from the repo root; agent mode as long as DATABASE_URL is unset, talks to /var/run/docker.sock by default
@@ -120,7 +121,8 @@ prebuilt binary, or the installer below).
 **Wired into the main app**: registering an agent-kind build server and picking
 it in a git-based service's Environments & Deployments → Source section routes
 that service's builds through this agent's HTTP API instead of a raw Docker
-connection.
+connection. An agent host can also run [dev workstations](workstations.md): pick
+it under **Runs on** when creating one.
 
 ## Installer
 

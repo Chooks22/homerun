@@ -469,22 +469,22 @@ decisions and the "real, tested finding" war stories that explain why the code
 looks the way it does, and re-deriving them by hand wastes a session and tends
 to reintroduce a fixed bug.
 
-| Note                        | Read it when you're touching                                                                                                                                          |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data-and-config.md`        | `schema.ts`, a table/column, a DTO under `src/lib/dto/`, list pagination, `config.ts`, instance settings, `/settings`                                                 |
-| `routing.md`                | Any route under `src/routes/`, the sidebar nav, the services/stacks/templates pages, tab layouts                                                                      |
-| `ui.md`                     | `layout.css`, theming/tokens, `src/lib/components/`, list-page toolkit, page width, the `$derived` push/splice bug, appearance prefs                                  |
-| `docker.md`                 | `DockerService` and its mixins, containers/networks/volumes, swarm mode, network mode, web terminal, build servers, custom SSL, Docker Cleanup, the built-in registry |
-| `auth.md`                   | better-auth, sign-in/sign-up, OAuth providers, Homerun as an OIDC provider, `/authentication`, the per-app login wall, user roles/invites, onboarding                 |
-| `api-and-cli.md`            | `src/routes/api/v1/`, the OpenAPI document, `cmd/cli/`, long-running requests and Bun's idle timeout, the Terraform provider and `/iac`                               |
-| `services-and-templates.md` | The deploy pipeline, compose import, service links, templates and template links, git-based builds, git providers, SSE deploy progress, remote functions              |
-| `jobs-and-queue.md`         | The `job` table and worker, cron schedulers, user cron jobs, S3 backups                                                                                               |
-| `worker.md`                 | The Go worker (`cmd/worker`, `internal/worker`, `internal/jobs`), the job stage protocol, porting a job type to Go, the Docker control API (`internal/workerapi`)     |
-| `testing.md`                | `tests/` (unit, integration, e2e), `bunfig.toml`, Playwright, the CI Postgres wiring                                                                                  |
-| `packages-and-release.md`   | `cmd/installer/`, `cmd/worker/`'s agent mode, `orochibraru/releaser`, CI/Docker publishing, `docs/`                                                                   |
-| `dns.md`                    | Cloudflare or Pangolin DNS automation                                                                                                                                 |
-| `observability.md`          | `Logger`, `app_log`, in-app notifications, system stats, setup diagnostics                                                                                            |
-| `planned-features.md`       | Proposing or building something that might be a deliberate gap — check here before designing it                                                                       |
+| Note                        | Read it when you're touching                                                                                                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-and-config.md`        | `schema.ts`, a table/column, a DTO under `src/lib/dto/`, list pagination, `config.ts`, instance settings, `/settings`                                                                   |
+| `routing.md`                | Any route under `src/routes/`, the sidebar nav, the services/stacks/templates pages, tab layouts                                                                                        |
+| `ui.md`                     | `layout.css`, theming/tokens, `src/lib/components/`, list-page toolkit, page width, the `$derived` push/splice bug, appearance prefs                                                    |
+| `docker.md`                 | `DockerService` and its mixins, containers/networks/volumes, swarm mode, network mode, web terminal, build servers, dev workstations, custom SSL, Docker Cleanup, the built-in registry |
+| `auth.md`                   | better-auth, sign-in/sign-up, OAuth providers, Homerun as an OIDC provider, `/authentication`, the per-app login wall, user roles/invites, onboarding                                   |
+| `api-and-cli.md`            | `src/routes/api/v1/`, the OpenAPI document, `cmd/cli/`, long-running requests and Bun's idle timeout, the Terraform provider and `/iac`                                                 |
+| `services-and-templates.md` | The deploy pipeline, compose import, service links, templates and template links, git-based builds, git providers, SSE deploy progress, remote functions                                |
+| `jobs-and-queue.md`         | The `job` table and worker, cron schedulers, user cron jobs, S3 backups                                                                                                                 |
+| `worker.md`                 | The Go worker (`cmd/worker`, `internal/worker`, `internal/jobs`), the job stage protocol, porting a job type to Go, the Docker control API (`internal/workerapi`)                       |
+| `testing.md`                | `tests/` (unit, integration, e2e), `bunfig.toml`, Playwright, the CI Postgres wiring                                                                                                    |
+| `packages-and-release.md`   | `cmd/installer/`, `cmd/worker/`'s agent mode, `orochibraru/releaser`, CI/Docker publishing, `docs/`                                                                                     |
+| `dns.md`                    | Cloudflare or Pangolin DNS automation                                                                                                                                                   |
+| `observability.md`          | `Logger`, `app_log`, in-app notifications, system stats, setup diagnostics                                                                                                              |
+| `planned-features.md`       | Proposing or building something that might be a deliberate gap — check here before designing it                                                                                         |
 
 `TODO.md` is the backlog and the only one. `docs/` is operator-facing and is a
 separate audience from these notes (see `packages-and-release.md`).

@@ -538,6 +538,42 @@ export const remoteHost = pgTable(
 	(table) => [index("remoteHost_userId_idx").on(table.userId)],
 );
 
+export const workstation = pgTable(
+	"workstation",
+	{
+		cpuLimit: doublePrecision("cpu_limit"),
+		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+		desiredState: text("desired_state", { enum: ["running", "stopped"] })
+			.default("stopped")
+			.notNull(),
+		env: jsonb("env").$type<Record<string, string>>().default({}).notNull(),
+		gitBranch: text("git_branch"),
+		gitUrl: text("git_url"),
+		homePath: text("home_path").default("/home/coder").notNull(),
+		id: text("id").primaryKey(),
+		image: text("image").default("codercom/code-server:latest").notNull(),
+		lastError: text("last_error"),
+		memoryLimitMb: integer("memory_limit_mb"),
+		name: text("name").notNull(),
+		passwordEnc: text("password_enc").notNull(),
+		port: integer("port").default(8080).notNull(),
+		remoteHostId: text("remote_host_id").references(() => remoteHost.id, {
+			onDelete: "cascade",
+		}),
+		slug: text("slug").notNull(),
+		updatedAt: timestamp("updated_at", { mode: "date" })
+			.$onUpdate(() => new Date())
+			.notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		uniqueIndex("workstation_slug_idx").on(table.slug),
+		index("workstation_userId_idx").on(table.userId),
+	],
+);
+
 export const ipBan = pgTable("ip_ban", {
 	createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 	expiresAt: timestamp("expires_at", { mode: "date" }),
@@ -2364,6 +2400,7 @@ export type BackupRun = typeof backupRun.$inferSelect;
 export type CronJob = typeof cronJob.$inferSelect;
 export type CronJobRun = typeof cronJobRun.$inferSelect;
 export type RemoteHost = typeof remoteHost.$inferSelect;
+export type Workstation = typeof workstation.$inferSelect;
 export type Redirect = typeof redirect.$inferSelect;
 export type IpBan = typeof ipBan.$inferSelect;
 export type BlockedHit = typeof blockedHit.$inferSelect;

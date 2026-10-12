@@ -92,7 +92,9 @@ would repeat the parent's):
   with `status`/`trigger` filters; the trigger comes from the deploy job's
   payload via a correlated subquery, since the `deployment` row doesn't store
   one, so it's lost once `JobDTO.prune` drops the job; the dashboard's Recent
-  Deployments "View all" links here).
+  Deployments "View all" links here), **Workstations** (`/workstations`, the
+  signed-in user's own dev workstations, `[workstationId]` split into Overview
+  and Settings tabs, see Dev workstations in `docker.md`).
 - **Operations**: Observability (**Monitoring**, **Status Page**, see Status
   pages in `services-and-templates.md`), Scheduling (**Overview**, the
   instance-wide view of every cron redeploy, enabled cron job and backup

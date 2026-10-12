@@ -59,8 +59,49 @@ var (
 		"required": []string{"success"},
 		"type":     "object",
 	}
-	nullableString   = object{"type": []string{"string", "null"}}
-	buildInputSchema = object{
+	workstationStatusSchema = object{
+		"properties": object{
+			"containerId": object{"type": "string"},
+			"error":       object{"type": "string"},
+			"hostPort":    object{"type": "integer"},
+			"state": object{"enum": []string{
+				"pulling", "starting", "cloning", "running", "stopped", "failed", "missing",
+			}},
+		},
+		"required": []string{"hostPort", "state"},
+		"type":     "object",
+	}
+	workstationSpecSchema = object{
+		"properties": object{
+			"env": object{"additionalProperties": object{"type": "string"}, "type": []string{"object", "null"}},
+			"git": object{
+				"properties": object{
+					"branch":    object{"type": "string"},
+					"directory": object{"pattern": "^[A-Za-z0-9._-]{1,100}$", "type": "string"},
+					"token":     object{"type": "string"},
+					"url":       object{"type": "string"},
+					"username":  object{"type": "string"},
+				},
+				"required": []string{"directory", "url"},
+				"type":     []string{"object", "null"},
+			},
+			"homePath":    object{"type": "string"},
+			"image":       object{"minLength": 1, "type": "string"},
+			"labels":      object{"additionalProperties": object{"type": "string"}, "type": []string{"object", "null"}},
+			"memoryBytes": object{"minimum": 0, "type": "integer"},
+			"name":        object{"pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$", "type": "string"},
+			"nanoCpus":    object{"minimum": 0, "type": "integer"},
+			"network":     object{"type": "string"},
+			"port":        object{"maximum": 65535, "minimum": 1, "type": "integer"},
+			"publish":     object{"type": "boolean"},
+		},
+		"required": []string{"homePath", "image", "name", "port"},
+		"type":     "object",
+	}
+	workstationIDParameter = object{"in": "path", "name": "id", "required": true, "schema": object{"pattern": "^[A-Za-z0-9-]{1,64}$", "type": "string"}}
+	okSchema               = object{"properties": object{"ok": object{"type": "boolean"}}, "required": []string{"ok"}, "type": "object"}
+	nullableString         = object{"type": []string{"string", "null"}}
+	buildInputSchema       = object{
 		"properties": object{
 			"bakeFile":     nullableString,
 			"buildTarget":  object{"pattern": "^[A-Za-z0-9_][A-Za-z0-9_-]*$", "type": []string{"string", "null"}},
@@ -115,7 +156,7 @@ func openAPIDocument(baseURL string) object {
 			},
 		},
 		"info": object{
-			"description": "The Homerun worker's agent-mode HTTP surface on a remote build host : builds, image exports and host stats for the one Docker daemon it runs on. See cmd/worker/README.md.",
+			"description": "The Homerun worker's agent-mode HTTP surface on a remote host : builds, image exports, dev workstations and host stats for the one Docker daemon it runs on. See cmd/worker/README.md.",
 			"title":       "Homerun worker (agent mode) API",
 			"version":     buildinfo.Version,
 		},
@@ -166,6 +207,63 @@ func openAPIDocument(baseURL string) object {
 				"security": bearer,
 				"summary":  "Export an image",
 				"tags":     []string{"Deploy"},
+			}},
+			"/v1/workstations/{id}": object{
+				"delete": object{
+					"description": "Removes the workstation's container, and its home volume too with `volume=1`.",
+					"parameters": []object{
+						workstationIDParameter,
+						{"in": "query", "name": "volume", "schema": object{"enum": []string{"0", "1"}}},
+					},
+					"responses": object{
+						"200": jsonResponse("Removed", okSchema),
+						"401": jsonResponse("Unauthorized", errorSchema),
+					},
+					"security": bearer,
+					"summary":  "Remove a workstation",
+					"tags":     []string{"Workstations"},
+				},
+				"get": object{
+					"description": "What an in-flight start or the container itself says, with the host port it's published on when `port` names the container port.",
+					"parameters": []object{
+						workstationIDParameter,
+						{"in": "query", "name": "port", "schema": object{"type": "integer"}},
+					},
+					"responses": object{
+						"200": jsonResponse("The workstation's status", workstationStatusSchema),
+						"401": jsonResponse("Unauthorized", errorSchema),
+					},
+					"security": bearer,
+					"summary":  "Workstation status",
+					"tags":     []string{"Workstations"},
+				},
+				"put": object{
+					"description": "Pulls the image, ensures the home volume, recreates and starts the container, then clones `git` into the home volume when it isn't there yet. Answers as soon as the start is under way; poll the GET for progress.",
+					"parameters":  []object{workstationIDParameter},
+					"requestBody": object{
+						"content":  object{"application/json": object{"schema": workstationSpecSchema}},
+						"required": true,
+					},
+					"responses": object{
+						"202": jsonResponse("Starting", workstationStatusSchema),
+						"400": jsonResponse("Invalid spec", errorSchema),
+						"401": jsonResponse("Unauthorized", errorSchema),
+						"409": jsonResponse("Already starting", errorSchema),
+					},
+					"security": bearer,
+					"summary":  "Start or recreate a workstation",
+					"tags":     []string{"Workstations"},
+				},
+			},
+			"/v1/workstations/{id}/stop": object{"post": object{
+				"parameters": []object{workstationIDParameter},
+				"responses": object{
+					"200": jsonResponse("Stopped", okSchema),
+					"401": jsonResponse("Unauthorized", errorSchema),
+				},
+				"security": bearer,
+				"summary":  "Stop a workstation",
+				"tags":     []string{"Workstations"},
 			}},
 			"/v1/stats": object{"get": object{
 				"responses": object{

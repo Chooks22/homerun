@@ -18,6 +18,13 @@ export const PERMISSION_AREAS = [
 		],
 	},
 	{
+		description:
+			"Your own dev workstations: browser IDE containers on this server or an agent host.",
+		key: "workstations",
+		label: "Workstations",
+		routes: ["/workstations"],
+	},
+	{
 		description: "Stacks and compose imports into them.",
 		key: "stacks",
 		label: "Stacks",
@@ -222,6 +229,7 @@ const DEVELOPER_PERMISSIONS: Permissions = {
 	"status-pages": "write",
 	storage: "write",
 	templates: "write",
+	workstations: "write",
 };
 
 export interface PermissionPreset {

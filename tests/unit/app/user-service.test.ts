@@ -16,6 +16,9 @@ const { DockerService } = await import(
 );
 const { Logger } = await import("../../../src/lib/logger");
 const { UserService } = await import("../../../src/lib/services/user.service");
+const { WorkstationService } = await import(
+	"../../../src/lib/services/workstation.service"
+);
 
 interface Call {
 	args: unknown[];
@@ -59,12 +62,17 @@ function rendered(calls: Call[]) {
 }
 
 const docker = { containers: [] as string[], networks: [] as string[] };
+let workstationsRemovedFor: string[] = [];
 
 beforeEach(() => {
 	chains = [];
 	respond = () => [];
 	docker.containers = [];
 	docker.networks = [];
+	workstationsRemovedFor = [];
+	stub(WorkstationService, "removeAllFor", async (userId: string) => {
+		workstationsRemovedFor.push(userId);
+	});
 	for (const method of ["delete", "select", "update"]) {
 		stub(db, method, (...args: unknown[]) => chain({ args, method }));
 	}
@@ -124,6 +132,7 @@ describe("UserService.cleanupUserResources", () => {
 		const invite = updates.find((c) => c[0]?.args[0] === schema.invitation);
 		expect(arg(invite ?? [], "set")).toEqual({ invitedByUserId: "admin-1" });
 		expect(docker.containers).toEqual([]);
+		expect(workstationsRemovedFor).toEqual(["gone"]);
 	});
 
 	test("ignores an acting user deleting their own account and picks the oldest other admin", async () => {
