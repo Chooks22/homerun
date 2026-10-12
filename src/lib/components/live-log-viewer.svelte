@@ -25,6 +25,7 @@
 	let lines = $state<string[]>([]);
 	let connected = $state(false);
 	let errored = $state(false);
+	let errorMessage = $state("");
 	let logEl = $state<HTMLElement | undefined>();
 	let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 	let cancelled = false;
@@ -41,6 +42,7 @@
 		lines = [];
 		connected = false;
 		errored = false;
+		errorMessage = "";
 
 		try {
 			const res = await fetch(
@@ -48,6 +50,7 @@
 					resolve("/(protected)/services/[serviceId]/logs", { serviceId }),
 			);
 			if (!(res.ok && res.body)) {
+				errorMessage = res.ok ? "" : (await res.text()).trim();
 				errored = true;
 				return;
 			}
@@ -145,7 +148,7 @@
       <p class="text-zinc-500">This service hasn't been deployed yet.</p>
     {:else if errored}
       <p class="text-red-400">
-        Couldn't connect to the log stream. Try Reconnect.
+        Couldn't connect to the log stream{errorMessage ? `: ${errorMessage}` : ". Try Reconnect."}
       </p>
     {:else if lines.length === 0}
       <p class="flex items-center gap-2 text-zinc-500">

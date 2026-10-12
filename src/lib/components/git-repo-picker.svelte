@@ -22,12 +22,14 @@
 	}
 
 	const {
+		checkDockerfile = true,
 		initialProviderId = null,
 		initialRepo = null,
 		labelClass,
 		onpick,
 		providers,
 	}: {
+		checkDockerfile?: boolean;
 		initialProviderId?: string | null;
 		initialRepo?: string | null;
 		labelClass: string;
@@ -81,6 +83,9 @@
 			return;
 		}
 		onpick(repo, providerId);
+		if (!checkDockerfile) {
+			return;
+		}
 		dockerfilePromise = hasDockerfile({
 			providerId,
 			ref: repo.defaultBranch,

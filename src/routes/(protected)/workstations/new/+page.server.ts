@@ -4,6 +4,7 @@ import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { Logger } from "#lib/logger.js";
+import { connectedGitProviders } from "#lib/server/git-connections.js";
 import {
 	generateWorkstationPassword,
 	parseNewWorkstation,
@@ -16,13 +17,17 @@ import { resolve } from "$app/paths";
 const logger = new Logger("Workstation");
 
 export const load = async ({ parent }) => {
-	await parent();
-	const hosts = await RemoteHostDTO.list();
+	const { user } = await parent();
+	const [hosts, gitProviders] = await Promise.all([
+		RemoteHostDTO.list(),
+		connectedGitProviders(user.id),
+	]);
 	return {
 		agentHosts: hosts
 			.filter((host) => host.kind === "agent")
 			.map((host) => ({ id: host.id, name: host.name })),
 		baseDomain: config.baseDomain,
+		gitProviders,
 	};
 };
 

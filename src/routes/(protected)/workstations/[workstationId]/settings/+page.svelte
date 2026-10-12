@@ -1,17 +1,21 @@
 <script lang="ts">
-	import { AlertTriangle, Trash2 } from "@lucide/svelte";
+	import { AlertTriangle, Stethoscope, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
+	import { toast } from "svelte-sonner";
 	import Alert from "#lib/components/alert.svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import { labelClass } from "#lib/components/form-styles.js";
 	import SaveButton from "#lib/components/save-button.svelte";
+	import SelfTestChecks from "#lib/components/self-test-checks.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
 	import WorkstationFields from "#lib/components/workstation-fields.svelte";
+	import { testWorkstation } from "#lib/remote/workstations.remote.js";
 	import { title } from "#lib/store/title.js";
-	import { enhanceToast } from "#lib/toast.js";
+	import { enhanceToast, toastError } from "#lib/toast.js";
+	import type { WorkstationCheck } from "#lib/workstation-self-test.js";
 	import { enhance } from "$app/forms";
 
 	const { data, form } = $props();
@@ -24,6 +28,32 @@
 	let deleteVolume = $state(false);
 	let deleteDialogOpen = $state(false);
 	let deleteForm = $state<HTMLFormElement | null>(null);
+
+	let checks = $state<WorkstationCheck[] | null>(null);
+	let testing = $state(false);
+
+	async function selfTestCallback() {
+		testing = true;
+		try {
+			checks = await testWorkstation(ws.id);
+		} finally {
+			testing = false;
+		}
+		const failed = checks.filter((check) => !check.ok).length;
+		if (failed > 0) {
+			throw new Error(
+				failed === 1 ? "1 check failed." : `${failed} checks failed.`,
+			);
+		}
+	}
+
+	function handleSelfTest() {
+		return toast.promise(selfTestCallback(), {
+			error: (error) => toastError(error, "Couldn't run the self-test."),
+			loading: "Testing the workstation",
+			success: "Every check passed.",
+		});
+	}
 </script>
 
 <div class="space-y-4">
@@ -65,8 +95,33 @@
       </div>
     </section>
 
-    <WorkstationFields values={ws} />
+    <WorkstationFields providers={data.gitProviders} values={ws} />
   </form>
+
+  <section class="panel rounded-xl">
+    <div class="panel-head">
+      <h2 class="eyebrow">Self-test</h2>
+      <Button disabled={testing} onclick={handleSelfTest} size="sm" variant="outline">
+        {#if testing}
+          <Spinner />
+        {:else}
+          <Stethoscope class="size-4" />
+        {/if}
+        Run self-test
+      </Button>
+    </div>
+    <div class="p-4">
+      {#if checks}
+        <SelfTestChecks {checks} />
+      {:else}
+        <p class="text-text-subtle text-xs">
+          Checks the container runs, an agent host's published port answers,
+          {data.hostname} resolves, and Traefik routes it to the IDE with a
+          valid certificate.
+        </p>
+      {/if}
+    </div>
+  </section>
 
   <section class="rounded-xl border border-red-300/60 dark:border-red-900/50">
     <div class="flex items-center gap-3 border-b border-red-300/40 px-4 py-3 dark:border-red-900/40">

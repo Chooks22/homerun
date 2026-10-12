@@ -1,3 +1,4 @@
+import dns from "node:dns/promises";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config } from "#lib/config.js";
@@ -17,12 +18,24 @@ import {
 	workstationRouteYaml,
 } from "#lib/services/workstation/routing.js";
 import {
+	containerCheck,
+	routeCheck,
+	type WorkstationCheck,
+} from "#lib/workstation-self-test.js";
+import {
 	repoDirectory,
 	type WorkstationStatus,
 	workstationHostname,
 } from "#lib/workstations.js";
 
 const logger = new Logger("Workstation");
+
+const CERT_ERROR_RE = /certificate|cert_|self[- ]signed|verify/i;
+
+/** An error's message, whatever was thrown. */
+function messageOf(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
 
 type Target =
 	| { kind: "local" }
@@ -264,6 +277,131 @@ class WorkstationServiceClass {
 		const upstream = `http://${target.address}:${status.hostPort}`;
 		const routed = await this.#writeRoute(ws, host, upstream);
 		return { status, url: routed ? `https://${host}` : upstream };
+	}
+
+	/**
+	 * Opens `ws`'s container output, the last 500 lines then everything it
+	 * writes after, as a text stream.
+	 *
+	 * @throws When the worker or agent can't be reached, or the workstation
+	 *   has no container yet (a 404).
+	 */
+	async streamLogs(ws: WorkstationDTO): Promise<ReadableStream<Uint8Array>> {
+		const target = await this.#target(ws);
+		const path = `/v1/workstations/${ws.id}/logs`;
+		const query = { follow: "1", tail: "500" };
+		return target.kind === "agent"
+			? await AgentClientService.stream(target.connection, path, query)
+			: await WorkerClient.stream(path, { query });
+	}
+
+	/**
+	 * Checks `ws` end to end: the container runs, an agent host's published
+	 * port answers, the hostname resolves, and `https://<host>/` reaches the
+	 * IDE through Traefik. Never throws: every failure comes back as a failed
+	 * check with its reason.
+	 */
+	async selfTest(ws: WorkstationDTO): Promise<WorkstationCheck[]> {
+		const checks: WorkstationCheck[] = [];
+		let view: WorkstationView;
+		try {
+			view = await this.view(ws);
+		} catch (error) {
+			return [{ detail: messageOf(error), label: "Container", ok: false }];
+		}
+		checks.push(containerCheck(view.status));
+		if (view.status.state !== "running") {
+			return checks;
+		}
+		const target = await this.#target(ws).catch(() => null);
+		if (target?.kind === "agent") {
+			checks.push(
+				await this.#probeUpstream(target.address, view.status.hostPort),
+			);
+			if (!config.traefik.dynamicConfigDir) {
+				checks.push({
+					detail:
+						"Traefik has no dynamic config directory configured, so an agent-hosted workstation can't be routed at its hostname; it's only reachable at the published port.",
+					label: "Traefik route",
+					ok: false,
+				});
+				return checks;
+			}
+		}
+		const host = this.hostname(ws);
+		checks.push(await this.#probeDns(host));
+		checks.push(await this.#probeRoute(host, ws.toJSON().port));
+		return checks;
+	}
+
+	/** Whether the IDE answers on the port an agent host published it on. */
+	async #probeUpstream(
+		address: string,
+		hostPort: number,
+	): Promise<WorkstationCheck> {
+		const label = `Published port ${address}:${hostPort}`;
+		if (hostPort === 0) {
+			return {
+				detail: "The agent reports no published port for the IDE.",
+				label,
+				ok: false,
+			};
+		}
+		try {
+			const response = await fetch(`http://${address}:${hostPort}/`, {
+				redirect: "manual",
+				signal: AbortSignal.timeout(5000),
+			});
+			return {
+				detail: `The IDE answered ${response.status} on the agent host.`,
+				label,
+				ok: response.status < 500,
+			};
+		} catch (error) {
+			return {
+				detail: `Unreachable from this server (${messageOf(error)}): a firewall on the agent host may be blocking the port.`,
+				label,
+				ok: false,
+			};
+		}
+	}
+
+	/** Whether `host` resolves at all. */
+	async #probeDns(host: string): Promise<WorkstationCheck> {
+		try {
+			const addresses = await dns.lookup(host, { all: true });
+			return {
+				detail: `Resolves to ${addresses.map((entry) => entry.address).join(", ")}.`,
+				label: "DNS",
+				ok: true,
+			};
+		} catch (error) {
+			return {
+				detail: `${host} doesn't resolve (${messageOf(error)}). Point it, or a wildcard *.${config.baseDomain}, at this server.`,
+				label: "DNS",
+				ok: false,
+			};
+		}
+	}
+
+	/** Fetches `https://<host>/` the way a browser would, through Traefik. */
+	async #probeRoute(host: string, port: number): Promise<WorkstationCheck> {
+		try {
+			const response = await fetch(`https://${host}/`, {
+				redirect: "manual",
+				signal: AbortSignal.timeout(10_000),
+			});
+			return routeCheck(host, response.status, port);
+		} catch (error) {
+			const message = messageOf(error);
+			return {
+				detail: CERT_ERROR_RE.test(message)
+					? `The certificate doesn't verify (${message}). Traefik may still be requesting it, or serving its default one because no HTTPS router matches ${host}.`
+					: `Unreachable: ${message}`,
+				label: `https://${host}`,
+				ok: false,
+			};
+		}
 	}
 
 	/** Writes an agent-hosted workstation's route when it changed; false when there's no dynamic config directory. */

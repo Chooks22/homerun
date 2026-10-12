@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import dns from "node:dns/promises";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,13 +27,20 @@ type Host = NonNullable<Awaited<ReturnType<typeof RemoteHostDTO.get>>>;
 
 const restorers: { mockRestore: () => void }[] = [];
 const originalDir = config.traefik.dynamicConfigDir;
+const realFetch = globalThis.fetch;
 
 afterEach(() => {
 	for (const spy of restorers.splice(0)) {
 		spy.mockRestore();
 	}
 	config.traefik.dynamicConfigDir = originalDir;
+	globalThis.fetch = realFetch;
 });
+
+function stubFetch(answer: (url: string) => Response | Promise<Response>) {
+	globalThis.fetch = (async (input: URL | string) =>
+		answer(String(input))) as typeof fetch;
+}
 
 function workstation(overrides: Record<string, unknown> = {}) {
 	const row = {
@@ -237,5 +245,139 @@ describe("WorkstationService stop and remove", () => {
 		await WorkstationService.removeAllFor("u1");
 		expect(ok.delete).toHaveBeenCalled();
 		expect(broken.delete).not.toHaveBeenCalled();
+	});
+});
+
+describe("WorkstationService.streamLogs", () => {
+	test("a local workstation follows the worker's log stream", async () => {
+		const body = new ReadableStream<Uint8Array>();
+		const stream = spyOn(WorkerClient, "stream").mockResolvedValue(body);
+		restorers.push(stream);
+		expect(await WorkstationService.streamLogs(workstation())).toBe(body);
+		expect(stream).toHaveBeenCalledWith("/v1/workstations/ws1/logs", {
+			query: { follow: "1", tail: "500" },
+		});
+	});
+
+	test("an agent workstation follows the agent's", async () => {
+		agentHost();
+		const body = new ReadableStream<Uint8Array>();
+		const stream = spyOn(AgentClientService, "stream").mockResolvedValue(body);
+		restorers.push(stream);
+		await WorkstationService.streamLogs(workstation({ remoteHostId: "h1" }));
+		expect(stream.mock.calls[0]?.[1]).toBe("/v1/workstations/ws1/logs");
+	});
+});
+
+describe("WorkstationService.selfTest", () => {
+	function resolvesTo(address: string | null) {
+		restorers.push(
+			spyOn(dns, "lookup").mockImplementation((async () => {
+				if (!address) {
+					throw new Error("getaddrinfo ENOTFOUND");
+				}
+				return [{ address, family: 4 }];
+			}) as never),
+		);
+	}
+
+	test("a stopped container stops the test there", async () => {
+		restorers.push(
+			spyOn(WorkerClient, "get").mockResolvedValue({
+				hostPort: 0,
+				state: "stopped",
+			}),
+		);
+		const checks = await WorkstationService.selfTest(workstation());
+		expect(checks).toHaveLength(1);
+		expect(checks[0]?.ok).toBe(false);
+	});
+
+	test("an unreachable worker is one failed check", async () => {
+		restorers.push(
+			spyOn(WorkerClient, "get").mockRejectedValue(new Error("worker down")),
+		);
+		const checks = await WorkstationService.selfTest(workstation());
+		expect(checks).toEqual([
+			{ detail: "worker down", label: "Container", ok: false },
+		]);
+	});
+
+	test("a local workstation checks DNS and the route", async () => {
+		restorers.push(
+			spyOn(WorkerClient, "get").mockResolvedValue({
+				hostPort: 0,
+				state: "running",
+			}),
+		);
+		resolvesTo("203.0.113.7");
+		stubFetch(() => new Response(null, { status: 404 }));
+		const checks = await WorkstationService.selfTest(workstation());
+		expect(checks.map((check) => check.ok)).toEqual([true, true, false]);
+		expect(checks[1]?.detail).toContain("203.0.113.7");
+		expect(checks[2]?.detail).toContain("no router");
+	});
+
+	test("an unresolved host and a bad certificate both fail", async () => {
+		restorers.push(
+			spyOn(WorkerClient, "get").mockResolvedValue({
+				hostPort: 0,
+				state: "running",
+			}),
+		);
+		resolvesTo(null);
+		stubFetch(() => {
+			throw new Error("unable to verify the first certificate");
+		});
+		const checks = await WorkstationService.selfTest(workstation());
+		expect(checks[1]?.ok).toBe(false);
+		expect(checks[2]?.detail).toContain("certificate doesn't verify");
+	});
+
+	test("an agent workstation checks its published port first", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "ws-route-"));
+		config.traefik.dynamicConfigDir = dir;
+		agentHost();
+		restorers.push(
+			spyOn(AgentClientService, "request").mockResolvedValue({
+				hostPort: 49153,
+				state: "running",
+			}),
+		);
+		resolvesTo("203.0.113.7");
+		stubFetch((url) =>
+			url.startsWith("http://10.0.0.5:49153")
+				? new Response(null, { status: 302 })
+				: new Response(null, { status: 502 }),
+		);
+		const checks = await WorkstationService.selfTest(
+			workstation({ remoteHostId: "h1" }),
+		);
+		expect(checks.map((check) => check.ok)).toEqual([true, true, true, false]);
+		expect(checks[3]?.detail).toContain("port 8080");
+		await rm(dir, { force: true, recursive: true });
+	});
+
+	test("an agent workstation without a dynamic config directory can't be routed", async () => {
+		config.traefik.dynamicConfigDir = undefined;
+		agentHost();
+		restorers.push(
+			spyOn(AgentClientService, "request").mockResolvedValue({
+				hostPort: 49153,
+				state: "running",
+			}),
+		);
+		stubFetch(() => {
+			throw new Error("connect ECONNREFUSED");
+		});
+		const checks = await WorkstationService.selfTest(
+			workstation({ remoteHostId: "h1" }),
+		);
+		expect(checks.map((check) => check.label)).toEqual([
+			"Container",
+			"Published port 10.0.0.5:49153",
+			"Traefik route",
+		]);
+		expect(checks[1]?.detail).toContain("firewall");
 	});
 });

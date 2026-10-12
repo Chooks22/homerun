@@ -136,6 +136,16 @@ describe("LiveLogViewer streaming", () => {
 });
 
 describe("LiveLogViewer failures", () => {
+	test("a refused request shows the server's reason", async () => {
+		stubFetch(() => new Response("No container yet.", { status: 404 }));
+		const { getByText, unmount } = render(await viewer(), {
+			serviceId: "svc-1",
+			workloadId: "c1",
+		});
+		await waitFor(() => expect(getByText(/No container yet\./)).not.toBeNull());
+		unmount();
+	});
+
 	test("a failed request says it couldn't connect", async () => {
 		stubFetch(() => new Response("nope", { status: 502 }));
 		const { getByText, unmount } = render(await viewer(), {

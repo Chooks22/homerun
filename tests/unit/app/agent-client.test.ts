@@ -29,6 +29,8 @@ function respondTo(url: URL, init: RequestInit): Response {
 				method: init.method,
 				port: url.searchParams.get("port"),
 			});
+		case "/v1/logs":
+			return new Response(`tail=${url.searchParams.get("tail")}\n`);
 		case "/v1/empty":
 			return new Response(null, { status: 200 });
 		case "/v1/conflict":
@@ -123,6 +125,34 @@ describe("AgentClientService.request", () => {
 				{ agentUrl: "http://127.0.0.1:1", token: "good" },
 				"GET",
 				"/v1/health",
+			),
+		).rejects.toThrow("Couldn't reach the agent");
+	});
+});
+
+describe("AgentClientService.stream", () => {
+	test("opens the body with the query", async () => {
+		const stream = await AgentClientService.stream(connection, "/v1/logs", {
+			tail: "500",
+		});
+		expect(await new Response(stream).text()).toBe("tail=500\n");
+	});
+
+	test("a failure carries the agent's message and status", async () => {
+		const error = await AgentClientService.stream(
+			connection,
+			"/v1/conflict",
+		).catch((caught: unknown) => caught);
+		expect(error).toBeInstanceOf(AgentRequestError);
+		expect((error as AgentRequestError).status).toBe(409);
+		expect((error as AgentRequestError).message).toBe("already starting");
+	});
+
+	test("an unreachable agent says so", async () => {
+		await expect(
+			AgentClientService.stream(
+				{ agentUrl: "http://127.0.0.1:1", token: "good" },
+				"/v1/logs",
 			),
 		).rejects.toThrow("Couldn't reach the agent");
 	});

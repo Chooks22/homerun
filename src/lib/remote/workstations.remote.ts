@@ -6,7 +6,8 @@ import {
 	WorkstationService,
 	type WorkstationView,
 } from "#lib/services/workstation.service.js";
-import { query } from "$app/server";
+import type { WorkstationCheck } from "#lib/workstation-self-test.js";
+import { command, query } from "$app/server";
 
 export const workstationStatus = query(
 	z.string(),
@@ -17,5 +18,17 @@ export const workstationStatus = query(
 			error(404, "Workstation not found.");
 		}
 		return await WorkstationService.view(ws);
+	},
+);
+
+export const testWorkstation = command(
+	z.string(),
+	async (workstationId): Promise<WorkstationCheck[]> => {
+		const user = requirePermission("workstations", "read");
+		const ws = await WorkstationDTO.get(workstationId, user.id);
+		if (!ws) {
+			error(404, "Workstation not found.");
+		}
+		return await WorkstationService.selfTest(ws);
 	},
 );

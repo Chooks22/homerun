@@ -1,11 +1,17 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { Logger } from "#lib/logger.js";
+import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { parseWorkstationSettings } from "#lib/server/workstation-form.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("Workstation");
+
+export const load = async ({ parent }) => {
+	const { user } = await parent();
+	return { gitProviders: await connectedGitProviders(user.id) };
+};
 
 export const actions = {
 	delete: async ({ locals, params, request }) => {

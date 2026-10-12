@@ -4,16 +4,21 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/httpapi"
 )
+
+const defaultLogTail = 500
 
 // Mount wires the workstation routes onto an authenticated router.
 func (m *Manager) Mount(r chi.Router) {
 	r.Put("/v1/workstations/{id}", httpapi.H(m.upRoute))
 	r.Get("/v1/workstations/{id}", httpapi.H(m.statusRoute))
+	r.Get("/v1/workstations/{id}/logs", httpapi.H(m.logsRoute))
 	r.Post("/v1/workstations/{id}/stop", httpapi.H(m.stopRoute))
 	r.Delete("/v1/workstations/{id}", httpapi.H(m.removeRoute))
 }
@@ -93,4 +98,51 @@ func (m *Manager) removeRoute(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.Answer(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// logsRoute answers GET /v1/workstations/{id}/logs?tail=&follow=0 with the
+// container's output as plain text, followed unless follow=0, 404 when the
+// workstation has no container.
+func (m *Manager) logsRoute(w http.ResponseWriter, r *http.Request) error {
+	id, ok := workstationID(w, r)
+	if !ok {
+		return nil
+	}
+	tail, err := strconv.Atoi(r.URL.Query().Get("tail"))
+	if err != nil || tail < 0 {
+		tail = defaultLogTail
+	}
+	logs, err := m.Logs(r.Context(), id, tail, r.URL.Query().Get("follow") != "0")
+	if errors.Is(err, dockerapi.ErrNotFound) {
+		return httpapi.Error(w, http.StatusNotFound, "This workstation has no container yet.")
+	}
+	if err != nil {
+		return err
+	}
+	defer func() { _ = logs.Close() }()
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-transform")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	controller := http.NewResponseController(w)
+	_ = controller.SetWriteDeadline(time.Time{})
+	if err := dockerapi.DemuxAuto(logs, &flushWriter{controller: controller, writer: w}); err != nil && r.Context().Err() == nil {
+		return err
+	}
+	return nil
+}
+
+// flushWriter flushes every chunk, so a follower sees each line as it's written.
+type flushWriter struct {
+	controller *http.ResponseController
+	writer     http.ResponseWriter
+}
+
+// Write forwards a chunk and flushes it.
+func (f *flushWriter) Write(chunk []byte) (int, error) {
+	written, err := f.writer.Write(chunk)
+	if err != nil {
+		return written, err
+	}
+	return written, f.controller.Flush()
 }

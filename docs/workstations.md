@@ -19,11 +19,13 @@ Workstations, which the Developer role has.
   by a service or another workstation gets a numbered suffix.
 - **Runs on**: **This server**, or one of your registered agent hosts. Only
   agent hosts are offered: a raw Docker connection can't run one.
-- **Clone URL** and **Branch** (optional): an `http(s)` URL, cloned into the
-  home directory the first time the workstation starts, with your
-  [git provider connection](git-providers.md) when the host matches one, so a
-  private repository works. The checkout keeps a plain `origin` without the
-  token; it's never re-cloned once it's there.
+- **Repository** (optional): with a [git provider](git-providers.md) connected,
+  pick a repository from your account and one of its branches; **Use a clone URL
+  instead** takes any `http(s)` URL and branch. It's cloned into the home
+  directory the first time the workstation starts, with your git provider
+  connection when the host matches one, so a private repository works. The
+  checkout keeps a plain `origin` without the token; it's never re-cloned once
+  it's there.
 - **Image**, **IDE port**, **Home path**: `codercom/code-server:latest`, `8080`
   and `/home/coder` by default. Any image serving a web IDE over HTTP works; the
   home path is where the persistent volume is mounted, and the image needs `git`
@@ -32,6 +34,19 @@ Workstations, which the Developer role has.
 
 It starts as soon as it's created. The Overview tab follows the start (pulling
 the image, starting, cloning) and shows **Open IDE** once it runs.
+
+## Logs and self-test
+
+The **Logs** tab streams what the IDE container prints, its last 500 lines then
+live. A failed image pull or clone happens before the container runs; its error
+is on the Overview tab instead.
+
+**Settings → Self-test** checks the workstation end to end: the container runs,
+an agent host's published port answers this server, the hostname resolves, and
+`https://<name>.<your base domain>` reaches the IDE through Traefik with a
+certificate that verifies. A failed check says why: a 404 means Traefik has no
+router for the hostname (or DNS points elsewhere), a 502 means the router exists
+but nothing answers on the IDE port.
 
 ## Signing in
 

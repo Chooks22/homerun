@@ -63,17 +63,7 @@ class AgentClientServiceClass {
 		}
 		const text = await response.text().catch(() => "");
 		if (!response.ok) {
-			let message = `The agent answered ${response.status}.`;
-			try {
-				const decoded = JSON.parse(text) as { error?: unknown };
-				if (typeof decoded.error === "string") {
-					message = decoded.error;
-				}
-			} catch {
-				if (text.trim() !== "") {
-					message = text.trim();
-				}
-			}
+			let message = this.#errorMessage(response.status, text);
 			if (response.status === 404 && message === "Not found") {
 				message =
 					"This agent doesn't know that route. Update the Homerun worker on that host to this instance's version.";
@@ -81,6 +71,52 @@ class AgentClientServiceClass {
 			throw new AgentRequestError(message, response.status);
 		}
 		return (text === "" ? null : JSON.parse(text)) as T;
+	}
+
+	/** The agent's own `{ error }` message, its plain-text body, or a generic one naming the status. */
+	#errorMessage(status: number, text: string): string {
+		try {
+			const decoded = JSON.parse(text) as { error?: unknown };
+			if (typeof decoded.error === "string") {
+				return decoded.error;
+			}
+		} catch {
+			if (text.trim() !== "") {
+				return text.trim();
+			}
+		}
+		return `The agent answered ${status}.`;
+	}
+
+	/**
+	 * Opens a long-lived authenticated GET on an agent as a web stream, a
+	 * followed log. No timeout: cancelling the stream closes the connection.
+	 *
+	 * @throws `AgentRequestError` on a non-2xx answer, a plain Error when the
+	 *   agent can't be reached.
+	 */
+	async stream(
+		connection: AgentConnection,
+		path: string,
+		query?: Record<string, string>,
+	): Promise<ReadableStream<Uint8Array>> {
+		const url = new URL(path, connection.agentUrl);
+		for (const [key, value] of Object.entries(query ?? {})) {
+			url.searchParams.set(key, value);
+		}
+		const response = await fetch(url, {
+			headers: { authorization: `Bearer ${connection.token}` },
+		}).catch((error: unknown) => {
+			throw new Error(
+				`Couldn't reach the agent at ${connection.agentUrl} : ${error instanceof Error ? error.message : String(error)}`,
+			);
+		});
+		if (!response.ok) {
+			const text = await response.text().catch(() => "");
+			const message = this.#errorMessage(response.status, text);
+			throw new AgentRequestError(message, response.status);
+		}
+		return response.body ?? new ReadableStream({ start: (c) => c.close() });
 	}
 
 	/** GET /v1/health, unauthenticated. Throws with a human-readable message on any failure. */

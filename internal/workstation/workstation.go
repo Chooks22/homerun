@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -363,6 +364,20 @@ func (m *Manager) Remove(ctx context.Context, id string, withVolume bool) error 
 		return m.docker.RemoveVolume(ctx, VolumeName(id))
 	}
 	return nil
+}
+
+// Logs opens the output of workstation id's container, its last tail lines
+// and, when follow is set, everything it writes after. ErrNotFound when it has
+// no container. The caller closes it.
+func (m *Manager) Logs(ctx context.Context, id string, tail int, follow bool) (io.ReadCloser, error) {
+	containers, err := m.docker.ListContainersByLabel(ctx, IDLabel+"="+id)
+	if err != nil {
+		return nil, err
+	}
+	if len(containers) == 0 {
+		return nil, dockerapi.ErrNotFound
+	}
+	return m.docker.ContainerLogsStream(ctx, containers[0].ID, tail, follow)
 }
 
 // Status reports an in-flight or failed start first, then the container

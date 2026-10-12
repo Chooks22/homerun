@@ -154,6 +154,9 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"ExitCode":`+strconv.Itoa(e.exitCode)+`}`)
 	case r.URL.Path == "/containers/old/json":
 		_, _ = io.WriteString(w, `{"Id":"old","State":{"Running":true,"Status":"running"},"NetworkSettings":{"Ports":{"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"49153"}]}}}`)
+	case r.URL.Path == "/containers/old/logs":
+		line := "listening on 0.0.0.0:8080\n"
+		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, 0, byte(len(line))}, line...))
 	case strings.HasPrefix(r.URL.Path, "/containers/old"):
 		w.WriteHeader(http.StatusNoContent)
 	default:
@@ -272,5 +275,31 @@ func TestRemoveDropsTheVolumeOnlyWhenAsked(t *testing.T) {
 	request(t, http.MethodDelete, server.URL+"/v1/workstations/"+id+"?volume=1", "")
 	if !fake.sawCall("DELETE /volumes/" + workstation.VolumeName(id)) {
 		t.Errorf("volume=1 removes the volume, got %v", fake.calls)
+	}
+}
+
+func TestLogsStreamTheContainerOutputOr404(t *testing.T) {
+	fake := &engine{listed: `[]`}
+	server := newServer(t, fake)
+	response, err := http.Get(server.URL + "/v1/workstations/" + id + "/logs?follow=0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusNotFound {
+		t.Errorf("no container is a 404, got %d", response.StatusCode)
+	}
+
+	fake.mu.Lock()
+	fake.listed = `[{"Id":"old","State":"running"}]`
+	fake.mu.Unlock()
+	response, err = http.Get(server.URL + "/v1/workstations/" + id + "/logs?follow=0&tail=10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, _ := io.ReadAll(response.Body)
+	if response.StatusCode != http.StatusOK || string(body) != "listening on 0.0.0.0:8080\n" {
+		t.Errorf("the demuxed output, got %d %q", response.StatusCode, body)
 	}
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LayoutGrid, Settings } from "@lucide/svelte";
+	import { FileText, LayoutGrid, Settings } from "@lucide/svelte";
 	import TabNav from "#lib/components/tab-nav.svelte";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
@@ -15,6 +15,14 @@
 			icon: LayoutGrid,
 			id: "overview",
 			label: "Overview",
+		},
+		{
+			href: resolve("/(protected)/workstations/[workstationId]/logs", {
+				workstationId: ws.id,
+			}),
+			icon: FileText,
+			id: "logs",
+			label: "Logs",
 		},
 		{
 			href: resolve("/(protected)/workstations/[workstationId]/settings", {

@@ -102,6 +102,7 @@
     </section>
 
     <WorkstationFields
+      providers={data.gitProviders}
       values={{
         cpuLimit: null,
         env: {},

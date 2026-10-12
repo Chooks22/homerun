@@ -3,8 +3,6 @@ import { buildCacheChoice } from "#lib/build-cache.js";
 import { config } from "#lib/config.js";
 import { HOST_VOLUME_PREFIX } from "#lib/constants.js";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
-import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { NotificationDTO } from "#lib/dto/notification-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceVolumeDTO } from "#lib/dto/service-volume-dto.js";
@@ -14,6 +12,7 @@ import { TemplateDTO } from "#lib/dto/template-dto.js";
 import { TemplateLinkDTO } from "#lib/dto/template-link-dto.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
+import { connectedGitProviders } from "#lib/server/git-connections.js";
 import {
 	type CreateServiceInput,
 	createServiceSchema,
@@ -134,23 +133,20 @@ export const load = async ({ url, parent, locals }) => {
 	const stack = stackRow ? stackId : null;
 	const template = templateId ? await TemplateDTO.get(templateId) : null;
 	const [
-		settings,
-		connections,
+		gitProviders,
 		cacheRegistries,
 		templateLinks,
 		existing,
 		volumes,
 		stacks,
 	] = await Promise.all([
-		InstanceSettingsDTO.get(),
-		GitConnectionDTO.listForUser(user.id),
+		connectedGitProviders(user.id),
 		BuildCacheRegistryDTO.list(),
 		template ? TemplateLinkDTO.listForTemplate(template.id) : [],
 		ServiceDTO.list(),
 		StorageVolumeDTO.list(),
 		StackDTO.list(),
 	]);
-	const providersById = new Map(settings.gitProviders.map((p) => [p.id, p]));
 
 	return {
 		baseDomain: config.baseDomain,
@@ -168,14 +164,7 @@ export const load = async ({ url, parent, locals }) => {
 			slug: svc.slug,
 			stackId: svc.stackId,
 		})),
-		connectedGitProviders: connections
-			.filter((c) => providersById.has(c.providerId))
-			.map((c) => ({
-				id: c.providerId,
-				kind: c.providerKind,
-				name: providersById.get(c.providerId)?.name ?? c.providerKind,
-				providerUsername: c.providerUsername,
-			})),
+		connectedGitProviders: gitProviders,
 		stackId: stack,
 		stackSlug: stackRow?.slug ?? null,
 		stacks: stacks.map((row) => ({ id: row.id, name: row.name })),

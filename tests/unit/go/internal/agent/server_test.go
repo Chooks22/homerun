@@ -205,7 +205,7 @@ func TestOpenAPIDocumentsEveryRoute(t *testing.T) {
 		t.Errorf("the server entry is the address the spec was fetched from, got %+v", document.Servers)
 	}
 	for _, route := range []string{
-		"/v1/build", "/v1/health", "/v1/images/save", "/v1/stats", "/v1/workstations/{id}", "/v1/workstations/{id}/stop",
+		"/v1/build", "/v1/health", "/v1/images/save", "/v1/stats", "/v1/workstations/{id}", "/v1/workstations/{id}/logs", "/v1/workstations/{id}/stop",
 	} {
 		operations, ok := document.Paths[route]
 		if !ok {

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { CircleCheck, CircleX } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import Alert from "#lib/components/alert.svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
 	import CopyBox from "#lib/components/copy-box.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
+	import SelfTestChecks from "#lib/components/self-test-checks.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { formatBytes } from "#lib/formatting.js";
@@ -93,21 +93,7 @@
     </div>
   </dl>
   {#if checks}
-    <ul class="border-border mt-4 space-y-2 border-t pt-4">
-      {#each checks as check (check.label)}
-        <li class="flex items-start gap-2 text-sm">
-          {#if check.ok}
-            <CircleCheck class="mt-0.5 size-4 shrink-0 text-green-500" />
-          {:else}
-            <CircleX class="mt-0.5 size-4 shrink-0 text-red-500" />
-          {/if}
-          <span>
-            <span class="text-text font-medium">{check.label}</span>
-            <span class="text-text-muted block text-xs">{check.detail}</span>
-          </span>
-        </li>
-      {/each}
-    </ul>
+    <SelfTestChecks checks={checks} class="border-border mt-4 border-t pt-4" />
   {/if}
 </section>
 

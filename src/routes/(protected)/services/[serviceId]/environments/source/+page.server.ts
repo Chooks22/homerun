@@ -1,11 +1,10 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { buildCacheChoice } from "#lib/build-cache.js";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
-import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
+import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { watchPathPatterns } from "#lib/server/validation/api.js";
 import {
 	type UpdateSourceInput,
@@ -22,14 +21,11 @@ const logger = new Logger("Services");
 export const load = async ({ parent, params }) => {
 	const { user } = await parent();
 	const svc = await ServiceDTO.get(params.serviceId);
-	const [settings, connections, cacheRegistries, buildServers] =
-		await Promise.all([
-			InstanceSettingsDTO.get(),
-			GitConnectionDTO.listForUser(user.id),
-			BuildCacheRegistryDTO.list(),
-			RemoteHostDTO.listBuildServers(),
-		]);
-	const providersById = new Map(settings.gitProviders.map((p) => [p.id, p]));
+	const [gitProviders, cacheRegistries, buildServers] = await Promise.all([
+		connectedGitProviders(user.id),
+		BuildCacheRegistryDTO.list(),
+		RemoteHostDTO.listBuildServers(),
+	]);
 
 	const previewParentId = svc?.toJSON().previewParentId;
 	const previewParent = previewParentId
@@ -47,16 +43,7 @@ export const load = async ({ parent, params }) => {
 		pushWebhook: svc ? await GitWebhookService.describe(svc) : null,
 		buildCacheRegistries: cacheRegistries.map((r) => r.toJSON()),
 		buildServers: buildServers.map((r) => r.toJSON()),
-		// Only providers this user has actually connected : see the Git
-		// Providers page for connecting one.
-		connectedGitProviders: connections
-			.filter((c) => providersById.has(c.providerId))
-			.map((c) => ({
-				id: c.providerId,
-				kind: c.providerKind,
-				name: providersById.get(c.providerId)?.name ?? c.providerKind,
-				providerUsername: c.providerUsername,
-			})),
+		connectedGitProviders: gitProviders,
 	};
 };
 

@@ -255,6 +255,22 @@ func openAPIDocument(baseURL string) object {
 					"tags":     []string{"Workstations"},
 				},
 			},
+			"/v1/workstations/{id}/logs": object{"get": object{
+				"description": "The container's stdout and stderr as plain text: the last `tail` lines (500 by default), then everything it writes after unless `follow=0`.",
+				"parameters": []object{
+					workstationIDParameter,
+					{"in": "query", "name": "tail", "schema": object{"minimum": 0, "type": "integer"}},
+					{"in": "query", "name": "follow", "schema": object{"enum": []string{"0", "1"}}},
+				},
+				"responses": object{
+					"200": object{"content": object{"text/plain": object{"schema": object{"type": "string"}}}, "description": "The log stream"},
+					"401": jsonResponse("Unauthorized", errorSchema),
+					"404": jsonResponse("No container yet", errorSchema),
+				},
+				"security": bearer,
+				"summary":  "Workstation logs",
+				"tags":     []string{"Workstations"},
+			}},
 			"/v1/workstations/{id}/stop": object{"post": object{
 				"parameters": []object{workstationIDParameter},
 				"responses": object{
