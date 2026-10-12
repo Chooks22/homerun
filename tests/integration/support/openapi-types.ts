@@ -1308,7 +1308,7 @@ export interface paths {
 		post?: never;
 		/**
 		 * Delete a stack
-		 * @description Removes every service in it and the stack itself. A workload that can't be removed answers 409 unless ?force=true.
+		 * @description Removes every service in it and the stack itself. A member with a queued or running job (a deploy mid-flight), or a workload that can't be removed, answers 409 unless ?force=true, which cancels those jobs and deletes anyway. ?deleteVolumes=true also deletes the volumes no service outside the stack mounts.
 		 */
 		delete: operations["delete_stacks__stackId_"];
 		options?: never;

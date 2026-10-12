@@ -1,9 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { error, fail, redirect } from "@sveltejs/kit";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
 import { listIconLibrary } from "#lib/server/icon-library.js";
 import { WorkloadDetachError } from "#lib/services/docker/workload-removal.js";
-import { ServiceLifecycleService } from "#lib/services/service-lifecycle.service.js";
+import {
+	ServiceLifecycleService,
+	StackBusyError,
+} from "#lib/services/service-lifecycle.service.js";
 import {
 	StackSettingsError,
 	StackSettingsService,
@@ -15,7 +18,15 @@ const logger = new Logger("Stacks");
 
 export const load = async ({ params, parent }) => {
 	await parent();
-	const [all, icons] = await Promise.all([StackDTO.list(), listIconLibrary()]);
+	const stack = await StackDTO.get(params.stackId);
+	if (!stack) {
+		error(404, "Stack not found");
+	}
+	const [all, icons, deleteOverview] = await Promise.all([
+		StackDTO.list(),
+		listIconLibrary(),
+		ServiceLifecycleService.stackDeleteOverview(stack),
+	]);
 	const stacks = all.map((s) => ({
 		id: s.id,
 		name: s.name,
@@ -27,6 +38,7 @@ export const load = async ({ params, parent }) => {
 		...descendantIds(params.stackId, stacks),
 	]);
 	return {
+		deleteOverview,
 		icons,
 		parentOptions: stacks
 			.filter((s) => !excluded.has(s.id))
@@ -91,18 +103,23 @@ export const actions = {
 		if (!stack) {
 			return fail(404, { error: "Stack not found." });
 		}
-		const force = (await request.formData()).get("force") === "true";
+		const formData = await request.formData();
+		const force = formData.get("force") === "true";
+		const deleteVolumes = formData.get("deleteVolumes") === "true";
 		try {
-			await ServiceLifecycleService.deleteStack(stack, { force });
-		} catch (error) {
-			if (error instanceof WorkloadDetachError) {
-				return fail(409, { detachFailed: true, error: error.message });
+			await ServiceLifecycleService.deleteStack(stack, {
+				deleteVolumes,
+				force,
+			});
+		} catch (err) {
+			if (err instanceof WorkloadDetachError || err instanceof StackBusyError) {
+				return fail(409, { detachFailed: true, error: err.message });
 			}
-			throw error;
+			throw err;
 		}
 
 		logger.info(
-			`Stack deleted: stack=${params.stackId} force=${force} user=${locals.user.id}`,
+			`Stack deleted: stack=${params.stackId} force=${force} deleteVolumes=${deleteVolumes} user=${locals.user.id}`,
 		);
 		redirect(303, resolve("stacks"));
 	},

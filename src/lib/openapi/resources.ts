@@ -307,7 +307,7 @@ const stackItem = crudRoutes({
 	idParam: { description: "Stack id", name: "stackId" },
 	notes: {
 		delete:
-			"Removes every service in it and the stack itself. A workload that can't be removed answers 409 unless ?force=true.",
+			"Removes every service in it and the stack itself. A member with a queued or running job (a deploy mid-flight), or a workload that can't be removed, answers 409 unless ?force=true, which cancels those jobs and deletes anyway. ?deleteVolumes=true also deletes the volumes no service outside the stack mounts.",
 	},
 	noun: "stack",
 	path: "/stacks",

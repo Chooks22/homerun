@@ -68,6 +68,8 @@ function jobFilter(filter: JobListFilter): SQL[] {
 
 const one = { one: sql`1` };
 
+const ACTIVE = inArray(job.status, ["queued", "running"]);
+
 const CLEARED_STAGE = {
 	executorError: null,
 	executorResult: null,
@@ -235,12 +237,7 @@ export class JobDTO extends BaseDTO<Job> {
 		const rows = await db
 			.select({ payload: job.payload, type: job.type })
 			.from(job)
-			.where(
-				and(
-					inArray(job.status, ["queued", "running"]),
-					inArray(job.type, ["backup", "cron_job", "deploy"]),
-				),
-			);
+			.where(and(ACTIVE, inArray(job.type, ["backup", "cron_job", "deploy"])));
 		return rows.some(({ payload, type }) =>
 			type === "deploy"
 				? payload.trigger === "cron"
@@ -269,6 +266,16 @@ export class JobDTO extends BaseDTO<Job> {
 		return row ? new JobDTO(row) : null;
 	}
 
+	/** Every queued or running job tied to one of these services. */
+	static listActiveForServices(
+		serviceIds: string[],
+	): Promise<Array<{ id: string; serviceId: string | null; title: string }>> {
+		return db
+			.select({ id: job.id, serviceId: job.serviceId, title: job.title })
+			.from(job)
+			.where(and(inArray(job.serviceId, serviceIds), ACTIVE));
+	}
+
 	/** The queued or running job of this type with this dedupe key, if any. */
 	static async findActive(
 		type: JobType,
@@ -277,13 +284,7 @@ export class JobDTO extends BaseDTO<Job> {
 		const [row] = await db
 			.select()
 			.from(job)
-			.where(
-				and(
-					eq(job.type, type),
-					eq(job.dedupeKey, dedupeKey),
-					inArray(job.status, ["queued", "running"]),
-				),
-			)
+			.where(and(eq(job.type, type), eq(job.dedupeKey, dedupeKey), ACTIVE))
 			.limit(1);
 		return row ? new JobDTO(row) : null;
 	}
@@ -601,12 +602,7 @@ export class JobDTO extends BaseDTO<Job> {
 			const cancelled = await db
 				.update(job)
 				.set({ error: reason, finishedAt: new Date(), status: "cancelled" })
-				.where(
-					and(
-						inArray(job.dependsOnJobId, frontier),
-						inArray(job.status, ["queued", "running"]),
-					),
-				)
+				.where(and(inArray(job.dependsOnJobId, frontier), ACTIVE))
 				.returning({ id: job.id, payload: job.payload, type: job.type });
 			all.push(...cancelled);
 			frontier = cancelled.map((row) => row.id);
@@ -631,7 +627,7 @@ export class JobDTO extends BaseDTO<Job> {
 				finishedAt: new Date(),
 				status: "cancelled",
 			})
-			.where(and(eq(job.id, id), inArray(job.status, ["queued", "running"])))
+			.where(and(eq(job.id, id), ACTIVE))
 			.returning({ id: job.id, payload: job.payload, type: job.type });
 		if (cancelled.length === 0) {
 			return [];
@@ -660,10 +656,7 @@ export class JobDTO extends BaseDTO<Job> {
 				status: "cancelled",
 			})
 			.where(
-				and(
-					sql`${job.payload}->>'deploymentId' = ${deploymentId}`,
-					inArray(job.status, ["queued", "running"]),
-				),
+				and(sql`${job.payload}->>'deploymentId' = ${deploymentId}`, ACTIVE),
 			)
 			.returning({ id: job.id });
 		await Promise.all(
@@ -680,9 +673,7 @@ export class JobDTO extends BaseDTO<Job> {
 		const rows = await db
 			.select()
 			.from(job)
-			.where(
-				and(inArray(job.status, ["running", "queued"]), ...jobFilter(filter)),
-			)
+			.where(and(ACTIVE, ...jobFilter(filter)))
 			.orderBy(desc(job.status), desc(job.priority), asc(job.createdAt))
 			.limit(50);
 		return rows.map((row) => new JobDTO(row));

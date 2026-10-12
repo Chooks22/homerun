@@ -36,7 +36,7 @@ export function iconSrc(icon: string, theme?: IconTheme): string {
 		return icon;
 	}
 	if (icon.startsWith(DASHBOARD_ICON_PREFIX)) {
-		const path = `/icons/dashboard/${icon.slice(DASHBOARD_ICON_PREFIX.length)}`;
+		const path = `/icons/dashboard/${icon.slice(DASHBOARD_ICON_PREFIX.length)}.svg`;
 		return theme ? `${path}?theme=${theme}` : path;
 	}
 	return `/template-icons/${icon}`;

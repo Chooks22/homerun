@@ -165,13 +165,15 @@ sources:
 
 Browsers never contact the Dashboard Icons CDN themselves. Homerun fetches the
 catalog and each icon from its CDN once, on first use, and serves them from its
-own origin at `/icons/dashboard/<name>`, so an instance only reachable on a LAN
-still shows them and viewers' IP addresses don't leak to a third party. The
-files are kept on disk under `STORAGE_BASE_PATH` (the app's `/app/data` volume)
-in `dashboard-icons/`, the catalog is refreshed once a day, and an icon upstream
-doesn't have is retried after ten minutes. If the CDN can't be reached for an
-icon that isn't cached yet, the service shows its category icon instead of a
-broken image. That route is public, like the status pages that also show icons.
+own origin at `/icons/dashboard/<name>.svg` (always `.svg`, whatever the format,
+so a crawler detector like CrowdSec counts them as static files rather than
+pages), so an instance only reachable on a LAN still shows them and viewers' IP
+addresses don't leak to a third party. The files are kept on disk under
+`STORAGE_BASE_PATH` (the app's `/app/data` volume) in `dashboard-icons/`, the
+catalog is refreshed once a day, and an icon upstream doesn't have is retried
+after ten minutes. If the CDN can't be reached for an icon that isn't cached
+yet, the service shows its category icon instead of a broken image. That route
+is public, like the status pages that also show icons.
 
 Logos drawn for one background, like the dark Umami and Open WebUI logos, follow
 the theme: when Dashboard Icons has a variant for the other background, the dark

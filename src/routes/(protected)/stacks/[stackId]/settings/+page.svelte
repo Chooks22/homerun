@@ -2,6 +2,7 @@
 	import { AlertTriangle, FolderKanban, Trash2 } from "@lucide/svelte";
 	import { onMount, tick } from "svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
+	import DeleteVolumesOption from "#lib/components/delete-volumes-option.svelte";
 	import { labelClass as label } from "#lib/components/form-styles.js";
 	import IconPicker from "#lib/components/icon-picker.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
@@ -20,6 +21,7 @@
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
+	import DeleteOverview from "./delete-overview.svelte";
 
 	const { data, form } = $props();
 	const stack = $derived(data.stack);
@@ -31,6 +33,8 @@
 	let deleteForm = $state<HTMLFormElement | null>(null);
 	let deleting = $state(false);
 	let forceDelete = $state(false);
+	let deleteVolumes = $state(false);
+	const busy = $derived(data.deleteOverview.jobs.length > 0);
 	let forceDeleteDialogOpen = $state(false);
 	let detachError = $state("");
 	let parentId = $derived(stack.parentId ?? "");
@@ -208,10 +212,12 @@
         })}
       >
         <input name="force" type="hidden" value={forceDelete ? "true" : "false"} />
+        <input name="deleteVolumes" type="hidden" value={deleteVolumes ? "true" : "false"} />
         <Button
           class="text-red-500 hover:bg-red-500/10 hover:text-red-500"
           disabled={deleting}
           onclick={() => {
+            deleteVolumes = false;
             deleteDialogOpen = true;
           }}
           type="button"
@@ -230,16 +236,26 @@
 </div>
 
 <ConfirmDialog
-  confirmLabel="Delete stack"
-  description="Every service in this stack and its container is removed. This can't be undone."
-  onConfirm={() => deleteForm?.requestSubmit()}
+  confirmLabel={busy ? "Force delete" : "Delete stack"}
+  confirmPhrase={stack.name}
+  description="This can't be undone. Here's what goes:"
+  onConfirm={async () => {
+    forceDelete = busy;
+    await tick();
+    deleteForm?.requestSubmit();
+  }}
   title="Delete {stack.name}?"
   bind:open={deleteDialogOpen}
-/>
+>
+  <DeleteOverview {deleteVolumes} overview={data.deleteOverview} />
+  {#if data.deleteOverview.volumes.length > 0}
+    <DeleteVolumesOption bind:checked={deleteVolumes} />
+  {/if}
+</ConfirmDialog>
 
 <ConfirmDialog
   confirmLabel="Delete anyway"
-  description={`${detachError} Deleting anyway removes Homerun's records for this stack : any workload still on the host has to be removed by hand.`}
+  description={`${detachError} Deleting anyway cancels any job still running for it and removes Homerun's records for this stack : any workload still on the host has to be removed by hand.`}
   onConfirm={async () => {
     forceDelete = true;
     await tick();

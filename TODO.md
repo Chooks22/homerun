@@ -15,6 +15,8 @@ When done delete the entry, no bloat.
 
 ## Medium
 
+- [ ] Deleting a single service mid-deploy isn't refused either: same busy guard
+      and force option as stack delete
 - [ ] Workstations behind the per-app login wall: the gate is service-shaped
       (`gatedService`, `AppAccessService`), a workstation only has the IDE's own
       password today

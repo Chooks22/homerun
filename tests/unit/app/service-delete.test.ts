@@ -47,6 +47,8 @@ const fakeDocker: Record<string, unknown> = {
 };
 
 const webhooksRemoved: string[] = [];
+let activeJobs: { id: string; title: string }[] = [];
+const cancelledJobs: string[] = [];
 const dependencies = new Map<string, string[]>();
 const servicesById = new Map<string, unknown>();
 const previewsByParent = new Map<string, unknown[]>();
@@ -68,13 +70,14 @@ const { GitWebhookService } = await import(
 	"../../../src/lib/services/git-webhook.service"
 );
 const { ServiceGitDTO } = await import("../../../src/lib/dto/service-git-dto");
+const { JobDTO } = await import("../../../src/lib/dto/job-dto");
 const { StorageVolumeDTO } = await import(
 	"../../../src/lib/dto/storage-volume-dto"
 );
 const { ServiceDependencyDTO } = await import(
 	"../../../src/lib/dto/service-dependency-dto"
 );
-const { ServiceLifecycleService } = await import(
+const { ServiceLifecycleService, StackBusyError } = await import(
 	"../../../src/lib/services/service-lifecycle.service"
 );
 const { removalFailure, tryRemoveWorkload, WorkloadDetachError } = await import(
@@ -155,6 +158,13 @@ beforeEach(() => {
 		async (id: string) => dependencies.get(id) ?? [],
 	);
 	stub(ServiceDTO, "get", async (id: string) => servicesById.get(id) ?? null);
+	stub(JobDTO, "listActiveForServices", async () => activeJobs);
+	stub(JobDTO, "cancel", async (id: string) => {
+		cancelledJobs.push(id);
+		return [];
+	});
+	activeJobs = [];
+	cancelledJobs.length = 0;
 	webhooksRemoved.length = 0;
 	previewsByParent.clear();
 	dependencies.clear();
@@ -430,6 +440,80 @@ describe("ServiceLifecycleService.deleteStack", () => {
 			"worker",
 		]);
 		expect(dnsDeletes).toEqual(["shop-api.example.com"]);
+	});
+
+	test("a member with a running job refuses the delete without touching anything", async () => {
+		stub(ServiceDTO, "listByStack", async () => [fakeService().svc]);
+		activeJobs = [{ id: "j1", title: "Deploy web" }];
+		let cascaded = false;
+		const stack = {
+			cascadeDelete: async () => {
+				cascaded = true;
+			},
+			id: "st1",
+			name: "shop",
+			slug: "shop",
+		} as unknown as Parameters<typeof ServiceLifecycleService.deleteStack>[0];
+
+		await expect(ServiceLifecycleService.deleteStack(stack)).rejects.toThrow(
+			StackBusyError,
+		);
+		expect(cascaded).toBe(false);
+		expect(cancelledJobs).toEqual([]);
+	});
+
+	test("force cancels the running jobs before cascading", async () => {
+		stub(ServiceDTO, "listByStack", async () => [fakeService().svc]);
+		activeJobs = [{ id: "j1", title: "Deploy web" }];
+		const stack = {
+			cascadeDelete: async () => {
+				expect(cancelledJobs).toEqual(["j1"]);
+			},
+			id: "st1",
+			name: "shop",
+			slug: "shop",
+		} as unknown as Parameters<typeof ServiceLifecycleService.deleteStack>[0];
+
+		await ServiceLifecycleService.deleteStack(stack, { force: true });
+		expect(cancelledJobs).toEqual(["j1"]);
+	});
+
+	test("deleteVolumes removes the volumes only the stack's services mount", async () => {
+		const api = fakeService({ id: "api" });
+		const worker = fakeService({ id: "worker" });
+		stub(ServiceDTO, "listByStack", async () => [api.svc, worker.svc]);
+		const deletedRows: string[] = [];
+		const removedVolumes: string[] = [];
+		let asked: string[] = [];
+		stub(StorageVolumeDTO, "listExclusiveTo", async (ids: string[]) => {
+			asked = ids;
+			return [
+				{
+					delete: async () => deletedRows.push("data"),
+					kind: "volume",
+					source: "homerun-data",
+				},
+				{
+					delete: async () => deletedRows.push("host"),
+					kind: "bind",
+					source: "/srv/host",
+				},
+			];
+		});
+		stub(DockerService, "removeVolume", async (name: string) => {
+			removedVolumes.push(name);
+		});
+		const stack = {
+			cascadeDelete: async () => {},
+			id: "st1",
+			name: "shop",
+			slug: "shop",
+		} as unknown as Parameters<typeof ServiceLifecycleService.deleteStack>[0];
+
+		await ServiceLifecycleService.deleteStack(stack, { deleteVolumes: true });
+		expect(asked).toEqual(["api", "worker"]);
+		expect(deletedRows).toEqual(["data", "host"]);
+		expect(removedVolumes).toEqual(["homerun-data"]);
 	});
 
 	test("a failed cascade leaves webhooks and DNS alone", async () => {

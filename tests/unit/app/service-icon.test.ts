@@ -25,10 +25,10 @@ describe("hasIconImage and iconSrc", () => {
 	test("serve a Dashboard Icon through the proxy", () => {
 		expect(hasIconImage("di:redis")).toBe(true);
 		expect(iconSrc("di:home-assistant")).toBe(
-			"/icons/dashboard/home-assistant",
+			"/icons/dashboard/home-assistant.svg",
 		);
 		expect(iconSrc("di:umami", "dark")).toBe(
-			"/icons/dashboard/umami?theme=dark",
+			"/icons/dashboard/umami.svg?theme=dark",
 		);
 		expect(iconSrc("redis.svg", "dark")).toBe("/template-icons/redis.svg");
 	});

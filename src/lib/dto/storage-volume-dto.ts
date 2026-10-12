@@ -4,8 +4,8 @@ import {
 	desc,
 	eq,
 	inArray,
-	ne,
 	notExists,
+	notInArray,
 	type SQL,
 } from "drizzle-orm";
 import { db } from "#lib/server/db/lib.js";
@@ -130,22 +130,26 @@ export class StorageVolumeDTO extends BaseDTO<StorageVolume> {
 		return rows.map((row) => new StorageVolumeDTO(row));
 	}
 
-	/** The volumes `serviceId` mounts that no other service mounts too, the ones safe to delete along with it. */
-	static async listExclusiveTo(serviceId: string): Promise<StorageVolumeDTO[]> {
+	/** The volumes these services mount that no other service mounts too, the ones safe to delete along with them. */
+	static async listExclusiveTo(
+		serviceIds: string[],
+	): Promise<StorageVolumeDTO[]> {
 		const others = db
 			.select({ id: serviceVolume.id })
 			.from(serviceVolume)
 			.where(
 				and(
 					eq(serviceVolume.volumeId, storageVolume.id),
-					ne(serviceVolume.serviceId, serviceId),
+					notInArray(serviceVolume.serviceId, serviceIds),
 				),
 			);
 		const rows = await db
 			.selectDistinct({ volume: storageVolume })
 			.from(storageVolume)
 			.innerJoin(serviceVolume, eq(serviceVolume.volumeId, storageVolume.id))
-			.where(and(eq(serviceVolume.serviceId, serviceId), notExists(others)));
+			.where(
+				and(inArray(serviceVolume.serviceId, serviceIds), notExists(others)),
+			);
 		return rows.map((row) => new StorageVolumeDTO(row.volume));
 	}
 

@@ -3,7 +3,10 @@ import { Logger } from "#lib/logger.js";
 import { apiCaller, apiError, readApiBody } from "#lib/server/api-route.js";
 import { updateStackApiBody } from "#lib/server/validation/api.js";
 import { WorkloadDetachError } from "#lib/services/docker/workload-removal.js";
-import { ServiceLifecycleService } from "#lib/services/service-lifecycle.service.js";
+import {
+	ServiceLifecycleService,
+	StackBusyError,
+} from "#lib/services/service-lifecycle.service.js";
 import {
 	StackSettingsError,
 	StackSettingsService,
@@ -54,16 +57,17 @@ export const DELETE = async ({ params, locals, url }) => {
 		return apiError("Not found", 404);
 	}
 	const force = url.searchParams.get("force") === "true";
+	const deleteVolumes = url.searchParams.get("deleteVolumes") === "true";
 	try {
-		await ServiceLifecycleService.deleteStack(stack, { force });
+		await ServiceLifecycleService.deleteStack(stack, { deleteVolumes, force });
 	} catch (err) {
-		if (err instanceof WorkloadDetachError) {
+		if (err instanceof WorkloadDetachError || err instanceof StackBusyError) {
 			return apiError(err.message, 409);
 		}
 		throw err;
 	}
 	logger.info(
-		`Stack deleted via API: stack=${params.stackId} force=${force} user=${caller.userId}`,
+		`Stack deleted via API: stack=${params.stackId} force=${force} deleteVolumes=${deleteVolumes} user=${caller.userId}`,
 	);
 	return new Response(null, { status: 204 });
 };

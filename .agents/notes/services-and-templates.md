@@ -961,9 +961,11 @@ creation and keeps it. Because of that, the settings action only runs
 `iconProblem` when the icon actually changed, so re-saving a service whose
 stored icon is no longer in the library isn't refused.
 
-**No browser ever calls jsDelivr.** `/icons/dashboard/[name]` (public, outside
-`(protected)`, since status pages and `/my-apps` render icons too) serves the
-icon from `DashboardIconsService`
+**No browser ever calls jsDelivr.** `/icons/dashboard/[name].svg` (public,
+outside `(protected)`, since status pages and `/my-apps` render icons too; the
+`.svg` suffix is there whatever the real format, because extensionless icon URLs
+got the operator banned by CrowdSec's `http-crawl-non_statics` scenario on a
+page full of icons) serves the icon from `DashboardIconsService`
 (`src/lib/services/dashboard-icons.service.ts`): the catalog (`metadata.json`,
 ~1.1 MB, trimmed to name/aliases/lowercased categories/format/colour variants)
 is kept in memory and at `<STORAGE_BASE_PATH>/dashboard-icons/catalog.json`,

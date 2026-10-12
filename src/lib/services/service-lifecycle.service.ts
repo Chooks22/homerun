@@ -1,4 +1,5 @@
 import { config } from "#lib/config.js";
+import { JobDTO } from "#lib/dto/job-dto.js";
 import { ServiceDependencyDTO } from "#lib/dto/service-dependency-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
@@ -16,6 +17,15 @@ import { DockerService } from "./docker.service.ts";
 import { GitWebhookService } from "./git-webhook.service.ts";
 
 const logger = new Logger("ServiceLifecycle");
+
+export class StackBusyError extends Error {}
+
+export interface StackDeleteOverview {
+	jobs: Array<{ id: string; serviceId: string | null; title: string }>;
+	services: Array<{ id: string; name: string }>;
+	substacks: Array<{ id: string; name: string }>;
+	volumes: Array<{ id: string; kind: string; name: string }>;
+}
 
 /**
  * Container/swarm-service lifecycle operations, keyed off a `ServiceDTO`
@@ -201,7 +211,7 @@ class ServiceLifecycleServiceClass {
 			await this.deleteService(preview, { force: options.force });
 		}
 		const volumes = options.deleteVolumes
-			? await StorageVolumeDTO.listExclusiveTo(svc.id)
+			? await StorageVolumeDTO.listExclusiveTo([svc.id])
 			: [];
 		const failure = await this.#detachWorkload(svc);
 		if (failure && !options.force) {
@@ -215,18 +225,18 @@ class ServiceLifecycleServiceClass {
 		const stack = svc.stackId ? await StackDTO.get(svc.stackId) : null;
 		await this.#cleanUpOutside(svc, stack?.slug ?? null);
 		await svc.delete();
-		await this.#deleteVolumes(svc, volumes);
+		await this.#deleteVolumes(volumes, `service=${svc.id}`);
 	}
 
 	/**
-	 * Deletes a deleted service's volumes: each row, and the Docker volume
-	 * behind a named one. A bind mount's host directory is never touched.
-	 * Best effort: a volume the daemon refuses (a swarm task still holding it)
-	 * is logged and left behind for Docker Cleanup.
+	 * Deletes a deleted service's or stack's volumes: each row, and the Docker
+	 * volume behind a named one. A bind mount's host directory is never
+	 * touched. Best effort: a volume the daemon refuses (a swarm task still
+	 * holding it) is logged and left behind for Docker Cleanup.
 	 */
 	async #deleteVolumes(
-		svc: ServiceDTO,
 		volumes: StorageVolumeDTO[],
+		owner: string,
 	): Promise<void> {
 		for (const volume of volumes) {
 			// oxlint-disable-next-line no-await-in-loop -- a handful of volumes, one at a time
@@ -235,7 +245,7 @@ class ServiceLifecycleServiceClass {
 				// oxlint-disable-next-line no-await-in-loop -- a handful of volumes, one at a time
 				await DockerService.removeVolume(volume.source).catch((err) => {
 					logger.warn(
-						`Couldn't remove a deleted service's volume: volume=${volume.source} service=${svc.id}`,
+						`Couldn't remove a deleted volume: volume=${volume.source} ${owner}`,
 						err,
 					);
 				});
@@ -244,22 +254,74 @@ class ServiceLifecycleServiceClass {
 	}
 
 	/**
+	 * What deleting a stack takes with it: its services, the queued or running
+	 * jobs that block the delete, the volumes only its services mount (deleted
+	 * only on request) and the substacks that move to the top level.
+	 */
+	async stackDeleteOverview(stack: StackDTO): Promise<StackDeleteOverview> {
+		const [members, all] = await Promise.all([
+			ServiceDTO.listByStack(stack.id),
+			StackDTO.list(),
+		]);
+		const memberIds = members.map((svc) => svc.id);
+		const [jobs, volumes] = await Promise.all([
+			JobDTO.listActiveForServices(memberIds),
+			StorageVolumeDTO.listExclusiveTo(memberIds),
+		]);
+		return {
+			jobs,
+			services: members.map((svc) => ({ id: svc.id, name: svc.name })),
+			substacks: all
+				.filter((other) => other.parentId === stack.id)
+				.map((other) => ({ id: other.id, name: other.name })),
+			volumes: volumes.map((volume) => ({
+				id: volume.id,
+				kind: volume.kind,
+				name: volume.name,
+			})),
+		};
+	}
+
+	/**
 	 * Deletes a stack and every service in it (see `StackDTO.cascadeDelete`
-	 * for the workload rules and `force`), then removes what each member left
-	 * outside Homerun: its push webhook and DNS records.
+	 * for the workload rules), then removes what each member left outside
+	 * Homerun: its push webhook and DNS records.
 	 *
+	 * @param options.force Cancels the members' queued and running jobs (a
+	 * deploy mid-flight) instead of refusing, and deletes the rows even when
+	 * some workloads couldn't be removed.
+	 * @param options.deleteVolumes Also deletes the volumes only this stack's
+	 * services mount (see `#deleteVolumes`).
+	 * @throws StackBusyError When a member has a queued or running job and
+	 * `force` isn't set; nothing is deleted then.
 	 * @throws WorkloadDetachError When a member's workload can't be removed and
 	 * `force` isn't set; nothing is deleted then.
 	 */
 	async deleteStack(
 		stack: StackDTO,
-		options: { force?: boolean } = {},
+		options: { deleteVolumes?: boolean; force?: boolean } = {},
 	): Promise<void> {
 		const members = await ServiceDTO.listByStack(stack.id);
-		await stack.cascadeDelete(options);
+		const memberIds = members.map((svc) => svc.id);
+		const busy = await JobDTO.listActiveForServices(memberIds);
+		if (busy.length > 0 && !options.force) {
+			throw new StackBusyError(
+				`${busy.map((entry) => `"${entry.title}"`).join(", ")} ${busy.length === 1 ? "is" : "are"} still queued or running. Wait for ${busy.length === 1 ? "it" : "them"} to finish, or force the delete to cancel ${busy.length === 1 ? "it" : "them"}.`,
+			);
+		}
+		await Promise.all(
+			busy.map((entry) =>
+				JobDTO.cancel(entry.id, `Stack "${stack.name}" was deleted.`),
+			),
+		);
+		const volumes = options.deleteVolumes
+			? await StorageVolumeDTO.listExclusiveTo(memberIds)
+			: [];
+		await stack.cascadeDelete({ force: options.force });
 		await Promise.all(
 			members.map((svc) => this.#cleanUpOutside(svc, stack.slug)),
 		);
+		await this.#deleteVolumes(volumes, `stack=${stack.id}`);
 	}
 
 	/**
