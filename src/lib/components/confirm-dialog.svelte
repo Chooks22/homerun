@@ -14,6 +14,8 @@
 		confirmPhrase,
 		destructive = true,
 		onConfirm,
+		secondaryLabel,
+		onSecondary,
 		children,
 	}: {
 		open?: boolean;
@@ -26,6 +28,8 @@
 		// destructive (e.g. "restart Traefik").
 		destructive?: boolean;
 		onConfirm: () => void;
+		secondaryLabel?: string;
+		onSecondary?: () => void;
 		children?: Snippet;
 	} = $props();
 
@@ -48,6 +52,14 @@
 		}
 		open = false;
 		onConfirm();
+	}
+
+	function secondary() {
+		if (blocked) {
+			return;
+		}
+		open = false;
+		onSecondary?.();
 	}
 </script>
 
@@ -107,6 +119,16 @@
       >
         {cancelLabel}
       </Button>
+      {#if secondaryLabel && onSecondary}
+        <Button
+          disabled={blocked}
+          onclick={secondary}
+          type="button"
+          variant={destructive ? "destructive" : "default"}
+        >
+          {secondaryLabel}
+        </Button>
+      {/if}
       <Button
         disabled={blocked}
         onclick={confirm}

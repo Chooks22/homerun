@@ -1,5 +1,4 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { config } from "#lib/config.js";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
 import { PublicBucketDTO } from "#lib/dto/public-bucket-dto.js";
 import { MAX_EXPIRATION_DAYS } from "#lib/object-storage.js";
@@ -30,7 +29,11 @@ export const load = async ({ params, url }) => {
 		bucket: params.bucket,
 		detail,
 		isPublic: await PublicBucketDTO.isPublic(store.id, params.bucket),
-		publicUrl: `${config.auth.origin ?? url.origin}/public/${store.id}/${encodeURIComponent(params.bucket)}/`,
+		publicUrl: await ObjectStorageService.publicUrl(
+			store,
+			params.bucket,
+			url.origin,
+		),
 		store: store.summary(),
 		usage: ObjectStorageService.usage(store, params.bucket).catch(() => null),
 	};
@@ -45,8 +48,8 @@ export const actions = {
 		if (!store) {
 			return fail(404, { error: "That object store doesn't exist." });
 		}
-		await PublicBucketDTO.setPublic(
-			store.id,
+		await ObjectStorageService.setPublic(
+			store,
 			params.bucket,
 			(await request.formData()).get("public") === "on",
 		);
@@ -68,7 +71,24 @@ export const actions = {
 		);
 	},
 
-	deleteBucket: async ({ params, locals }) => {
+	deleteBucket: async ({ request, params, locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const store = await ObjectStoreDTO.get(params.storeId);
+		if (!store) {
+			return fail(404, { error: "That object store doesn't exist." });
+		}
+		const empty = (await request.formData()).get("empty") === "on";
+		try {
+			await ObjectStorageService.deleteBucket(store, params.bucket, empty);
+			return { success: true };
+		} catch (cause) {
+			return fail(400, { error: reason(cause) });
+		}
+	},
+
+	emptyBucket: async ({ params, locals }) => {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
@@ -77,8 +97,10 @@ export const actions = {
 			return fail(404, { error: "That object store doesn't exist." });
 		}
 		try {
-			await ObjectStorageService.deleteBucket(store, params.bucket);
-			return { success: true };
+			return {
+				emptied: await ObjectStorageService.emptyBucket(store, params.bucket),
+				success: true,
+			};
 		} catch (cause) {
 			return fail(400, { error: reason(cause) });
 		}

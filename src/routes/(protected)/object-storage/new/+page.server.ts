@@ -1,6 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
-import { PublicBucketDTO } from "#lib/dto/public-bucket-dto.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
 import { resolve } from "$app/paths";
 
@@ -25,7 +24,7 @@ export const actions = {
 			});
 		}
 		if (formData.get("public") === "on") {
-			await PublicBucketDTO.setPublic(store.id, bucket, true);
+			await ObjectStorageService.setPublic(store, bucket, true);
 		}
 		return { bucket, storeId: store.id, success: true };
 	},

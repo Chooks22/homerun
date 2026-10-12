@@ -968,7 +968,20 @@ hostname, and providers differ (R2 has no policy API). Homerun serves them
 itself instead: `src/routes/public/[storeId]/[bucket]/[...key]/+server.ts`
 (outside `(protected)/`, so anonymous) checks the flag, fetches the object with
 the store's key through `ObjectStoreClient.objectResponse` (range passed on) and
-streams the body back with only its content headers.
+streams the body back with only its content headers. When the built-in store is
+published at a hostname, `ObjectStorageService.syncPublicRoutes()` writes
+`homerun-public-buckets.yml` (`src/lib/public-bucket-routes.ts`) into Traefik's
+dynamic config: per public bucket, a router at priority 9300 (above Garage's
+label router) matching unsigned `GET`/`HEAD` under `/<bucket>/` on that host,
+with an `addPrefix` of `/public/<storeId>` onto the app, so the bucket page
+shows `https://<host>/<bucket>/<key>`. Signed requests (an `Authorization`
+header or `X-Amz-Signature` query) never match and still reach Garage. It's
+resynced on every `ObjectStorageService.setPublic`, bucket delete, host change,
+disable and `reassertBuiltin`, so always change the flag through the service,
+not `PublicBucketDTO` directly. Emptying a bucket is
+`ObjectStoreClient.emptyBucket`: list 1000 keys, one `DeleteObjects`, repeat
+until the listing comes back empty (current versions only, a versioned AWS
+bucket keeps its old versions and still refuses deletion).
 
 Terraform state (`IacStateService`, `iac_project`/`iac_state_version`/
 `iac_state_lock`, managed from `/iac/state`, not from Object Storage) is

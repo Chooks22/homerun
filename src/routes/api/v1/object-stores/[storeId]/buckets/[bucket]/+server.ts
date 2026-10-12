@@ -73,8 +73,8 @@ export const PATCH = async ({ locals, params, request }) => {
 			);
 		}
 		if (body.data.public !== undefined) {
-			await PublicBucketDTO.setPublic(
-				store.id,
+			await ObjectStorageService.setPublic(
+				store,
 				params.bucket,
 				body.data.public,
 			);

@@ -66,7 +66,11 @@ access key is better for big transfers. Its **Settings** tab has:
   the built-in store and on every provider alike: Homerun fetches the object
   with the store's own key and streams it back, ranges included. Listing the
   bucket and uploading still need an access key. Private is the default, and
-  turning it off takes effect at once.
+  turning it off takes effect at once. On the built-in store published at a
+  hostname, the link is the plain path-style S3 URL instead,
+  `https://<s3 hostname>/<bucket>/<key>`: Traefik sends unsigned `GET`/`HEAD`
+  requests for a public bucket on that hostname to Homerun, every signed S3 call
+  still goes straight to Garage.
 - **Lifecycle**: expire every object a number of days after it was written, or
   leave it empty to keep objects until you delete them. It replaces any
   lifecycle rule the bucket had.
@@ -79,5 +83,9 @@ access key is better for big transfers. Its **Settings** tab has:
   credentials for a provider. On the built-in store that destination uses the
   published hostname when there is one, the address on Homerun's network
   otherwise.
-- **Delete bucket** deletes an empty bucket. A bucket that still holds objects
-  is refused with a plain message rather than emptied for you.
+- **Empty bucket** deletes every object in the bucket and keeps the bucket, its
+  keys and settings. You type the bucket's name to confirm.
+- **Delete bucket** asks you to type the bucket's name, then offers **Delete**,
+  which only works on an empty bucket and refuses one that still holds objects,
+  and **Empty and delete**, which asks once more, then deletes every object and
+  the bucket. Neither can be undone.

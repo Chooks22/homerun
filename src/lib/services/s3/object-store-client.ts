@@ -46,6 +46,15 @@ function tagValue(xml: string, tag: string): string | null {
 		: raw.replace(/&(amp|apos|gt|lt|quot);/g, (entity) => XML_ENTITIES[entity]);
 }
 
+function xmlEscape(value: string): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&apos;");
+}
+
 function blocks(xml: string, tag: string): string[] {
 	return [
 		...xml.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "g")),
@@ -127,6 +136,66 @@ export class ObjectStoreClient {
 			);
 		}
 		await expectS3Ok(response, "DeleteBucket");
+	}
+
+	/**
+	 * Deletes every object in a bucket, a page of up to 1000 keys per
+	 * DeleteObjects call, returning how many were deleted.
+	 *
+	 * @throws When a page can't be listed, or the store refuses to delete a key.
+	 */
+	async emptyBucket(name: string): Promise<number> {
+		let deleted = 0;
+		for (;;) {
+			// oxlint-disable-next-line no-await-in-loop -- each page is listed after the previous one is gone
+			const response = await s3Fetch(
+				this.#credentials,
+				{
+					method: "GET",
+					path: `/${name}`,
+					query: { "list-type": "2", "max-keys": String(PAGE_SIZE) },
+				},
+				this.#fetch,
+			);
+			// oxlint-disable-next-line no-await-in-loop -- same page as above
+			await expectS3Ok(response, "ListObjectsV2");
+			// oxlint-disable-next-line no-await-in-loop -- same page as above
+			const keys = blocks(await response.text(), "Contents")
+				.map((entry) => tagValue(entry, "Key"))
+				.filter((key): key is string => Boolean(key));
+			if (keys.length === 0) {
+				return deleted;
+			}
+			const body = `<Delete xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Quiet>true</Quiet>${keys
+				.map((key) => `<Object><Key>${xmlEscape(key)}</Key></Object>`)
+				.join("")}</Delete>`;
+			// oxlint-disable-next-line no-await-in-loop -- same page as above
+			const result = await s3Fetch(
+				this.#credentials,
+				{
+					body,
+					headers: {
+						"content-md5": createHash("md5").update(body).digest("base64"),
+						"content-type": "application/xml",
+					},
+					method: "POST",
+					path: `/${name}`,
+					query: { delete: "" },
+				},
+				this.#fetch,
+			);
+			// oxlint-disable-next-line no-await-in-loop -- same page as above
+			await expectS3Ok(result, "DeleteObjects");
+			// oxlint-disable-next-line no-await-in-loop -- same page as above
+			const failed = blocks(await result.text(), "Error");
+			if (failed.length > 0) {
+				const first = failed[0];
+				throw new Error(
+					`Couldn't delete ${tagValue(first, "Key") ?? "an object"}: ${tagValue(first, "Message") ?? tagValue(first, "Code") ?? "refused"}`,
+				);
+			}
+			deleted += keys.length;
+		}
 	}
 
 	/**

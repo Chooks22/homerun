@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { CalendarClock, Globe, Plug, Trash2 } from "@lucide/svelte";
-	import { onMount } from "svelte";
+	import { CalendarClock, Eraser, Globe, Plug, Trash2 } from "@lucide/svelte";
+	import { onMount, tick } from "svelte";
 	import BucketAccessKeys from "#lib/components/bucket-access-keys.svelte";
 	import BucketConnection from "#lib/components/bucket-connection.svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
@@ -37,7 +37,17 @@
 	});
 	let savingPublic = $state(false);
 	let confirmOpen = $state(false);
+	let purgeOpen = $state(false);
+	let emptyOpen = $state(false);
+	let emptyFirst = $state(false);
 	let deleteForm: HTMLFormElement | undefined = $state();
+	let emptyForm: HTMLFormElement | undefined = $state();
+
+	async function submitDelete(empty: boolean) {
+		emptyFirst = empty;
+		await tick();
+		deleteForm?.requestSubmit();
+	}
 </script>
 
 <div class="space-y-5">
@@ -56,29 +66,55 @@
           {/await}
         </p>
       </div>
-      <form
-        bind:this={deleteForm}
-        action="?/deleteBucket"
-        method="POST"
-        use:enhance={enhanceToast({
-          error: "Couldn't delete that bucket.",
-          loading: `Deleting ${data.bucket}`,
-          onSuccess: () => goto(resolve("/(protected)/object-storage")),
-          success: "Bucket deleted.",
-        })}
-      >
-        <Button
-          onclick={() => {
-            confirmOpen = true;
-          }}
-          size="sm"
-          type="button"
-          variant="outline"
+      <div class="flex flex-wrap items-center gap-2">
+        <form
+          bind:this={emptyForm}
+          action="?/emptyBucket"
+          method="POST"
+          use:enhance={enhanceToast({
+            error: "Couldn't empty that bucket.",
+            loading: `Emptying ${data.bucket}`,
+            success: (result) =>
+              `Deleted ${objectCountLabel(Number(result?.emptied ?? 0), false)}.`,
+          })}
         >
-          <Trash2 class="size-3.5" />
-          Delete bucket
-        </Button>
-      </form>
+          <Button
+            onclick={() => {
+              emptyOpen = true;
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Eraser class="size-3.5" />
+            Empty bucket
+          </Button>
+        </form>
+        <form
+          bind:this={deleteForm}
+          action="?/deleteBucket"
+          method="POST"
+          use:enhance={enhanceToast({
+            error: "Couldn't delete that bucket.",
+            loading: `Deleting ${data.bucket}`,
+            onSuccess: () => goto(resolve("/(protected)/object-storage")),
+            success: "Bucket deleted.",
+          })}
+        >
+          <input name="empty" type="hidden" value={emptyFirst ? "on" : ""} />
+          <Button
+            onclick={() => {
+              confirmOpen = true;
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Trash2 class="size-3.5" />
+            Delete bucket
+          </Button>
+        </form>
+      </div>
     </div>
     <BucketConnection
       builtin={data.store.kind === "garage"}
@@ -226,7 +262,29 @@
 <ConfirmDialog
   bind:open={confirmOpen}
   confirmLabel="Delete"
-  description="Only an empty bucket can be deleted. A backup destination or Terraform project pointing at it stops working."
-  onConfirm={() => deleteForm?.requestSubmit()}
+  confirmPhrase={data.bucket}
+  description="Delete only works on an empty bucket. Empty and delete removes every object first. A backup destination or Terraform project pointing at it stops working."
+  onConfirm={() => submitDelete(false)}
+  onSecondary={() => {
+    purgeOpen = true;
+  }}
+  secondaryLabel="Empty and delete"
   title="Delete {data.bucket}?"
+/>
+
+<ConfirmDialog
+  bind:open={purgeOpen}
+  confirmLabel="Empty and delete"
+  description="Every object in {data.bucket} is deleted, then the bucket itself. None of it can be recovered."
+  onConfirm={() => submitDelete(true)}
+  title="Delete {data.bucket} and everything in it?"
+/>
+
+<ConfirmDialog
+  bind:open={emptyOpen}
+  confirmLabel="Empty"
+  confirmPhrase={data.bucket}
+  description="Every object in {data.bucket} is deleted. The bucket, its keys and settings stay. None of the objects can be recovered."
+  onConfirm={() => emptyForm?.requestSubmit()}
+  title="Empty {data.bucket}?"
 />

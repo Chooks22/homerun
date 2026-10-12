@@ -65,7 +65,7 @@ export const POST = async ({ locals, params, request }) => {
 	}
 	const isPublic = body.data.public === true;
 	if (isPublic) {
-		await PublicBucketDTO.setPublic(store.id, name, true);
+		await ObjectStorageService.setPublic(store, name, true);
 	}
 	return Response.json(
 		bucketApiJson(store.id, name, expirationDays ?? null, isPublic),

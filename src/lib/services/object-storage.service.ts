@@ -1,4 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
 import { PublicBucketDTO } from "#lib/dto/public-bucket-dto.js";
@@ -9,9 +12,16 @@ import {
 	bucketNameProblem,
 	GARAGE_REGION,
 } from "#lib/object-storage.js";
+import {
+	PUBLIC_BUCKETS_FILE,
+	publicBucketsConfig,
+	publicBucketUrl,
+} from "#lib/public-bucket-routes.js";
 import type { ObjectStoreFormValues } from "#lib/server/validation/object-store.js";
 import { DOMAIN_RE } from "#lib/service-domains.js";
 import { syncCoreHostDns } from "./dns.service.ts";
+import { certResolverFor } from "./docker/cert-resolver.ts";
+import { errorPagesTarget } from "./docker/error-pages.ts";
 import {
 	GARAGE_CONTAINER_NAME,
 	GARAGE_S3_PORT,
@@ -189,6 +199,7 @@ class ObjectStorageServiceClass {
 		const settings = await InstanceSettingsDTO.get();
 		await settings.persistGarage({ garageEnabled: false });
 		await DockerService.reconcileGarage(null);
+		await this.syncPublicRoutes();
 	}
 
 	/** Why `host` can't be published right now (not a hostname, or the store is off), or null, checked before the change is queued. */
@@ -221,6 +232,7 @@ class ObjectStorageServiceClass {
 		}
 		await settings.persistGarage({ garagePublicHost: trimmed || null });
 		await DockerService.reconcileGarage(await this.#desiredState());
+		await this.syncPublicRoutes();
 		void syncCoreHostDns(
 			"Object storage",
 			row.garagePublicHost ?? null,
@@ -235,6 +247,7 @@ class ObjectStorageServiceClass {
 			return;
 		}
 		await DockerService.reconcileGarage(await this.#desiredState());
+		await this.syncPublicRoutes();
 		if (row.garagePublicHost) {
 			void syncCoreHostDns("Object storage", null, row.garagePublicHost);
 		}
@@ -427,17 +440,115 @@ class ObjectStorageServiceClass {
 	}
 
 	/**
-	 * Deletes an empty bucket.
+	 * Deletes an empty bucket, or with `empty` deletes every object in it
+	 * first.
 	 *
 	 * @throws With a plain message when it still holds objects.
 	 */
-	async deleteBucket(store: ObjectStoreDTO, bucket: string): Promise<void> {
+	async deleteBucket(
+		store: ObjectStoreDTO,
+		bucket: string,
+		empty = false,
+	): Promise<void> {
+		if (empty) {
+			await this.emptyBucket(store, bucket);
+		}
 		if (store.kind === "garage") {
 			await (await this.#admin()).deleteBucket(bucket);
 		} else {
 			await (await this.client(store)).deleteBucket(bucket);
 		}
-		await PublicBucketDTO.setPublic(store.id, bucket, false);
+		await this.setPublic(store, bucket, false);
+	}
+
+	/**
+	 * Deletes every object in a bucket, returning how many went.
+	 *
+	 * @throws When the store refuses to list or delete them.
+	 */
+	async emptyBucket(store: ObjectStoreDTO, bucket: string): Promise<number> {
+		return await (await this.client(store)).emptyBucket(bucket);
+	}
+
+	/**
+	 * Makes a bucket public or private again, and republishes the built-in
+	 * store's public-bucket routes on its S3 hostname.
+	 */
+	async setPublic(
+		store: ObjectStoreDTO,
+		bucket: string,
+		isPublic: boolean,
+	): Promise<void> {
+		await PublicBucketDTO.setPublic(store.id, bucket, isPublic);
+		if (store.kind === "garage") {
+			await this.syncPublicRoutes();
+		}
+	}
+
+	/**
+	 * The URL a public bucket's objects are served under, ending in "/": the
+	 * built-in store's published S3 hostname when it has one, this instance's
+	 * `/public/` route otherwise.
+	 */
+	async publicUrl(
+		store: ObjectStoreDTO,
+		bucket: string,
+		fallbackOrigin: string,
+	): Promise<string> {
+		const row = (await InstanceSettingsDTO.get()).toJSON();
+		return publicBucketUrl({
+			bucket,
+			origin: config.auth.origin ?? fallbackOrigin,
+			publicHost:
+				row.garageEnabled === true ? (row.garagePublicHost ?? null) : null,
+			storeId: store.id,
+			storeKind: store.kind,
+		});
+	}
+
+	/**
+	 * Rewrites the Traefik file routing unsigned reads of the built-in
+	 * store's public buckets on its S3 hostname to this app, or removes it
+	 * when the store is off, unpublished or has no public bucket. Failures
+	 * are logged, never thrown.
+	 */
+	async syncPublicRoutes(): Promise<void> {
+		const dir = config.traefik.dynamicConfigDir;
+		const target = errorPagesTarget(config.authCheckUrl);
+		if (!(dir && target)) {
+			return;
+		}
+		const path = join(dir, PUBLIC_BUCKETS_FILE);
+		try {
+			const row = (await InstanceSettingsDTO.get()).toJSON();
+			const store = await ObjectStoreDTO.builtin();
+			const host =
+				row.garageEnabled === true ? (row.garagePublicHost ?? null) : null;
+			const content =
+				store && host
+					? publicBucketsConfig({
+							buckets: [...(await PublicBucketDTO.namesForStore(store.id))],
+							certResolver: certResolverFor(
+								host,
+								config.traefik.certResolver,
+								config.pangolinEnabled,
+								config.traefik.instanceCertNames,
+							),
+							entrypoint: config.traefik.entrypoint,
+							host,
+							storeId: store.id,
+							target,
+						})
+					: null;
+			if (content === null) {
+				await rm(path, { force: true });
+			} else {
+				await mkdir(dir, { recursive: true });
+				await writeFile(path, content);
+			}
+		} catch (err) {
+			logger.error("Couldn't publish the public buckets' routes", err);
+		}
 	}
 
 	/**

@@ -73,6 +73,42 @@ describe("ObjectStoreClient", () => {
 		);
 	});
 
+	test("empties a bucket page by page with DeleteObjects", async () => {
+		let listed = 0;
+		const { calls, client } = fakeStore((call) => {
+			if (call.method === "POST") {
+				return new Response("<DeleteResult></DeleteResult>");
+			}
+			listed += 1;
+			return new Response(
+				listed === 1
+					? "<ListBucketResult><Contents><Key>a&amp;b</Key></Contents><Contents><Key>c</Key></Contents></ListBucketResult>"
+					: "<ListBucketResult></ListBucketResult>",
+			);
+		});
+		expect(await client.emptyBucket("b")).toBe(2);
+		const del = calls.find((call) => call.method === "POST");
+		expect(del?.url.searchParams.has("delete")).toBe(true);
+		expect(del?.body).toContain("<Key>a&amp;b</Key>");
+		expect(del?.body).toContain("<Key>c</Key>");
+		expect(del?.headers["content-md5"]).toBeTruthy();
+	});
+
+	test("reports the first key DeleteObjects refused", async () => {
+		const { client } = fakeStore((call) =>
+			call.method === "POST"
+				? new Response(
+						"<DeleteResult><Error><Key>c</Key><Code>AccessDenied</Code><Message>Nope</Message></Error></DeleteResult>",
+					)
+				: new Response(
+						"<ListBucketResult><Contents><Key>c</Key></Contents></ListBucketResult>",
+					),
+		);
+		await expect(client.emptyBucket("b")).rejects.toThrow(
+			"Couldn't delete c: Nope",
+		);
+	});
+
 	test("counts usage across pages and stops at the cap", async () => {
 		const page = (keys: number, next: string | null) =>
 			new Response(
