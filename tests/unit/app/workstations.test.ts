@@ -5,7 +5,7 @@ import {
 	generateWorkstationPassword,
 	parseAutoStop,
 	parseNewWorkstation,
-	parseWorkstationSettings,
+	parseWorkstationSection,
 } from "#lib/server/workstation-form.js";
 import {
 	agentHostAddress,
@@ -38,7 +38,7 @@ describe("workstation states", () => {
 	test("only an in-flight start is busy", () => {
 		expect(
 			WORKSTATION_STATES.filter((state) => isWorkstationBusy(state)),
-		).toEqual(["pulling", "starting", "cloning"]);
+		).toEqual(["pulling", "starting", "cloning", "configuring"]);
 	});
 
 	test("every state reads as a label", () => {
@@ -46,6 +46,7 @@ describe("workstation states", () => {
 			"Pulling image",
 			"Starting",
 			"Cloning repository",
+			"Setting up the IDE",
 			"Running",
 			"Stopped",
 			"Failed",
@@ -120,8 +121,13 @@ describe("workstation forms", () => {
 		expect(result).toEqual({
 			parsed: {
 				cpuLimit: null,
+				editorSettings: {},
 				env: {},
+				extensions: [],
+				gitAuthorEmail: null,
+				gitAuthorName: null,
 				gitBranch: null,
+				gitProviderId: null,
 				gitUrl: null,
 				homePath: DEFAULT_WORKSTATION_HOME,
 				image: DEFAULT_WORKSTATION_IMAGE,
@@ -133,12 +139,12 @@ describe("workstation forms", () => {
 		});
 	});
 
-	test("every field is parsed, and PASSWORD stays Homerun's", () => {
-		const result = parseWorkstationSettings(
+	test("each section parses only its own fields, and PASSWORD stays Homerun's", () => {
+		const container = parseWorkstationSection(
+			"container",
 			form({
 				cpuLimit: "1.5",
 				env: "FOO=bar\nPASSWORD=nope\n# comment",
-				gitBranch: "main",
 				gitUrl: "https://github.com/acme/app.git",
 				homePath: "/root",
 				image: "ghcr.io/acme/devbox:1",
@@ -146,18 +152,61 @@ describe("workstation forms", () => {
 				port: "3000",
 			}),
 		);
-		expect(result).toEqual({
+		expect(container).toEqual({
 			parsed: {
 				cpuLimit: 1.5,
 				env: { FOO: "bar" },
-				gitBranch: "main",
-				gitUrl: "https://github.com/acme/app.git",
 				homePath: "/root",
 				image: "ghcr.io/acme/devbox:1",
 				memoryLimitMb: 4096,
 				port: 3000,
 			},
 		});
+		expect(
+			parseWorkstationSection(
+				"repository",
+				form({ gitBranch: "main", gitUrl: "https://github.com/acme/app.git" }),
+			),
+		).toEqual({
+			parsed: { gitBranch: "main", gitUrl: "https://github.com/acme/app.git" },
+		});
+		expect(
+			parseWorkstationSection(
+				"git",
+				form({
+					gitAuthorEmail: "ada@example.com",
+					gitAuthorName: " Ada ",
+					gitProviderId: "gh",
+				}),
+			),
+		).toEqual({
+			parsed: {
+				gitAuthorEmail: "ada@example.com",
+				gitAuthorName: "Ada",
+				gitProviderId: "gh",
+			},
+		});
+	});
+
+	test("the editor section keeps every extension once and wants a JSON object", () => {
+		const data = form({ editorSettings: '{"editor.fontSize": 14}' });
+		for (const id of ["golang.Go", "esbenp.prettier-vscode", "golang.go"]) {
+			data.append("extensions", id);
+		}
+		expect(parseWorkstationSection("editor", data)).toEqual({
+			parsed: {
+				editorSettings: { "editor.fontSize": 14 },
+				extensions: ["golang.go", "esbenp.prettier-vscode"],
+			},
+		});
+		for (const editorSettings of ["[1]", "{nope", "42"]) {
+			expect(
+				"error" in parseWorkstationSection("editor", form({ editorSettings })),
+			).toBe(true);
+		}
+		const bad = form({});
+		bad.append("extensions", "--force");
+		expect("error" in parseWorkstationSection("editor", bad)).toBe(true);
 	});
 
 	test("rejects what the worker would refuse", () => {
@@ -170,6 +219,7 @@ describe("workstation forms", () => {
 			{ name: "x", port: "70000" },
 			{ cpuLimit: "0", name: "x" },
 			{ memoryLimitMb: "12.5", name: "x" },
+			{ gitAuthorEmail: "not-an-email", name: "x" },
 		];
 		for (const fields of bad) {
 			expect("error" in parseNewWorkstation(form(fields))).toBe(true);

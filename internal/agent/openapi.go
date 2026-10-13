@@ -65,7 +65,7 @@ var (
 			"error":       object{"type": "string"},
 			"hostPort":    object{"type": "integer"},
 			"state": object{"enum": []string{
-				"pulling", "starting", "cloning", "running", "stopped", "failed", "missing",
+				"pulling", "starting", "cloning", "configuring", "running", "stopped", "failed", "missing",
 			}},
 		},
 		"required": []string{"hostPort", "state"},
@@ -94,6 +94,24 @@ var (
 			"network":     object{"type": "string"},
 			"port":        object{"maximum": 65535, "minimum": 1, "type": "integer"},
 			"publish":     object{"type": "boolean"},
+			"setup": object{
+				"properties": object{
+					"credential": object{
+						"properties": object{
+							"host":     object{"type": "string"},
+							"token":    object{"type": "string"},
+							"username": object{"type": "string"},
+						},
+						"required": []string{"host", "token"},
+						"type":     []string{"object", "null"},
+					},
+					"extensions": object{"items": object{"type": "string"}, "type": []string{"array", "null"}},
+					"gitEmail":   object{"type": "string"},
+					"gitName":    object{"type": "string"},
+					"settings":   object{"type": "string"},
+				},
+				"type": []string{"object", "null"},
+			},
 		},
 		"required": []string{"homePath", "image", "name", "port"},
 		"type":     "object",
@@ -286,6 +304,27 @@ func openAPIDocument(baseURL string) object {
 				},
 				"security": bearer,
 				"summary":  "Workstation logs",
+				"tags":     []string{"Workstations"},
+			}},
+			"/v1/workstations/{id}/stats": object{"get": object{
+				"description": "The running container's CPU percentage across every core, memory in MB and network totals.",
+				"parameters":  []object{workstationIDParameter},
+				"responses": object{
+					"200": jsonResponse("Resource use", object{
+						"properties": object{
+							"cpuPercent": object{"type": "number"},
+							"memLimitMb": object{"type": "number"},
+							"memUsedMb":  object{"type": "number"},
+							"netRxBytes": object{"type": "number"},
+							"netTxBytes": object{"type": "number"},
+						},
+						"type": "object",
+					}),
+					"401": jsonResponse("Unauthorized", errorSchema),
+					"404": jsonResponse("Not running", errorSchema),
+				},
+				"security": bearer,
+				"summary":  "Workstation resource use",
 				"tags":     []string{"Workstations"},
 			}},
 			"/v1/workstations/{id}/stop": object{"post": object{

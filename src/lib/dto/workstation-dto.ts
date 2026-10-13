@@ -22,8 +22,13 @@ import { BaseDTO } from "./base-dto";
 export type NewWorkstationInput = Pick<
 	Workstation,
 	| "cpuLimit"
+	| "editorSettings"
 	| "env"
+	| "extensions"
+	| "gitAuthorEmail"
+	| "gitAuthorName"
 	| "gitBranch"
+	| "gitProviderId"
 	| "gitUrl"
 	| "homePath"
 	| "image"
@@ -44,8 +49,13 @@ export type WorkstationUpdateInput = Partial<
 		| "autoStopMode"
 		| "cpuLimit"
 		| "desiredState"
+		| "editorSettings"
 		| "env"
+		| "extensions"
+		| "gitAuthorEmail"
+		| "gitAuthorName"
 		| "gitBranch"
+		| "gitProviderId"
 		| "gitUrl"
 		| "homePath"
 		| "image"
@@ -146,6 +156,15 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 					isNotNull(workstation.autoStopMode),
 				),
 			);
+		return rows.map((row) => new WorkstationDTO(row));
+	}
+
+	/** Every workstation, anyone's, its owner last asked to run, for the stats sampler. */
+	static async listRunning(): Promise<WorkstationDTO[]> {
+		const rows = await db
+			.select()
+			.from(workstation)
+			.where(eq(workstation.desiredState, "running"));
 		return rows.map((row) => new WorkstationDTO(row));
 	}
 

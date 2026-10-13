@@ -1,6 +1,10 @@
 import { ServiceDTO } from "#lib/dto/service-dto.js";
-import { StatSampleDTO } from "#lib/dto/stat-sample-dto.js";
+import {
+	type NewStatSampleInput,
+	StatSampleDTO,
+} from "#lib/dto/stat-sample-dto.js";
 import { TrafficSampleDTO } from "#lib/dto/traffic-sample-dto.js";
+import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import {
 	counterDelta,
 	countersBySlug,
@@ -13,6 +17,7 @@ import type { ContainerSample } from "../docker/containers.ts";
 import { sumReplicaSamples } from "../docker/swarm-replicas.ts";
 import { DockerService } from "../docker.service.ts";
 import { SystemStatsService } from "../system-stats.service.ts";
+import { WorkstationService } from "../workstation.service.ts";
 
 /** One in this many ticks also prunes, the same amortized shape AppLogDTO/NotificationDTO use. */
 const PRUNE_EVERY_TICKS = 60;
@@ -82,18 +87,44 @@ export class StatsSampler extends BaseScheduler {
 		return null;
 	}
 
+	/** Every running workstation's sample, wherever it runs; one that can't be read (still starting, its agent down) is skipped. */
+	async #sampleWorkstations(): Promise<NewStatSampleInput[]> {
+		const running = await WorkstationDTO.listRunning();
+		const samples = await Promise.all(
+			running.map((ws) =>
+				WorkstationService.stats(ws).then(
+					(sample) => ({
+						cpuPercent: sample.cpuPercent,
+						memLimitMb: sample.memLimitMb,
+						memUsedMb: sample.memUsedMb,
+						netRxBytes: sample.netRxBytes,
+						netTxBytes: sample.netTxBytes,
+						serviceId: null,
+						workstationId: ws.id,
+					}),
+					() => null,
+				),
+			),
+		);
+		return samples.filter((sample) => sample !== null);
+	}
+
 	/**
-	 * Samples host stats, every running service's container stats and every
-	 * swarm service's local replicas in parallel and writes them as one batch of `stat_sample` rows
+	 * Samples host stats, every running service's container stats, every
+	 * swarm service's local replicas and every running workstation in parallel and writes them as one batch of `stat_sample` rows
 	 * (`StatSampleDTO.recordMany`). Every `PRUNE_EVERY_TICKS`th tick also
 	 * prunes old samples (`StatSampleDTO.prune`).
 	 */
 	protected async tick(): Promise<void> {
 		this.#ticks += 1;
 
-		const [host, services] = await Promise.all([
+		const [host, services, workstations] = await Promise.all([
 			SystemStatsService.getSystemStats(),
 			ServiceDTO.listRunningWithContainers(),
+			this.#sampleWorkstations().catch((err: unknown) => {
+				this.logger.warn("Couldn't sample the workstations", err);
+				return [];
+			}),
 		]);
 		await CapacityService.evaluate(host).catch((err) => {
 			this.logger.warn("Couldn't check the resource thresholds", err);
@@ -124,6 +155,7 @@ export class StatsSampler extends BaseScheduler {
 				serviceId: null,
 			},
 			...samples.filter((sample) => sample !== null),
+			...workstations,
 		]);
 
 		await this.#sampleTraffic(services).catch((err) => {

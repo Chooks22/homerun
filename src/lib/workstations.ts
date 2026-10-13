@@ -2,10 +2,14 @@ export const DEFAULT_WORKSTATION_IMAGE = "codercom/code-server:latest";
 export const DEFAULT_WORKSTATION_PORT = 8080;
 export const DEFAULT_WORKSTATION_HOME = "/home/coder";
 
+export const EXTENSION_ID_RE =
+	/^[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
 export const WORKSTATION_STATES = [
 	"pulling",
 	"starting",
 	"cloning",
+	"configuring",
 	"running",
 	"stopped",
 	"failed",
@@ -26,6 +30,7 @@ const BUSY_STATES: ReadonlySet<WorkstationState> = new Set([
 	"pulling",
 	"starting",
 	"cloning",
+	"configuring",
 ]);
 
 /** Whether a start is still under way, so a page keeps polling. */
@@ -42,6 +47,8 @@ export function workstationStateLabel(state: WorkstationState): string {
 			return "Starting";
 		case "cloning":
 			return "Cloning repository";
+		case "configuring":
+			return "Setting up the IDE";
 		case "running":
 			return "Running";
 		case "failed":

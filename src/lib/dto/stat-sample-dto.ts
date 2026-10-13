@@ -53,7 +53,15 @@ export interface NewStatSampleInput {
 	netRxBytes?: number | null;
 	netTxBytes?: number | null;
 	serviceId: string | null;
+	workstationId?: string | null;
 }
+
+/** Whose history a chart reads: a service, a workstation, or the host (null). */
+export type StatOwner = string | { workstationId: string } | null;
+
+/** The host's own samples: neither a service's nor a workstation's. */
+const hostRows = () =>
+	and(isNull(statSample.serviceId), isNull(statSample.workstationId));
 
 /**
  * How far back each range looks and how wide one bucket is. The point count
@@ -87,7 +95,7 @@ function scopeFilter(
 	}
 	const who =
 		scope === "host"
-			? isNull(statSample.serviceId)
+			? hostRows()
 			: inArray(statSample.serviceId, scope.serviceIds);
 	return and(
 		who,
@@ -125,8 +133,8 @@ const NO_RESOURCES: ResourceTotals = {
 /** Wraps `stat_sample` : the resource history behind the dashboard's and a service's own graphs. */
 export class StatSampleDTO extends BaseDTO<StatSample> {
 	/**
-	 * Inserts one resource sample, stamped now; a null `serviceId` means a
-	 * host-wide sample.
+	 * Inserts one resource sample, stamped now; with neither a `serviceId` nor
+	 * a `workstationId` it's a host-wide sample.
 	 */
 	static async record(input: NewStatSampleInput): Promise<void> {
 		await db.insert(statSample).values({
@@ -139,6 +147,7 @@ export class StatSampleDTO extends BaseDTO<StatSample> {
 			netRxBytes: input.netRxBytes ?? null,
 			netTxBytes: input.netTxBytes ?? null,
 			serviceId: input.serviceId,
+			workstationId: input.workstationId ?? null,
 		});
 	}
 
@@ -162,6 +171,7 @@ export class StatSampleDTO extends BaseDTO<StatSample> {
 				netRxBytes: input.netRxBytes ?? null,
 				netTxBytes: input.netTxBytes ?? null,
 				serviceId: input.serviceId,
+				workstationId: input.workstationId ?? null,
 			})),
 		);
 	}
@@ -174,12 +184,15 @@ export class StatSampleDTO extends BaseDTO<StatSample> {
 	 */
 	static async history(
 		range: StatRange,
-		serviceId: string | null,
+		owner: StatOwner,
 	): Promise<StatPoint[]> {
 		const { bucketSeconds, windowSeconds } = RANGES[range];
-		const scope = serviceId
-			? eq(statSample.serviceId, serviceId)
-			: isNull(statSample.serviceId);
+		const scope =
+			owner === null
+				? hostRows()
+				: typeof owner === "string"
+					? eq(statSample.serviceId, owner)
+					: eq(statSample.workstationId, owner.workstationId);
 		const where = windowSeconds
 			? and(
 					scope,
@@ -330,6 +343,25 @@ export class StatSampleDTO extends BaseDTO<StatSample> {
 			rows
 				.filter((row) => row.serviceId)
 				.map((row) => [row.serviceId as string, row]),
+		);
+	}
+
+	/** The newest sample of each of `workstationIds` that has one, keyed by workstation id. */
+	static async latestPerWorkstation(
+		workstationIds: string[],
+	): Promise<Map<string, StatSample>> {
+		if (workstationIds.length === 0) {
+			return new Map();
+		}
+		const rows = await db
+			.selectDistinctOn([statSample.workstationId])
+			.from(statSample)
+			.where(inArray(statSample.workstationId, workstationIds))
+			.orderBy(statSample.workstationId, desc(statSample.createdAt));
+		return new Map(
+			rows.flatMap((row) =>
+				row.workstationId ? [[row.workstationId, row] as const] : [],
+			),
 		);
 	}
 

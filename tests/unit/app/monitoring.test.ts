@@ -34,6 +34,10 @@ const { UptimeCheckDTO } = await import(
 	"../../../src/lib/dto/uptime-check-dto"
 );
 const { ServiceDTO } = await import("../../../src/lib/dto/service-dto");
+const { WorkstationDTO } = await import("../../../src/lib/dto/workstation-dto");
+const { WorkstationService } = await import(
+	"../../../src/lib/services/workstation.service"
+);
 const { DockerService } = await import(
 	"../../../src/lib/services/docker.service"
 );
@@ -238,6 +242,7 @@ describe("StatsSampler traffic", () => {
 			netTxBytes: 2,
 		}));
 		stub(DockerService, "listSwarmReplicas", async () => []);
+		stub(WorkstationDTO, "listRunning", async () => []);
 		stub(DockerService, "traefikMetrics", async () => metrics);
 		stub(StatSampleDTO, "recordMany", async () => undefined);
 		stub(StatSampleDTO, "prune", async () => undefined);
@@ -273,6 +278,62 @@ describe("StatsSampler traffic", () => {
 		metrics = null;
 		await sampler.tick();
 		expect(traffic).toHaveLength(1);
+	});
+
+	test("running workstations are sampled too, an unreadable one skipped", async () => {
+		const recorded: unknown[][] = [];
+		stub(StatSampleDTO, "recordMany", async (rows: unknown[]) => {
+			recorded.push(rows);
+		});
+		stub(WorkstationDTO, "listRunning", async () => [
+			{ id: "ws-up" },
+			{ id: "ws-starting" },
+		]);
+		stub(WorkstationService, "stats", async (ws: { id: string }) => {
+			if (ws.id === "ws-starting") {
+				throw new Error("not running");
+			}
+			return {
+				cpuPercent: 7,
+				memLimitMb: 2048,
+				memUsedMb: 300,
+				netRxBytes: 5,
+				netTxBytes: 6,
+			};
+		});
+		const sampler = new StatsSampler() as unknown as {
+			tick: () => Promise<void>;
+		};
+		await sampler.tick();
+		const workstationRows = (recorded[0] as Record<string, unknown>[]).filter(
+			(row) => row.workstationId,
+		);
+		expect(workstationRows).toEqual([
+			{
+				cpuPercent: 7,
+				memLimitMb: 2048,
+				memUsedMb: 300,
+				netRxBytes: 5,
+				netTxBytes: 6,
+				serviceId: null,
+				workstationId: "ws-up",
+			},
+		]);
+	});
+
+	test("a workstation listing failure doesn't stop the tick", async () => {
+		const recorded: unknown[][] = [];
+		stub(StatSampleDTO, "recordMany", async (rows: unknown[]) => {
+			recorded.push(rows);
+		});
+		stub(WorkstationDTO, "listRunning", async () => {
+			throw new Error("db down");
+		});
+		const sampler = new StatsSampler() as unknown as {
+			tick: () => Promise<void>;
+		};
+		await sampler.tick();
+		expect(recorded).toHaveLength(1);
 	});
 
 	test("prunes both histories every sixtieth tick", async () => {

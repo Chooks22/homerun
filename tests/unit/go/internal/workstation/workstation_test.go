@@ -46,6 +46,13 @@ func TestValidateRejectsWhatTheDaemonWouldChokeOn(t *testing.T) {
 		"option branch": func(s *workstation.Spec) {
 			s.Git = &workstation.Git{Branch: "--upload-pack=x", Directory: "b", URL: "https://github.com/a/b"}
 		},
+		"option extension": func(s *workstation.Spec) { s.Setup = &workstation.Setup{Extensions: []string{"--force"}} },
+		"tokenless credential": func(s *workstation.Spec) {
+			s.Setup = &workstation.Setup{Credential: &workstation.Credential{Host: "github.com"}}
+		},
+		"credential host with a path": func(s *workstation.Spec) {
+			s.Setup = &workstation.Setup{Credential: &workstation.Credential{Host: "github.com/x", Token: "t"}}
+		},
 	}
 	for name, mutate := range cases {
 		spec := baseSpec()
@@ -111,6 +118,29 @@ func TestCloneCommandPassesValuesAsArguments(t *testing.T) {
 	}
 }
 
+func TestSetupCommandPassesValuesAsArguments(t *testing.T) {
+	spec := baseSpec()
+	spec.Setup = &workstation.Setup{
+		Credential: &workstation.Credential{Host: "github.com", Token: "t/k", Username: "alice"},
+		Extensions: []string{"esbenp.prettier-vscode", "golang.go"},
+		GitEmail:   "alice@example.com",
+		GitName:    "Alice",
+		Settings:   `{"editor.fontSize":14}`,
+	}
+	command := workstation.SetupCommand(spec)
+	if command[0] != "sh" || command[1] != "-c" || strings.Contains(command[2], "alice") {
+		t.Fatalf("the script never carries a value, got %v", command)
+	}
+	want := []string{"setup", "/home/coder", "Alice", "alice@example.com", "github.com", "https://alice:t%2Fk@github.com", `{"editor.fontSize":14}`, "esbenp.prettier-vscode", "golang.go"}
+	if !slices.Equal(command[3:], want) {
+		t.Errorf("got %v, want %v", command[3:], want)
+	}
+	spec.Setup = &workstation.Setup{}
+	if command = workstation.SetupCommand(spec); !slices.Equal(command[3:], []string{"setup", "/home/coder", "", "", "", "", ""}) {
+		t.Errorf("an empty setup passes empty values, got %v", command[3:])
+	}
+}
+
 type engine struct {
 	calls     []string
 	created   map[string]any
@@ -160,6 +190,8 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, byte(len(procNetTCP) >> 8), byte(len(procNetTCP) & 0xff)}, procNetTCP...))
 	case r.URL.Path == "/exec/exec2/json":
 		_, _ = io.WriteString(w, `{"ExitCode":0}`)
+	case r.URL.Path == "/containers/old/stats":
+		_, _ = io.WriteString(w, `{"cpu_stats":{"cpu_usage":{"total_usage":200},"online_cpus":2,"system_cpu_usage":1000},"precpu_stats":{"cpu_usage":{"total_usage":100},"system_cpu_usage":900},"memory_stats":{"usage":104857600,"limit":209715200}}`)
 	case r.URL.Path == "/containers/old/logs":
 		line := "listening on 0.0.0.0:8080\n"
 		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, 0, byte(len(line))}, line...))
@@ -258,6 +290,19 @@ func TestAFailedCloneIsReported(t *testing.T) {
 	}
 }
 
+func TestAFailedSetupIsReportedWithoutTheCredential(t *testing.T) {
+	fake := &engine{exitCode: 4, hasVolume: true, listed: `[]`}
+	server := newServer(t, fake)
+	spec := baseSpec()
+	spec.Setup = &workstation.Setup{Credential: &workstation.Credential{Host: "github.com", Token: "secret-token"}, Extensions: []string{"golang.go"}}
+	body, _ := json.Marshal(spec)
+	request(t, http.MethodPut, server.URL+"/v1/workstations/"+id, string(body))
+	status := waitFor(t, server, workstation.StateFailed)
+	if !strings.Contains(status.Error, "configure the IDE") || strings.Contains(status.Error, "secret-token") {
+		t.Errorf("the failure is reported without the token, got %q", status.Error)
+	}
+}
+
 func TestStatusOfAMissingWorkstationAndBadInput(t *testing.T) {
 	server := newServer(t, &engine{listed: `[]`})
 	if _, status := request(t, http.MethodGet, server.URL+"/v1/workstations/"+id, ""); status.State != workstation.StateMissing {
@@ -349,5 +394,29 @@ func TestConnectionsRouteReadsTheRunningContainer(t *testing.T) {
 	fake.mu.Unlock()
 	if code, body := get("?port=8080"); code != http.StatusOK || body != `{"connections":1}` {
 		t.Errorf("one open tab, got %d %s", code, body)
+	}
+}
+
+func TestStatsRouteReadsTheRunningContainer(t *testing.T) {
+	fake := &engine{listed: `[]`}
+	server := newServer(t, fake)
+	response, err := http.Get(server.URL + "/v1/workstations/" + id + "/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusNotFound {
+		t.Errorf("nothing running is a 404, got %d", response.StatusCode)
+	}
+	fake.listed = `[{"Id":"old","State":"running"}]`
+	response, err = http.Get(server.URL + "/v1/workstations/" + id + "/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	var sample dockerapi.ContainerSample
+	_ = json.NewDecoder(response.Body).Decode(&sample)
+	if response.StatusCode != http.StatusOK || sample.MemUsedMb != 100 || sample.CPUPercent <= 0 {
+		t.Errorf("the container's use is reported, got %d %+v", response.StatusCode, sample)
 	}
 }

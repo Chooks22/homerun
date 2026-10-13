@@ -1487,6 +1487,27 @@ connections linger up to its 90s idle timeout, which only delays a stop. A count
 that can't be read counts as in use, so a start in flight or an image without
 `cat` is never stopped by mistake.
 
+**IDE setup, not devcontainers.** The spec's `setup` (extensions, code-server
+`settings.json`, git name/email, one provider `credential`) is applied by a
+second `exec` after the clone (`SetupCommand`, state `configuring`), on every
+start. Extensions are synced against
+`<home>/.local/share/code-server/homerun-extensions`, the list the last start
+installed, so removing one uninstalls it without touching ones installed from
+the IDE. The credential is the workstation's `gitProviderId` connection
+(`resolveProviderCredential`), independent of the clone credential (which still
+matches the repository's host), and is also exported as `GH_TOKEN` /
+`GITLAB_TOKEN`. The extension combobox searches Open VSX through the
+`searchEditorExtensions` remote query. The Settings tab has one form and one
+action per section (`saveWorkstationSection`), each writing only its own
+columns.
+
+**Resource history.** `GET /v1/workstations/{id}/stats` returns the container's
+`ContainerSample`; `StatsSampler` samples every `desiredState = running`
+workstation each minute into `stat_sample.workstation_id` (host rows are now
+`service_id IS NULL AND workstation_id IS NULL`). The Observability tab reads it
+through `getStatHistory({ workstationId })`, the list through
+`getWorkstationUsage`.
+
 **Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`), not
 the per-app login wall, whose gate is service-shaped (`gatedService`,
 `AppAccessService`).

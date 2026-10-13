@@ -30,10 +30,49 @@ Workstations, which the Developer role has.
   and `/home/coder` by default. Any image serving a web IDE over HTTP works; the
   home path is where the persistent volume is mounted, and the image needs `git`
   for the clone.
+- **Editor** (optional): extensions and `settings.json`, see
+  [Editor and git setup](#editor-and-git-setup).
+- **Git** (optional): which connected git provider pushes from the IDE, and the
+  commit name and email.
 - **CPU limit**, **Memory limit**, **Environment variables** (optional).
 
 It starts as soon as it's created. The Overview tab follows the start (pulling
-the image, starting, cloning) and shows **Open IDE** once it runs.
+the image, starting, cloning, setting up the IDE) and shows **Open IDE** once it
+runs.
+
+## Editor and git setup
+
+Workstations don't read a dev container config: the IDE is configured per
+workstation, so every repository gets the same editor without carrying any
+config. All of it is applied on every start, inside the running container, as
+its own user:
+
+- **Extensions**: search [Open VSX](https://open-vsx.org) (the registry
+  code-server installs from) and pick them, or paste an exact `publisher.name`
+  id. Each start installs the list with `code-server --install-extension`, and
+  uninstalls one that a previous start installed and that you've since removed.
+  Extensions installed from the IDE itself are left alone. Needs the image to
+  ship `code-server`; an extension that fails to install fails the start with
+  its id.
+- **Settings**: a JSON object written over code-server's user `settings.json`
+  (`<home>/.local/share/code-server/User/settings.json`). Leave it empty to keep
+  what you change from the IDE.
+- **Git**: pick one of your connected [git providers](git-providers.md). Its
+  token goes into the git credential store (`<home>/.git-credentials`, replacing
+  only that host's line, with `credential.helper store`), so `git push` and
+  `git pull` work from the terminal in the IDE, and into `GH_TOKEN` (GitHub) or
+  `GITLAB_TOKEN` (GitLab) for `gh` or `glab`. **Commit name** and **Commit
+  email** set `user.name` and `user.email`; the name defaults to your provider
+  username. A short-lived provider token is refreshed on each start, so restart
+  a workstation that has been running for long if a push gets refused.
+
+## Observability
+
+The **Observability** tab shows the container's CPU, memory and network use
+right now (read every 5 seconds while the page is open, against the CPU and
+memory limits when set), and a history chart. A running workstation is sampled
+once a minute, wherever it runs, alongside the services. The Workstations list
+shows each running one's latest CPU and memory.
 
 ## Logs and self-test
 
@@ -65,7 +104,8 @@ the IDE itself is what stands in front of it.
   (`homerun-workstation-<id>`), so files, extensions and the cloned repository
   survive it.
 - **Stop** stops the container and keeps everything.
-- Settings changes apply on the next start.
+- Settings changes apply on the next start. Each section of the Settings tab
+  saves on its own.
 - Delete is under **Settings → Danger zone**. The home volume is kept unless you
   tick **Also delete the home volume**.
 

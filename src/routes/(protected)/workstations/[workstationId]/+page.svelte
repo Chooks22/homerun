@@ -54,7 +54,7 @@
 	});
 
 	function badgeStatus(value: WorkstationState): ContainerStatus {
-		if (value === "cloning") {
+		if (value === "cloning" || value === "configuring") {
 			return "starting";
 		}
 		return value;

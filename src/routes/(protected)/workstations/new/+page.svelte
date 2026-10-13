@@ -7,7 +7,10 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
-	import WorkstationFields from "#lib/components/workstation-fields.svelte";
+	import WorkstationContainerFields from "#lib/components/workstation-container-fields.svelte";
+	import WorkstationEditorFields from "#lib/components/workstation-editor-fields.svelte";
+	import WorkstationGitFields from "#lib/components/workstation-git-fields.svelte";
+	import WorkstationRepoFields from "#lib/components/workstation-repo-fields.svelte";
 	import { slugify } from "#lib/slug.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
@@ -101,13 +104,22 @@
       </div>
     </section>
 
-    <WorkstationFields
+    <WorkstationRepoFields
       providers={data.gitProviders}
+      values={{ gitBranch: null, gitUrl: null }}
+    />
+
+    <WorkstationEditorFields values={{ editorSettings: {}, extensions: [] }} />
+
+    <WorkstationGitFields
+      providers={data.gitProviders}
+      values={{ gitAuthorEmail: null, gitAuthorName: null, gitProviderId: null }}
+    />
+
+    <WorkstationContainerFields
       values={{
         cpuLimit: null,
         env: {},
-        gitBranch: null,
-        gitUrl: null,
         homePath: DEFAULT_WORKSTATION_HOME,
         image: DEFAULT_WORKSTATION_IMAGE,
         memoryLimitMb: null,

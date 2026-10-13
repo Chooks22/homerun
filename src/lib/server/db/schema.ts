@@ -556,8 +556,16 @@ export const workstation = pgTable(
 		desiredState: text("desired_state", { enum: ["running", "stopped"] })
 			.default("stopped")
 			.notNull(),
+		editorSettings: jsonb("editor_settings")
+			.$type<Record<string, unknown>>()
+			.default({})
+			.notNull(),
 		env: jsonb("env").$type<Record<string, string>>().default({}).notNull(),
+		extensions: jsonb("extensions").$type<string[]>().default([]).notNull(),
+		gitAuthorEmail: text("git_author_email"),
+		gitAuthorName: text("git_author_name"),
 		gitBranch: text("git_branch"),
+		gitProviderId: text("git_provider_id"),
 		gitUrl: text("git_url"),
 		homePath: text("home_path").default("/home/coder").notNull(),
 		id: text("id").primaryKey(),
@@ -1768,10 +1776,17 @@ export const statSample = pgTable(
 		serviceId: text("service_id").references(() => service.id, {
 			onDelete: "cascade",
 		}),
+		workstationId: text("workstation_id").references(() => workstation.id, {
+			onDelete: "cascade",
+		}),
 	},
 	(table) => [
 		index("statSample_serviceId_createdAt_idx").on(
 			table.serviceId,
+			table.createdAt,
+		),
+		index("statSample_workstationId_createdAt_idx").on(
+			table.workstationId,
 			table.createdAt,
 		),
 	],

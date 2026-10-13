@@ -6,6 +6,7 @@ import {
 	DEFAULT_WORKSTATION_HOME,
 	DEFAULT_WORKSTATION_IMAGE,
 	DEFAULT_WORKSTATION_PORT,
+	EXTENSION_ID_RE,
 } from "#lib/workstations.js";
 
 const optionalText = z
@@ -21,11 +22,19 @@ const optionalNumber = (schema: z.ZodNumber) =>
 		.transform((value) => (value ? Number(value) : null))
 		.pipe(schema.nullable());
 
-const workstationSettingsSchema = z.object({
-	cpuLimit: optionalNumber(
-		z.number().positive("CPU limit must be above 0.").max(256),
-	),
-	env: z.string().nullish(),
+/** `text` parsed as a JSON object; null when it isn't valid JSON or isn't an object. */
+function jsonObject(text: string): Record<string, unknown> | null {
+	try {
+		const parsed: unknown = JSON.parse(text);
+		return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+			? (parsed as Record<string, unknown>)
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+const repositorySchema = z.object({
 	gitBranch: optionalText.refine((value) => !value?.startsWith("-"), {
 		message: "A branch name can't start with a dash.",
 	}),
@@ -33,6 +42,13 @@ const workstationSettingsSchema = z.object({
 		(value) => !value || /^https?:\/\/[^/\s]+\/\S+$/.test(value),
 		{ message: "The repository must be an http(s) clone URL." },
 	),
+});
+
+const containerSchema = z.object({
+	cpuLimit: optionalNumber(
+		z.number().positive("CPU limit must be above 0.").max(256),
+	),
+	env: z.string().nullish(),
 	homePath: z
 		.string()
 		.trim()
@@ -60,16 +76,76 @@ const workstationSettingsSchema = z.object({
 		.pipe(z.number().int().min(1).max(65_535)),
 });
 
-const newWorkstationSchema = workstationSettingsSchema.extend({
+const editorSchema = z.object({
+	editorSettings: z
+		.string()
+		.nullish()
+		.transform((value, ctx) => {
+			const text = value?.trim();
+			if (!text) {
+				return {};
+			}
+			const parsed = jsonObject(text);
+			if (!parsed) {
+				ctx.addIssue({
+					code: "custom",
+					message: "The editor settings must be a JSON object.",
+				});
+				return z.NEVER;
+			}
+			return parsed;
+		}),
+	extensions: z
+		.array(
+			z
+				.string()
+				.trim()
+				.regex(
+					EXTENSION_ID_RE,
+					"Extensions are publisher.name ids, like esbenp.prettier-vscode.",
+				),
+		)
+		.max(100, "That's more than 100 extensions.")
+		.transform((ids) => [...new Set(ids.map((id) => id.toLowerCase()))]),
+});
+
+const gitSchema = z.object({
+	gitAuthorEmail: optionalText.refine(
+		(value) => !value || z.email().safeParse(value).success,
+		{ message: "The commit email isn't an email address." },
+	),
+	gitAuthorName: optionalText,
+	gitProviderId: optionalText,
+});
+
+const newWorkstationSchema = z.object({
+	...repositorySchema.shape,
+	...containerSchema.shape,
+	...editorSchema.shape,
+	...gitSchema.shape,
 	name: z.string().trim().min(1, "Give the workstation a name.").max(80),
 	remoteHostId: optionalText,
 });
 
+export const WORKSTATION_SECTIONS = [
+	"repository",
+	"container",
+	"editor",
+	"git",
+] as const;
+
+export type WorkstationSection = (typeof WORKSTATION_SECTIONS)[number];
+
 /** A workstation's editable settings, normalised into DTO-ready columns. */
 export interface WorkstationSettings {
 	cpuLimit: number | null;
+	editorSettings: Record<string, unknown>;
 	env: Record<string, string>;
+	extensions: string[];
+	gitAuthorEmail: string | null;
+	gitAuthorName: string | null;
 	gitBranch: string | null;
+	gitProviderId: string | null;
 	gitUrl: string | null;
 	homePath: string;
 	image: string;
@@ -99,21 +175,38 @@ function envFrom(text: string | null | undefined): Record<string, string> {
 	return env;
 }
 
+/** The form's fields, with `extensions` kept as every value it was sent. */
+function fieldsOf(formData: FormData): Record<string, unknown> {
+	return {
+		...Object.fromEntries(formData),
+		extensions: formData.getAll("extensions").map(String),
+	};
+}
+
 /**
- * Validates the Settings tab's fields.
+ * Validates one section of the Settings tab, each saved on its own.
  *
- * @returns The parsed settings, or the first validation error message.
+ * @returns Only that section's columns, or the first validation error message.
  */
-export function parseWorkstationSettings(
+export function parseWorkstationSection(
+	section: WorkstationSection,
 	formData: FormData,
-): { error: string } | { parsed: WorkstationSettings } {
-	const result = workstationSettingsSchema.safeParse(
-		Object.fromEntries(formData),
-	);
+): { error: string } | { parsed: Partial<WorkstationSettings> } {
+	const fields = fieldsOf(formData);
+	const result = {
+		container: containerSchema,
+		editor: editorSchema,
+		git: gitSchema,
+		repository: repositorySchema,
+	}[section].safeParse(fields);
 	if (!result.success) {
 		return { error: firstIssue(result.error) };
 	}
-	return { parsed: { ...result.data, env: envFrom(result.data.env) } };
+	if (section === "container") {
+		const data = result.data as z.infer<typeof containerSchema>;
+		return { parsed: { ...data, env: envFrom(data.env) } };
+	}
+	return { parsed: result.data as Partial<WorkstationSettings> };
 }
 
 /**
@@ -124,7 +217,7 @@ export function parseWorkstationSettings(
 export function parseNewWorkstation(
 	formData: FormData,
 ): { error: string } | { parsed: NewWorkstationForm } {
-	const result = newWorkstationSchema.safeParse(Object.fromEntries(formData));
+	const result = newWorkstationSchema.safeParse(fieldsOf(formData));
 	if (!result.success) {
 		return { error: firstIssue(result.error) };
 	}

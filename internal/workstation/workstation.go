@@ -32,22 +32,25 @@ const (
 	scope   = "workstation"
 )
 
-// The states Status reports. Pulling, Cloning and Starting only exist while an
+// The states Status reports. Pulling, Starting, Cloning and Configuring only exist while an
 // Up is in flight on this process.
 const (
-	StateCloning  = "cloning"
-	StateFailed   = "failed"
-	StateMissing  = "missing"
-	StatePulling  = "pulling"
-	StateRunning  = "running"
-	StateStarting = "starting"
-	StateStopped  = "stopped"
+	StateCloning     = "cloning"
+	StateConfiguring = "configuring"
+	StateFailed      = "failed"
+	StateMissing     = "missing"
+	StatePulling     = "pulling"
+	StateRunning     = "running"
+	StateStarting    = "starting"
+	StateStopped     = "stopped"
 )
 
 var (
 	idPattern        = regexp.MustCompile(`^[A-Za-z0-9-]{1,64}$`)
 	namePattern      = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,62}$`)
 	directoryPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
+	extensionPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9._-]*$`)
+	hostPattern      = regexp.MustCompile(`^[A-Za-z0-9.-]+(:[0-9]{1,5})?$`)
 )
 
 // ErrBusy is returned when an Up for the same workstation is already running.
@@ -62,6 +65,26 @@ type Git struct {
 	Token     string `json:"token"`
 	URL       string `json:"url"`
 	Username  string `json:"username"`
+}
+
+// Credential is a git provider login stored in the home volume's git
+// credential store, so pushes and pulls from the IDE authenticate as the owner.
+type Credential struct {
+	Host     string `json:"host"`
+	Token    string `json:"token"`
+	Username string `json:"username"`
+}
+
+// Setup is the per-user IDE configuration applied on every start: the git
+// identity and credential, code-server's user settings (left alone when
+// empty) and the extensions it installs. Extensions a previous start
+// installed and that aren't listed any more are uninstalled.
+type Setup struct {
+	Credential *Credential `json:"credential"`
+	Extensions []string    `json:"extensions"`
+	GitEmail   string      `json:"gitEmail"`
+	GitName    string      `json:"gitName"`
+	Settings   string      `json:"settings"`
 }
 
 // Spec is everything the app decided about one workstation's container.
@@ -80,6 +103,7 @@ type Spec struct {
 	Network     string            `json:"network"`
 	Port        int               `json:"port"`
 	Publish     bool              `json:"publish"`
+	Setup       *Setup            `json:"setup"`
 }
 
 // Status is what the daemon and any in-flight start say about a workstation.
@@ -150,6 +174,17 @@ func Validate(spec Spec) []string {
 			problems = append(problems, "git.branch can't start with a dash")
 		}
 	}
+	if spec.Setup != nil {
+		for _, extension := range spec.Setup.Extensions {
+			if !extensionPattern.MatchString(extension) {
+				problems = append(problems, "setup.extensions must be publisher.name ids")
+				break
+			}
+		}
+		if credential := spec.Setup.Credential; credential != nil && (!hostPattern.MatchString(credential.Host) || credential.Token == "") {
+			problems = append(problems, "setup.credential needs a host and a token")
+		}
+	}
 	return problems
 }
 
@@ -172,7 +207,7 @@ func (m *Manager) Up(id string, spec Spec) error {
 		defer m.mu.Unlock()
 		op.done = true
 		if err != nil {
-			op.err = redact(err.Error(), spec.Git)
+			op.err = redact(err.Error(), spec)
 			op.state = StateFailed
 			logging.Warnf(scope, "workstation %s failed to start: %s", id, op.err)
 			return
@@ -218,16 +253,26 @@ func (m *Manager) up(ctx context.Context, id string, spec Spec, op *operation) e
 	if err := m.docker.StartContainer(ctx, containerID); err != nil {
 		return fmt.Errorf("couldn't start the container: %w", err)
 	}
-	if spec.Git == nil {
+	if spec.Git != nil {
+		m.setState(op, StateCloning)
+		result, err := m.docker.ContainerExec(ctx, containerID, CloneCommand(spec))
+		if err != nil {
+			return fmt.Errorf("couldn't clone the repository: %w", err)
+		}
+		if result.ExitCode != 0 {
+			return fmt.Errorf("couldn't clone the repository (exit %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
+		}
+	}
+	if spec.Setup == nil {
 		return nil
 	}
-	m.setState(op, StateCloning)
-	result, err := m.docker.ContainerExec(ctx, containerID, CloneCommand(spec))
+	m.setState(op, StateConfiguring)
+	result, err := m.docker.ContainerExec(ctx, containerID, SetupCommand(spec))
 	if err != nil {
-		return fmt.Errorf("couldn't clone the repository: %w", err)
+		return fmt.Errorf("couldn't configure the IDE: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return fmt.Errorf("couldn't clone the repository (exit %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
+		return fmt.Errorf("couldn't configure the IDE (exit %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 	return nil
 }
@@ -287,6 +332,79 @@ func CloneCommand(spec Spec) []string {
 	}
 }
 
+const setupScript = `set -e
+home="$1"
+export HOME="$home"
+if [ -n "$2" ]; then git config --global user.name "$2"; fi
+if [ -n "$3" ]; then git config --global user.email "$3"; fi
+if [ -n "$5" ]; then
+	file="$home/.git-credentials"
+	umask 077
+	touch "$file"
+	{ grep -vF "@$4" "$file" || true; printf '%s\n' "$5"; } > "$file.homerun"
+	mv "$file.homerun" "$file"
+	git config --global credential.helper store
+fi
+if [ -n "$6" ]; then
+	dir="$home/.local/share/code-server/User"
+	mkdir -p "$dir"
+	printf '%s\n' "$6" > "$dir/settings.json"
+fi
+shift 6
+managed="$home/.local/share/code-server/homerun-extensions"
+if [ "$#" -eq 0 ] && [ ! -s "$managed" ]; then exit 0; fi
+if ! command -v code-server >/dev/null 2>&1; then
+	if [ "$#" -eq 0 ]; then exit 0; fi
+	echo "this image has no code-server, so extensions can't be installed" >&2
+	exit 3
+fi
+mkdir -p "$(dirname "$managed")"
+touch "$managed"
+while IFS= read -r old; do
+	keep=0
+	for ext in "$@"; do
+		if [ "$ext" = "$old" ]; then keep=1; fi
+	done
+	if [ -n "$old" ] && [ "$keep" -eq 0 ]; then code-server --uninstall-extension "$old" >/dev/null 2>&1 || true; fi
+done < "$managed"
+failed=""
+for ext in "$@"; do
+	code-server --install-extension "$ext" >/dev/null 2>&1 || failed="$failed $ext"
+done
+printf '%s\n' "$@" > "$managed"
+if [ -n "$failed" ]; then
+	echo "couldn't install:$failed" >&2
+	exit 4
+fi`
+
+// SetupCommand is the exec that applies spec's Setup inside the running
+// container, as its own user: the git identity, the provider credential (one
+// line per host in ~/.git-credentials, replacing that host's previous one),
+// code-server's settings.json, then the extension list. Every value travels as
+// a positional argument, never interpolated into the script.
+func SetupCommand(spec Spec) []string {
+	setup := spec.Setup
+	host, line := "", ""
+	if setup.Credential != nil {
+		host = setup.Credential.Host
+		line = credentialLine(setup.Credential)
+	}
+	command := []string{
+		"sh", "-c", setupScript, "setup",
+		strings.TrimRight(spec.HomePath, "/"), setup.GitName, setup.GitEmail, host, line, setup.Settings,
+	}
+	return append(command, setup.Extensions...)
+}
+
+// credentialLine is credential as a git credential store entry.
+func credentialLine(credential *Credential) string {
+	username := credential.Username
+	if username == "" {
+		username = "oauth2"
+	}
+	return (&url.URL{Host: credential.Host, Scheme: "https", User: url.UserPassword(username, credential.Token)}).String()
+}
+
 // authenticatedURL puts the clone credential into an http(s) URL that doesn't
 // already carry one.
 func authenticatedURL(git *Git) string {
@@ -305,12 +423,22 @@ func authenticatedURL(git *Git) string {
 	return parsed.String()
 }
 
-// redact strips the clone token from a message before it's stored or logged.
-func redact(message string, git *Git) string {
-	if git == nil || git.Token == "" {
-		return message
+// redact strips the clone and credential tokens from a message before it's
+// stored or logged.
+func redact(message string, spec Spec) string {
+	tokens := []string{}
+	if spec.Git != nil {
+		tokens = append(tokens, spec.Git.Token)
 	}
-	return strings.ReplaceAll(message, git.Token, "***")
+	if spec.Setup != nil && spec.Setup.Credential != nil {
+		tokens = append(tokens, spec.Setup.Credential.Token)
+	}
+	for _, token := range tokens {
+		if token != "" {
+			message = strings.ReplaceAll(message, token, "***")
+		}
+	}
+	return message
 }
 
 // removeContainers force-removes every container of workstation id.
@@ -408,6 +536,19 @@ func (m *Manager) Connections(ctx context.Context, id string, port int) (int, er
 		return 0, fmt.Errorf("couldn't read the container's connections: %s", strings.TrimSpace(result.Stderr))
 	}
 	return CountEstablished(result.Stdout, port), nil
+}
+
+// Stats reads workstation id's running container's CPU, memory and network
+// use. ErrNotFound when no container of it runs.
+func (m *Manager) Stats(ctx context.Context, id string) (*dockerapi.ContainerSample, error) {
+	containers, err := m.docker.ListContainersByLabel(ctx, IDLabel+"="+id)
+	if err != nil {
+		return nil, err
+	}
+	if len(containers) == 0 || containers[0].State != "running" {
+		return nil, dockerapi.ErrNotFound
+	}
+	return m.docker.ContainerStats(ctx, containers[0].ID)
 }
 
 // CountEstablished counts the ESTABLISHED entries of a /proc/net/tcp table

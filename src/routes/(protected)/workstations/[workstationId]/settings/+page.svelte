@@ -5,13 +5,17 @@
 	import Alert from "#lib/components/alert.svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import { labelClass } from "#lib/components/form-styles.js";
+	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import SelfTestChecks from "#lib/components/self-test-checks.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
-	import WorkstationFields from "#lib/components/workstation-fields.svelte";
+	import WorkstationContainerFields from "#lib/components/workstation-container-fields.svelte";
+	import WorkstationEditorFields from "#lib/components/workstation-editor-fields.svelte";
+	import WorkstationGitFields from "#lib/components/workstation-git-fields.svelte";
+	import WorkstationRepoFields from "#lib/components/workstation-repo-fields.svelte";
 	import { testWorkstation } from "#lib/remote/workstations.remote.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast, toastError } from "#lib/toast.js";
@@ -23,7 +27,26 @@
 
 	onMount(() => title.set(`${ws.name} · Settings`));
 
-	let saving = $state(false);
+	type Section = "container" | "editor" | "general" | "git" | "repository";
+
+	let saving = $state<Section | null>(null);
+
+	function sectionToast(section: Section, label: string) {
+		return enhanceToast({
+			error: "Check the form for errors.",
+			loading: `Saving ${label}`,
+			onSettled: () => {
+				saving = null;
+			},
+			onStart: () => {
+				saving = section;
+			},
+			success:
+				section === "general"
+					? "Saved."
+					: "Saved. Start the workstation again to apply it.",
+		});
+	}
 	let deleting = $state(false);
 	let deleteVolume = $state(false);
 	let deleteDialogOpen = $state(false);
@@ -64,28 +87,18 @@
   {/if}
 
   <form
-    id="workstation-settings"
-    action="?/save"
-    class="space-y-4"
+    id="ws-general"
+    action="?/general"
     method="POST"
-    use:enhance={enhanceToast({
-      error: "Check the form for errors.",
-      loading: "Saving the workstation",
-      onSettled: () => {
-        saving = false;
-      },
-      onStart: () => {
-        saving = true;
-      },
-      success: "Saved. Start the workstation again to apply it.",
-    })}
+    use:enhance={sectionToast("general", "the name")}
   >
     <section class="panel rounded-xl">
-      <div class="panel-head">
-        <h2 class="eyebrow">Workstation</h2>
-        <SaveButton form="workstation-settings" pending={saving} />
-      </div>
-      <div class="p-4">
+      <PanelHeader title="Workstation">
+        {#snippet trailing()}
+          <SaveButton form="ws-general" pending={saving === "general"} />
+        {/snippet}
+      </PanelHeader>
+      <div class="p-5">
         <label class={labelClass} for="name">Name</label>
         <Input id="name" name="name" required type="text" value={ws.name} />
         <p class="text-text-subtle mt-1.5 text-xs">
@@ -94,8 +107,58 @@
         </p>
       </div>
     </section>
+  </form>
 
-    <WorkstationFields providers={data.gitProviders} values={ws} />
+  <form
+    id="ws-repository"
+    action="?/repository"
+    method="POST"
+    use:enhance={sectionToast("repository", "the repository")}
+  >
+    <WorkstationRepoFields providers={data.gitProviders} values={ws}>
+      {#snippet trailing()}
+        <SaveButton form="ws-repository" pending={saving === "repository"} />
+      {/snippet}
+    </WorkstationRepoFields>
+  </form>
+
+  <form
+    id="ws-editor"
+    action="?/editor"
+    method="POST"
+    use:enhance={sectionToast("editor", "the editor")}
+  >
+    <WorkstationEditorFields values={ws}>
+      {#snippet trailing()}
+        <SaveButton form="ws-editor" pending={saving === "editor"} />
+      {/snippet}
+    </WorkstationEditorFields>
+  </form>
+
+  <form
+    id="ws-git"
+    action="?/git"
+    method="POST"
+    use:enhance={sectionToast("git", "the git setup")}
+  >
+    <WorkstationGitFields providers={data.gitProviders} values={ws}>
+      {#snippet trailing()}
+        <SaveButton form="ws-git" pending={saving === "git"} />
+      {/snippet}
+    </WorkstationGitFields>
+  </form>
+
+  <form
+    id="ws-container"
+    action="?/container"
+    method="POST"
+    use:enhance={sectionToast("container", "the container")}
+  >
+    <WorkstationContainerFields values={ws}>
+      {#snippet trailing()}
+        <SaveButton form="ws-container" pending={saving === "container"} />
+      {/snippet}
+    </WorkstationContainerFields>
   </form>
 
   <section class="panel rounded-xl">

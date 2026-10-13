@@ -2,7 +2,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { Logger } from "#lib/logger.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
-import { parseWorkstationSettings } from "#lib/server/workstation-form.js";
+import { saveWorkstationSection } from "#lib/server/workstation-actions.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
 
@@ -14,6 +14,9 @@ export const load = async ({ parent }) => {
 };
 
 export const actions = {
+	container: ({ locals, params, request }) =>
+		saveWorkstationSection(locals, request, params.workstationId, "container"),
+
 	delete: async ({ locals, params, request }) => {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
@@ -34,7 +37,10 @@ export const actions = {
 		redirect(303, resolve("workstations"));
 	},
 
-	save: async ({ locals, params, request }) => {
+	editor: ({ locals, params, request }) =>
+		saveWorkstationSection(locals, request, params.workstationId, "editor"),
+
+	general: async ({ locals, params, request }) => {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
@@ -42,17 +48,18 @@ export const actions = {
 		if (!ws) {
 			return fail(404, { error: "Workstation not found." });
 		}
-		const formData = await request.formData();
-		const result = parseWorkstationSettings(formData);
-		if ("error" in result) {
-			return fail(400, { error: result.error });
-		}
-		const name = String(formData.get("name") ?? "").trim();
+		const name = String((await request.formData()).get("name") ?? "").trim();
 		if (!name) {
 			return fail(400, { error: "Give the workstation a name." });
 		}
-		await ws.update({ ...result.parsed, name });
-		logger.info(`Workstation settings saved: workstation=${ws.id}`);
+		await ws.update({ name });
+		logger.info(`Workstation renamed: workstation=${ws.id}`);
 		return { ok: true };
 	},
+
+	git: ({ locals, params, request }) =>
+		saveWorkstationSection(locals, request, params.workstationId, "git"),
+
+	repository: ({ locals, params, request }) =>
+		saveWorkstationSection(locals, request, params.workstationId, "repository"),
 };

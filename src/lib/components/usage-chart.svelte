@@ -8,9 +8,15 @@
 		/** null charts the host itself. */
 		serviceId?: string | null;
 		title?: string;
+		/** Charts a workstation instead, when set. */
+		workstationId?: string | null;
 	}
 
-	const { serviceId = null, title = "Resource usage" }: Props = $props();
+	const {
+		serviceId = null,
+		title = "Resource usage",
+		workstationId = null,
+	}: Props = $props();
 
 	const RANGES = [
 		["live", "Live"],
@@ -28,7 +34,7 @@
 	let range = $state<Range>("hour");
 	let metric = $state<Metric>("cpu");
 
-	const history = $derived(getStatHistory({ range, serviceId }));
+	const history = $derived(getStatHistory({ range, serviceId, workstationId }));
 	const points = $derived(history.current ?? []);
 
 	// Live refreshes on the same 5s beat the Host Resources panel polls at;
@@ -36,7 +42,11 @@
 	onMount(() => {
 		const timer = setInterval(() => {
 			if (range === "live") {
-				void getStatHistory({ range: "live", serviceId }).refresh();
+				void getStatHistory({
+					range: "live",
+					serviceId,
+					workstationId,
+				}).refresh();
 			}
 		}, 5000);
 		return () => clearInterval(timer);
@@ -161,12 +171,12 @@
         aria-label="{title} over the selected range"
       >
         <defs>
-          <linearGradient id="usage-fill-{serviceId ?? 'host'}" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id="usage-fill-{workstationId ?? serviceId ?? 'host'}" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stop-color="var(--color-accent)" stop-opacity="0.35" />
             <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0" />
           </linearGradient>
         </defs>
-        <path d={area} fill="url(#usage-fill-{serviceId ?? 'host'})" />
+        <path d={area} fill="url(#usage-fill-{workstationId ?? serviceId ?? 'host'})" />
         <path
           d={path}
           fill="none"

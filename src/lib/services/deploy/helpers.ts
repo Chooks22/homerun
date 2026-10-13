@@ -9,8 +9,10 @@ import {
 	type GitCredential,
 	hasEmbeddedCredentials,
 	providerForGitUrl,
+	providerHost,
 } from "#lib/git-clone-url.js";
 import { DEPLOY_LOG_SCOPE, Logger } from "#lib/logger.js";
+import type { GitProviderKind } from "#lib/server/db/schema.js";
 import { serviceHostnames } from "#lib/service-domains.js";
 import { syncDns } from "../dns.service.ts";
 import { GitProviderService } from "../git-provider.service.ts";
@@ -69,6 +71,47 @@ export function toVolumeParams(mounts: ServiceMounts) {
 		readOnly: m.mount.toJSON().readOnly,
 		source: m.volumeSource,
 	}));
+}
+
+/** A connected git provider's login, with the host it serves repositories from. */
+export interface ProviderCredential extends GitCredential {
+	host: string;
+	kind: GitProviderKind;
+}
+
+/**
+ * The credential `userId`'s connection to git provider `providerId` holds.
+ * Null when the provider is gone or disabled, has no known host, the user
+ * isn't connected to it, or its token can't be decrypted or refreshed.
+ */
+export async function resolveProviderCredential(
+	providerId: string,
+	userId: string,
+): Promise<ProviderCredential | null> {
+	const settings = await InstanceSettingsDTO.get();
+	const provider = settings.gitProviders.find(
+		(p) => p.id === providerId && p.enabled,
+	);
+	const host = provider ? providerHost(provider) : null;
+	if (!provider || !host) {
+		return null;
+	}
+	const connection = await GitConnectionDTO.getForUserAndProvider(
+		userId,
+		provider.id,
+	);
+	const token = connection
+		? await GitProviderService.accessToken(provider, connection)
+		: null;
+	if (!connection || !token) {
+		return null;
+	}
+	return {
+		host,
+		kind: provider.kind,
+		token,
+		username: connection.toJSON().providerUsername || "oauth2",
+	};
 }
 
 /**

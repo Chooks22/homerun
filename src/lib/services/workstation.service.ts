@@ -10,8 +10,13 @@ import {
 	AgentClientService,
 	type AgentConnection,
 } from "#lib/services/agent-client.service.js";
-import { resolveGitCredential } from "#lib/services/deploy/helpers.js";
+import {
+	type ProviderCredential,
+	resolveGitCredential,
+	resolveProviderCredential,
+} from "#lib/services/deploy/helpers.js";
 import { deleteDns, syncDns } from "#lib/services/dns.service.js";
+import type { ContainerSample } from "#lib/services/docker/containers.js";
 import {
 	agentHostAddress,
 	workstationLabels,
@@ -40,6 +45,17 @@ function messageOf(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
+/** The env var a provider's own CLI (`gh`, `glab`) reads its token from. */
+function tokenEnv(login: ProviderCredential | null): Record<string, string> {
+	if (login?.kind === "github") {
+		return { GH_TOKEN: login.token };
+	}
+	if (login?.kind === "gitlab") {
+		return { GITLAB_TOKEN: login.token };
+	}
+	return {};
+}
+
 type Target =
 	| { kind: "local" }
 	| { address: string; connection: AgentConnection; kind: "agent" };
@@ -63,6 +79,13 @@ export interface WorkstationSpec {
 	network: string;
 	port: number;
 	publish: boolean;
+	setup: {
+		credential: { host: string; token: string; username: string } | null;
+		extensions: string[];
+		gitEmail: string;
+		gitName: string;
+		settings: string;
+	};
 }
 
 /** A workstation's live status plus where to open it. */
@@ -135,7 +158,9 @@ class WorkstationServiceClass {
 
 	/**
 	 * Everything the worker or agent needs to run `ws`: its password in env,
-	 * its git repository with the owner's provider credential, and either
+	 * its git repository with the owner's provider credential, the IDE setup
+	 * (extensions, settings, git identity and the picked provider's login,
+	 * also exported as `GH_TOKEN`/`GITLAB_TOKEN`), and either
 	 * Traefik labels on this server's network or a published port on an agent.
 	 *
 	 * @throws When the stored password can't be decrypted.
@@ -148,12 +173,15 @@ class WorkstationServiceClass {
 				"Couldn't decrypt this workstation's password. Reset it under Settings.",
 			);
 		}
-		const credential = row.gitUrl
-			? await resolveGitCredential(row.gitUrl, row.userId)
-			: null;
+		const [credential, login] = await Promise.all([
+			row.gitUrl ? resolveGitCredential(row.gitUrl, row.userId) : null,
+			row.gitProviderId
+				? resolveProviderCredential(row.gitProviderId, row.userId)
+				: null,
+		]);
 		const local = target.kind === "local";
 		return {
-			env: { ...row.env, PASSWORD: password },
+			env: { ...row.env, ...tokenEnv(login), PASSWORD: password },
 			git: row.gitUrl
 				? {
 						branch: row.gitBranch ?? "",
@@ -174,6 +202,18 @@ class WorkstationServiceClass {
 			network: local ? config.docker.networkName : "",
 			port: row.port,
 			publish: !local,
+			setup: {
+				credential: login
+					? { host: login.host, token: login.token, username: login.username }
+					: null,
+				extensions: row.extensions,
+				gitEmail: row.gitAuthorEmail ?? "",
+				gitName: row.gitAuthorName ?? login?.username ?? "",
+				settings:
+					Object.keys(row.editorSettings).length > 0
+						? JSON.stringify(row.editorSettings, null, "\t")
+						: "",
+			},
 		};
 	}
 
@@ -266,6 +306,22 @@ class WorkstationServiceClass {
 			{ query: { port: String(ws.toJSON().port) } },
 		);
 		return answer.connections;
+	}
+
+	/**
+	 * `ws`'s running container's CPU, memory and network use, from the worker
+	 * or agent.
+	 *
+	 * @throws When it isn't running (a 404) or the worker or agent can't be
+	 *   reached.
+	 */
+	async stats(ws: WorkstationDTO): Promise<ContainerSample> {
+		const target = await this.#target(ws);
+		return await this.#call<ContainerSample>(
+			target,
+			"GET",
+			`/v1/workstations/${ws.id}/stats`,
+		);
 	}
 
 	/**

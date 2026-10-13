@@ -20,6 +20,7 @@ func (m *Manager) Mount(r chi.Router) {
 	r.Get("/v1/workstations/{id}", httpapi.H(m.statusRoute))
 	r.Get("/v1/workstations/{id}/connections", httpapi.H(m.connectionsRoute))
 	r.Get("/v1/workstations/{id}/logs", httpapi.H(m.logsRoute))
+	r.Get("/v1/workstations/{id}/stats", httpapi.H(m.statsRoute))
 	r.Post("/v1/workstations/{id}/stop", httpapi.H(m.stopRoute))
 	r.Delete("/v1/workstations/{id}", httpapi.H(m.removeRoute))
 }
@@ -99,6 +100,23 @@ func (m *Manager) connectionsRoute(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 	return httpapi.Answer(w, http.StatusOK, map[string]int{"connections": connections})
+}
+
+// statsRoute answers GET /v1/workstations/{id}/stats with the running
+// container's resource use, 404 when nothing runs.
+func (m *Manager) statsRoute(w http.ResponseWriter, r *http.Request) error {
+	id, ok := workstationID(w, r)
+	if !ok {
+		return nil
+	}
+	sample, err := m.Stats(r.Context(), id)
+	if errors.Is(err, dockerapi.ErrNotFound) {
+		return httpapi.Error(w, http.StatusNotFound, "This workstation isn't running.")
+	}
+	if err != nil {
+		return err
+	}
+	return httpapi.Answer(w, http.StatusOK, sample)
 }
 
 // stopRoute answers POST /v1/workstations/{id}/stop.

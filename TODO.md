@@ -12,6 +12,11 @@ When done delete the entry, no bloat.
       pull refusal the same way
 - [ ] Notification channels: move the "Add a channel" form off the list page
       onto its own `channels/new` route, like every other list page
+- [ ] Workstation observability: show the home volume's disk use next to CPU,
+      memory and network
+- [ ] Workstation editor setup only drives code-server: support
+      openvscode-server (its own extension CLI and settings path) for the
+      extensions and settings.json
 
 ## Medium
 

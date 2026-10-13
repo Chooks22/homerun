@@ -76,8 +76,13 @@ function stubFetch(answer: (url: string) => Response | Promise<Response>) {
 function workstation(overrides: Record<string, unknown> = {}) {
 	const row = {
 		cpuLimit: 2,
+		editorSettings: {},
 		env: { FOO: "bar" },
+		extensions: [] as string[],
+		gitAuthorEmail: null as string | null,
+		gitAuthorName: null as string | null,
 		gitBranch: null,
+		gitProviderId: null as string | null,
 		gitUrl: "https://github.com/acme/app.git",
 		homePath: "/home/coder",
 		id: "ws1",
@@ -152,6 +157,39 @@ describe("WorkstationService.start", () => {
 			autoStopAt: null,
 			desiredState: "running",
 			lastError: null,
+		});
+	});
+
+	test("the IDE setup carries the extensions, settings and the picked provider's login", async () => {
+		restorers.push(
+			spyOn(helpers, "resolveProviderCredential").mockResolvedValue({
+				host: "github.com",
+				kind: "github",
+				token: "gho_x",
+				username: "alice",
+			}),
+		);
+		const put = spyOn(WorkerClient, "put").mockResolvedValue({});
+		restorers.push(put);
+		await WorkstationService.start(
+			workstation({
+				editorSettings: { "editor.fontSize": 14 },
+				extensions: ["golang.go"],
+				gitAuthorEmail: "alice@example.com",
+				gitProviderId: "gh",
+				gitUrl: null,
+			}),
+		);
+		const [, spec] = put.mock.calls[0] as [string, Record<string, unknown>];
+		expect(spec).toMatchObject({
+			env: { FOO: "bar", GH_TOKEN: "gho_x", PASSWORD: "pw" },
+			setup: {
+				credential: { host: "github.com", token: "gho_x", username: "alice" },
+				extensions: ["golang.go"],
+				gitEmail: "alice@example.com",
+				gitName: "alice",
+				settings: '{\n\t"editor.fontSize": 14\n}',
+			},
 		});
 	});
 

@@ -10,6 +10,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import ViewModeToggle from "#lib/components/view-mode-toggle.svelte";
 	import { BASE_SORTS } from "#lib/list-sorts.js";
+	import { getWorkstationUsage } from "#lib/remote/stats.remote.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { ViewMode } from "#lib/view-mode.svelte.js";
@@ -21,6 +22,22 @@
 	onMount(() => title.set("Workstations"));
 
 	const view = new ViewMode("workstations");
+
+	const usageQuery = getWorkstationUsage();
+	const usage = $derived(usageQuery.current ?? {});
+
+	onMount(() => {
+		const timer = setInterval(() => {
+			void getWorkstationUsage().refresh();
+		}, 30_000);
+		return () => clearInterval(timer);
+	});
+
+	function megabytes(value: number): string {
+		return value < 1024
+			? `${value.toFixed(0)} MB`
+			: `${(value / 1024).toFixed(1)} GB`;
+	}
 
 	const rows = $derived(
 		data.workstations.map((ws) => ({
@@ -61,6 +78,17 @@
 {/snippet}
 
 {#snippet badge(ws: Row)}
+  {@const sample = ws.running ? usage[ws.id] : undefined}
+  {#if sample}
+    <span
+      class="tech bg-surface-2 text-text-muted shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold"
+      title="CPU and memory, sampled every minute"
+    >
+      {sample.cpuPercent.toFixed(0)}% · {megabytes(sample.memUsedMb)}{sample.memLimitMb
+        ? ` / ${megabytes(sample.memLimitMb)}`
+        : ""}
+    </span>
+  {/if}
   {#if ws.error}
     <span class="shrink-0 rounded-full bg-red-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-red-600">
       Error
