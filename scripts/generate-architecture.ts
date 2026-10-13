@@ -119,9 +119,14 @@ const dockerNetwork = traefikFlag("providers.docker.network");
 const appPort = service("app")
 	.labels?.find((l) => l.includes("loadbalancer.server.port="))
 	?.split("=")[1];
-const publicPorts = (service("traefik").ports ?? [])
-	.map((p) => p.split(":").at(-1))
-	.join("/");
+const traefikPorts = (service("traefik").ports ?? []).map((p) =>
+	p.split(":").at(-1),
+);
+const udpPorts = traefikPorts.filter((p) => p?.endsWith("/udp"));
+const publicPorts = [
+	traefikPorts.filter((p) => !p?.endsWith("/udp")).join("/"),
+	...(udpPorts.length ? [`HTTP/3 on ${udpPorts.join("/")}`] : []),
+].join(", ");
 traefikFlag("certificatesresolvers.letsencrypt.acme.httpchallenge");
 
 const isSocketMount = (svc: ComposeService) =>

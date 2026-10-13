@@ -53,8 +53,15 @@ describe("response cache middleware", () => {
 		config.traefik.httpCache = true;
 		const labels = build(120);
 		expect(labels["traefik.http.routers.app.middlewares"]).toBe(
-			"app-auth,app-retry,app-cache",
+			"app-auth,app-retry,app_unconditional,app-cache",
 		);
+		for (const header of ["If-None-Match", "If-Modified-Since"]) {
+			expect(
+				labels[
+					`traefik.http.middlewares.app_unconditional.headers.customrequestheaders.${header}`
+				],
+			).toBe("");
+		}
 		expect(
 			labels[
 				"traefik.http.middlewares.app-cache.plugin.souin.default_cache.ttl"
@@ -82,6 +89,10 @@ describe("response cache middleware", () => {
 		expect(labels["traefik.http.routers.app.middlewares"]).toBe(
 			"app-auth,app-retry",
 		);
-		expect(Object.keys(labels).some((k) => k.includes("souin"))).toBe(false);
+		expect(
+			Object.keys(labels).some(
+				(k) => k.includes("souin") || k.includes("_unconditional"),
+			),
+		).toBe(false);
 	});
 });

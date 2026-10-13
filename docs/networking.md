@@ -48,8 +48,11 @@ The cache is keyed on each visitor's cookies and credentials, so a logged-in
 page is only ever served back to the session that fetched it, never to someone
 else. Responses marked `Cache-Control: no-store` are never stored; everything
 else, `private` included, is cached per session for the time you set. The login
-wall still checks every request before the cache answers. Leave caching off for
-apps whose pages must always be live (dashboards, anything real-time).
+wall still checks every request before the cache answers. A browser checking
+whether a page it already has changed (`If-None-Match`, `If-Modified-Since`)
+gets the full cached response rather than a `304 Not Modified`, since the cache
+plugin's 304 breaks the connection. Leave caching off for apps whose pages must
+always be live (dashboards, anything real-time).
 
 ## Published ports
 
@@ -63,10 +66,10 @@ a published `1194/udp` plus a DNS record for `vpn.example.com`.
 
 ![A Gitea service publishing its SSH port: host port 2222 to container port 22 over TCP](images/networking-published-ports.webp)
 
-- Homerun refuses host ports 80 and 443 over TCP (Traefik's), the same host port
-  and protocol twice, and one another service already publishes. A port
-  something else on the machine holds (the host's own SSH on 22) only fails at
-  deploy time: publish Gitea's SSH on `2222 → 22` and set its `SSH_PORT` to
+- Homerun refuses host ports 80/tcp, 443/tcp and 443/udp (Traefik's), the same
+  host port and protocol twice, and one another service already publishes. A
+  port something else on the machine holds (the host's own SSH on 22) only fails
+  at deploy time: publish Gitea's SSH on `2222 → 22` and set its `SSH_PORT` to
   2222, or move the host's SSH first.
 - A service with published ports stops its old container before starting the new
   one on each deploy (two containers can't hold one port), so it has a few
@@ -78,6 +81,13 @@ a published `1194/udp` plus a DNS record for `vpn.example.com`.
   the main one, which goes through Traefik.
 
 ## Domains & SSL
+
+Traefik serves every domain over HTTP/3 as well as HTTP/1.1 and HTTP/2: it
+listens on UDP 443 next to TCP 443 and advertises it with an `Alt-Svc` header,
+so a browser switches to HTTP/3 from its second request on. Open UDP 443 in any
+firewall in front of the server; with it closed, browsers just stay on HTTP/2.
+An instance installed before HTTP/3 picks it up from the compose file on its
+next self-update.
 
 A domain that isn't under your instance's own base domain can't use Traefik's
 automatic ACME resolver (and none of them can while the instance sits behind

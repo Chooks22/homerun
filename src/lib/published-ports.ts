@@ -4,7 +4,7 @@ export interface PublishedPort {
 	protocol: "tcp" | "udp";
 }
 
-export const RESERVED_HOST_PORTS = [80, 443];
+export const RESERVED_HOST_PORTS = ["80/tcp", "443/tcp", "443/udp"];
 
 /** The `<containerPort>/<protocol>` key Docker uses for a port in `ExposedPorts` and `PortBindings`. */
 export function portKey(port: PublishedPort): string {
@@ -41,13 +41,10 @@ export function portBindings(
 export function publishedPortsProblem(ports: PublishedPort[]): string | null {
 	const seen = new Set<string>();
 	for (const port of ports) {
-		if (
-			RESERVED_HOST_PORTS.includes(port.hostPort) &&
-			port.protocol === "tcp"
-		) {
-			return `Host port ${port.hostPort}/tcp is Traefik's : route HTTP(S) through a domain instead.`;
-		}
 		const key = `${port.hostPort}/${port.protocol}`;
+		if (RESERVED_HOST_PORTS.includes(key)) {
+			return `Host port ${key} is Traefik's : route HTTP(S) through a domain instead.`;
+		}
 		if (seen.has(key)) {
 			return `Host port ${key} is listed twice.`;
 		}
