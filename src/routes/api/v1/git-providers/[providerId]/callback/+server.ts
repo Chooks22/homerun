@@ -8,11 +8,41 @@ import { browserOrigin } from "#lib/server/canonical-origin.js";
 import { GitProviderService } from "#lib/services/git-provider.service.js";
 import { GitWebhookService } from "#lib/services/git-webhook.service.js";
 import { encryptSecret } from "#lib/services/secrets.js";
+import { WorkstationSignInService } from "#lib/services/workstation/sign-in.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("GitProviders");
 
+async function workstationSignIn(
+	providerId: string,
+	url: URL,
+	state: string,
+): Promise<Response> {
+	const code = url.searchParams.get("code");
+	if (!code) {
+		return new Response(
+			"The git provider didn't sign you in. Open the workstation again to retry.",
+			{ status: 403 },
+		);
+	}
+	let target: string;
+	try {
+		target = await WorkstationSignInService.complete(providerId, code, state);
+	} catch (err) {
+		logger.warn(`Workstation sign-in failed: provider=${providerId}`, err);
+		return new Response(
+			err instanceof Error ? err.message : "The sign-in failed.",
+			{ headers: { "content-type": "text/plain; charset=utf-8" }, status: 403 },
+		);
+	}
+	throw redirect(302, target, { external: true });
+}
+
 export const GET = async ({ cookies, params, locals, request, url }) => {
+	const signInState = url.searchParams.get("state");
+	if (signInState && WorkstationSignInService.ownsState(signInState)) {
+		return await workstationSignIn(params.providerId, url, signInState);
+	}
 	if (!locals.user) {
 		throw redirect(302, resolve("auth/sign-in"));
 	}

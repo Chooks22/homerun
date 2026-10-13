@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LaptopMinimal, Play, Plus, Square } from "@lucide/svelte";
+	import { LaptopMinimal, Layers, Play, Plus, Square } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import EntityList from "#lib/components/entity-list.svelte";
@@ -136,7 +136,10 @@
       </p>
     </div>
 
-    <Button href={resolve("workstations/new")}><Plus class="size-4" />New Workstation</Button>
+    <div class="flex items-center gap-2">
+      <Button href={resolve("workstations/presets")} variant="outline"><Layers class="size-4" />Presets</Button>
+      <Button href={resolve("workstations/new")}><Plus class="size-4" />New Workstation</Button>
+    </div>
   </div>
 
   {#if data.total === 0 && !data.filtered}

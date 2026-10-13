@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AlertTriangle, Stethoscope, Trash2 } from "@lucide/svelte";
+	import { AlertTriangle, Layers, Stethoscope, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 	import Alert from "#lib/components/alert.svelte";
@@ -21,15 +21,24 @@
 	import { enhanceToast, toastError } from "#lib/toast.js";
 	import type { WorkstationCheck } from "#lib/workstation-self-test.js";
 	import { enhance } from "$app/forms";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 
 	const { data, form } = $props();
 	const ws = $derived(data.workstation);
 
 	onMount(() => title.set(`${ws.name} · Settings`));
 
-	type Section = "container" | "editor" | "general" | "git" | "repository";
+	type Section =
+		| "container"
+		| "editor"
+		| "general"
+		| "git"
+		| "preset"
+		| "repository";
 
 	let saving = $state<Section | null>(null);
+	let savedPresetId = $state<string | null>(null);
 
 	function sectionToast(section: Section, label: string) {
 		return enhanceToast({
@@ -159,6 +168,67 @@
         <SaveButton form="ws-container" pending={saving === "container"} />
       {/snippet}
     </WorkstationContainerFields>
+  </form>
+
+  <form
+    id="ws-preset"
+    action="?/savePreset"
+    method="POST"
+    use:enhance={enhanceToast({
+      action: {
+        label: "Open",
+        onClick: () => {
+          if (savedPresetId) {
+            void goto(
+              resolve("/(protected)/workstations/presets/[presetId]", {
+                presetId: savedPresetId,
+              }),
+            );
+          }
+        },
+      },
+      error: "Couldn't save the preset.",
+      loading: "Saving as a preset",
+      onSettled: () => {
+        saving = null;
+      },
+      onStart: () => {
+        saving = "preset";
+      },
+      onSuccess: (result) => {
+        savedPresetId =
+          typeof result?.presetId === "string" ? result.presetId : null;
+      },
+      success: "Saved as a preset.",
+    })}
+  >
+    <section class="panel rounded-xl">
+      <PanelHeader
+        description="Keeps this workstation's saved settings to start new ones from."
+        title="Save as preset"
+      >
+        {#snippet trailing()}
+          <Button disabled={saving === "preset"} form="ws-preset" size="sm" type="submit" variant="outline">
+            {#if saving === "preset"}
+              <Spinner />
+            {:else}
+              <Layers class="size-4" />
+            {/if}
+            Save as preset
+          </Button>
+        {/snippet}
+      </PanelHeader>
+      <div class="grid gap-3 p-5 sm:grid-cols-2">
+        <div>
+          <label class={labelClass} for="presetName">Preset name</label>
+          <Input id="presetName" name="presetName" required type="text" value={ws.name} />
+        </div>
+        <div>
+          <label class={labelClass} for="presetDescription">Description (optional)</label>
+          <Input id="presetDescription" name="presetDescription" type="text" />
+        </div>
+      </div>
+    </section>
   </form>
 
   <section class="panel rounded-xl">

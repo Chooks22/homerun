@@ -14,6 +14,9 @@ When done delete the entry, no bloat.
       onto its own `channels/new` route, like every other list page
 - [ ] Workstation observability: show the home volume's disk use next to CPU,
       memory and network
+- [ ] Workstation Settings tab doesn't offer the dev container detection New
+      Workstation and presets do: its sections are separate forms, so Apply
+      would need to save the Editor and Container sections itself
 - [ ] Workstation editor setup only drives code-server: support
       openvscode-server (its own extension CLI and settings path) for the
       extensions and settings.json
@@ -34,6 +37,11 @@ When done delete the entry, no bloat.
 - [ ] Workstations behind the per-app login wall: the gate is service-shaped
       (`gatedService`, `AppAccessService`), a workstation only has the IDE's own
       password today
+- [ ] Services: a default domain under its own subdomain like workstations, plus
+      a domain-conflict check (`hostnameOwner`, which today only workstations
+      use, so a service can still take a workstation's or a redirect's hostname)
+      that, unlike workstations, offers to take the hostname over from its
+      owner, so a service can be moved to a new one without downtime
 - [ ] Workstations in the REST API, MCP, the CLI and the Terraform provider
 - [ ] Workstations on a raw `docker` remote host (the worker's
       `dockerapi.NewRemote`), only agent hosts can run one today
@@ -41,10 +49,6 @@ When done delete the entry, no bloat.
       IDE image never updates: add a "pull" toggle or always pull on Recreate
 - [ ] Deleting an agent host cascades its workstation rows but leaves their
       containers on that host and their Traefik route file behind
-- [ ] A service created after a workstation can take the workstation's slug, and
-      the two then fight over the same hostname (and removing the workstation
-      drops the Pangolin resource the service relies on): check workstation
-      slugs on service creation too
 - [ ] Deploys of anything behind Traefik report success without checking the
       route: probe the hostname once the container is up (local Traefik with the
       Host header for the router, the public URL for DNS/Pangolin) and fail on

@@ -1,8 +1,10 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
+import { WorkstationPresetDTO } from "#lib/dto/workstation-preset-dto.js";
 import { Logger } from "#lib/logger.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { saveWorkstationSection } from "#lib/server/workstation-actions.js";
+import { presetFromWorkstation } from "#lib/server/workstation-presets.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
 
@@ -59,6 +61,33 @@ export const actions = {
 
 	git: ({ locals, params, request }) =>
 		saveWorkstationSection(locals, request, params.workstationId, "git"),
+
+	savePreset: async ({ locals, params, request }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
+		if (!ws) {
+			return fail(404, { error: "Workstation not found." });
+		}
+		const formData = await request.formData();
+		const name = String(formData.get("presetName") ?? "").trim();
+		if (!name || name.length > 80) {
+			return fail(400, {
+				error: "Give the preset a name, up to 80 characters.",
+			});
+		}
+		const description =
+			String(formData.get("presetDescription") ?? "").trim() || null;
+		const preset = await WorkstationPresetDTO.create(
+			locals.user.id,
+			presetFromWorkstation(ws.toPublic(), name, description),
+		);
+		logger.info(
+			`Workstation saved as a preset: workstation=${ws.id} preset=${preset.id}`,
+		);
+		return { presetId: preset.id };
+	},
 
 	repository: ({ locals, params, request }) =>
 		saveWorkstationSection(locals, request, params.workstationId, "repository"),

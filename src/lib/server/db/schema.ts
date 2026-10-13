@@ -556,6 +556,7 @@ export const workstation = pgTable(
 		desiredState: text("desired_state", { enum: ["running", "stopped"] })
 			.default("stopped")
 			.notNull(),
+		domain: text("domain"),
 		editorSettings: jsonb("editor_settings")
 			.$type<Record<string, unknown>>()
 			.default({})
@@ -578,6 +579,7 @@ export const workstation = pgTable(
 		remoteHostId: text("remote_host_id").references(() => remoteHost.id, {
 			onDelete: "cascade",
 		}),
+		signInWithGit: boolean("sign_in_with_git").default(false).notNull(),
 		slug: text("slug").notNull(),
 		updatedAt: timestamp("updated_at", { mode: "date" })
 			.$onUpdate(() => new Date())
@@ -588,8 +590,45 @@ export const workstation = pgTable(
 	},
 	(table) => [
 		uniqueIndex("workstation_slug_idx").on(table.slug),
+		uniqueIndex("workstation_domain_idx").on(table.domain),
 		index("workstation_userId_idx").on(table.userId),
 	],
+);
+
+export const workstationPreset = pgTable(
+	"workstation_preset",
+	{
+		cpuLimit: doublePrecision("cpu_limit"),
+		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+		description: text("description"),
+		editorSettings: jsonb("editor_settings")
+			.$type<Record<string, unknown>>()
+			.default({})
+			.notNull(),
+		env: jsonb("env").$type<Record<string, string>>().default({}).notNull(),
+		extensions: jsonb("extensions").$type<string[]>().default([]).notNull(),
+		gitAuthorEmail: text("git_author_email"),
+		gitAuthorName: text("git_author_name"),
+		gitBranch: text("git_branch"),
+		gitProviderId: text("git_provider_id"),
+		gitUrl: text("git_url"),
+		homePath: text("home_path").default("/home/coder").notNull(),
+		id: text("id").primaryKey(),
+		image: text("image").default("codercom/code-server:latest").notNull(),
+		memoryLimitMb: integer("memory_limit_mb"),
+		name: text("name").notNull(),
+		port: integer("port").default(8080).notNull(),
+		remoteHostId: text("remote_host_id").references(() => remoteHost.id, {
+			onDelete: "set null",
+		}),
+		updatedAt: timestamp("updated_at", { mode: "date" })
+			.$onUpdate(() => new Date())
+			.notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+	},
+	(table) => [index("workstationPreset_userId_idx").on(table.userId)],
 );
 
 export const ipBan = pgTable("ip_ban", {
@@ -2441,6 +2480,7 @@ export type CronJob = typeof cronJob.$inferSelect;
 export type CronJobRun = typeof cronJobRun.$inferSelect;
 export type RemoteHost = typeof remoteHost.$inferSelect;
 export type Workstation = typeof workstation.$inferSelect;
+export type WorkstationPreset = typeof workstationPreset.$inferSelect;
 export type Redirect = typeof redirect.$inferSelect;
 export type IpBan = typeof ipBan.$inferSelect;
 export type BlockedHit = typeof blockedHit.$inferSelect;

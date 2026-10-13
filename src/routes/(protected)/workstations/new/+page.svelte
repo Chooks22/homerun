@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check } from "@lucide/svelte";
+	import { Check, Layers } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import Alert from "#lib/components/alert.svelte";
 	import { labelClass } from "#lib/components/form-styles.js";
@@ -7,20 +7,18 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
-	import WorkstationContainerFields from "#lib/components/workstation-container-fields.svelte";
-	import WorkstationEditorFields from "#lib/components/workstation-editor-fields.svelte";
-	import WorkstationGitFields from "#lib/components/workstation-git-fields.svelte";
-	import WorkstationRepoFields from "#lib/components/workstation-repo-fields.svelte";
+	import WorkstationFields from "#lib/components/workstation-fields.svelte";
+	import { workstationDomainOwner } from "#lib/remote/workstations.remote.js";
 	import { slugify } from "#lib/slug.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import {
-		DEFAULT_WORKSTATION_HOME,
-		DEFAULT_WORKSTATION_IMAGE,
-		DEFAULT_WORKSTATION_PORT,
-		workstationHostname,
+		DEFAULT_WORKSTATION_FIELDS,
+		defaultWorkstationDomain,
 	} from "#lib/workstations.js";
 	import { enhance } from "$app/forms";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 
 	const { data, form } = $props();
 
@@ -28,26 +26,77 @@
 
 	let submitting = $state(false);
 	let name = $state("");
-	let remoteHostId = $state("");
+	let domain = $state("");
+	let checked = $state("");
+	let debounce: ReturnType<typeof setTimeout> | undefined;
 
 	const hostname = $derived(
-		workstationHostname(slugify(name) || "workstation", data.baseDomain),
+		domain.trim().toLowerCase() ||
+			defaultWorkstationDomain(slugify(name) || "workstation", data.baseDomain),
 	);
+
+	$effect(() => {
+		const next = hostname;
+		clearTimeout(debounce);
+		debounce = setTimeout(() => {
+			checked = next;
+		}, 400);
+		return () => clearTimeout(debounce);
+	});
+
+	const owner = $derived(checked ? workstationDomainOwner(checked) : null);
+
+	const presetId = $derived(data.preset?.id ?? "");
+	const picked = $derived(data.presets.find((p) => p.id === presetId));
+
+	function pickPreset(id: string) {
+		const base = resolve("workstations/new");
+		void goto(id ? `${base}?preset=${encodeURIComponent(id)}` : base, {
+			replace: true,
+			reset: false,
+		});
+	}
 </script>
 
 <div class="space-y-6 p-6 md:p-8">
-  <div>
-    <h1 class="text-text text-lg font-semibold tracking-tight">New Workstation</h1>
-    <p class="text-text-muted mt-0.5 text-sm">
-      A browser IDE in a container, with a home directory that survives
-      restarts. It starts as soon as it's created.
-    </p>
+  <div class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+      <h1 class="text-text text-lg font-semibold tracking-tight">New Workstation</h1>
+      <p class="text-text-muted mt-0.5 text-sm">
+        A browser IDE in a container, with a home directory that survives
+        restarts. It starts as soon as it's created.
+      </p>
+    </div>
+    <Button href={resolve("workstations/presets")} variant="outline">
+      <Layers class="size-4" />Presets
+    </Button>
   </div>
 
   {#if form?.error}
     <Alert>
       {form.error}
     </Alert>
+  {/if}
+
+  {#if data.presets.length > 0}
+    <section class="panel rounded-md p-5">
+      <label class={labelClass} for="preset">Start from a preset</label>
+      <Select.Root onValueChange={pickPreset} type="single" value={presetId}>
+        <Select.Trigger class="w-full sm:w-96" id="preset">
+          {picked?.name ?? "No preset"}
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item label="No preset" value="" />
+          {#each data.presets as preset (preset.id)}
+            <Select.Item label={preset.name} value={preset.id} />
+          {/each}
+        </Select.Content>
+      </Select.Root>
+      <p class="text-text-subtle mt-1.5 text-xs">
+        {picked?.description ??
+          "Fills in the form below. Change anything before creating."}
+      </p>
+    </section>
   {/if}
 
   <form
@@ -66,68 +115,54 @@
       success: "Workstation created.",
     })}
   >
-    <section class="panel space-y-4 rounded-md p-5">
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label class={labelClass} for="name">Name</label>
-          <Input
-            id="name"
-            name="name"
-            placeholder="my-app dev"
-            required
-            type="text"
-            bind:value={name}
-          />
-          <p class="text-text-subtle mt-1.5 text-xs">
-            Opens at <code>{hostname}</code>.
-          </p>
+    {#key presetId}
+      <WorkstationFields
+        agentHosts={data.agentHosts}
+        providers={data.gitProviders}
+        values={data.preset ?? DEFAULT_WORKSTATION_FIELDS}
+      >
+        <div class="space-y-3">
+          <div>
+            <label class={labelClass} for="name">Name</label>
+            <Input
+              id="name"
+              name="name"
+              placeholder="my-app dev"
+              required
+              type="text"
+              bind:value={name}
+            />
+          </div>
+          <div>
+            <label class={labelClass} for="domain">Domain</label>
+            <Input
+              id="domain"
+              name="domain"
+              placeholder={defaultWorkstationDomain(
+                slugify(name) || "workstation",
+                data.baseDomain,
+              )}
+              type="text"
+              bind:value={domain}
+            />
+            {#if owner?.current}
+              <p class="mt-1.5 text-xs text-amber-600">
+                <code>{checked}</code> is already routed to {owner.current}.
+                Pick another domain: a workstation never takes one over.
+              </p>
+            {:else}
+              <p class="text-text-subtle mt-1.5 text-xs">
+                Opens at <code>{hostname}</code>. Under its own
+                <code>dev.</code> subdomain by default, so it never clashes with
+                a service of the same name.
+              </p>
+            {/if}
+          </div>
         </div>
-        <div>
-          <label class={labelClass} for="remoteHostId">Runs on</label>
-          <Select.Root name="remoteHostId" type="single" bind:value={remoteHostId}>
-            <Select.Trigger class="w-full" id="remoteHostId">
-              {data.agentHosts.find((host) => host.id === remoteHostId)?.name ??
-                "This server"}
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item label="This server" value="" />
-              {#each data.agentHosts as host (host.id)}
-                <Select.Item label={host.name} value={host.id} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <p class="text-text-subtle mt-1.5 text-xs">
-            Any registered agent host works too. Its IDE port is published on
-            that host and routed through this server's Traefik.
-          </p>
-        </div>
-      </div>
-    </section>
+      </WorkstationFields>
+    {/key}
 
-    <WorkstationRepoFields
-      providers={data.gitProviders}
-      values={{ gitBranch: null, gitUrl: null }}
-    />
-
-    <WorkstationEditorFields values={{ editorSettings: {}, extensions: [] }} />
-
-    <WorkstationGitFields
-      providers={data.gitProviders}
-      values={{ gitAuthorEmail: null, gitAuthorName: null, gitProviderId: null }}
-    />
-
-    <WorkstationContainerFields
-      values={{
-        cpuLimit: null,
-        env: {},
-        homePath: DEFAULT_WORKSTATION_HOME,
-        image: DEFAULT_WORKSTATION_IMAGE,
-        memoryLimitMb: null,
-        port: DEFAULT_WORKSTATION_PORT,
-      }}
-    />
-
-    <Button disabled={submitting} type="submit">
+    <Button disabled={submitting || !!owner?.current} type="submit">
       {#if submitting}
         <Spinner />
       {:else}

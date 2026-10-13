@@ -791,6 +791,44 @@ class GitProviderServiceClass {
 			return false;
 		}
 	}
+
+	/**
+	 * The contents of `file.path` in `file.repo` at `file.ref` (the default
+	 * branch when empty), as the connection's account sees it.
+	 *
+	 * @returns The file's text, or null when it doesn't exist or can't be read.
+	 */
+	async readFile(
+		provider: GitProviderConfig,
+		connection: GitConnectionDTO,
+		file: { path: string; ref: string; repo: string },
+	): Promise<string | null> {
+		const { path, ref, repo: repoFullName } = file;
+		const { api } = endpoints(provider);
+		const accessToken = await this.accessToken(provider, connection);
+		if (!accessToken) {
+			return null;
+		}
+		const at = ref ? `?ref=${encodeURIComponent(ref)}` : "";
+		const url = {
+			bitbucket: `${api}/repositories/${repoFullName}/src/${encodeURIComponent(ref || "HEAD")}/${path}`,
+			gitea: `${api}/repos/${repoFullName}/raw/${path}${at}`,
+			github: `${api}/repos/${repoFullName}/contents/${path}${at}`,
+			gitlab: `${api}/projects/${encodeURIComponent(repoFullName)}/repository/files/${encodeURIComponent(path)}/raw?ref=${encodeURIComponent(ref || "HEAD")}`,
+		}[provider.kind];
+		try {
+			const res = await fetch(url, {
+				headers: {
+					...authHeader(accessToken),
+					Accept: "application/vnd.github.raw",
+				},
+			});
+			return res.ok ? await res.text() : null;
+		} catch (err) {
+			logger.warn(`File read failed: ${repoFullName}@${ref}:${path}`, err);
+			return null;
+		}
+	}
 }
 
 export const GitProviderService = new GitProviderServiceClass();

@@ -1487,10 +1487,10 @@ connections linger up to its 90s idle timeout, which only delays a stop. A count
 that can't be read counts as in use, so a start in flight or an image without
 `cat` is never stopped by mistake.
 
-**IDE setup, not devcontainers.** The spec's `setup` (extensions, code-server
-`settings.json`, git name/email, one provider `credential`) is applied by a
-second `exec` after the clone (`SetupCommand`, state `configuring`), on every
-start. Extensions are synced against
+**IDE setup, devcontainers only as a form fill.** The spec's `setup`
+(extensions, code-server `settings.json`, git name/email, one provider
+`credential`) is applied by a second `exec` after the clone (`SetupCommand`,
+state `configuring`), on every start. Extensions are synced against
 `<home>/.local/share/code-server/homerun-extensions`, the list the last start
 installed, so removing one uninstalls it without touching ones installed from
 the IDE. The credential is the workstation's `gitProviderId` connection
@@ -1510,7 +1510,57 @@ through `getStatHistory({ workstationId })`, the list through
 
 **Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`), not
 the per-app login wall, whose gate is service-shaped (`gatedService`,
-`AppAccessService`).
+`AppAccessService`), **unless the workstation has a git provider picked**: then
+`WorkstationSignInService` (`src/lib/services/workstation/sign-in.ts`) gates it.
+`gateFor` says yes when the provider is enabled, the owner is connected to it
+and `config.auth.origin` is set; `start` stores that as `signInWithGit`. The
+router then gets a forwardAuth at `/api/v1/auth-check?workstation=<id>` (labels
+locally, the route file's `middlewares` on an agent, keyed off the stored flag
+so a dropped connection can't strip it from a running container). Auth-check's
+workstation branch reuses the login wall's tokens and cookie (`signGateToken`,
+`GATE_CALLBACK_PATH`, `homerun_app_session`, `serviceId` = `workstation:<id>`):
+an anonymous navigation goes straight to the provider's authorize URL with state
+`ws.<signed token>` and the provider's registered
+`/api/v1/git-providers/<id>/callback`, which sees the `ws.` prefix before its
+own `locals.user` check and calls `complete`: exchange the code, accept only the
+owner's connected `providerUsername` (case-insensitive), throw the token away,
+and redirect to the host's grant URL. The session's `policyVersion` is an HMAC
+over workstation, owner, provider and username, so reconnecting another account
+revokes it. A gate that's gone answers 403, never 200: code-server runs with
+`--auth none` (the spec's `args`, Go `Spec.Args` → `Cmd`) only when it's local
+and the image is code-server, since an agent's published port bypasses Traefik;
+everything else keeps `PASSWORD` behind the gate.
+
+**Domain.** `workstation.domain` is picked at creation, defaulting to
+`defaultWorkstationDomain` (`<slug>.dev.<baseDomain>`), so a workstation's slug
+only has to be unique among workstations. `workstationHostname(row)` falls back
+to `<slug>.<baseDomain>` for rows from before the column. The create action and
+the New page's `workstationDomainOwner` query both go through `hostnameOwner`
+(`src/lib/server/hostname-owner.ts`): the dashboard, registry and object storage
+public hosts, every service's `serviceHostnames`, redirect hosts, status page
+domains and the other workstations. A taken hostname is refused, never taken
+over; a unique index on `domain` catches a race between two workstations.
+Hostnames created outside Homerun (a DNS record or a Pangolin resource it
+doesn't know about) aren't checked.
+
+**Presets** (`workstation_preset`, `WorkstationPresetDTO`,
+`/workstations/presets`) are per-user copies of a workstation's settings,
+`remoteHostId` set null when the host goes. `/workstations/new?preset=<id>`
+fills the form (`WorkstationFields`, shared with the preset pages, keyed on the
+preset so the `untrack`ed field state resets); Settings → Save as preset copies
+the saved row through `presetFromWorkstation`.
+
+**Dev container detection** is form-time only: `WorkstationFields` hears the
+repo fields' `onrepochange`, debounces it, and runs the `detectDevcontainer`
+remote query (`providerForGitUrl` → the user's connection →
+`GitProviderService.readFile` on `.devcontainer/devcontainer.json`, then
+`.devcontainer.json`). `src/lib/devcontainer.ts` is the pure half: a
+string-aware JSONC strip, `parseDevcontainer` (vscode extensions/settings,
+`containerEnv`/`remoteEnv` minus `${...}` values, the container-shaped keys
+listed as `unsupported`) and `applyDevcontainer`. Apply reads the form's current
+values through `FormData` before merging, then re-keys the Editor and Container
+sections, so nothing typed there is lost. The Settings tab doesn't detect: its
+sections are separate forms.
 
 ## Server enrollment (`node_enrollment`, `NodeEnrollmentService`, `/api/v1/nodes/`)
 

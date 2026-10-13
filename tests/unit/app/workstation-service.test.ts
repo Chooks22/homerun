@@ -35,6 +35,9 @@ const { PangolinService } = await import(
 const { DomainDnsService } = await import(
 	"../../../src/lib/services/domain-dns.service"
 );
+const { WorkstationSignInService } = await import(
+	"../../../src/lib/services/workstation/sign-in"
+);
 
 type Workstation = NonNullable<Awaited<ReturnType<typeof WorkstationDTO.get>>>;
 type Host = NonNullable<Awaited<ReturnType<typeof RemoteHostDTO.get>>>;
@@ -157,7 +160,55 @@ describe("WorkstationService.start", () => {
 			autoStopAt: null,
 			desiredState: "running",
 			lastError: null,
+			signInWithGit: false,
 		});
+	});
+
+	test("a workstation signing in through git turns code-server's password off behind forwardAuth", async () => {
+		restorers.push(
+			spyOn(WorkstationSignInService, "gateFor").mockResolvedValue({
+				hostname: "alice.localhost",
+				id: "ws1",
+				ownerId: "u1",
+				provider: {
+					baseUrl: null,
+					clientId: "c",
+					clientSecretEnc: "s",
+					enabled: true,
+					id: "gh",
+					kind: "github",
+					name: "GitHub",
+				},
+				providerUsername: "alice",
+				version: "v",
+			}),
+			spyOn(helpers, "resolveProviderCredential").mockResolvedValue(null),
+		);
+		const put = spyOn(WorkerClient, "put").mockResolvedValue({});
+		restorers.push(put);
+		const ws = workstation({ gitProviderId: "gh", gitUrl: null });
+		await WorkstationService.start(ws);
+		const [, spec] = put.mock.calls[0] as [
+			string,
+			{
+				args: string[];
+				env: Record<string, string>;
+				labels: Record<string, string>;
+			},
+		];
+		expect(spec.args).toEqual(["--auth", "none"]);
+		expect(spec.env.PASSWORD).toBeUndefined();
+		expect(
+			spec.labels["traefik.http.routers.workstation-alice.middlewares"],
+		).toBe("workstation-alice-auth");
+		expect(
+			spec.labels[
+				"traefik.http.middlewares.workstation-alice-auth.forwardauth.address"
+			],
+		).toContain("workstation=ws1");
+		expect(ws.update).toHaveBeenCalledWith(
+			expect.objectContaining({ signInWithGit: true }),
+		);
 	});
 
 	test("the IDE setup carries the extensions, settings and the picked provider's login", async () => {
@@ -254,6 +305,7 @@ describe("WorkstationService.start", () => {
 			autoStopAt: null,
 			desiredState: "running",
 			lastError: null,
+			signInWithGit: false,
 		});
 	});
 

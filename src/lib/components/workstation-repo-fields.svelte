@@ -11,12 +11,13 @@
 	import type { ConnectedGitProvider } from "#lib/server/git-connections.js";
 
 	interface Props {
+		onrepochange?: (gitUrl: string, gitBranch: string) => void;
 		providers?: ConnectedGitProvider[];
 		trailing?: Snippet;
 		values: { gitBranch: string | null; gitUrl: string | null };
 	}
 
-	const { providers = [], trailing, values }: Props = $props();
+	const { onrepochange, providers = [], trailing, values }: Props = $props();
 
 	let manualUrl = $state(
 		untrack(() => providers.length === 0 || !!values.gitUrl),
@@ -32,6 +33,10 @@
 			? listRepoBranches({ providerId: pickedProviderId, repo: pickedRepo })
 			: null,
 	);
+
+	$effect(() => {
+		onrepochange?.(gitUrl.trim(), gitBranch.trim());
+	});
 
 	function useManualUrl() {
 		manualUrl = true;

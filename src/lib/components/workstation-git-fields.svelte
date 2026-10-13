@@ -59,7 +59,9 @@
         {:else}
           Its token goes into git's credential store in the home directory on
           every start, and into <code>GH_TOKEN</code> or
-          <code>GITLAB_TOKEN</code> for the provider's own CLI.
+          <code>GITLAB_TOKEN</code> for the provider's own CLI. Opening the IDE
+          then signs you in through this provider instead of asking for the
+          password.
         {/if}
       </p>
     </div>

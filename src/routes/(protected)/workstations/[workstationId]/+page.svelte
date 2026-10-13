@@ -244,46 +244,65 @@
     </form>
   </section>
 
-  <section class="panel rounded-xl">
-    <PanelHeader title="IDE password" />
-    <div class="space-y-3 p-5">
-      {#if data.password}
-        <CopyBox label="Copy password" value={data.password} />
-      {:else}
-        <p class="text-sm text-red-500">
-          The stored password can't be decrypted. Reset it.
+  {#if data.gitSignIn}
+    <section class="panel rounded-xl">
+      <PanelHeader title="Sign-in" />
+      <div class="space-y-2 p-5">
+        <p class="text-text text-sm">
+          Opening it signs you in through {data.gitSignIn.provider} as
+          <code>{data.gitSignIn.account}</code>. No other account gets in.
         </p>
-      {/if}
-      <div class="flex flex-wrap items-center gap-3">
-        <form
-          action="?/resetPassword"
-          method="POST"
-          use:enhance={enhanceToast({
-            error: "Couldn't reset the password.",
-            loading: "Resetting the password",
-            onSettled: () => {
-              pending = "";
-            },
-            onStart: () => {
-              pending = "password";
-            },
-            success: "Password reset. Recreate the workstation to apply it.",
-          })}
-        >
-          <Button disabled={pending !== ""} size="sm" type="submit" variant="outline">
-            {#if pending === "password"}
-              <Spinner />
-            {:else}
-              <KeyRound class="size-4" />
-            {/if}
-            Reset password
-          </Button>
-        </form>
-        <p class="text-text-subtle text-xs">
-          Passed to the container as <code>PASSWORD</code>, which code-server
-          asks for on sign-in. A new one takes effect on the next start.
-        </p>
+        {#if !data.gitSignIn.active}
+          <p class="text-text-subtle text-xs">
+            Applies from the next start.
+          </p>
+        {/if}
       </div>
-    </div>
-  </section>
+    </section>
+  {/if}
+
+  {#if data.passwordNeeded}
+    <section class="panel rounded-xl">
+      <PanelHeader title="IDE password" />
+      <div class="space-y-3 p-5">
+        {#if data.password}
+          <CopyBox label="Copy password" value={data.password} />
+        {:else}
+          <p class="text-sm text-red-500">
+            The stored password can't be decrypted. Reset it.
+          </p>
+        {/if}
+        <div class="flex flex-wrap items-center gap-3">
+          <form
+            action="?/resetPassword"
+            method="POST"
+            use:enhance={enhanceToast({
+              error: "Couldn't reset the password.",
+              loading: "Resetting the password",
+              onSettled: () => {
+                pending = "";
+              },
+              onStart: () => {
+                pending = "password";
+              },
+              success: "Password reset. Recreate the workstation to apply it.",
+            })}
+          >
+            <Button disabled={pending !== ""} size="sm" type="submit" variant="outline">
+              {#if pending === "password"}
+                <Spinner />
+              {:else}
+                <KeyRound class="size-4" />
+              {/if}
+              Reset password
+            </Button>
+          </form>
+          <p class="text-text-subtle text-xs">
+            Passed to the container as <code>PASSWORD</code>, which code-server
+            asks for on sign-in. A new one takes effect on the next start.
+          </p>
+        </div>
+      </div>
+    </section>
+  {/if}
 </div>

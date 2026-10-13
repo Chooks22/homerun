@@ -1,9 +1,20 @@
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
+import {
+	DEVCONTAINER_PATHS,
+	type DevcontainerConfig,
+	parseDevcontainer,
+	repoPathOf,
+} from "#lib/devcontainer.js";
+import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
+import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
+import { providerForGitUrl } from "#lib/git-clone-url.js";
 import { Logger } from "#lib/logger.js";
+import { hostnameOwner } from "#lib/server/hostname-owner.js";
 import { requirePermission } from "#lib/server/remote-auth.js";
 import type { ContainerSample } from "#lib/services/docker/containers.js";
+import { GitProviderService } from "#lib/services/git-provider.service.js";
 import { type EditorExtension, searchOpenVsx } from "#lib/services/open-vsx.js";
 import {
 	WorkstationService,
@@ -23,6 +34,48 @@ export const workstationStatus = query(
 			error(404, "Workstation not found.");
 		}
 		return await WorkstationService.view(ws);
+	},
+);
+
+export const detectDevcontainer = query(
+	z.object({ branch: z.string(), gitUrl: z.string() }),
+	async ({ branch, gitUrl }): Promise<DevcontainerConfig | null> => {
+		const user = requirePermission("workstations", "read");
+		const repo = repoPathOf(gitUrl);
+		if (!repo) {
+			return null;
+		}
+		const settings = await InstanceSettingsDTO.get();
+		const provider = providerForGitUrl(
+			gitUrl,
+			settings.gitProviders.filter((p) => p.enabled),
+		);
+		const connection = provider
+			? await GitConnectionDTO.getForUserAndProvider(user.id, provider.id)
+			: null;
+		if (!(provider && connection)) {
+			return null;
+		}
+		const found = await Promise.all(
+			DEVCONTAINER_PATHS.map(async (path) => ({
+				path,
+				text: await GitProviderService.readFile(provider, connection, {
+					path,
+					ref: branch,
+					repo,
+				}),
+			})),
+		);
+		const hit = found.find((file) => file.text !== null);
+		return hit?.text ? parseDevcontainer(hit.text, hit.path) : null;
+	},
+);
+
+export const workstationDomainOwner = query(
+	z.string().trim().toLowerCase().max(253),
+	async (domain): Promise<string | null> => {
+		requirePermission("workstations", "read");
+		return domain ? await hostnameOwner(domain) : null;
 	},
 );
 

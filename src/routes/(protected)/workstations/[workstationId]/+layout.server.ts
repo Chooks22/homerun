@@ -15,7 +15,7 @@ export const load = async ({ params, parent }) => {
 		: null;
 	return {
 		hostName: host?.name ?? null,
-		hostname: workstationHostname(ws.slug, config.baseDomain),
+		hostname: workstationHostname(ws.toPublic(), config.baseDomain),
 		workstation: ws.toPublic(),
 	};
 };

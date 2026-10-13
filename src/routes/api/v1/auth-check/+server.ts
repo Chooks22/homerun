@@ -16,6 +16,10 @@ import { cachedGateAccess } from "#lib/server/gate-access-cache.js";
 import { gateChallengeKind } from "#lib/server/gate-request.js";
 import { gatedService } from "#lib/server/gated-service-cache.js";
 import { AppAccessService } from "#lib/services/app-access.service.js";
+import {
+	WorkstationSignInService,
+	workstationGateKey,
+} from "#lib/services/workstation/sign-in.js";
 
 const logger = new Logger("AppGate");
 
@@ -136,7 +140,81 @@ async function stillAllowed(
 	}
 }
 
+async function checkWorkstation(
+	request: Request,
+	url: URL,
+	workstationId: string,
+): Promise<Response> {
+	const gate = await WorkstationSignInService.gate(workstationId);
+	if (!gate) {
+		return deny(
+			"This workstation signs in through git, but its git connection is gone. Start it again from Homerun to go back to its password.",
+			403,
+		);
+	}
+	const forwarded = readForwarded(request, url);
+	if (forwarded.host !== gate.hostname) {
+		return deny("Unauthorized", 401);
+	}
+	const key = workstationGateKey(gate.id);
+
+	if (forwarded.path === GATE_LOGOUT_PATH) {
+		return redirect(forwarded.origin, gateCookie("", forwarded.secure, 0));
+	}
+	if (forwarded.path === GATE_CALLBACK_PATH) {
+		const token = new URLSearchParams(forwarded.search).get("token");
+		const grant = token ? verifyGateToken(token) : null;
+		if (
+			grant?.userId !== gate.ownerId ||
+			grant.serviceId !== key ||
+			grant.host !== forwarded.host
+		) {
+			return redirect(
+				WorkstationSignInService.challengeUrl(
+					gate,
+					forwarded.host,
+					forwarded.origin,
+				),
+			);
+		}
+		return redirect(
+			grant.target ?? forwarded.origin,
+			gateCookie(
+				WorkstationSignInService.session(gate, forwarded.host),
+				forwarded.secure,
+				GATE_SESSION_TTL_MS / 1000,
+			),
+		);
+	}
+
+	const cookie = readGateCookie(request.headers.get("cookie"));
+	const payload = cookie ? verifyGateToken(cookie) : null;
+	if (
+		payload?.userId === gate.ownerId &&
+		payload.serviceId === key &&
+		payload.host === forwarded.host &&
+		payload.policyVersion === gate.version
+	) {
+		return new Response("OK", { status: 200 });
+	}
+
+	const kind = gateChallengeKind(request.headers, forwarded.path);
+	if (kind === "allow") {
+		return new Response("OK", { status: 200 });
+	}
+	if (kind === "deny") {
+		return deny("Sign in to this workstation first.", 401);
+	}
+	return redirect(
+		WorkstationSignInService.challengeUrl(gate, forwarded.host, forwarded.url),
+	);
+}
+
 export const GET = async ({ request, url }) => {
+	const workstationId = url.searchParams.get("workstation");
+	if (workstationId) {
+		return await checkWorkstation(request, url, workstationId);
+	}
 	const serviceId = url.searchParams.get("service");
 	if (!serviceId) {
 		return deny("Unauthorized", 401);

@@ -90,8 +90,10 @@ type Setup struct {
 // Spec is everything the app decided about one workstation's container.
 // Network joins a Docker network (this server, where Traefik reaches it by
 // labels); Publish binds the port on the host instead (an agent host, which the
-// main server's Traefik reaches over the network).
+// main server's Traefik reaches over the network). Args, when set, replace the
+// image's command (`--auth none` for code-server behind the git sign-in).
 type Spec struct {
+	Args        []string          `json:"args"`
 	Env         map[string]string `json:"env"`
 	Git         *Git              `json:"git"`
 	HomePath    string            `json:"homePath"`
@@ -306,13 +308,17 @@ func CreateBody(id string, spec Spec) map[string]any {
 	if spec.Publish {
 		hostConfig["PortBindings"] = map[string]any{port: []map[string]string{{"HostPort": ""}}}
 	}
-	return map[string]any{
+	body := map[string]any{
 		"Env":          env,
 		"ExposedPorts": map[string]any{port: map[string]any{}},
 		"HostConfig":   hostConfig,
 		"Image":        spec.Image,
 		"Labels":       labels,
 	}
+	if len(spec.Args) > 0 {
+		body["Cmd"] = spec.Args
+	}
+	return body
 }
 
 const cloneScript = `set -e

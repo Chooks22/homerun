@@ -19,10 +19,16 @@ import { deleteDns, syncDns } from "#lib/services/dns.service.js";
 import type { ContainerSample } from "#lib/services/docker/containers.js";
 import {
 	agentHostAddress,
+	workstationAuthCheckUrl,
 	workstationLabels,
 	workstationRouteFile,
 	workstationRouteYaml,
 } from "#lib/services/workstation/routing.js";
+import {
+	isCodeServerImage,
+	type WorkstationGate,
+	WorkstationSignInService,
+} from "#lib/services/workstation/sign-in.js";
 import {
 	containerCheck,
 	routeCheck,
@@ -62,6 +68,7 @@ type Target =
 
 /** The container spec the worker's or agent's workstation routes take. */
 export interface WorkstationSpec {
+	args: string[];
 	env: Record<string, string>;
 	git: {
 		branch: string;
@@ -153,11 +160,14 @@ class WorkstationServiceClass {
 
 	/** The `<slug>.<baseDomain>` hostname `ws` is routed at. */
 	hostname(ws: WorkstationDTO): string {
-		return workstationHostname(ws.slug, config.baseDomain);
+		return workstationHostname(ws.toJSON(), config.baseDomain);
 	}
 
 	/**
-	 * Everything the worker or agent needs to run `ws`: its password in env,
+	 * Everything the worker or agent needs to run `ws`: its password in env
+	 * (or, on this server, code-server's own auth off when it signs in through
+	 * git, Traefik's forwardAuth guarding it instead; an agent host's
+	 * published port bypasses Traefik, so it keeps the password),
 	 * its git repository with the owner's provider credential, the IDE setup
 	 * (extensions, settings, git identity and the picked provider's login,
 	 * also exported as `GH_TOKEN`/`GITLAB_TOKEN`), and either
@@ -165,7 +175,11 @@ class WorkstationServiceClass {
 	 *
 	 * @throws When the stored password can't be decrypted.
 	 */
-	async #spec(ws: WorkstationDTO, target: Target): Promise<WorkstationSpec> {
+	async #spec(
+		ws: WorkstationDTO,
+		target: Target,
+		gate: WorkstationGate | null,
+	): Promise<WorkstationSpec> {
 		const row = ws.toJSON();
 		const password = ws.password();
 		if (!password) {
@@ -180,8 +194,14 @@ class WorkstationServiceClass {
 				: null,
 		]);
 		const local = target.kind === "local";
+		const gitSignIn = !!gate && local && isCodeServerImage(row.image);
 		return {
-			env: { ...row.env, ...tokenEnv(login), PASSWORD: password },
+			args: gitSignIn ? ["--auth", "none"] : [],
+			env: {
+				...row.env,
+				...tokenEnv(login),
+				...(gitSignIn ? {} : { PASSWORD: password }),
+			},
 			git: row.gitUrl
 				? {
 						branch: row.gitBranch ?? "",
@@ -194,7 +214,12 @@ class WorkstationServiceClass {
 			homePath: row.homePath,
 			image: row.image,
 			labels: local
-				? workstationLabels(ws.slug, this.hostname(ws), row.port)
+				? workstationLabels(
+						ws.slug,
+						this.hostname(ws),
+						row.port,
+						gate ? workstationAuthCheckUrl(ws.id) : null,
+					)
 				: {},
 			memoryBytes: (row.memoryLimitMb ?? 0) * 1024 * 1024,
 			name: `homerun-ws-${ws.slug}`,
@@ -225,9 +250,11 @@ class WorkstationServiceClass {
 	 *   message is also stored as the workstation's last error.
 	 */
 	async start(ws: WorkstationDTO): Promise<void> {
+		WorkstationSignInService.forget(ws.id);
 		try {
 			const target = await this.#target(ws);
-			const spec = await this.#spec(ws, target);
+			const gate = await WorkstationSignInService.gateFor(ws.toJSON());
+			const spec = await this.#spec(ws, target, gate);
 			await this.#call(target, "PUT", `/v1/workstations/${ws.id}`, {
 				body: spec,
 			});
@@ -235,6 +262,7 @@ class WorkstationServiceClass {
 				autoStopAt: this.#deadline(ws),
 				desiredState: "running",
 				lastError: null,
+				signInWithGit: !!gate,
 			});
 			logger.info(`Workstation starting: workstation=${ws.id}`);
 			await this.#syncDns(ws);
@@ -434,7 +462,12 @@ class WorkstationServiceClass {
 			return { autoStopAt, status, url: null };
 		}
 		const upstream = `http://${target.address}:${status.hostPort}`;
-		const routed = await this.#writeRoute(ws, host, upstream);
+		const routed = await this.#writeRoute(
+			ws,
+			host,
+			upstream,
+			ws.toJSON().signInWithGit ? workstationAuthCheckUrl(ws.id) : null,
+		);
 		return {
 			autoStopAt,
 			status,
@@ -592,13 +625,19 @@ class WorkstationServiceClass {
 		ws: WorkstationDTO,
 		host: string,
 		upstream: string,
+		authCheckUrl: string | null,
 	): Promise<boolean> {
 		const dir = config.traefik.dynamicConfigDir;
 		if (!dir) {
 			return false;
 		}
 		const path = join(dir, workstationRouteFile(ws.slug));
-		const contents = workstationRouteYaml(ws.slug, host, upstream);
+		const contents = workstationRouteYaml(
+			ws.slug,
+			host,
+			upstream,
+			authCheckUrl,
+		);
 		const current = await readFile(path, "utf8").catch(() => null);
 		if (current !== contents) {
 			await mkdir(dir, { recursive: true });

@@ -7,6 +7,10 @@ import {
 	parseAutoStop,
 } from "#lib/server/workstation-form.js";
 import { encryptSecret } from "#lib/services/secrets.js";
+import {
+	isCodeServerImage,
+	WorkstationSignInService,
+} from "#lib/services/workstation/sign-in.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
 
@@ -15,7 +19,24 @@ const logger = new Logger("Workstation");
 export const load = async ({ params, parent }) => {
 	const { user } = await parent();
 	const ws = await WorkstationDTO.get(params.workstationId, user.id);
-	return { password: ws?.password() ?? null };
+	const row = ws?.toPublic();
+	const gate = row ? await WorkstationSignInService.gateFor(row) : null;
+	return {
+		gitSignIn: gate
+			? {
+					active: row?.signInWithGit ?? false,
+					account: gate.providerUsername,
+					provider: gate.provider.name,
+				}
+			: null,
+		password: ws?.password() ?? null,
+		passwordNeeded: !(
+			gate &&
+			row &&
+			!row.remoteHostId &&
+			isCodeServerImage(row.image)
+		),
+	};
 };
 
 export const actions = {

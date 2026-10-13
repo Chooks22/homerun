@@ -7,6 +7,17 @@ export function workstationRouter(slug: string): string {
 	return `workstation-${slug}`;
 }
 
+/** The forwardAuth address that signs a workstation's visitors in through git. */
+export function workstationAuthCheckUrl(workstationId: string): string {
+	const separator = config.authCheckUrl.includes("?") ? "&" : "?";
+	return `${config.authCheckUrl}${separator}workstation=${encodeURIComponent(workstationId)}`;
+}
+
+/** The forwardAuth middleware name of a workstation's git sign-in. */
+function authMiddleware(slug: string): string {
+	return `${workstationRouter(slug)}-auth`;
+}
+
 /** The dynamic config file an agent-hosted workstation's route lives in. */
 export function workstationRouteFile(slug: string): string {
 	return `homerun-workstation-${slug}.yml`;
@@ -24,12 +35,14 @@ function resolverFor(host: string): string | null {
 
 /**
  * The Docker-provider labels routing `host` to a workstation on this server's
- * Docker network, at its container `port`.
+ * Docker network, at its container `port`, behind the git sign-in's
+ * forwardAuth when `authCheckUrl` is given.
  */
 export function workstationLabels(
 	slug: string,
 	host: string,
 	port: number,
+	authCheckUrl: string | null = null,
 ): Record<string, string> {
 	const name = workstationRouter(slug);
 	const labels: Record<string, string> = {
@@ -45,25 +58,40 @@ export function workstationLabels(
 	if (resolver) {
 		labels[`traefik.http.routers.${name}.tls.certresolver`] = resolver;
 	}
+	if (authCheckUrl) {
+		const auth = authMiddleware(slug);
+		labels[`traefik.http.middlewares.${auth}.forwardauth.address`] =
+			authCheckUrl;
+		labels[`traefik.http.routers.${name}.middlewares`] = auth;
+	}
 	return labels;
 }
 
 /**
  * The file-provider config routing `host` to a workstation published on an
- * agent host, at `upstream` (`http://<agent host>:<port>`).
+ * agent host, at `upstream` (`http://<agent host>:<port>`), behind the git
+ * sign-in's forwardAuth when `authCheckUrl` is given.
  */
 export function workstationRouteYaml(
 	slug: string,
 	host: string,
 	upstream: string,
+	authCheckUrl: string | null = null,
 ): string {
 	const name = workstationRouter(slug);
+	const auth = authMiddleware(slug);
 	const resolver = resolverFor(host);
 	return stringify({
 		http: {
+			...(authCheckUrl
+				? {
+						middlewares: { [auth]: { forwardAuth: { address: authCheckUrl } } },
+					}
+				: {}),
 			routers: {
 				[name]: {
 					entryPoints: [config.traefik.entrypoint],
+					...(authCheckUrl ? { middlewares: [auth] } : {}),
 					rule: `Host(\`${host}\`)`,
 					service: name,
 					tls: resolver ? { certResolver: resolver } : {},

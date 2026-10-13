@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseDotEnv } from "#lib/env-parse.js";
+import { DOMAIN_RE } from "#lib/service-domains.js";
 import {
 	AUTO_STOP_MODES,
 	type AutoStopMode,
@@ -118,13 +119,30 @@ const gitSchema = z.object({
 	gitProviderId: optionalText,
 });
 
-const newWorkstationSchema = z.object({
+const settingsShape = {
 	...repositorySchema.shape,
 	...containerSchema.shape,
 	...editorSchema.shape,
 	...gitSchema.shape,
-	name: z.string().trim().min(1, "Give the workstation a name.").max(80),
 	remoteHostId: optionalText,
+};
+
+const newWorkstationSchema = z.object({
+	...settingsShape,
+	domain: optionalText
+		.transform((value) => value?.toLowerCase().replace(/\.$/, "") ?? null)
+		.refine((value) => !value || DOMAIN_RE.test(value), {
+			message: "The domain must be a hostname, like ide.example.com.",
+		}),
+	name: z.string().trim().min(1, "Give the workstation a name.").max(80),
+});
+
+const presetSchema = z.object({
+	...settingsShape,
+	description: optionalText.refine((value) => (value?.length ?? 0) <= 300, {
+		message: "Keep the description under 300 characters.",
+	}),
+	name: z.string().trim().min(1, "Give the preset a name.").max(80),
 });
 
 export const WORKSTATION_SECTIONS = [
@@ -155,6 +173,14 @@ export interface WorkstationSettings {
 
 /** The settings plus what only the create form picks. */
 export interface NewWorkstationForm extends WorkstationSettings {
+	domain: string | null;
+	name: string;
+	remoteHostId: string | null;
+}
+
+/** A preset's fields, normalised into DTO-ready columns. */
+export interface WorkstationPresetForm extends WorkstationSettings {
+	description: string | null;
 	name: string;
 	remoteHostId: string | null;
 }
@@ -218,6 +244,22 @@ export function parseNewWorkstation(
 	formData: FormData,
 ): { error: string } | { parsed: NewWorkstationForm } {
 	const result = newWorkstationSchema.safeParse(fieldsOf(formData));
+	if (!result.success) {
+		return { error: firstIssue(result.error) };
+	}
+	return { parsed: { ...result.data, env: envFrom(result.data.env) } };
+}
+
+/**
+ * Validates the preset form, the same fields as a new workstation plus a
+ * description.
+ *
+ * @returns The parsed fields, or the first validation error message.
+ */
+export function parseWorkstationPreset(
+	formData: FormData,
+): { error: string } | { parsed: WorkstationPresetForm } {
+	const result = presetSchema.safeParse(fieldsOf(formData));
 	if (!result.success) {
 		return { error: firstIssue(result.error) };
 	}

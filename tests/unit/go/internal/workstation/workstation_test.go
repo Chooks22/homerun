@@ -88,6 +88,15 @@ func TestCreateBodyJoinsANetworkLocallyAndPublishesOnAnAgent(t *testing.T) {
 		t.Errorf("env is passed through, got %v", env)
 	}
 
+	if _, ok := body["Cmd"]; ok {
+		t.Errorf("no args keeps the image's own command, got %v", body["Cmd"])
+	}
+	withArgs := baseSpec()
+	withArgs.Args = []string{"--auth", "none"}
+	if cmd := workstation.CreateBody(id, withArgs)["Cmd"]; !slices.Equal(cmd.([]string), withArgs.Args) {
+		t.Errorf("args become the container's command, got %v", cmd)
+	}
+
 	remote := baseSpec()
 	remote.Publish = true
 	host = workstation.CreateBody(id, remote)["HostConfig"].(map[string]any)

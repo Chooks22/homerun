@@ -25,7 +25,7 @@
 
 <section class="panel rounded-xl">
   <PanelHeader
-    description="Applied by code-server on every start, so every project gets the same editor without a devcontainer."
+    description="Applied by code-server on every start. A repository's dev container config can fill this in on creation."
     title="Editor"
     {trailing}
   />
