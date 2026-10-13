@@ -129,7 +129,7 @@ feature pages under `docs/`.
 - `error-tracking-issue.webp` — `/services/:id/observability/errors/:issueId`
 - `error-tracking-source-maps.webp` —
   `/services/:id/observability/errors (Source maps)`
-- `notifications-bell.webp` — `/ (notifications open)`
+- `notifications-bell.webp` — `/notifications`
 - `notifications-channels.webp` — `/notifications/settings/channels`
 - `notifications-subscriptions.webp` — `/notifications/settings`
 - `status-pages-dashboard.webp` — `/status-pages/:id`
