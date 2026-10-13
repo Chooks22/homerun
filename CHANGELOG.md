@@ -1,5 +1,71 @@
 # Changelog
 
+## [1.0.57](https://github.com/orochibraru/homerun/compare/v1.0.56...v1.0.57) (2026-10-13)
+
+### Features
+
+- **workstations:** editor and git setup, per-section settings and observability
+  (#102)
+  ([6c70b9c](https://github.com/orochibraru/homerun/commit/6c70b9c19ada2039e46765ce6198bd9d0d63d467))
+- add image version pinning and update checks (#101)
+  ([526d49f](https://github.com/orochibraru/homerun/commit/526d49f7ae31d62e4fc3fa8520dd5b6c2ae843fa))
+- workstation auto-stop, live cron runs with a run detail page and inline volume
+  creation, broad MCP tool coverage, drop the dashboard's unread notifications
+  ([50608f1](https://github.com/orochibraru/homerun/commit/50608f1b71749976a1237657c2d180a0a98c4029))
+- cron job volumes, user, socket and tabs; mean/disrespect bait for blocked
+  paths; CIMD for MCP sign-in and a dedicated MCP docs page
+  ([172b25a](https://github.com/orochibraru/homerun/commit/172b25a5e7fd815ffd69603473b4a4b86e865129))
+- **workstations:** add git repo picker, logs viewer, and self-test (#96)
+  ([95d7ad5](https://github.com/orochibraru/homerun/commit/95d7ad5f8beda66f1fbc2019c4bdbaf8f141b306))
+- CrowdSec sub-tabs for decisions, alerts and a searchable, paged community
+  blocklist
+  ([93ba9d0](https://github.com/orochibraru/homerun/commit/93ba9d02ede283a6600d5b45226135efe45cd369))
+- script cron jobs with file support and multiple runtimes (#93)
+  ([bf09c66](https://github.com/orochibraru/homerun/commit/bf09c669eff4495579ec15b184108aeb05411557))
+- add dev workstations with browser IDE support (#92)
+  ([5035ef1](https://github.com/orochibraru/homerun/commit/5035ef13984a1524c1e49e2306faa33bade3bd3f))
+- real visitor IP behind the Newt tunnel for IP bans, CrowdSec ban push and a
+  CrowdSec page under Monitoring
+  ([b0c3b1a](https://github.com/orochibraru/homerun/commit/b0c3b1a83d007b00dcc93348131ce97a3917e890))
+- opt-in notification grouping per channel, notification settings under
+  /notifications/settings, tab-only fallback for browsers without a push service
+  ([7227a90](https://github.com/orochibraru/homerun/commit/7227a908b82901d928889d2e51e29001737be826))
+- web push browser notifications via service worker, browser channel kind and
+  build/deploy started events (#53)
+  ([036c486](https://github.com/orochibraru/homerun/commit/036c4867244767aec97ef8e70e450b4e38d8b0bc))
+- notifications page, dashboard unread summary, in-app scheduled tasks summary,
+  stacked grouped channel messages and browser notifications
+  ([72dc436](https://github.com/orochibraru/homerun/commit/72dc4361baea77adbde9a65ac028c9823198a3fa))
+- show job traces on the scheduling job page and run the OpenTelemetry collector
+  by default
+  ([ab39631](https://github.com/orochibraru/homerun/commit/ab39631b3652daf02eba05c3313df036bc631404))
+- permission presets and editable API key permissions
+  ([b94220b](https://github.com/orochibraru/homerun/commit/b94220b408dd673642e105f98d6fe48e8595adf1))
+- IaC projects with per-project tabs and tool choice, and git watch/ignore paths
+  for push deploys
+  ([3f9033e](https://github.com/orochibraru/homerun/commit/3f9033e39a3f55b8e14543b144d603f02560065f))
+
+### Bug Fixes
+
+- update stale e2e tests and keep bake --print fixtures out of biome
+  ([0638025](https://github.com/orochibraru/homerun/commit/0638025cfc5d18e038f13ae67d079bb9edeecad5))
+- **builds:** ignore cacheonly bake context targets when resolving the bake
+  target
+  ([f00aa07](https://github.com/orochibraru/homerun/commit/f00aa0742190605833aafa4bdd4b972160fb5d52))
+- route workstations through Pangolin/DNS sync and stop calling a CrowdSec 502 a
+  refused login
+  ([392202a](https://github.com/orochibraru/homerun/commit/392202adbac4e1d7147732171209f59443b15994))
+- stack delete refuses mid-deploy with force, typed-name confirm, volume choice
+  and overview; give icon URLs an extension so CrowdSec stops banning
+  ([2f2cd36](https://github.com/orochibraru/homerun/commit/2f2cd36b04d84724a5f10116266c934f2291bccd))
+- serve public buckets on the S3 custom domain and add empty/empty-and-delete
+  bucket actions (#90)
+  ([40e402e](https://github.com/orochibraru/homerun/commit/40e402e6c141d6be5af2f7e3eb71ef6d49805ce7))
+- **deps:** update drizzle (#68)
+  ([1c0c88a](https://github.com/orochibraru/homerun/commit/1c0c88a61919781ab57357dbfed5b2882b102fad))
+- **deps:** update dependency @modelcontextprotocol/server to v2.3.1 (#84)
+  ([8722397](https://github.com/orochibraru/homerun/commit/872239723db801bfd593e2da33beb94d147d4eb0))
+
 ## [1.0.56](https://github.com/orochibraru/homerun/compare/v1.0.55...v1.0.56) (2026-10-09)
 
 ### Features
