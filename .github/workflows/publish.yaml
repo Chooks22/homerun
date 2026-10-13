@@ -344,7 +344,7 @@ jobs:
             --notes "Canary build of $SHA. Not a stable release: run it with HOMERUN_VERSION=canary. Merge the open chore(release) PR to release it."
           bun scripts/upload-release-assets.ts "v$VERSION" --prerelease
           gh release list --limit 100 --json tagName,isPrerelease --jq '[.[] | select(.isPrerelease and (.tagName | contains("-canary.")))] | .[5:] | .[].tagName' \
-            | xargs -r -n1 gh release delete --cleanup-tag --yes
+            | while read -r tag; do gh release delete "$tag" --cleanup-tag --yes || echo "::warning::Could not prune canary $tag"; done
 
       - name: Open or update the release PR
         uses: orochibraru/releaser@f4e670849b608549cd6ac88d32eeb41cab364709 # v1.7.1
