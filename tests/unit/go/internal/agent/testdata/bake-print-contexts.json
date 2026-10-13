@@ -1,0 +1,38 @@
+{
+	"group": {
+		"default": {
+			"targets": ["app"]
+		}
+	},
+	"target": {
+		"base": {
+			"context": ".",
+			"dockerfile": "docker/Dockerfile",
+			"target": "base",
+			"output": [
+				{
+					"type": "cacheonly"
+				}
+			]
+		},
+		"build": {
+			"context": ".",
+			"dockerfile": "docker/Dockerfile",
+			"target": "build",
+			"output": [
+				{
+					"type": "cacheonly"
+				}
+			]
+		},
+		"app": {
+			"context": ".",
+			"contexts": {
+				"base": "target:base",
+				"build": "target:build"
+			},
+			"dockerfile": "apps/app/Dockerfile",
+			"tags": ["ghcr.io/example/app"]
+		}
+	}
+}

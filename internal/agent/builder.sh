@@ -95,7 +95,7 @@ case "$BUILD_METHOD" in
     fi
     cd "$BUILD_DIR"
     definition=$(docker buildx bake --progress quiet -f "$BUILD_FILE" --print "$BUILD_TARGET")
-    targets=$(printf '%s\n' "$definition" | awk '/^  "target": [{]/ {inside=1; next} inside && /^  [}]/ {inside=0} inside && /^    "[^"]+": [{]/ {sub(/^    "/, ""); sub(/".*/, ""); print}')
+    targets=$(printf '%s\n' "$definition" | awk '/^  "target": [{]/ {inside=1; next} inside && /^  [}]/ {inside=0} inside && /^    "[^"]+": [{]/ {name=$0; sub(/^    "/, "", name); sub(/".*/, "", name); cacheonly=0; next} inside && /"type": "cacheonly"/ {cacheonly=1} inside && /^    [}]/ && !cacheonly {print name}')
     count=$(printf '%s\n' "$targets" | grep -c . || true)
     if [ "$count" != 1 ]; then
       echo "The bake target $BUILD_TARGET resolves to $count targets ($(echo $targets)), pick a single target." >&2

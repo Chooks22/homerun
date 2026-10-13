@@ -1,0 +1,17 @@
+{
+	"group": {
+		"default": {
+			"targets": ["web", "api"]
+		}
+	},
+	"target": {
+		"api": {
+			"context": ".",
+			"dockerfile": "Dockerfile.api"
+		},
+		"web": {
+			"context": ".",
+			"dockerfile": "Dockerfile"
+		}
+	}
+}

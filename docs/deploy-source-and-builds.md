@@ -73,10 +73,12 @@ Source** section (and in the wizard):
   **bake file** (relative to the build context, default `docker-bake.hcl`; a
   `docker-bake.json` or a compose file works too) and the **bake target**
   (default `default`). The target can be a group, as long as it resolves to a
-  single target, otherwise the build fails and names the targets it found.
-  Whatever tags and outputs the target sets, Homerun overrides them so the image
-  is loaded into the daemon under its own `homerun-build-<slug>` tag. Contexts
-  in the file resolve from the build context directory.
+  single image, otherwise the build fails and names the targets it found.
+  Targets another target only uses as a `target:` context (their output is
+  `cacheonly`) don't count. Whatever tags and outputs the target sets, Homerun
+  overrides them so the image is loaded into the daemon under its own
+  `homerun-build-<slug>` tag. Contexts in the file resolve from the build
+  context directory.
 - **Nixpacks**: detects the language and builds without a Dockerfile.
 - **Railpack**: Railway's successor to Nixpacks, same idea.
 - **Heroku buildpacks**: Cloud Native Buildpacks on `heroku/builder:24`.

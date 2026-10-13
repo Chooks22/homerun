@@ -3,6 +3,8 @@ package agent_test
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -251,5 +253,56 @@ func TestBuilderEnvNoCache(t *testing.T) {
 	}
 	if fresh[len(fresh)-1] != "NO_CACHE=1" {
 		t.Errorf("a fresh build should end with NO_CACHE=1, got %v", fresh)
+	}
+}
+
+// runBakeScript runs the builder script's bake method against a fake docker
+// CLI that answers `bake --print` with the given testdata fixture and echoes
+// every other invocation, returning the combined output and the exit error.
+func runBakeScript(t *testing.T, fixture string) (string, error) {
+	t.Helper()
+	printed, err := filepath.Abs(filepath.Join("testdata", fixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	fakeDocker := "#!/bin/sh\ncase \" $* \" in *\" --print \"*) cat \"$BAKE_PRINT\" ;; *) echo \"$@\" ;; esac\n"
+	if err := os.WriteFile(filepath.Join(dir, "docker"), []byte(fakeDocker), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "docker-bake.hcl"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", "-c", agent.BuilderScript)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(),
+		"PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"BAKE_PRINT="+printed,
+		"BUILD_METHOD=bake",
+		"BUILD_DIR="+dir,
+		"BUILD_FILE=docker-bake.hcl",
+		"BUILD_TARGET=app",
+		"IMAGE_TAG=svc:abc",
+		"CACHE_REF=",
+	)
+	output, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(output)), err
+}
+
+func TestBakeIgnoresCacheOnlyContextTargets(t *testing.T) {
+	output, err := runBakeScript(t, "bake-print-contexts.json")
+	if err != nil {
+		t.Fatalf("targets pulled in as contexts aren't images to tag, got %v: %s", err, output)
+	}
+	want := "buildx bake --progress plain -f docker-bake.hcl --set app.tags=svc:abc --set app.output=type=docker app"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
+func TestBakeRefusesAGroupOfImages(t *testing.T) {
+	output, err := runBakeScript(t, "bake-print-group.json")
+	if err == nil || !strings.Contains(output, "resolves to 2 targets (api web)") {
+		t.Errorf("a group building two images must be refused, got %v: %s", err, output)
 	}
 }

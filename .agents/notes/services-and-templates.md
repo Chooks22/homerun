@@ -1242,9 +1242,11 @@ builder) and was replaced, not kept alongside.** Real bug: a Dockerfile with
 `builderFilePath`, relative to the build context, refused if it leaves the
 repo). `bake` runs from the build context directory:
 `docker buildx bake --progress quiet -f <file> --print <target>` first, an awk
-pass over its JSON counts the resolved targets (a group resolving to more than
-one fails with their names; `--set` patterns don't match group names, verified
-live), then `docker buildx bake --progress plain -f <file>` with
+pass over its JSON counts the resolved targets, skipping any whose output is
+`cacheonly`: a target only pulled in as another one's `target:` context, which
+`--print` lists alongside it (a group resolving to more than one fails with
+their names; `--set` patterns don't match group names, verified live), then
+`docker buildx bake --progress plain -f <file>` with
 `--set <resolved>.tags=<tag>`, `--set <resolved>.output=type=docker` and
 `<target>`. `--set ...output` rather than `--load`, because `--load` is
 conditional and a target with its own `output = ["type=registry"]` must still
