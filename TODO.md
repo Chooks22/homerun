@@ -7,6 +7,12 @@ When done delete the entry, no bloat.
 
 ## Small
 
+- [ ] `deleteDns` (`dns.service.ts`) never refuses the dashboard's own hostname
+      or a core host (registry, object storage, status page): giving a service
+      (or workstation/redirect) the dashboard's domain, then changing or
+      deleting it, deletes the dashboard's Pangolin resource and locks you out
+      of the UI until an app restart re-runs `syncDashboardDns`. Reject those
+      hosts at save time and skip them in `deleteDns`
 - [ ] Route `screenshots.yaml` and `e2e.yaml` Docker Hub pulls through
       mirror.gcr.io like the integration job, they can flake on an anonymous
       pull refusal the same way
