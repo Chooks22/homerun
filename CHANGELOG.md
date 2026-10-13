@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.58](https://github.com/orochibraru/homerun/compare/v1.0.57...v1.0.58) (2026-10-13)
+
+### Features
+
+- **workstations:** presets, git sign-in, devcontainer detection and dev.
+  domains (#104)
+  ([b95c7eb](https://github.com/orochibraru/homerun/commit/b95c7eb5220d91e8a7b1a6489b1dbfbc5c36f822))
+
+### Bug Fixes
+
+- stop Souin's broken 304 from resetting HTTP/2 streams and serve … (#107)
+  ([975a228](https://github.com/orochibraru/homerun/commit/975a228b5b4654ec16015f37af131ef36d6e07ae))
+
 ## [1.0.57](https://github.com/orochibraru/homerun/compare/v1.0.56...v1.0.57) (2026-10-13)
 
 ### Features
