@@ -69,7 +69,11 @@ export const SERVICE_ID_LABEL = "homerun.service.id";
  * reached the backend. With `httpCacheTtl` set and the instance's HTTP cache
  * plugin loaded, a Souin cache middleware follows both, keyed on the Cookie
  * and Authorization headers so one session's pages are never served to
- * another. With `errorPages`, the instance's error pages middleware comes
+ * another. Right before it, `If-None-Match` and `If-Modified-Since` are
+ * dropped from the request: Souin answers a matching one from cache with a 304
+ * that keeps the stored `Content-Length` but sends no body, which resets the
+ * HTTP/2 stream (Chrome's ERR_HTTP2_PROTOCOL_ERROR) and empties the HTTP/1.1
+ * reply, so a revalidating browser gets the full cached 200 instead. With `errorPages`, the instance's error pages middleware comes
  * first, so a 502, 503 or 504 shows the branded page instead of Traefik's.
  *
  * Each hostname also gets a `_blocked` router for `blockedPaths`, above
@@ -131,6 +135,7 @@ export function buildContainerLabels(params: {
 	const authMiddleware = `${slug}-auth`;
 	const retryMiddleware = `${slug}-retry`;
 	const cacheMiddleware = `${slug}-cache`;
+	const unconditionalMiddleware = `${slug}_unconditional`;
 	const cached = Boolean(params.httpCacheTtl && config.traefik.httpCache);
 	const gated = params.authRequired === true;
 	const splitMode =
@@ -144,7 +149,7 @@ export function buildContainerLabels(params: {
 			...(withAuth ? [authMiddleware] : []),
 			...(splitMode && !withAuth ? [stripMiddleware] : []),
 			retryMiddleware,
-			...(cached ? [cacheMiddleware] : []),
+			...(cached ? [unconditionalMiddleware, cacheMiddleware] : []),
 		].join(",");
 	const denyMiddleware = `${slug}_deny`;
 	const blocked = params.blockedPaths?.length
@@ -185,6 +190,11 @@ export function buildContainerLabels(params: {
 		labels[`${souin}.default_cache.ttl`] = `${params.httpCacheTtl}s`;
 		labels[`${souin}.default_cache.key.headers[0]`] = "Cookie";
 		labels[`${souin}.default_cache.key.headers[1]`] = "Authorization";
+		for (const header of ["If-None-Match", "If-Modified-Since"]) {
+			labels[
+				`traefik.http.middlewares.${unconditionalMiddleware}.headers.customrequestheaders.${header}`
+			] = "";
+		}
 	}
 
 	hostnames.forEach((hostname, index) => {

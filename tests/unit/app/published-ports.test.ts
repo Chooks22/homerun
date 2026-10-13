@@ -30,7 +30,7 @@ describe("publishedPortsProblem", () => {
 		).toBeNull();
 	});
 
-	test("refuses Traefik's TCP ports but not UDP 443", () => {
+	test("refuses Traefik's TCP ports and its HTTP/3 port, but not UDP 80", () => {
 		expect(
 			publishedPortsProblem([
 				{ containerPort: 8443, hostPort: 443, protocol: "tcp" },
@@ -39,6 +39,11 @@ describe("publishedPortsProblem", () => {
 		expect(
 			publishedPortsProblem([
 				{ containerPort: 443, hostPort: 443, protocol: "udp" },
+			]),
+		).toContain("Traefik");
+		expect(
+			publishedPortsProblem([
+				{ containerPort: 80, hostPort: 80, protocol: "udp" },
 			]),
 		).toBeNull();
 	});

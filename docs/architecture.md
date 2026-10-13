@@ -52,7 +52,7 @@ flowchart LR
     buildhost["Build servers / remote hosts"]
     swarmnodes["Swarm worker nodes"]
   end
-  browser -->|"HTTPS on ports 80/443"| traefik
+  browser -->|"HTTPS on ports 80/443, HTTP/3 on 443/udp"| traefik
   traefik -->|"HTTP to port 3000"| app
   traefik -->|"forwardAuth to /api/v1/auth-check (homerun-auth alias)"| app
   traefik -->|"HTTP on the homerun network"| services
@@ -93,7 +93,7 @@ flowchart LR
 
 | From                                             | To                                                                                    | How                                                                                   | Why                                                                                                                  |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Browser (dashboard)                              | Traefik (`traefik:v3`)                                                                | HTTPS on ports 80/443                                                                 | Reach the dashboard and every deployed app by hostname, with TLS.                                                    |
+| Browser (dashboard)                              | Traefik (`traefik:v3`)                                                                | HTTPS on ports 80/443, HTTP/3 on 443/udp                                              | Reach the dashboard and every deployed app by hostname, with TLS.                                                    |
 | Traefik (`traefik:v3`)                           | SvelteKit app                                                                         | HTTP to port 3000                                                                     | Route the dashboard hostname to the app.                                                                             |
 | Traefik (`traefik:v3`)                           | SvelteKit app                                                                         | forwardAuth to `/api/v1/auth-check` (`homerun-auth` alias)                            | The per-app login wall: every request to a gated service is checked first.                                           |
 | Traefik (`traefik:v3`)                           | Deployed services                                                                     | HTTP on the homerun network                                                           | Route slug.baseDomain and custom domains to each service's container port.                                           |
