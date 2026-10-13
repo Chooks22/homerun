@@ -18,6 +18,7 @@
 		"includes": [
 			"**",
 			"!src/lib/nuvio/nuvio-public-api.json",
+			"!tests/unit/go/internal/agent/testdata/bake-print-*.json",
 			"!static/template-icons"
 		]
 	},

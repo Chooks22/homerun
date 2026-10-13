@@ -29,7 +29,7 @@ test.describe
 			await expect(page.getByText("https://example.com/hook")).toBeVisible();
 			await expect(
 				page.getByText(
-					"Build failed, Status checks failed, Update failed, Revision unhealthy, Rolled back",
+					"Build failed, Status checks failed, Update failed, Update available, Revision unhealthy, Rolled back",
 				),
 			).toBeVisible();
 

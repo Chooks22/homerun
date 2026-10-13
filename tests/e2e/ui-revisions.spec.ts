@@ -71,7 +71,7 @@ test.describe
 				})
 				.click();
 			await expect(page.getByText("Required checks")).toBeVisible();
-			await page.getByRole("button", { exact: true, name: "Save" }).click();
+			await page.locator('button[form="source-settings"]').click();
 			await expect(
 				page
 					.getByText("Pick at least one check to require", { exact: false })
@@ -84,7 +84,7 @@ test.describe
 
 			await page.getByLabel("Check name").fill("build");
 			await page.getByRole("button", { exact: true, name: "Add" }).click();
-			await page.getByRole("button", { exact: true, name: "Save" }).click();
+			await page.locator('button[form="source-settings"]').click();
 			await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
 			await page.reload();
 			await expect(

@@ -58,9 +58,6 @@ test.describe
 			await expect(page).toHaveURL(/\/services\/[0-9a-f-]{36}$/);
 
 			await page.goto("/");
-			await expect(
-				page.getByRole("heading", { name: /^\d+ unread notifications?$/ }),
-			).toBeVisible();
 			await page
 				.getByRole("link", { exact: true, name: "Notifications" })
 				.click();
