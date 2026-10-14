@@ -31,38 +31,6 @@ export const load = async ({ parent }) => {
 };
 
 export const actions = {
-	createChannel: async ({ locals, request }) => {
-		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
-		}
-		const form = await request.formData();
-		const parsed = notificationChannelSchema.safeParse({
-			...Object.fromEntries(form),
-			target: channelTargetFromForm(form),
-		});
-		if (!parsed.success) {
-			return fail(400, { errors: parsed.error.flatten().fieldErrors });
-		}
-		const targetError = validateChannelTarget(
-			parsed.data.kind,
-			parsed.data.target,
-		);
-		if (targetError) {
-			return fail(400, { errors: { target: [targetError] } });
-		}
-
-		const channel = await NotificationChannelDTO.create({
-			kind: parsed.data.kind,
-			name: parsed.data.name,
-			target: parsed.data.target,
-			userId: locals.user.id,
-		});
-		logger.info(
-			`Notification channel created: channel=${channel.id} kind=${channel.kind} user=${locals.user.id}`,
-		);
-		return { success: true };
-	},
-
 	updateChannel: async ({ locals, request }) => {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));

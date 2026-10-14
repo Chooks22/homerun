@@ -312,12 +312,12 @@ async function seedErrors(page: Page, seeded: Seeded): Promise<void> {
 
 /** Two notification channels, kept off the events this run could fire (resource alerts and new errors), so nothing is sent while the shots are taken. */
 async function seedChannels(page: Page): Promise<void> {
-	await postAction(page, "/notifications/settings/channels?/createChannel", {
+	await postAction(page, "/notifications/settings/channels/new", {
 		kind: "discord",
 		name: "Ops alerts",
 		target: "https://discord.com/api/webhooks/1234567890/example-token",
 	});
-	await postAction(page, "/notifications/settings/channels?/createChannel", {
+	await postAction(page, "/notifications/settings/channels/new", {
 		kind: "email",
 		name: "On-call email",
 		target: "oncall@example.com",

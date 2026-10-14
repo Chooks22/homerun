@@ -66,7 +66,7 @@
       icon={BellRing}
       subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address, then choose what it receives here."
       title="No notification channels yet"
-    ><Button href={resolve('notifications/settings/channels')}><Plus class="size-4" />Add a channel</Button></EmptyState>
+    ><Button href={resolve('notifications/settings/channels/new')}><Plus class="size-4" />Add a channel</Button></EmptyState>
   {:else}
     <section class="panel rounded-md">
       <PanelHeader

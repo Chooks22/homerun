@@ -18,27 +18,17 @@
 	import ResponsiveDialog from "#lib/components/responsive-dialog.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import * as Select from "#lib/components/ui/select/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { NOTIFICATION_EVENTS } from "#lib/notification-events.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import type { NotificationChannelKind } from "#lib/types.js";
 	import { enhance } from "$app/forms";
+	import { resolve } from "$app/paths";
 
-	const { data, form } = $props();
+	const { data } = $props();
 
 	onMount(() => title.set("Notification channels"));
-
-	let channelKind = $state<NotificationChannelKind>("discord");
-	const kindOptions: { label: string; value: NotificationChannelKind }[] = [
-		{ label: "Discord", value: "discord" },
-		{ label: "Slack", value: "slack" },
-		{ label: "Telegram", value: "telegram" },
-		{ label: "Webhook", value: "webhook" },
-		{ label: "Email", value: "email" },
-	];
-	let creating = $state(false);
 
 	let editOpen = $state(false);
 	let editing = $state<(typeof data.channels)[number] | null>(null);
@@ -85,110 +75,12 @@
 </script>
 
 <div>
-  <section class="panel mb-6 rounded-md">
-    <div class="panel-head">
-      <h2 class="eyebrow flex shrink-0 items-center gap-1.5">
-        <Plus class="size-3" />
-        Add a channel
-      </h2>
-      <span class="text-text-subtle text-right text-[0.6875rem]">
-        New channels get build and update failures by default
-      </span>
-    </div>
-    <form
-      action="?/createChannel"
-      class="space-y-4 p-5"
-      method="POST"
-      use:enhance={enhanceToast({
-        error: "Couldn't add the channel.",
-        loading: "Adding the channel",
-        onSettled: () => {
-          creating = false;
-        },
-        onStart: () => {
-          creating = true;
-        },
-        reset: true,
-        success: "Channel added.",
-      })}
-    >
-      <div class="grid gap-4 md:grid-cols-3">
-        <div>
-          <label class={label} for="channelName">Name</label>
-          <Input id="channelName" name="name" placeholder="On-call Discord" />
-        </div>
-        <div>
-          <label class={label} for="channelKind">Kind</label>
-          <Select.Root name="kind" type="single" bind:value={channelKind}>
-            <Select.Trigger class="w-full" id="channelKind">
-              {kindOptions.find((option) => option.value === channelKind)
-                ?.label}
-            </Select.Trigger>
-            <Select.Content>
-              {#each kindOptions as option (option.value)}
-                <Select.Item label={option.label} value={option.value} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-        {#if channelKind === "telegram"}
-          <div>
-            <label class={label} for="telegramBotToken">Bot token</label>
-            <Input
-              autocomplete="off"
-              id="telegramBotToken"
-              name="telegramBotToken"
-              placeholder="123456789:AA…"
-              type="password"
-            />
-          </div>
-        {:else}
-          <div>
-            <label class={label} for="channelTarget">
-              {channelKind === "email" ? "Address" : "Webhook URL"}
-            </label>
-            <Input
-              id="channelTarget"
-              name="target"
-              placeholder={TARGET_PLACEHOLDER[channelKind]}
-            />
-          </div>
-        {/if}
-      </div>
-      {#if channelKind === "telegram"}
-        <div class="grid gap-4 md:grid-cols-3">
-          <div class="md:col-start-3">
-            <label class={label} for="telegramChatId">Chat id</label>
-            <Input
-              id="telegramChatId"
-              name="telegramChatId"
-              placeholder="-1001234567890 or @channel"
-            />
-          </div>
-        </div>
-        <p class="text-text-subtle text-xs">
-          Create a bot with @BotFather, add it to the chat, and use the chat's
-          numeric id (or a public channel's @name).
-        </p>
-      {/if}
-      {#if form?.errors && "target" in form.errors && form.errors.target}
-        <p class="text-xs text-red-500">{form.errors.target[0]}</p>
-      {/if}
-      <div class="flex justify-end">
-        <Button disabled={creating} type="submit">
-          <Plus class="size-4" />
-          Add channel
-        </Button>
-      </div>
-    </form>
-  </section>
-
   {#if data.channels.length === 0}
     <EmptyState
       icon={BellRing}
-      subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address above, or turn on browser notifications under General."
+      subtitle="Add a Discord, Slack or Telegram channel, a generic webhook or an email address, or turn on browser notifications under General."
       title="No notification channels yet"
-    />
+    ><Button href={resolve("/(protected)/notifications/settings/channels/new")}><Plus class="size-4" />New channel</Button></EmptyState>
   {:else}
     <section class="panel rounded-md">
       <div class="panel-head">
@@ -196,6 +88,13 @@
           <Send class="size-3" />
           Channels
         </h2>
+        <Button
+          href={resolve("/(protected)/notifications/settings/channels/new")}
+          size="sm"
+        >
+          <Plus class="size-4" />
+          New channel
+        </Button>
       </div>
       <div class="divide-border divide-y">
         {#each data.channels as channel (channel.id)}

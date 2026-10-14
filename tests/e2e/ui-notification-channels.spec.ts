@@ -19,6 +19,10 @@ test.describe
 			await page.goto("/notifications/settings");
 			await page.getByRole("link", { exact: true, name: "Channels" }).click();
 			await expect(page).toHaveURL(/\/notifications\/settings\/channels$/);
+			await page
+				.getByRole("link", { exact: true, name: "New channel" })
+				.click();
+			await expect(page).toHaveURL(/\/notifications\/settings\/channels\/new$/);
 
 			await page.locator("#channelName").fill("E2E hook");
 			await page.locator("#channelKind").click();
@@ -26,6 +30,7 @@ test.describe
 			await page.locator("#channelTarget").fill("https://example.com/hook");
 			await page.getByRole("button", { name: "Add channel" }).click();
 			await expect(page.getByText("Channel added.")).toBeVisible();
+			await expect(page).toHaveURL(/\/notifications\/settings\/channels$/);
 			await expect(page.getByText("https://example.com/hook")).toBeVisible();
 			await expect(
 				page.getByText(
@@ -81,7 +86,7 @@ test.describe
 
 		test("a malformed Discord webhook URL is rejected", async ({ page }) => {
 			await signIn(page);
-			await page.goto("/notifications/settings/channels");
+			await page.goto("/notifications/settings/channels/new");
 
 			await page.locator("#channelName").fill("Bad hook");
 			await page.locator("#channelTarget").fill("https://example.com/hook");
@@ -89,7 +94,8 @@ test.describe
 
 			await expect(
 				page
-					.locator("form[action='?/createChannel']")
+					.locator("form")
+					.filter({ has: page.locator("#channelName") })
 					.getByText(/A Discord webhook URL looks like/),
 			).toBeVisible();
 		});
@@ -98,7 +104,7 @@ test.describe
 			page,
 		}) => {
 			await signIn(page);
-			await page.goto("/notifications/settings/channels");
+			await page.goto("/notifications/settings/channels/new");
 
 			const botToken = "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw";
 			await page.locator("#channelName").fill("E2E Telegram");
@@ -109,6 +115,7 @@ test.describe
 			await page.locator("#telegramChatId").fill("-1001234567890");
 			await page.getByRole("button", { name: "Add channel" }).click();
 			await expect(page.getByText("Channel added.")).toBeVisible();
+			await expect(page).toHaveURL(/\/notifications\/settings\/channels$/);
 			await expect(page.getByText("Chat -1001234567890")).toBeVisible();
 			await expect(page.getByText(botToken)).toHaveCount(0);
 
@@ -119,7 +126,7 @@ test.describe
 
 		test("a Slack channel needs a Slack webhook URL", async ({ page }) => {
 			await signIn(page);
-			await page.goto("/notifications/settings/channels");
+			await page.goto("/notifications/settings/channels/new");
 
 			await page.locator("#channelName").fill("Bad Slack");
 			await page.locator("#channelKind").click();
@@ -129,7 +136,8 @@ test.describe
 
 			await expect(
 				page
-					.locator("form[action='?/createChannel']")
+					.locator("form")
+					.filter({ has: page.locator("#channelName") })
 					.getByText(/A Slack webhook URL looks like/),
 			).toBeVisible();
 		});

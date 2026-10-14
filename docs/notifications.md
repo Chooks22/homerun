@@ -45,12 +45,12 @@ automatically, so the feed doesn't grow without bound.
 
 **Notification channels** send the same kind of events outside the dashboard.
 Add a Discord webhook, a Slack incoming webhook, a Telegram bot, a generic
-webhook, or an email address under **Notifications → Settings → Channels** (the
-**Settings** button on the Notifications page), or a browser (see above), then
-pick which events each one gets on that page's **General** tab: a git build or a
-deploy started (not sent for scheduled runs), build succeeded/failed, a build
-stopped by failing [status checks](status-checks.md), scheduled update
-succeeded/failed, an
+webhook, or an email address with **New channel** under **Notifications →
+Settings → Channels** (the **Settings** button on the Notifications page), or a
+browser (see above), then pick which events each one gets on that page's
+**General** tab: a git build or a deploy started (not sent for scheduled runs),
+build succeeded/failed, a build stopped by failing
+[status checks](status-checks.md), scheduled update succeeded/failed, an
 [update available](deploy-source-and-builds.md#version-pinning-and-update-checks)
 for a service watching for one, manual deploy succeeded/failed, a new revision
 found unhealthy or [rolled back](revisions-and-rollback.md), an image scan
@@ -67,7 +67,7 @@ failures, unhealthy revisions, rollbacks, both resource alerts, new and
 regressed errors, backup failures, low backup storage, and cron job failures;
 turn on the rest you want from that matrix.
 
-![Notification settings' Channels tab, with the form to add one above a Discord and an email channel](images/notifications-channels.webp)
+![Notification settings' Channels tab, listing a Discord and an email channel](images/notifications-channels.webp)
 
 ![Notification settings' General tab, the matrix of which events each channel gets](images/notifications-subscriptions.webp)
 
