@@ -42,9 +42,24 @@ export type NewWorkstationInput = Pick<
 	| "userId"
 >;
 
+/** A workstation's own login wall policy, the same columns a service's has. */
+export type WorkstationLoginWall = Pick<
+	Workstation,
+	| "authAllowedEmails"
+	| "authAllowedGroups"
+	| "authAllowedUserIds"
+	| "authProviders"
+	| "authRequired"
+>;
+
 export type WorkstationUpdateInput = Partial<
 	Pick<
 		Workstation,
+		| "authAllowedEmails"
+		| "authAllowedGroups"
+		| "authAllowedUserIds"
+		| "authProviders"
+		| "authRequired"
 		| "autoStopAt"
 		| "autoStopMinutes"
 		| "autoStopMode"
@@ -84,7 +99,7 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 		return row ? new WorkstationDTO(row) : null;
 	}
 
-	/** Loads any workstation by id, whoever owns it, for the git sign-in check on its hostname. */
+	/** Loads any workstation by id, whoever owns it, for the login wall or git sign-in check on its hostname. */
 	static async getForGate(id: string): Promise<WorkstationDTO | null> {
 		const [row] = await db
 			.select()
@@ -186,6 +201,15 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 		return rows.map((row) => new WorkstationDTO(row));
 	}
 
+	/** Every workstation, anyone's, on remote host `remoteHostId`, for cleaning up before the host is deleted. */
+	static async listOnHost(remoteHostId: string): Promise<WorkstationDTO[]> {
+		const rows = await db
+			.select()
+			.from(workstation)
+			.where(eq(workstation.remoteHostId, remoteHostId));
+		return rows.map((row) => new WorkstationDTO(row));
+	}
+
 	/** Whether any workstation, anyone's, already uses `slug`. */
 	static async slugTaken(slug: string): Promise<boolean> {
 		const [row] = await db
@@ -196,10 +220,17 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 		return !!row;
 	}
 
-	/** Inserts a new workstation, stopped. The password must already be encrypted. */
-	static async create(input: NewWorkstationInput): Promise<WorkstationDTO> {
+	/** Inserts a new workstation, stopped, its login wall off unless `input` sets one. The password must already be encrypted. */
+	static async create(
+		input: NewWorkstationInput & Partial<WorkstationLoginWall>,
+	): Promise<WorkstationDTO> {
 		const now = new Date();
 		const row: Workstation = {
+			authAllowedEmails: [],
+			authAllowedGroups: [],
+			authAllowedUserIds: [],
+			authProviders: [],
+			authRequired: false,
 			...input,
 			autoStopAt: null,
 			autoStopMinutes: null,
@@ -256,7 +287,7 @@ export class WorkstationDTO extends BaseDTO<Workstation> {
 	get userId(): string {
 		return this.row.userId;
 	}
-	/** The agent-mode host it runs on, null for this server. */
+	/** The remote host (an agent or a raw Docker daemon) it runs on, null for this server. */
 	get remoteHostId(): string | null {
 		return this.row.remoteHostId;
 	}

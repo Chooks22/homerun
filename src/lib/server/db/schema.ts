@@ -550,6 +550,23 @@ export const remoteHost = pgTable(
 export const workstation = pgTable(
 	"workstation",
 	{
+		authAllowedEmails: jsonb("auth_allowed_emails")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authAllowedGroups: jsonb("auth_allowed_groups")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authAllowedUserIds: jsonb("auth_allowed_user_ids")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authProviders: jsonb("auth_providers")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authRequired: boolean("auth_required").default(false).notNull(),
 		autoStopAt: timestamp("auto_stop_at", { mode: "date" }),
 		autoStopMinutes: integer("auto_stop_minutes"),
 		autoStopMode: text("auto_stop_mode", { enum: ["idle", "timer"] }),
@@ -600,6 +617,23 @@ export const workstation = pgTable(
 export const workstationPreset = pgTable(
 	"workstation_preset",
 	{
+		authAllowedEmails: jsonb("auth_allowed_emails")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authAllowedGroups: jsonb("auth_allowed_groups")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authAllowedUserIds: jsonb("auth_allowed_user_ids")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authProviders: jsonb("auth_providers")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		authRequired: boolean("auth_required").default(false).notNull(),
 		cpuLimit: doublePrecision("cpu_limit"),
 		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 		description: text("description"),
@@ -747,6 +781,7 @@ export const instanceSettings = pgTable("instance_settings", {
 	authCrossSubdomainCookies: boolean("auth_cross_subdomain_cookies"),
 	authOrigin: text("auth_origin"),
 	baseDomain: text("base_domain"),
+	serviceSubdomain: text("service_subdomain"),
 	dnsProvider: text("dns_provider").$type<"pangolin">(),
 	createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 	dockerNetworkName: text("docker_network_name"),
@@ -1174,6 +1209,10 @@ export const service = pgTable(
 		// reachable over the internal network(s) it's attached to (the shared
 		// network by slug alias, plus its stack's network if any).
 		dnsResolvable: boolean("dns_resolvable").default(true).notNull(),
+		staleDnsHosts: text("stale_dns_hosts")
+			.array()
+			.default(sql`'{}'::text[]`)
+			.notNull(),
 		envVars: jsonb("env_vars").$type<Record<string, string>>().default({}),
 		// Bake file relative to gitBuildContext, "docker-bake.hcl" when unset.
 		gitBakeFile: text("git_bake_file"),
@@ -1211,6 +1250,9 @@ export const service = pgTable(
 		previewsEnabled: boolean("previews_enabled").default(false).notNull(),
 		previewDomainTemplate: text("preview_domain_template"),
 		previewInheritEnv: boolean("preview_inherit_env").default(true).notNull(),
+		previewUptimeEnabled: boolean("preview_uptime_enabled")
+			.default(false)
+			.notNull(),
 		previewEnvOverrides: jsonb("preview_env_overrides")
 			.$type<Record<string, string>>()
 			.default({})
@@ -1678,6 +1720,10 @@ export const cronJob = pgTable(
 		// Standard 5-field cron expression, evaluated in the server's local
 		// time by the same matcher every other schedule in this app uses.
 		schedule: text("schedule").notNull(),
+		secretEnvKeys: jsonb("secret_env_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
 		source: text("source"),
 		tag: text("tag").default("latest"),
 		timeoutSeconds: integer("timeout_seconds").default(900).notNull(),

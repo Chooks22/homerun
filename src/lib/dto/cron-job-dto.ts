@@ -34,6 +34,7 @@ export interface NewCronJobInput {
 	runAsUser?: string | null;
 	runtime?: ScriptRuntime | null;
 	schedule: string;
+	secretEnvKeys?: string[];
 	source?: string | null;
 	tag?: string | null;
 	timeoutSeconds: number;
@@ -61,6 +62,7 @@ export type CronJobUpdateInput = Partial<
 		| "runAsUser"
 		| "runtime"
 		| "schedule"
+		| "secretEnvKeys"
 		| "source"
 		| "tag"
 		| "timeoutSeconds"
@@ -213,6 +215,7 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 			runAsUser: input.runAsUser ?? null,
 			runtime: input.runtime ?? null,
 			schedule: input.schedule,
+			secretEnvKeys: input.secretEnvKeys ?? [],
 			source: input.source ?? null,
 			tag: input.tag ?? "latest",
 			timeoutSeconds: input.timeoutSeconds,
@@ -285,6 +288,10 @@ export class CronJobDTO extends BaseDTO<CronJob> {
 	/** The job's environment variables, empty when none are stored. */
 	get envVars(): Record<string, string> {
 		return this.row.envVars ?? {};
+	}
+	/** Env var names the owner marked secret: masked in the dashboard and always redacted for AI agents, whatever their name. */
+	get secretEnvKeys(): string[] {
+		return this.row.secretEnvKeys;
 	}
 	/** The config files written into the job's container before it starts. */
 	get files(): CronJobFile[] {

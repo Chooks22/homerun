@@ -10,6 +10,7 @@ export function blankInstanceSettings(id: string, now: Date): InstanceSettings {
 		authCrossSubdomainCookies: null,
 		authOrigin: null,
 		baseDomain: null,
+		serviceSubdomain: null,
 		dnsProvider: null,
 		createdAt: now,
 		dockerNetworkName: null,

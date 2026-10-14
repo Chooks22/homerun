@@ -41,6 +41,7 @@ export interface InstanceSettingsCoreInput {
 	authCrossSubdomainCookies: boolean | null;
 	authOrigin: string | null;
 	baseDomain: string | null;
+	serviceSubdomain?: string | null;
 }
 
 export interface InstanceSettingsDockerInput {
@@ -115,6 +116,7 @@ export interface InstanceSettingsOverride {
 	authCrossSubdomainCookies?: boolean | null;
 	authOrigin?: string | null;
 	baseDomain?: string | null;
+	serviceSubdomain?: string | null;
 	dockerNetworkName?: string | null;
 	dockerSocketPath?: string | null;
 	oauthProviders?: Array<{
@@ -738,6 +740,7 @@ export class InstanceSettingsDTO extends BaseDTO<InstanceSettings> {
 			authCrossSubdomainCookies: this.row.authCrossSubdomainCookies,
 			authOrigin: this.row.authOrigin,
 			baseDomain: this.row.baseDomain,
+			serviceSubdomain: this.row.serviceSubdomain,
 			dockerNetworkName: this.row.dockerNetworkName,
 			dockerSocketPath: this.row.dockerSocketPath,
 			pangolinEnabled: this.pangolinConfigured,

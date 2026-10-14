@@ -8,6 +8,11 @@ import { BaseDTO } from "./base-dto";
 
 export type WorkstationPresetInput = Pick<
 	WorkstationPreset,
+	| "authAllowedEmails"
+	| "authAllowedGroups"
+	| "authAllowedUserIds"
+	| "authProviders"
+	| "authRequired"
 	| "cpuLimit"
 	| "description"
 	| "editorSettings"

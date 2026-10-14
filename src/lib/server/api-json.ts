@@ -12,7 +12,8 @@ import type { StatusPagePick } from "#lib/status-page-members.js";
 
 /**
  * A service as the REST API returns it: the row without its ciphertext
- * columns, with whether a registry password and a custom certificate are set.
+ * columns and its DNS bookkeeping, with whether a registry password and a
+ * custom certificate are set.
  */
 export function serviceApiJson(row: Service) {
 	const {
@@ -20,6 +21,7 @@ export function serviceApiJson(row: Service) {
 		customSslKeyEnc,
 		gitWebhookSecretEnc: _webhookSecret,
 		registryPasswordEnc,
+		staleDnsHosts: _staleDnsHosts,
 		...rest
 	} = row;
 	return {

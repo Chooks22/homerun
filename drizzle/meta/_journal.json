@@ -924,6 +924,20 @@
 			"when": 1791979150614,
 			"tag": "0131_adorable_dreadnoughts",
 			"breakpoints": true
+		},
+		{
+			"idx": 132,
+			"version": "7",
+			"when": 1791986230279,
+			"tag": "0132_fast_valeria_richards",
+			"breakpoints": true
+		},
+		{
+			"idx": 133,
+			"version": "7",
+			"when": 1791990548112,
+			"tag": "0133_brave_norrin_radd",
+			"breakpoints": true
 		}
 	],
 	"version": "7"
