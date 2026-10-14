@@ -21,6 +21,10 @@ class FakeSettingsError extends Error {
 	) {
 		super(message);
 	}
+
+	body() {
+		return { conflicts: [], error: this.message };
+	}
 }
 
 const save = mock(
@@ -35,12 +39,12 @@ const resolveGitCredential = mock(async () => ({
 	username: "u",
 }));
 
-mock.module("#lib/services/service-settings.service.js", () => ({
-	ServiceSettingsService: { save },
-}));
-mock.module("../../../src/lib/services/service-settings.service.ts", () => ({
-	ServiceSettingsService: { save },
-}));
+const { ServiceSettingsService } = await import(
+	"../../../src/lib/services/service-settings.service"
+);
+const saveSpy = spyOn(ServiceSettingsService, "save").mockImplementation(
+	save as unknown as typeof ServiceSettingsService.save,
+);
 const helpers = await import("../../../src/lib/services/deploy/helpers");
 mock.module("../../../src/lib/services/deploy/helpers.ts", () => ({
 	...helpers,
@@ -74,6 +78,7 @@ afterEach(() => {
 
 afterAll(() => {
 	post.mockRestore();
+	saveSpy.mockRestore();
 });
 
 describe("manifestScopeFor", () => {
@@ -138,6 +143,7 @@ describe("ManifestService.apply", () => {
 		);
 		await expect(refused).rejects.toBeInstanceOf(ManifestError);
 		await expect(refused).rejects.toMatchObject({
+			body: { conflicts: [], error: "That's not enabled." },
 			message: "That's not enabled.",
 			status: 403,
 		});

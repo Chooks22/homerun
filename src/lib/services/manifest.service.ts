@@ -21,6 +21,7 @@ export class ManifestError extends Error {
 	constructor(
 		message: string,
 		readonly status = 400,
+		readonly body: Record<string, unknown> = { error: message },
 	) {
 		super(message);
 	}
@@ -88,7 +89,7 @@ class ManifestServiceClass {
 			hostAccess: false,
 		});
 		if (refusal instanceof Error) {
-			throw new ManifestError(refusal.message, refusal.status);
+			throw new ManifestError(refusal.message, refusal.status, refusal.body());
 		}
 		logger.info(
 			`Manifest applied: service=${svc.id} fields=${Object.keys(fields).join(",")} user=${actor.userId}`,
