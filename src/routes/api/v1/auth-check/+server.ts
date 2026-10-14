@@ -1,11 +1,11 @@
 import { config } from "#lib/config.js";
-import type { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
 import {
 	GATE_CALLBACK_PATH,
 	GATE_LOGOUT_PATH,
 	GATE_REDIRECT_TTL_MS,
 	GATE_SESSION_TTL_MS,
+	type GateTarget,
 	gateCookie,
 	gatePrefix,
 	policyVersion,
@@ -15,7 +15,7 @@ import {
 } from "#lib/server/app-gate.js";
 import { cachedGateAccess } from "#lib/server/gate-access-cache.js";
 import { gateChallengeKind } from "#lib/server/gate-request.js";
-import { gatedService } from "#lib/server/gated-service-cache.js";
+import { serviceGateTarget } from "#lib/server/gate-target.js";
 import { AppAccessService } from "#lib/services/app-access.service.js";
 import {
 	WorkstationSignInService,
@@ -66,7 +66,7 @@ function redirect(to: string, cookie?: string): Response {
 	return new Response(null, { headers, status: 302 });
 }
 
-function challenge(svc: ServiceDTO, forwarded: ForwardedRequest): Response {
+function challenge(target: GateTarget, forwarded: ForwardedRequest): Response {
 	const dashboard = config.auth.origin;
 	if (!dashboard) {
 		return deny(
@@ -75,7 +75,7 @@ function challenge(svc: ServiceDTO, forwarded: ForwardedRequest): Response {
 		);
 	}
 	const token = signGateToken(
-		{ host: forwarded.host, serviceId: svc.id, target: forwarded.url },
+		{ host: forwarded.host, serviceId: target.key, target: forwarded.url },
 		GATE_REDIRECT_TTL_MS,
 	);
 	const to = new URL("/app-auth", dashboard);
@@ -84,7 +84,7 @@ function challenge(svc: ServiceDTO, forwarded: ForwardedRequest): Response {
 }
 
 async function handleCallback(
-	svc: ServiceDTO,
+	target: GateTarget,
 	forwarded: ForwardedRequest,
 	prefix: string,
 ): Promise<Response> {
@@ -92,15 +92,15 @@ async function handleCallback(
 	const payload = token ? verifyGateToken(token) : null;
 	if (
 		!payload?.userId ||
-		payload.serviceId !== svc.id ||
+		payload.serviceId !== target.key ||
 		payload.host !== forwarded.host
 	) {
-		return challenge(svc, forwarded);
+		return challenge(target, forwarded);
 	}
 
-	const decision = await AppAccessService.evaluate(svc, payload.userId);
+	const decision = await AppAccessService.evaluate(target, payload.userId);
 	if (!decision.allowed) {
-		return challenge(svc, forwarded);
+		return challenge(target, forwarded);
 	}
 
 	const session = signGateToken(
@@ -108,14 +108,14 @@ async function handleCallback(
 			email: payload.email,
 			host: forwarded.host,
 			name: payload.name,
-			policyVersion: policyVersion(svc),
-			serviceId: svc.id,
+			policyVersion: policyVersion(target),
+			serviceId: target.key,
 			userId: payload.userId,
 		},
 		GATE_SESSION_TTL_MS,
 	);
 	logger.info(
-		`App gate granted: service=${svc.id} user=${payload.userId} host=${forwarded.host}`,
+		`App gate granted: service=${target.key} user=${payload.userId} host=${forwarded.host}`,
 	);
 	return redirect(
 		payload.target ?? `${forwarded.origin}${prefix}`,
@@ -129,18 +129,18 @@ async function handleCallback(
 }
 
 async function stillAllowed(
-	svc: ServiceDTO,
+	target: GateTarget,
 	userId: string,
 	currentPolicy: string,
 ): Promise<boolean> {
 	try {
 		return await cachedGateAccess(
-			{ policyVersion: currentPolicy, serviceId: svc.id, userId },
-			() => AppAccessService.recheck(svc, userId),
+			{ policyVersion: currentPolicy, serviceId: target.key, userId },
+			() => AppAccessService.recheck(target, userId),
 		);
 	} catch (error) {
 		logger.error(
-			`App gate re-check failed, honouring the cookie: service=${svc.id} user=${userId}`,
+			`App gate re-check failed, honouring the cookie: service=${target.key} user=${userId}`,
 			error,
 		);
 		return true;
@@ -155,7 +155,7 @@ async function checkWorkstation(
 	const gate = await WorkstationSignInService.gate(workstationId);
 	if (!gate) {
 		return deny(
-			"This workstation signs in through git, but its git connection is gone. Start it again from Homerun to go back to its password.",
+			"This workstation's login wall is off and its git sign-in is gone. Start it again from Homerun to go back to its password.",
 			403,
 		);
 	}
@@ -221,29 +221,13 @@ async function checkWorkstation(
 	);
 }
 
-export const GET = async ({ request, url }) => {
-	const workstationId = url.searchParams.get("workstation");
-	if (workstationId) {
-		return await checkWorkstation(request, url, workstationId);
-	}
-	const serviceId = url.searchParams.get("service");
-	if (!serviceId) {
-		return deny("Unauthorized", 401);
-	}
-
-	const svc = await gatedService(serviceId);
-	if (!svc) {
-		return deny("Unauthorized", 401);
-	}
-	if (!svc.authRequired) {
-		return new Response("OK", { status: 200 });
-	}
-	if (config.pangolinOwnsAuth) {
-		return new Response("OK", { status: 200 });
-	}
-
+async function checkWall(
+	request: Request,
+	url: URL,
+	target: GateTarget,
+): Promise<Response> {
 	const forwarded = readForwarded(request, url);
-	const prefix = gatePrefix(svc.domains, forwarded.host, forwarded.path);
+	const prefix = gatePrefix(target.domains, forwarded.host, forwarded.path);
 
 	if (forwarded.path === `${prefix}${GATE_LOGOUT_PATH}`) {
 		return redirect(
@@ -252,19 +236,18 @@ export const GET = async ({ request, url }) => {
 		);
 	}
 	if (forwarded.path === `${prefix}${GATE_CALLBACK_PATH}`) {
-		return await handleCallback(svc, forwarded, prefix);
+		return await handleCallback(target, forwarded, prefix);
 	}
 
 	const payload = readGateCookies(request.headers.get("cookie"))
 		.map(verifyGateToken)
-		.find((candidate) => candidate?.serviceId === svc.id);
-	const currentPolicy = policyVersion(svc);
+		.find((candidate) => candidate?.serviceId === target.key);
+	const currentPolicy = policyVersion(target);
 	if (
 		payload?.userId &&
-		payload.serviceId === svc.id &&
 		payload.host === forwarded.host &&
 		payload.policyVersion === currentPolicy &&
-		(await stillAllowed(svc, payload.userId, currentPolicy))
+		(await stillAllowed(target, payload.userId, currentPolicy))
 	) {
 		return new Response("OK", {
 			headers: {
@@ -283,5 +266,28 @@ export const GET = async ({ request, url }) => {
 	if (kind === "deny") {
 		return deny("Sign in to this app first.", 401);
 	}
-	return challenge(svc, forwarded);
+	return challenge(target, forwarded);
+}
+
+export const GET = async ({ request, url }) => {
+	const workstationId = url.searchParams.get("workstation");
+	if (workstationId) {
+		const wall = await WorkstationSignInService.wall(workstationId);
+		return wall?.authRequired
+			? await checkWall(request, url, wall)
+			: await checkWorkstation(request, url, workstationId);
+	}
+	const serviceId = url.searchParams.get("service");
+	if (!serviceId) {
+		return deny("Unauthorized", 401);
+	}
+
+	const target = await serviceGateTarget(serviceId);
+	if (!target) {
+		return deny("Unauthorized", 401);
+	}
+	if (!target.authRequired || config.pangolinOwnsAuth) {
+		return new Response("OK", { status: 200 });
+	}
+	return await checkWall(request, url, target);
 };
