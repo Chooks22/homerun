@@ -138,6 +138,10 @@ if its builds or webhooks start failing. `/users` has a search box (name/email)
 and a Role filter once you have more than a couple of accounts, plus a pager
 once you have more than a page's worth, searched/paginated server-side.
 
+A banned account (better-auth's admin API, `POST /api/v1/auth/admin/ban-user`,
+there's no button for it) can't sign in, and its API keys and MCP tokens are
+refused with a `403` until the ban is lifted or its expiry passes.
+
 ![/users with an admin, a developer, a read-only and an app-access-only account](images/users-list.webp)
 
 ## Service accounts

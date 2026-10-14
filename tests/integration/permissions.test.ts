@@ -143,3 +143,58 @@ describe("custom-role users", () => {
 		expect((await get("/services")).status).toBe(403);
 	});
 });
+
+describe("banned users", () => {
+	const email = "banned@integration.test";
+	const password = "banned-integration-password-1234";
+
+	test("their API keys are refused until the ban is lifted or runs out", async () => {
+		const { origin } = integrationContext();
+		const adminCookie = await signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
+		const admin = (path: string, body: unknown) =>
+			nativeFetch(`${origin}/api/v1/auth/admin/${path}`, {
+				body: JSON.stringify(body),
+				headers: {
+					"content-type": "application/json",
+					cookie: adminCookie,
+					origin,
+				},
+				method: "POST",
+			});
+		const created = await admin("create-user", {
+			email,
+			name: "Banned",
+			password,
+			role: "developer",
+		});
+		expect(created.status, await created.clone().text()).toBe(200);
+		const { user } = (await created.json()) as { user: { id: string } };
+		try {
+			const minted = await formAction(
+				await signIn(email, password),
+				"/profile/api-keys/new?/create",
+				{ allPermissions: "on", expiry: "7", name: "before the ban" },
+			);
+			expect(minted.type).toBe("success");
+			const key = minted.data.key as string;
+			expect((await withKey(key, "/api/v1/services")).status).toBe(200);
+
+			expect((await admin("ban-user", { userId: user.id })).status).toBe(200);
+			const refused = await withKey(key, "/api/v1/services");
+			expect(refused.status).toBe(403);
+			expect(await refused.text()).toContain("banned");
+
+			expect((await admin("unban-user", { userId: user.id })).status).toBe(200);
+			expect((await withKey(key, "/api/v1/services")).status).toBe(200);
+
+			expect(
+				(await admin("ban-user", { banExpiresIn: 1, userId: user.id })).status,
+			).toBe(200);
+			expect((await withKey(key, "/api/v1/services")).status).toBe(403);
+			await Bun.sleep(1500);
+			expect((await withKey(key, "/api/v1/services")).status).toBe(200);
+		} finally {
+			await admin("remove-user", { userId: user.id });
+		}
+	});
+});

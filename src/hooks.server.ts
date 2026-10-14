@@ -55,6 +55,7 @@ import { ServiceAccountService } from "#lib/services/service-account.service.js"
 import { DEFAULT_SURFACE } from "#lib/surfaces.js";
 import { isOtlpPath } from "#lib/tracing/otlp.js";
 import {
+	BANNED_ACCOUNT_MESSAGE,
 	isServiceAccount,
 	SERVICE_ACCOUNT_DISABLED_MESSAGE,
 } from "#lib/user-types.js";
@@ -418,7 +419,7 @@ function isJwt(token: string): boolean {
  * Claude Code…) got from Homerun: a JWT signed with Homerun's own keys whose
  * audience is the MCP endpoint, so an id token or a token minted for an app
  * using "Sign in with Homerun" is refused. Returns a 401 when it doesn't
- * verify.
+ * verify, and a 403 when its owner is app-access-only or banned.
  */
 async function applyMcpTokenAuth(
 	event: RequestEvent,
@@ -439,10 +440,18 @@ async function applyMcpTokenAuth(
 	if (tokenUser && isAppOnly(tokenUser.role)) {
 		return appOnlyTokenRefusal();
 	}
+	if (tokenUser && isBanned(tokenUser)) {
+		return bannedTokenRefusal();
+	}
 	if (tokenUser) {
 		event.locals.user = tokenUser;
 	}
 	return null;
+}
+
+/** The 403 for an API key or MCP token owned by a banned user, until the ban expires or is lifted. */
+function bannedTokenRefusal(): Response {
+	return Response.json({ error: BANNED_ACCOUNT_MESSAGE }, { status: 403 });
 }
 
 /** The 403 for an API key or MCP token owned by an app-access-only user, who can't use either. */
@@ -470,8 +479,9 @@ function rateLimitedFor(
 /**
  * API-key fallback for a request with no cookie session : populates
  * `locals.user` on success, and returns a 401 response when a key was sent
- * but doesn't verify, or a 429 with `Retry-After` when it's rate-limited.
- * Returns null when there's nothing to do.
+ * but doesn't verify, a 429 with `Retry-After` when it's rate-limited, and a
+ * 403 when its owner is app-access-only or banned (a ban past its expiry no
+ * longer counts). Returns null when there's nothing to do.
  */
 async function applyApiKeyAuth(event: RequestEvent): Promise<Response | null> {
 	const rawKey = readApiKey(event);
@@ -530,7 +540,10 @@ async function applyApiKeyAuth(event: RequestEvent): Promise<Response | null> {
 	if (apiKeyUser && isAppOnly(apiKeyUser.role)) {
 		return appOnlyTokenRefusal();
 	}
-	if (apiKeyUser && isServiceAccount(apiKeyUser) && isBanned(apiKeyUser)) {
+	if (apiKeyUser && isBanned(apiKeyUser)) {
+		if (!isServiceAccount(apiKeyUser)) {
+			return bannedTokenRefusal();
+		}
 		await ServiceAccountService.recordUse(apiKeyUser, {
 			action: "api.request",
 			detail: `${event.request.method} ${event.url.pathname}: refused, account disabled`,

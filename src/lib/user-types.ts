@@ -9,6 +9,9 @@ export const SERVICE_ACCOUNT_EMAIL_DOMAIN = "service-account.homerun.invalid";
 export const SERVICE_ACCOUNT_DISABLED_MESSAGE =
 	"This service account is disabled.";
 
+export const BANNED_ACCOUNT_MESSAGE =
+	"This account is banned, so its API keys and tokens are refused.";
+
 export const SERVICE_ACCOUNT_MESSAGE =
 	"A service account's key only gets through a login wall, plus the areas an admin granted it.";
 
