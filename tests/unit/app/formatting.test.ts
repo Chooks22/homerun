@@ -4,6 +4,7 @@ import {
 	formatDate,
 	getPasswordStrength,
 	getPasswordStrengthMeta,
+	SECRET_MASK,
 	timeAgo,
 } from "../../../src/lib/formatting";
 
@@ -42,5 +43,11 @@ describe("password strength", () => {
 		expect(
 			[0, 1, 2, 3, 4].map((score) => getPasswordStrengthMeta(score).label),
 		).toEqual(["", "Weak", "Fair", "Good", "Strong"]);
+	});
+});
+
+describe("SECRET_MASK", () => {
+	test("is one fixed, long run of bullets", () => {
+		expect(SECRET_MASK).toBe("•".repeat(24));
 	});
 });

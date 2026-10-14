@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { SECRET_MASK } from "../../../src/lib/formatting";
 import {
 	buildLinkEnv,
 	buildLinkUrl,
@@ -235,9 +236,9 @@ describe("URLs other services use", () => {
 	test("the internal URL carries a datastore's credentials, masked for display", () => {
 		const url = internalUrl(redis);
 		expect(url).toBe("redis://:hunter2@cache:6379");
-		expect(maskUrlPassword(url)).toBe("redis://:•••@cache:6379");
+		expect(maskUrlPassword(url)).toBe(`redis://:${SECRET_MASK}@cache:6379`);
 		expect(maskUrlPassword(internalUrl(postgres))).toBe(
-			"postgres://app:•••@db:5432/app",
+			`postgres://app:${SECRET_MASK}@db:5432/app`,
 		);
 		expect(
 			internalUrl({

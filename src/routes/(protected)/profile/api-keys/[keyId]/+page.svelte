@@ -6,6 +6,7 @@
 	import PermissionPicker from "#lib/components/permission-picker.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { SECRET_MASK } from "#lib/formatting.js";
 	import type { Permissions } from "#lib/permissions.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
@@ -32,7 +33,7 @@
 
   <section class="panel rounded-md">
     <PanelHeader
-      description={`${data.apiKey.prefix ?? ""}${data.apiKey.start ?? "••••••••"}… · Changes apply to the key's next request; the secret stays the same.`}
+      description={`${data.apiKey.prefix ?? ""}${data.apiKey.start ?? SECRET_MASK}… · Changes apply to the key's next request; the secret stays the same.`}
       icon={KeyRound}
       title="Edit API key"
     >

@@ -1,4 +1,5 @@
 import type { ParsedEnvVar } from "#lib/env-parse.js";
+import { SECRET_MASK } from "#lib/formatting.js";
 
 export type LinkFormat = "url" | "postgresql" | "jdbc" | "vars";
 
@@ -451,5 +452,5 @@ export function internalUrl(target: LinkTargetService): string {
 
 /** A URL with the password in its authority replaced by dots, for display. */
 export function maskUrlPassword(url: string): string {
-	return url.replace(/(:\/\/[^:/@]*:)[^@/]+@/, "$1•••@");
+	return url.replace(/(:\/\/[^:/@]*:)[^@/]+@/, `$1${SECRET_MASK}@`);
 }

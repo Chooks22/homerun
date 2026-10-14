@@ -314,6 +314,26 @@ already used `ConfirmDialog` before this and needed no change.
 single and bulk deletes. A bulk action where every service fails surfaces the
 first rejection's message rather than reporting success.
 
+## Hidden values and the env editor (`SECRET_MASK`, `env-vars-editor.svelte`)
+
+Anything the dashboard shows hidden (a secret env var, an API key with no known
+start, an OIDC app secret before its last four characters, a URL's password, the
+masked `terraform.tfvars` preview, an empty password field's placeholder) uses
+`SECRET_MASK` from `src/lib/formatting.ts`: 24 bullets whatever the real length,
+so a mask never gives the length away. Don't write a bullet literal or a
+length-derived `"•".repeat(value.length)` anywhere else.
+
+A secret's real value is never put back into an input either: a password input
+prefilled with it shows one dot per character. `env-vars-editor.svelte` (the
+service's Environment Variables section and every cron job form) starts a marked
+row with an empty value, `SECRET_MASK` as placeholder and `keep` set to its
+stored name (`envEditorRows` in `env-parse.ts`); the row posts that name as
+`envKeep` while its value is empty, typing clears it, and
+`parseEnvVars(form, stored)` puts the stored value back. Unlocking an untouched
+secret shows the stored value (`toggleEnvRowSecret`). Every other credential
+form already posts an empty password field with a "leave blank to keep"
+placeholder and keeps the stored secret server-side.
+
 ## The `$derived` + push/splice anti-pattern (real, tested bug)
 
 **Real, tested-in-review finding**: three forms, the Settings page's OAuth

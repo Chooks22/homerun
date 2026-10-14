@@ -9,7 +9,7 @@
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import type { OauthClientSecretSummary } from "#lib/dto/oauth-client-secret-dto.js";
-	import { formatDate, timeAgo } from "#lib/formatting.js";
+	import { formatDate, SECRET_MASK, timeAgo } from "#lib/formatting.js";
 	import type { OauthClientEnvironment } from "#lib/server/db/schema.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
@@ -114,7 +114,7 @@
             <li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
               <span class="text-text min-w-0 flex-1 truncate text-sm">{secret.label}</span>
               <code class="text-text-muted font-mono text-xs">
-                {secret.hint ? `••••${secret.hint}` : "••••"}
+                {SECRET_MASK}{secret.hint}
               </code>
               <span class="text-text-subtle text-xs" title={formatDate(secret.createdAt)}>
                 created {timeAgo(secret.createdAt)}

@@ -5,6 +5,7 @@
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { SECRET_MASK } from "#lib/formatting.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
@@ -72,7 +73,7 @@
                 {/if}
               </p>
               <p class="text-text-muted mt-0.5 truncate text-xs">
-                {key.prefix ?? ""}{key.start ?? "••••••••"}…
+                {key.prefix ?? ""}{key.start ?? SECRET_MASK}…
               </p>
               <p class="text-text-subtle mt-0.5 text-xs">
                 created {formatDate(key.createdAt)}

@@ -3,6 +3,7 @@
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { SECRET_MASK } from "#lib/formatting.js";
 	import {
 		areaLabel,
 		type PermissionArea,
@@ -71,7 +72,7 @@
             {/if}
           </p>
           <p class="mt-0.5 truncate text-xs text-text-muted">
-            {key.prefix ?? ""}{key.start ?? "••••••••"}…
+            {key.prefix ?? ""}{key.start ?? SECRET_MASK}…
           </p>
           {#if key.permissions}
             <p class="mt-0.5 truncate text-xs text-text-muted">

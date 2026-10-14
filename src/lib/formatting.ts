@@ -92,3 +92,9 @@ export function getPasswordStrengthMeta(strength: number) {
 	}
 	return { bar: "bg-green-500", label: "Strong", text: "text-green-500" };
 }
+
+/**
+ * What the dashboard shows in place of a hidden value: the same run of
+ * bullets whatever the value's real length, so the mask never gives it away.
+ */
+export const SECRET_MASK = "•".repeat(24);
