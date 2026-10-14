@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { Cpu, MemoryStick, Network } from "@lucide/svelte";
+	import { Cpu, HardDrive, MemoryStick, Network } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import Skeleton from "#lib/components/skeleton.svelte";
 	import UsageChart from "#lib/components/usage-chart.svelte";
 	import { formatBytes } from "#lib/formatting.js";
-	import { workstationLiveStats } from "#lib/remote/workstations.remote.js";
+	import {
+		workstationDiskUsage,
+		workstationLiveStats,
+	} from "#lib/remote/workstations.remote.js";
 	import { title } from "#lib/store/title.js";
 
 	const { data } = $props();
@@ -15,12 +18,19 @@
 
 	const live = $derived(workstationLiveStats(ws.id));
 	const sample = $derived(live.current ?? null);
+	const disk = $derived(workstationDiskUsage(ws.id));
 
 	onMount(() => {
 		const timer = setInterval(() => {
 			void workstationLiveStats(ws.id).refresh();
 		}, 5000);
-		return () => clearInterval(timer);
+		const diskTimer = setInterval(() => {
+			void workstationDiskUsage(ws.id).refresh();
+		}, 60_000);
+		return () => {
+			clearInterval(timer);
+			clearInterval(diskTimer);
+		};
 	});
 
 	const cpuCap = $derived(ws.cpuLimit ? ws.cpuLimit * 100 : null);
@@ -40,7 +50,7 @@
 <div class="space-y-4">
   <section class="panel rounded-xl">
     <PanelHeader
-      description="Read from the container every 5 seconds while this page is open."
+      description="Read from the container every 5 seconds while this page is open, the home directory's size every minute."
       title="Right now"
     />
     <div class="p-5">
@@ -53,7 +63,7 @@
           Not running. Start it from the Overview to see its resource use.
         </p>
       {:else}
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {#each [
             {
               cap: cpuCap,
@@ -100,6 +110,20 @@
               ↓ {formatBytes(sample.netRxBytes)}
             </p>
             <p class="text-text-subtle text-xs">↑ {formatBytes(sample.netTxBytes)} sent</p>
+          </div>
+          <div class="border-border space-y-2 rounded-lg border p-4">
+            <div class="text-text-muted flex items-center gap-2 text-xs">
+              <HardDrive class="size-4" />
+              Home volume
+            </div>
+            {#if !disk.ready}
+              <Skeleton class="h-7 w-24" />
+            {:else if disk.current === null || disk.current === undefined}
+              <p class="text-text-muted text-sm">Couldn't measure it.</p>
+            {:else}
+              <p class="tech text-text text-xl font-semibold">{formatBytes(disk.current)}</p>
+            {/if}
+            <p class="text-text-subtle text-xs">used under {ws.homePath}</p>
           </div>
         </div>
       {/if}

@@ -121,3 +121,26 @@ export const workstationLiveStats = query(
 		return await WorkstationService.stats(ws).catch(() => null);
 	},
 );
+
+export const workstationDiskUsage = query(
+	z.string(),
+	async (workstationId): Promise<number | null> => {
+		const user = requirePermission("workstations", "read");
+		const ws = await WorkstationDTO.get(workstationId, user.id);
+		if (!ws) {
+			error(404, "Workstation not found.");
+		}
+		if (ws.desiredState !== "running") {
+			return null;
+		}
+		try {
+			return await WorkstationService.diskUsage(ws);
+		} catch (err) {
+			logger.warn(
+				`Couldn't measure a workstation's home: workstation=${ws.id}`,
+				err,
+			);
+			return null;
+		}
+	},
+);

@@ -1,9 +1,13 @@
 package workstation
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,15 +18,94 @@ import (
 
 const defaultLogTail = 500
 
-// Mount wires the workstation routes onto an authenticated router.
+// RemoteHeader carries a raw remote Docker daemon, a base64 JSON
+// dockerapi.RemoteHost, on a request a Hub serves: the workstation runs on
+// that daemon instead of the worker's own.
+const RemoteHeader = "X-Homerun-Docker-Remote"
+
+// routes answers the workstation routes with the Manager pick chooses for
+// each request.
+type routes struct {
+	pick func(r *http.Request) (*Manager, error)
+}
+
+// Mount wires the workstation routes onto an authenticated router, every
+// request served by m. Agent mode mounts this: it only ever drives its own
+// daemon.
 func (m *Manager) Mount(r chi.Router) {
-	r.Put("/v1/workstations/{id}", httpapi.H(m.upRoute))
-	r.Get("/v1/workstations/{id}", httpapi.H(m.statusRoute))
-	r.Get("/v1/workstations/{id}/connections", httpapi.H(m.connectionsRoute))
-	r.Get("/v1/workstations/{id}/logs", httpapi.H(m.logsRoute))
-	r.Get("/v1/workstations/{id}/stats", httpapi.H(m.statsRoute))
-	r.Post("/v1/workstations/{id}/stop", httpapi.H(m.stopRoute))
-	r.Delete("/v1/workstations/{id}", httpapi.H(m.removeRoute))
+	routes{pick: func(*http.Request) (*Manager, error) { return m, nil }}.mount(r)
+}
+
+// Hub serves workstations on the worker's own daemon and on raw remote
+// Docker daemons named by the RemoteHeader, keeping one Manager per remote
+// so a start's progress survives between the requests that ask about it.
+type Hub struct {
+	local  *Manager
+	mu     sync.Mutex
+	remote map[string]*Manager
+}
+
+// NewHub builds a Hub over the worker's own Manager.
+func NewHub(local *Manager) *Hub {
+	return &Hub{local: local, remote: map[string]*Manager{}}
+}
+
+// Mount wires the workstation routes onto an authenticated router, each
+// request served on the daemon its RemoteHeader names, else the local one.
+func (h *Hub) Mount(r chi.Router) {
+	routes{pick: h.manager}.mount(r)
+}
+
+// manager is the Manager for r's daemon, built on first use for a remote one.
+func (h *Hub) manager(r *http.Request) (*Manager, error) {
+	header := r.Header.Get(RemoteHeader)
+	if header == "" {
+		return h.local, nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if manager, ok := h.remote[header]; ok {
+		return manager, nil
+	}
+	raw, err := base64.StdEncoding.DecodeString(header)
+	if err != nil {
+		return nil, fmt.Errorf("the %s header isn't base64: %w", RemoteHeader, err)
+	}
+	var host dockerapi.RemoteHost
+	if err := json.Unmarshal(raw, &host); err != nil {
+		return nil, fmt.Errorf("the %s header isn't a remote host: %w", RemoteHeader, err)
+	}
+	client, err := dockerapi.NewRemote(host)
+	if err != nil {
+		return nil, err
+	}
+	manager := NewManager(client)
+	h.remote[header] = manager
+	return manager, nil
+}
+
+// mount registers every workstation route.
+func (rt routes) mount(r chi.Router) {
+	r.Put("/v1/workstations/{id}", rt.with(upRoute))
+	r.Get("/v1/workstations/{id}", rt.with(statusRoute))
+	r.Get("/v1/workstations/{id}/connections", rt.with(connectionsRoute))
+	r.Get("/v1/workstations/{id}/disk", rt.with(diskRoute))
+	r.Get("/v1/workstations/{id}/logs", rt.with(logsRoute))
+	r.Get("/v1/workstations/{id}/stats", rt.with(statsRoute))
+	r.Post("/v1/workstations/{id}/stop", rt.with(stopRoute))
+	r.Delete("/v1/workstations/{id}", rt.with(removeRoute))
+}
+
+// with adapts a route taking its Manager into a handler, answering 400 when
+// the request's remote daemon can't be used.
+func (rt routes) with(route func(*Manager, http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+	return httpapi.H(func(w http.ResponseWriter, r *http.Request) error {
+		manager, err := rt.pick(r)
+		if err != nil {
+			return httpapi.Error(w, http.StatusBadRequest, err.Error())
+		}
+		return route(manager, w, r)
+	})
 }
 
 // workstationID reads and checks the {id} path parameter.
@@ -38,7 +121,7 @@ func workstationID(w http.ResponseWriter, r *http.Request) (string, bool) {
 
 // upRoute answers PUT /v1/workstations/{id} with 202 once the start is under
 // way, 409 when one already is.
-func (m *Manager) upRoute(w http.ResponseWriter, r *http.Request) error {
+func upRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil
@@ -64,7 +147,7 @@ func (m *Manager) upRoute(w http.ResponseWriter, r *http.Request) error {
 }
 
 // statusRoute answers GET /v1/workstations/{id}?port= with its Status.
-func (m *Manager) statusRoute(w http.ResponseWriter, r *http.Request) error {
+func statusRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil
@@ -80,7 +163,7 @@ func (m *Manager) statusRoute(w http.ResponseWriter, r *http.Request) error {
 // connectionsRoute answers GET /v1/workstations/{id}/connections?port= with
 // how many connections the IDE's port holds open, 404 when nothing runs and
 // 409 while a start is in flight.
-func (m *Manager) connectionsRoute(w http.ResponseWriter, r *http.Request) error {
+func connectionsRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil
@@ -104,7 +187,7 @@ func (m *Manager) connectionsRoute(w http.ResponseWriter, r *http.Request) error
 
 // statsRoute answers GET /v1/workstations/{id}/stats with the running
 // container's resource use, 404 when nothing runs.
-func (m *Manager) statsRoute(w http.ResponseWriter, r *http.Request) error {
+func statsRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil
@@ -119,8 +202,30 @@ func (m *Manager) statsRoute(w http.ResponseWriter, r *http.Request) error {
 	return httpapi.Answer(w, http.StatusOK, sample)
 }
 
+// diskRoute answers GET /v1/workstations/{id}/disk?path= with how many
+// bytes the home directory at path holds, 404 when nothing runs.
+func diskRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
+	id, ok := workstationID(w, r)
+	if !ok {
+		return nil
+	}
+	path := r.URL.Query().Get("path")
+	if !validHomePath(path) {
+		return httpapi.Invalid(w, "Invalid path",
+			[]httpapi.ValidationIssue{{Message: "path must be an absolute path", Path: []string{"path"}}})
+	}
+	bytes, err := m.DiskUsage(r.Context(), id, path)
+	if errors.Is(err, dockerapi.ErrNotFound) {
+		return httpapi.Error(w, http.StatusNotFound, "This workstation isn't running.")
+	}
+	if err != nil {
+		return err
+	}
+	return httpapi.Answer(w, http.StatusOK, map[string]int64{"bytes": bytes})
+}
+
 // stopRoute answers POST /v1/workstations/{id}/stop.
-func (m *Manager) stopRoute(w http.ResponseWriter, r *http.Request) error {
+func stopRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil
@@ -133,7 +238,7 @@ func (m *Manager) stopRoute(w http.ResponseWriter, r *http.Request) error {
 
 // removeRoute answers DELETE /v1/workstations/{id}?volume=1, the volume
 // parameter deciding whether the home volume goes too.
-func (m *Manager) removeRoute(w http.ResponseWriter, r *http.Request) error {
+func removeRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil
@@ -147,7 +252,7 @@ func (m *Manager) removeRoute(w http.ResponseWriter, r *http.Request) error {
 // logsRoute answers GET /v1/workstations/{id}/logs?tail=&follow=0 with the
 // container's output as plain text, followed unless follow=0, 404 when the
 // workstation has no container.
-func (m *Manager) logsRoute(w http.ResponseWriter, r *http.Request) error {
+func logsRoute(m *Manager, w http.ResponseWriter, r *http.Request) error {
 	id, ok := workstationID(w, r)
 	if !ok {
 		return nil

@@ -61,9 +61,9 @@ they now fail for different reasons with different fixes, see
 - `client.ts`, no longer a dockerode singleton, now just the
   `RemoteHostConnection` interface : the shape a `remote_host` row stores and
   the Go worker's own `dockerapi.RemoteHost` expects. A remote build server's
-  actual Docker connection (`tcp://`, optionally TLS) is opened in Go
-  (`internal/dockerapi.NewRemote`, from `internal/jobs/deploy/build.go`), not by
-  this app; see Build servers below.
+  actual Docker connection (`tcp://`, optionally TLS, or `ssh://`) is opened in
+  Go (`internal/dockerapi.NewRemote`, from `internal/jobs/deploy/build.go`), not
+  by this app; see Build servers below.
 - `labels.ts`, pure label-building (no Docker client, no state), stays a plain
   exported function rather than a mixin: every container gets
   `homerun.managed=true` + `homerun.service.id=<id>`, plus Traefik discovery
@@ -922,6 +922,15 @@ Images (the default), `tokens/`, `credentials/`, `settings/`.
   repository names carry slashes), built on `repository(name)`, with the
   delete-tag/delete-repository actions; it redirects to the list once the
   repository has no tag left.
+- **REST, MCP and CLI**: `GET /api/v1/registry/repositories` (`catalogPage`
+  through `parseApiListQuery`/`jsonPage`) and
+  `GET /api/v1/registry/repositories/[...repository]/tags` (`repository(name)`'s
+  tags, the name checked with `isValidRepository` first since it ends up in the
+  registry API's URL path), 503 with the reason when the registry doesn't
+  answer. MCP's `list_registry_repositories`/`list_registry_tags` and
+  `homerun registry repositories|tags` read them. Deleting stays dashboard-only:
+  a registry delete takes every tag on the same manifest with it and leaves a
+  running service unable to pull its image again.
 - **Tokens**: `listTokens()`/`createToken()`/`revokeToken()`, with a one-time
   `docker login` snippet shown on creation (`form.created`, never re-derivable,
   the plaintext secret isn't stored).
@@ -1420,13 +1429,37 @@ target this deploy has, `deploy/worker-spec.ts`'s `buildServerSpec` folds the
 target into the spec handed to the Go worker, and
 `internal/jobs/deploy/build.go` is what actually opens the connection and runs
 the build — for `kind: "docker"` that's `internal/dockerapi.NewRemote`
-(`tcp://`, optionally TLS), for `kind: "agent"` its own `POST /v1/build`.
-`RemoteHostDTO.listBuildServers()` is what the Source section's build-server
-picker reads : every registered host qualifies, there's no per-host opt-in flag.
-`services/docker/client.ts` (see Docker integration above) only keeps the
-`RemoteHostConnection` shape for a `"docker"` host now, it doesn't open a client
-itself; `RemoteHostDTO.toConnection()` decrypts the stored TLS material into
-what `internal/dockerapi.RemoteHost` expects.
+(`tcp://`, optionally TLS, or `ssh://`, see below), for `kind: "agent"` its own
+`POST /v1/build`. `RemoteHostDTO.listBuildServers()` is what the Source
+section's build-server picker reads : every registered host qualifies, there's
+no per-host opt-in flag. `services/docker/client.ts` (see Docker integration
+above) only keeps the `RemoteHostConnection` shape for a `"docker"` host now, it
+doesn't open a client itself; `RemoteHostDTO.toConnection()` decrypts the stored
+TLS material into what `internal/dockerapi.RemoteHost` expects, and
+`toDockerConnection()` (what `resolveBuildTarget` and `WorkstationService` use)
+adds the SSH half for an `ssh://` host.
+
+**`ssh://` Docker hosts** (`internal/dockerapi/ssh.go`). `NewRemote` opens no
+connection up front: an `sshTunnel` dials `user@host[:22]` with the instance's
+machine-terminal key (`instance_settings.ssh_private_key_enc`) on first use,
+keeps that one `ssh.Client` for every HTTP connection and hijacked exec stream
+(each a `direct-streamlocal@openssh.com` channel to `/var/run/docker.sock`,
+`ssh.Client.DialContext("unix", ...)`), reopens it once when a channel open
+fails on a dead connection, and a watcher goroutine sends
+`keepalive@openssh.com` every 30s and closes it after 5 idle minutes (the HTTP
+transport's `IdleConnTimeout` of 90s releases idle channels first), so the
+per-job clients builds and cron jobs create don't leak. Streamlocal, not
+`docker system dial-stdio`: no docker CLI needed on the host and no process per
+connection, at the cost of needing sshd's stream-local forwarding (on by
+default) and the rootful socket path. **Host keys are never trusted silently on
+that path**: `NewRemote` refuses an `ssh://` host with no `SSHHostKey`. The
+trust-on-first-use step is explicit: `toDockerConnection()` with no recorded key
+calls the worker's `POST /v1/ssh/docker-probe` (`dockerapi.ProbeSSH`: connects
+accepting any key, pings the daemon, answers the key presented) and stores it in
+`remote_host.ssh_host_key`, the column the machine terminal already uses for
+that host (same machine, same sshd, so one key; changing the terminal's host or
+the ssh:// address clears it). Tested against a fake `x/crypto/ssh` server
+(`tests/unit/go/internal/testsupport/ssh_docker.go`), not a real sshd.
 
 **A build server doesn't need a cache registry.** The built image lands on the
 build server's own daemon, so it has to be brought across: with a registry
@@ -1450,25 +1483,38 @@ server.
 
 ## Dev workstations (`workstation` table, `WorkstationService`, `/workstations`)
 
-A workstation is a long-lived browser IDE container (code-server by default)
-with a persistent home volume, owned by one user: `WorkstationDTO`'s finders all
-take the owner's `userId`, unlike the shared resources, and
-`UserService.cleanupUserResources` removes a deleted account's workstations,
-volumes included, through `WorkstationService.removeAllFor` instead of handing
-them over.
+A workstation is a long-lived browser IDE container (code-server by default,
+openvscode-server too) with a persistent home volume, owned by one user:
+`WorkstationDTO`'s finders all take the owner's `userId`, unlike the shared
+resources, and `UserService.cleanupUserResources` removes a deleted account's
+workstations, volumes included, through `WorkstationService.removeAllFor`
+instead of handing them over.
 
 **One Go implementation, two surfaces.** `internal/workstation`'s `Manager`
 (`PUT`/`GET`/`DELETE /v1/workstations/{id}`, `POST .../stop`) is mounted on the
-local worker's control API and on agent mode's API (`agent.NewServer`'s variadic
-`mounts`), so `WorkstationService` only picks the client: `WorkerClient` for
-this server, `AgentClientService.request` for an agent host. Agent mode stays
-narrow on purpose: the spec is an image, env, a port, limits and its own named
-volume, never a bind, a capability or privileged mode. A raw `"docker"` remote
-host can't run one.
+local worker's control API (through a `Hub`) and on agent mode's API
+(`agent.NewServer`'s variadic `mounts`, the bare `Manager.Mount`), so
+`WorkstationService` only picks the client: `WorkerClient` for this server,
+`AgentClientService.request` for an agent host. Agent mode stays narrow on
+purpose: the spec is an image, env, a port, limits and its own named volume,
+never a bind, a capability or privileged mode. **A raw `"docker"` remote host
+with a `tcp://` address** goes through the local worker too: every call carries
+`X-Homerun-Docker-Remote` (base64 JSON `dockerapi.RemoteHost`, built by
+`dockerRemoteHeader`), and the `Hub` keeps one `Manager` per distinct header
+over `dockerapi.NewRemote`, so a start's in-flight state survives between the
+`PUT` and the polled `GET`s (a worker restart loses it, same as locally), and an
+`ssh://` host keeps one SSH connection across them. The header, not a query
+parameter, keeps the TLS and SSH keys out of the request log. Only the local
+worker's API mounts the `Hub`: an agent never dials another daemon. **A raw
+`ssh://` host** works the same way, its header also carrying the SSH key and
+recorded host key (see Build servers above); `canRunWorkstation` accepts any
+agent or Docker host. Routing, the self-test and the published port behave
+exactly as on an agent, the address being the Docker URL's hostname.
 
 **The Go side is stateless apart from in-flight starts.** `PUT` answers 202 and
-runs the start in a goroutine (pull if missing, ensure
-`homerun-workstation-<id>`, force-remove any container labelled
+runs the start in a goroutine (pull on every start so a `:latest` image moves,
+falling back to the local copy when the pull fails and the image is there,
+ensure `homerun-workstation-<id>`, force-remove any container labelled
 `homerun.workstation.id=<id>`, create, start, then `git clone` by `exec` inside
 the running container so the checkout belongs to its user and the home skeleton
 the image ships still lands in the fresh volume). `GET` reports the in-flight
@@ -1507,48 +1553,60 @@ that can't be read counts as in use, so a start in flight or an image without
 `cat` is never stopped by mistake.
 
 **IDE setup, devcontainers only as a form fill.** The spec's `setup`
-(extensions, code-server `settings.json`, git name/email, one provider
-`credential`) is applied by a second `exec` after the clone (`SetupCommand`,
-state `configuring`), on every start. Extensions are synced against
-`<home>/.local/share/code-server/homerun-extensions`, the list the last start
+(extensions, `settings.json`, git name/email, one provider `credential`) is
+applied by a second `exec` after the clone (`SetupCommand`, state
+`configuring`), on every start. The script picks the IDE: `code-server` on the
+`PATH` (settings at `<home>/.local/share/code-server/User/settings.json`), else
+`openvscode-server` on the `PATH`, under `$OPENVSCODE_SERVER_ROOT` (gitpod's
+image) or at `/app/openvscode-server` (linuxserver's), whose settings go to
+`<home>/.openvscode-server/data/Machine/settings.json` and whose own
+`--install-extension` installs. Extensions are synced against a
+`homerun-extensions` list in that IDE's data directory, the list the last start
 installed, so removing one uninstalls it without touching ones installed from
 the IDE. The credential is the workstation's `gitProviderId` connection
 (`resolveProviderCredential`), independent of the clone credential (which still
 matches the repository's host), and is also exported as `GH_TOKEN` /
 `GITLAB_TOKEN`. The extension combobox searches Open VSX through the
 `searchEditorExtensions` remote query. The Settings tab has one form and one
-action per section (`saveWorkstationSection`), each writing only its own
-columns.
+action per section (`saveWorkstationSection`, which takes one or more section
+names), each writing only its own columns.
 
 **Resource history.** `GET /v1/workstations/{id}/stats` returns the container's
 `ContainerSample`; `StatsSampler` samples every `desiredState = running`
 workstation each minute into `stat_sample.workstation_id` (host rows are now
 `service_id IS NULL AND workstation_id IS NULL`). The Observability tab reads it
 through `getStatHistory({ workstationId })`, the list through
-`getWorkstationUsage`.
+`getWorkstationUsage`. The home volume's size isn't sampled: the tab's
+`workstationDiskUsage` query asks `GET /v1/workstations/{id}/disk?path=<home>`
+once a minute while it's open, which execs `du -s -k -x` in the running
+container (image-agnostic, no helper image to pull on a remote host; `-x` keeps
+it to the volume).
 
-**Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`), not
-the per-app login wall, whose gate is service-shaped (`gatedService`,
-`AppAccessService`), **unless the workstation has a git provider picked**: then
+**Sign-in is the IDE's own password** (`passwordEnc`, passed as `PASSWORD`),
+**unless the workstation's login wall is on** (`authRequired` and the service's
+policy columns, see Per-app login wall in `auth.md`): then it's Homerun's wall,
+through the same forwardAuth address, and `start` skips the git gate (stored
+`signInWithGit` false). **Otherwise, with a git provider picked**,
 `WorkstationSignInService` (`src/lib/services/workstation/sign-in.ts`) gates it.
 `gateFor` says yes when the provider is enabled, the owner is connected to it
 and `config.auth.origin` is set; `start` stores that as `signInWithGit`. The
 router then gets a forwardAuth at `/api/v1/auth-check?workstation=<id>` (labels
 locally, the route file's `middlewares` on an agent, keyed off the stored flag
-so a dropped connection can't strip it from a running container). Auth-check's
-workstation branch reuses the login wall's tokens and cookie (`signGateToken`,
-`GATE_CALLBACK_PATH`, `homerun_app_session`, `serviceId` = `workstation:<id>`):
-an anonymous navigation goes straight to the provider's authorize URL with state
-`ws.<signed token>` and the provider's registered
-`/api/v1/git-providers/<id>/callback`, which sees the `ws.` prefix before its
-own `locals.user` check and calls `complete`: exchange the code, accept only the
-owner's connected `providerUsername` (case-insensitive), throw the token away,
-and redirect to the host's grant URL. The session's `policyVersion` is an HMAC
-over workstation, owner, provider and username, so reconnecting another account
-revokes it. A gate that's gone answers 403, never 200: code-server runs with
-`--auth none` (the spec's `args`, Go `Spec.Args` → `Cmd`) only when it's local
-and the image is code-server, since an agent's published port bypasses Traefik;
-everything else keeps `PASSWORD` behind the gate.
+or `authRequired` so a dropped connection can't strip it from a running
+container). Auth-check's workstation branch reuses the login wall's tokens and
+cookie (`signGateToken`, `GATE_CALLBACK_PATH`, `homerun_app_session`,
+`serviceId` = `workstation:<id>`): an anonymous navigation goes straight to the
+provider's authorize URL with state `ws.<signed token>` and the provider's
+registered `/api/v1/git-providers/<id>/callback`, which sees the `ws.` prefix
+before its own `locals.user` check and calls `complete`: exchange the code,
+accept only the owner's connected `providerUsername` (case-insensitive), throw
+the token away, and redirect to the host's grant URL. The session's
+`policyVersion` is an HMAC over workstation, owner, provider and username, so
+reconnecting another account revokes it. A gate that's gone answers 403, never
+200: code-server runs with `--auth none` (the spec's `args`, Go `Spec.Args` →
+`Cmd`) only when it's local and the image is code-server, since an agent's
+published port bypasses Traefik; everything else keeps `PASSWORD` behind the
+gate.
 
 **Domain.** `workstation.domain` is picked at creation, defaulting to
 `defaultWorkstationDomain` (`<slug>.dev.<baseDomain>`), so a workstation's slug
@@ -1558,28 +1616,53 @@ the New page's `workstationDomainOwner` query both go through `hostnameOwner`
 (`src/lib/server/hostname-owner.ts`): the dashboard, registry and object storage
 public hosts, every service's `serviceHostnames`, redirect hosts, status page
 domains and the other workstations. A taken hostname is refused, never taken
-over; a unique index on `domain` catches a race between two workstations.
-Hostnames created outside Homerun (a DNS record or a Pangolin resource it
-doesn't know about) aren't checked.
+over (a service's own check, `serviceDomainConflicts`, never takes a
+workstation's hostname either, since a workstation's domain can't change); a
+unique index on `domain` catches a race between two workstations. Hostnames
+created outside Homerun (a DNS record or a Pangolin resource it doesn't know
+about) aren't checked.
 
 **Presets** (`workstation_preset`, `WorkstationPresetDTO`,
-`/workstations/presets`) are per-user copies of a workstation's settings,
-`remoteHostId` set null when the host goes. `/workstations/new?preset=<id>`
-fills the form (`WorkstationFields`, shared with the preset pages, keyed on the
-preset so the `untrack`ed field state resets); Settings → Save as preset copies
-the saved row through `presetFromWorkstation`.
+`/workstations/presets`) are per-user copies of a workstation's settings and
+login wall (the same five `auth*` columns), `remoteHostId` set null when the
+host goes. `/workstations/new?preset=<id>` fills the form (`WorkstationFields`,
+shared with the preset pages, keyed on the preset so the `untrack`ed field state
+resets); Settings → Save as preset copies the saved row through
+`presetFromWorkstation`. `WorkstationFields` ends with `LoginWallSection` in its
+`embedded` mode (a `<div>` inside the outer form, no Save button), read back by
+`loginWallFromForm` in `parseNewWorkstation`/`parseWorkstationPreset`; the
+settings service runs `checkWall` on a preset's create and update like on a
+workstation's. Nothing but the dashboard creates a workstation from a preset:
+REST, MCP and the CLI create from fields.
+
+**Recreate** is `WorkstationService.start` on a running workstation (the
+Overview's Start button reads Recreate then). The REST `PATCH` with
+`desiredState: "running"` only starts a stopped one, so the API has its own
+`POST /workstations/{id}/recreate`, behind `recreate_workstation` (MCP) and
+`homerun workstations recreate`.
 
 **Dev container detection** is form-time only: `WorkstationFields` hears the
-repo fields' `onrepochange`, debounces it, and runs the `detectDevcontainer`
-remote query (`providerForGitUrl` → the user's connection →
-`GitProviderService.readFile` on `.devcontainer/devcontainer.json`, then
-`.devcontainer.json`). `src/lib/devcontainer.ts` is the pure half: a
-string-aware JSONC strip, `parseDevcontainer` (vscode extensions/settings,
-`containerEnv`/`remoteEnv` minus `${...}` values, the container-shaped keys
-listed as `unsupported`) and `applyDevcontainer`. Apply reads the form's current
+repo fields' `onrepochange` and hands it to `DevcontainerDetection`, which
+debounces it and runs the `detectDevcontainer` remote query (`providerForGitUrl`
+→ the user's connection → `GitProviderService.readFile` on
+`.devcontainer/devcontainer.json`, then `.devcontainer.json`).
+`src/lib/devcontainer.ts` is the pure half: a string-aware JSONC strip,
+`parseDevcontainer` (vscode extensions/settings, `containerEnv`/`remoteEnv`
+minus `${...}` values, the container-shaped keys listed as `unsupported`),
+`applyDevcontainer` and `mergeDevcontainerForm`. Apply reads the form's current
 values through `FormData` before merging, then re-keys the Editor and Container
-sections, so nothing typed there is lost. The Settings tab doesn't detect: its
-sections are separate forms.
+sections, so nothing typed there is lost. The Settings tab detects too: since
+its sections are separate forms, its Apply merges both forms' `FormData`,
+re-keys the two sections, then submits a hidden `?/devcontainer` form whose
+`onSubmit` fills in the merged values (`appendDevcontainerForm`), saved by
+`saveWorkstationSection(..., "editor", "container")` in one write.
+
+**Deleting a remote host** goes through `RemoteHostSettingsService.remove` (the
+list page, the host page and `DELETE /api/v1/remote-hosts/{id}`), which runs
+`WorkstationService.removeAllOnHost` before the row goes: for every workstation
+on it, anyone's (`WorkstationDTO.listOnHost`), the container is removed on that
+host (volume kept), then the route file and DNS, each step logged and skipped on
+failure so a dead host never blocks its own deletion. The rows then cascade.
 
 ## Server enrollment (`node_enrollment`, `NodeEnrollmentService`, `/api/v1/nodes/`)
 

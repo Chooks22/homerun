@@ -36,7 +36,7 @@ type Server struct {
 	stats        *hoststats.StatsSampler
 	terminals    *TerminalHub
 	token        string
-	workstations *workstation.Manager
+	workstations *workstation.Hub
 }
 
 // NewServer builds the control surface over one daemon and one token. The
@@ -48,7 +48,7 @@ func NewServer(ctx context.Context, token string, docker *dockerapi.Client) *Ser
 		stats:        hoststats.NewStatsSampler(),
 		terminals:    NewTerminalHub(ctx, docker),
 		token:        token,
-		workstations: workstation.NewManager(docker),
+		workstations: workstation.NewHub(workstation.NewManager(docker)),
 	}
 }
 

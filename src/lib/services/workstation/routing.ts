@@ -18,7 +18,7 @@ function authMiddleware(slug: string): string {
 	return `${workstationRouter(slug)}-auth`;
 }
 
-/** The dynamic config file an agent-hosted workstation's route lives in. */
+/** The dynamic config file a remote-hosted workstation's route lives in. */
 export function workstationRouteFile(slug: string): string {
 	return `homerun-workstation-${slug}.yml`;
 }
@@ -68,8 +68,8 @@ export function workstationLabels(
 }
 
 /**
- * The file-provider config routing `host` to a workstation published on an
- * agent host, at `upstream` (`http://<agent host>:<port>`), behind the git
+ * The file-provider config routing `host` to a workstation published on a
+ * remote host, at `upstream` (`http://<remote host>:<port>`), behind the git
  * sign-in's forwardAuth when `authCheckUrl` is given.
  */
 export function workstationRouteYaml(
@@ -104,7 +104,7 @@ export function workstationRouteYaml(
 	});
 }
 
-/** The hostname part of an agent's base URL, which is where its published ports are reachable too. */
-export function agentHostAddress(agentUrl: string): string {
-	return new URL(agentUrl).hostname;
+/** The hostname part of a remote host's agent URL or `tcp://`/`ssh://` Docker address, which is where its published ports are reachable too. */
+export function remoteHostAddress(address: string): string {
+	return new URL(address).hostname;
 }

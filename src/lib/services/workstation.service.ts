@@ -16,9 +16,12 @@ import {
 	resolveProviderCredential,
 } from "#lib/services/deploy/helpers.js";
 import { deleteDns, syncDns } from "#lib/services/dns.service.js";
-import type { ContainerSample } from "#lib/services/docker/containers.js";
+import type {
+	ContainerSample,
+	RemoteHostConnection,
+} from "#lib/services/docker/containers.js";
 import {
-	agentHostAddress,
+	remoteHostAddress,
 	workstationAuthCheckUrl,
 	workstationLabels,
 	workstationRouteFile,
@@ -26,7 +29,6 @@ import {
 } from "#lib/services/workstation/routing.js";
 import {
 	isCodeServerImage,
-	type WorkstationGate,
 	WorkstationSignInService,
 } from "#lib/services/workstation/sign-in.js";
 import {
@@ -62,9 +64,27 @@ function tokenEnv(login: ProviderCredential | null): Record<string, string> {
 	return {};
 }
 
+/** The worker header naming the raw remote Docker daemon a workstation call is for. */
+const DOCKER_REMOTE_HEADER = "x-homerun-docker-remote";
+
+/** `connection` as the worker's `X-Homerun-Docker-Remote` header: base64 JSON of the daemon address and its TLS or SSH material. */
+export function dockerRemoteHeader(connection: RemoteHostConnection): string {
+	return Buffer.from(
+		JSON.stringify({
+			dockerHost: connection.dockerHost,
+			sshHostKey: connection.sshHostKey ?? "",
+			sshPrivateKey: connection.sshPrivateKey ?? "",
+			tlsCa: connection.tlsCa ?? "",
+			tlsCert: connection.tlsCert ?? "",
+			tlsKey: connection.tlsKey ?? "",
+		}),
+	).toString("base64");
+}
+
 type Target =
 	| { kind: "local" }
-	| { address: string; connection: AgentConnection; kind: "agent" };
+	| { address: string; connection: AgentConnection; kind: "agent" }
+	| { address: string; header: string; kind: "docker" };
 
 /** The container spec the worker's or agent's workstation routes take. */
 export interface WorkstationSpec {
@@ -103,35 +123,45 @@ export interface WorkstationView {
 }
 
 /**
- * Runs dev workstations on this server (through the local worker) or on an
- * agent-mode remote host (through its own API), and keeps their Traefik route
- * in step: Docker labels locally, a file-provider route for an agent host.
+ * Runs dev workstations on this server (through the local worker), on a raw
+ * `tcp://` or `ssh://` Docker host (the local worker again, told which daemon
+ * by a header) or on an agent-mode remote host (through its own API), and keeps
+ * their Traefik route in step: Docker labels locally, a file-provider route
+ * for a remote host.
  */
 class WorkstationServiceClass {
 	/**
-	 * Where `ws` runs.
+	 * Where `ws` runs: this server, an agent host, or a raw `tcp://` or
+	 * `ssh://` Docker host the local worker drives remotely.
 	 *
-	 * @throws When its remote host is gone or isn't a usable agent.
+	 * @throws When its remote host is gone or can't run a workstation.
 	 */
 	async #target(ws: WorkstationDTO): Promise<Target> {
 		if (!ws.remoteHostId) {
 			return { kind: "local" };
 		}
 		const host = await RemoteHostDTO.get(ws.remoteHostId);
-		const connection = host?.toAgentConnection();
-		if (!connection) {
-			throw new Error(
-				"This workstation's host isn't a registered agent any more.",
-			);
+		const agent = host?.toAgentConnection();
+		if (agent) {
+			return {
+				address: remoteHostAddress(agent.agentUrl),
+				connection: agent,
+				kind: "agent",
+			};
 		}
-		return {
-			address: agentHostAddress(connection.agentUrl),
-			connection,
-			kind: "agent",
-		};
+		if (host?.kind === "docker" && host.dockerHost) {
+			return {
+				address: remoteHostAddress(host.dockerHost),
+				header: dockerRemoteHeader(await host.toDockerConnection()),
+				kind: "docker",
+			};
+		}
+		throw new Error(
+			"This workstation's host isn't a registered agent or Docker host any more.",
+		);
 	}
 
-	/** Sends one workstation call to the local worker or the agent. */
+	/** Sends one workstation call to the local worker (for this server or a raw Docker host) or the agent. */
 	#call<T>(
 		target: Target,
 		method: "DELETE" | "GET" | "POST" | "PUT",
@@ -145,6 +175,12 @@ class WorkstationServiceClass {
 				path,
 				options,
 			);
+		}
+		if (target.kind === "docker") {
+			return WorkerClient.request<T>(method, path, {
+				...options,
+				headers: { [DOCKER_REMOTE_HEADER]: target.header },
+			});
 		}
 		switch (method) {
 			case "GET":
@@ -165,9 +201,10 @@ class WorkstationServiceClass {
 
 	/**
 	 * Everything the worker or agent needs to run `ws`: its password in env
-	 * (or, on this server, code-server's own auth off when it signs in through
-	 * git, Traefik's forwardAuth guarding it instead; an agent host's
-	 * published port bypasses Traefik, so it keeps the password),
+	 * (or, on this server, code-server's own auth off when it's `gated`
+	 * behind the login wall or a git sign-in, Traefik's forwardAuth guarding
+	 * it instead; an agent host's published port bypasses Traefik, so it
+	 * keeps the password),
 	 * its git repository with the owner's provider credential, the IDE setup
 	 * (extensions, settings, git identity and the picked provider's login,
 	 * also exported as `GH_TOKEN`/`GITLAB_TOKEN`), and either
@@ -178,7 +215,7 @@ class WorkstationServiceClass {
 	async #spec(
 		ws: WorkstationDTO,
 		target: Target,
-		gate: WorkstationGate | null,
+		gated: boolean,
 	): Promise<WorkstationSpec> {
 		const row = ws.toJSON();
 		const password = ws.password();
@@ -194,13 +231,13 @@ class WorkstationServiceClass {
 				: null,
 		]);
 		const local = target.kind === "local";
-		const gitSignIn = !!gate && local && isCodeServerImage(row.image);
+		const forwardAuthOnly = gated && local && isCodeServerImage(row.image);
 		return {
-			args: gitSignIn ? ["--auth", "none"] : [],
+			args: forwardAuthOnly ? ["--auth", "none"] : [],
 			env: {
 				...row.env,
 				...tokenEnv(login),
-				...(gitSignIn ? {} : { PASSWORD: password }),
+				...(forwardAuthOnly ? {} : { PASSWORD: password }),
 			},
 			git: row.gitUrl
 				? {
@@ -218,7 +255,7 @@ class WorkstationServiceClass {
 						ws.slug,
 						this.hostname(ws),
 						row.port,
-						gate ? workstationAuthCheckUrl(ws.id) : null,
+						gated ? workstationAuthCheckUrl(ws.id) : null,
 					)
 				: {},
 			memoryBytes: (row.memoryLimitMb ?? 0) * 1024 * 1024,
@@ -253,8 +290,11 @@ class WorkstationServiceClass {
 		WorkstationSignInService.forget(ws.id);
 		try {
 			const target = await this.#target(ws);
-			const gate = await WorkstationSignInService.gateFor(ws.toJSON());
-			const spec = await this.#spec(ws, target, gate);
+			const walled = ws.toJSON().authRequired;
+			const gate = walled
+				? null
+				: await WorkstationSignInService.gateFor(ws.toJSON());
+			const spec = await this.#spec(ws, target, walled || !!gate);
 			await this.#call(target, "PUT", `/v1/workstations/${ws.id}`, {
 				body: spec,
 			});
@@ -353,6 +393,24 @@ class WorkstationServiceClass {
 	}
 
 	/**
+	 * How many bytes `ws`'s home directory holds, measured with `du` inside
+	 * its running container.
+	 *
+	 * @throws When it isn't running (a 404), the image has no `du`, or the
+	 *   worker or agent can't be reached.
+	 */
+	async diskUsage(ws: WorkstationDTO): Promise<number> {
+		const target = await this.#target(ws);
+		const answer = await this.#call<{ bytes: number }>(
+			target,
+			"GET",
+			`/v1/workstations/${ws.id}/disk`,
+			{ query: { path: ws.toJSON().homePath } },
+		);
+		return answer.bytes;
+	}
+
+	/**
 	 * One auto-stop pass over `ws`: in idle mode an open connection pushes the
 	 * deadline out (as does a connection count it can't read, so a start in
 	 * progress or an image without `cat` never counts as idle), and once the
@@ -433,10 +491,53 @@ class WorkstationServiceClass {
 	}
 
 	/**
-	 * `ws`'s live status and the URL to open it at. For an agent-hosted
+	 * Cleans up every workstation, anyone's, on remote host `hostId` before
+	 * the host goes (its rows cascade with it): each container on that host,
+	 * its route file and its DNS. Home volumes stay on the host. Best effort:
+	 * every failure is logged and skipped, so an unreachable host never
+	 * blocks its own deletion.
+	 */
+	async removeAllOnHost(hostId: string): Promise<void> {
+		const hosted = await WorkstationDTO.listOnHost(hostId);
+		await Promise.all(
+			hosted.map(async (ws) => {
+				try {
+					const target = await this.#target(ws);
+					await this.#call(target, "DELETE", `/v1/workstations/${ws.id}`, {
+						query: { volume: "0" },
+					});
+				} catch (error) {
+					logger.warn(
+						`Couldn't remove a workstation's container from a deleted host: workstation=${ws.id} host=${hostId}`,
+						error,
+					);
+				}
+				await this.#removeRoute(ws).catch((error: unknown) => {
+					logger.warn(
+						`Couldn't remove a workstation's route for a deleted host: workstation=${ws.id}`,
+						error,
+					);
+				});
+				await deleteDns([this.hostname(ws)]).catch((error: unknown) => {
+					logger.warn(
+						`Couldn't remove a workstation's DNS for a deleted host: workstation=${ws.id}`,
+						error,
+					);
+				});
+			}),
+		);
+		if (hosted.length > 0) {
+			logger.info(
+				`Workstations cleaned up for a deleted host: host=${hostId} count=${hosted.length}`,
+			);
+		}
+	}
+
+	/**
+	 * `ws`'s live status and the URL to open it at. For a remote-hosted
 	 * workstation this also writes (or drops) its file-provider route, since
 	 * the published port is only known once it runs; without a dynamic config
-	 * directory the URL is the agent's published port itself.
+	 * directory the URL is the remote host's published port itself.
 	 *
 	 * @throws When the worker or agent can't be reached.
 	 */
@@ -466,7 +567,9 @@ class WorkstationServiceClass {
 			ws,
 			host,
 			upstream,
-			ws.toJSON().signInWithGit ? workstationAuthCheckUrl(ws.id) : null,
+			ws.toJSON().signInWithGit || ws.toJSON().authRequired
+				? workstationAuthCheckUrl(ws.id)
+				: null,
 		);
 		return {
 			autoStopAt,
@@ -486,13 +589,20 @@ class WorkstationServiceClass {
 		const target = await this.#target(ws);
 		const path = `/v1/workstations/${ws.id}/logs`;
 		const query = { follow: "1", tail: "500" };
-		return target.kind === "agent"
-			? await AgentClientService.stream(target.connection, path, query)
-			: await WorkerClient.stream(path, { query });
+		if (target.kind === "agent") {
+			return await AgentClientService.stream(target.connection, path, query);
+		}
+		if (target.kind === "docker") {
+			return await WorkerClient.stream(path, {
+				headers: { [DOCKER_REMOTE_HEADER]: target.header },
+				query,
+			});
+		}
+		return await WorkerClient.stream(path, { query });
 	}
 
 	/**
-	 * Checks `ws` end to end: the container runs, an agent host's published
+	 * Checks `ws` end to end: the container runs, a remote host's published
 	 * port answers, the hostname resolves, and `https://<host>/` reaches the
 	 * IDE through Traefik. Never throws: every failure comes back as a failed
 	 * check with its reason.
@@ -510,14 +620,14 @@ class WorkstationServiceClass {
 			return checks;
 		}
 		const target = await this.#target(ws).catch(() => null);
-		if (target?.kind === "agent") {
+		if (target && target.kind !== "local") {
 			checks.push(
 				await this.#probeUpstream(target.address, view.status.hostPort),
 			);
 			if (!config.traefik.dynamicConfigDir) {
 				checks.push({
 					detail:
-						"Traefik has no dynamic config directory configured, so an agent-hosted workstation can't be routed at its hostname; it's only reachable at the published port.",
+						"Traefik has no dynamic config directory configured, so a workstation on a remote host can't be routed at its hostname; it's only reachable at the published port.",
 					label: "Traefik route",
 					ok: false,
 				});
@@ -530,7 +640,7 @@ class WorkstationServiceClass {
 		return checks;
 	}
 
-	/** Whether the IDE answers on the port an agent host published it on. */
+	/** Whether the IDE answers on the port a remote host published it on. */
 	async #probeUpstream(
 		address: string,
 		hostPort: number,
@@ -538,7 +648,7 @@ class WorkstationServiceClass {
 		const label = `Published port ${address}:${hostPort}`;
 		if (hostPort === 0) {
 			return {
-				detail: "The agent reports no published port for the IDE.",
+				detail: "The remote host reports no published port for the IDE.",
 				label,
 				ok: false,
 			};
@@ -549,13 +659,13 @@ class WorkstationServiceClass {
 				signal: AbortSignal.timeout(5000),
 			});
 			return {
-				detail: `The IDE answered ${response.status} on the agent host.`,
+				detail: `The IDE answered ${response.status} on the remote host.`,
 				label,
 				ok: response.status < 500,
 			};
 		} catch (error) {
 			return {
-				detail: `Unreachable from this server (${messageOf(error)}): a firewall on the agent host may be blocking the port.`,
+				detail: `Unreachable from this server (${messageOf(error)}): a firewall on the remote host may be blocking the port.`,
 				label,
 				ok: false,
 			};
@@ -620,7 +730,7 @@ class WorkstationServiceClass {
 		}
 	}
 
-	/** Writes an agent-hosted workstation's route when it changed; false when there's no dynamic config directory. */
+	/** Writes a remote-hosted workstation's route when it changed; false when there's no dynamic config directory. */
 	async #writeRoute(
 		ws: WorkstationDTO,
 		host: string,
@@ -649,7 +759,7 @@ class WorkstationServiceClass {
 		return true;
 	}
 
-	/** Drops an agent-hosted workstation's route file, if any. */
+	/** Drops a remote-hosted workstation's route file, if any. */
 	async #removeRoute(ws: WorkstationDTO): Promise<void> {
 		const dir = config.traefik.dynamicConfigDir;
 		if (!dir) {

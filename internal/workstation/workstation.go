@@ -1,10 +1,11 @@
 // Package workstation runs dev workstations: a long-lived browser IDE
-// container (code-server by default) with a persistent home volume and,
+// container (code-server by default, openvscode-server too) with a persistent home volume and,
 // optionally, a git repository cloned into it on first start.
 //
-// The same Manager is mounted on the local worker's Docker control API and on
-// agent mode's API, so a workstation runs on this server or on a remote
-// agent-mode host through one implementation. On an agent host it's a narrow
+// The same Manager is mounted on the local worker's Docker control API (through
+// a Hub, which also drives raw remote Docker daemons) and on agent mode's API,
+// so a workstation runs on this server, on a remote Docker daemon or on a
+// remote agent-mode host through one implementation. On an agent host it's a narrow
 // spec rather than an arbitrary container body: an image, its env, a port, CPU
 // and memory limits and its own named volume, never a bind mount, a capability
 // or privileged mode.
@@ -158,7 +159,7 @@ func Validate(spec Spec) []string {
 	if spec.Port < 1 || spec.Port > 65535 {
 		problems = append(problems, "port must be between 1 and 65535")
 	}
-	if !strings.HasPrefix(spec.HomePath, "/") || strings.Contains(spec.HomePath, ":") {
+	if !validHomePath(spec.HomePath) {
 		problems = append(problems, "homePath must be an absolute path")
 	}
 	if spec.NanoCPUs < 0 || spec.MemoryBytes < 0 {
@@ -188,6 +189,11 @@ func Validate(spec Spec) []string {
 		}
 	}
 	return problems
+}
+
+// validHomePath reports whether path is an absolute path a bind can take.
+func validHomePath(path string) bool {
+	return strings.HasPrefix(path, "/") && !strings.Contains(path, ":")
 }
 
 // Up starts (or recreates) workstation id from spec in the background, and
@@ -231,8 +237,8 @@ func (m *Manager) setState(op *operation, state string) {
 // starts it, then clones the repository into it when one is set and isn't
 // there yet.
 func (m *Manager) up(ctx context.Context, id string, spec Spec, op *operation) error {
-	if err := m.docker.EnsureImage(ctx, spec.Image); err != nil {
-		return fmt.Errorf("couldn't pull %s: %w", spec.Image, err)
+	if err := m.pull(ctx, id, spec.Image); err != nil {
+		return err
 	}
 	m.setState(op, StateStarting)
 	volume := VolumeName(id)
@@ -276,6 +282,22 @@ func (m *Manager) up(ctx context.Context, id string, spec Spec, op *operation) e
 	if result.ExitCode != 0 {
 		return fmt.Errorf("couldn't configure the IDE (exit %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
+	return nil
+}
+
+// pull pulls image on every start, so a moving tag like latest picks up its
+// new release. A pull that fails falls back to the copy the daemon already
+// has, so an unreachable registry or a locally built image still starts.
+func (m *Manager) pull(ctx context.Context, id, image string) error {
+	err := m.docker.PullImage(ctx, image, nil, nil)
+	if err == nil {
+		return nil
+	}
+	exists, existsErr := m.docker.ImageExists(ctx, image)
+	if existsErr != nil || !exists {
+		return fmt.Errorf("couldn't pull %s: %w", image, err)
+	}
+	logging.Warnf(scope, "workstation %s starts from the local copy of %s, the pull failed: %s", id, image, err)
 	return nil
 }
 
@@ -351,17 +373,39 @@ if [ -n "$5" ]; then
 	mv "$file.homerun" "$file"
 	git config --global credential.helper store
 fi
+ide=""
+if command -v code-server >/dev/null 2>&1; then
+	ide=code-server
+elif command -v openvscode-server >/dev/null 2>&1; then
+	ide=openvscode-server
+else
+	for candidate in "${OPENVSCODE_SERVER_ROOT:-/home/.openvscode-server}/bin/openvscode-server" /app/openvscode-server/bin/openvscode-server; do
+		if [ -x "$candidate" ]; then
+			ide="$candidate"
+			break
+		fi
+	done
+fi
+case "$ide" in
+	*openvscode-server)
+		data="$home/.openvscode-server"
+		user="$data/data/Machine"
+		;;
+	*)
+		data="$home/.local/share/code-server"
+		user="$data/User"
+		;;
+esac
 if [ -n "$6" ]; then
-	dir="$home/.local/share/code-server/User"
-	mkdir -p "$dir"
-	printf '%s\n' "$6" > "$dir/settings.json"
+	mkdir -p "$user"
+	printf '%s\n' "$6" > "$user/settings.json"
 fi
 shift 6
-managed="$home/.local/share/code-server/homerun-extensions"
+managed="$data/homerun-extensions"
 if [ "$#" -eq 0 ] && [ ! -s "$managed" ]; then exit 0; fi
-if ! command -v code-server >/dev/null 2>&1; then
+if [ -z "$ide" ]; then
 	if [ "$#" -eq 0 ]; then exit 0; fi
-	echo "this image has no code-server, so extensions can't be installed" >&2
+	echo "this image has neither code-server nor openvscode-server, so extensions can't be installed" >&2
 	exit 3
 fi
 mkdir -p "$(dirname "$managed")"
@@ -371,11 +415,11 @@ while IFS= read -r old; do
 	for ext in "$@"; do
 		if [ "$ext" = "$old" ]; then keep=1; fi
 	done
-	if [ -n "$old" ] && [ "$keep" -eq 0 ]; then code-server --uninstall-extension "$old" >/dev/null 2>&1 || true; fi
+	if [ -n "$old" ] && [ "$keep" -eq 0 ]; then "$ide" --uninstall-extension "$old" >/dev/null 2>&1 || true; fi
 done < "$managed"
 failed=""
 for ext in "$@"; do
-	code-server --install-extension "$ext" >/dev/null 2>&1 || failed="$failed $ext"
+	"$ide" --install-extension "$ext" >/dev/null 2>&1 || failed="$failed $ext"
 done
 printf '%s\n' "$@" > "$managed"
 if [ -n "$failed" ]; then
@@ -386,8 +430,11 @@ fi`
 // SetupCommand is the exec that applies spec's Setup inside the running
 // container, as its own user: the git identity, the provider credential (one
 // line per host in ~/.git-credentials, replacing that host's previous one),
-// code-server's settings.json, then the extension list. Every value travels as
-// a positional argument, never interpolated into the script.
+// the IDE's settings.json, then the extension list. The IDE is code-server
+// (its User settings.json) or else openvscode-server (its Machine
+// settings.json under ~/.openvscode-server), found on PATH, under
+// $OPENVSCODE_SERVER_ROOT or where the linuxserver image installs it. Every
+// value travels as a positional argument, never interpolated into the script.
 func SetupCommand(spec Spec) []string {
 	setup := spec.Setup
 	host, line := "", ""
@@ -542,6 +589,38 @@ func (m *Manager) Connections(ctx context.Context, id string, port int) (int, er
 		return 0, fmt.Errorf("couldn't read the container's connections: %s", strings.TrimSpace(result.Stderr))
 	}
 	return CountEstablished(result.Stdout, port), nil
+}
+
+// DiskUsage measures how many bytes the home directory at path holds in
+// workstation id's running container, with `du` exec'd in it and kept to the
+// volume's own file system. ErrNotFound when no container of it runs.
+func (m *Manager) DiskUsage(ctx context.Context, id, path string) (int64, error) {
+	containers, err := m.docker.ListContainersByLabel(ctx, IDLabel+"="+id)
+	if err != nil {
+		return 0, err
+	}
+	if len(containers) == 0 || containers[0].State != "running" {
+		return 0, dockerapi.ErrNotFound
+	}
+	result, err := m.docker.ContainerExec(ctx, containers[0].ID, []string{"du", "-s", "-k", "-x", path})
+	if err != nil {
+		return 0, fmt.Errorf("couldn't measure the home directory: %w", err)
+	}
+	kilobytes, parseErr := ParseDuKilobytes(result.Stdout)
+	if parseErr != nil {
+		return 0, fmt.Errorf("couldn't measure the home directory: %s", strings.TrimSpace(result.Stderr))
+	}
+	return kilobytes * 1024, nil
+}
+
+// ParseDuKilobytes reads the size off `du -s -k`'s output, its first field.
+// A du that couldn't read some files still prints a total, which counts.
+func ParseDuKilobytes(output string) (int64, error) {
+	fields := strings.Fields(output)
+	if len(fields) == 0 {
+		return 0, errors.New("du printed nothing")
+	}
+	return strconv.ParseInt(fields[0], 10, 64)
 }
 
 // Stats reads workstation id's running container's CPU, memory and network

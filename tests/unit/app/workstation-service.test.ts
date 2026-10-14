@@ -19,7 +19,7 @@ mock.module("$app/env", () => ({
 }));
 
 const { config } = await import("../../../src/lib/config");
-const { WorkstationService } = await import(
+const { WorkstationService, dockerRemoteHeader } = await import(
 	"../../../src/lib/services/workstation.service"
 );
 const { WorkerClient } = await import("../../../src/lib/server/worker-client");
@@ -28,6 +28,10 @@ const { AgentClientService } = await import(
 );
 const { RemoteHostDTO } = await import("../../../src/lib/dto/remote-host-dto");
 const { WorkstationDTO } = await import("../../../src/lib/dto/workstation-dto");
+const { InstanceSettingsDTO } = await import(
+	"../../../src/lib/dto/instance-settings-dto"
+);
+const { StatusPageDTO } = await import("../../../src/lib/dto/status-page-dto");
 const helpers = await import("../../../src/lib/services/deploy/helpers");
 const { PangolinService } = await import(
 	"../../../src/lib/services/pangolin.service"
@@ -35,6 +39,7 @@ const { PangolinService } = await import(
 const { DomainDnsService } = await import(
 	"../../../src/lib/services/domain-dns.service"
 );
+const dnsService = await import("../../../src/lib/services/dns.service");
 const { WorkstationSignInService } = await import(
 	"../../../src/lib/services/workstation/sign-in"
 );
@@ -60,6 +65,10 @@ beforeEach(() => {
 		pangolinDelete,
 		spyOn(DomainDnsService, "syncHostname").mockResolvedValue(null),
 		spyOn(DomainDnsService, "deleteHostname").mockResolvedValue(null),
+		spyOn(InstanceSettingsDTO, "get").mockResolvedValue({
+			toJSON: () => ({}),
+		} as unknown as Awaited<ReturnType<typeof InstanceSettingsDTO.get>>),
+		spyOn(StatusPageDTO, "list").mockResolvedValue([]),
 	);
 });
 
@@ -122,6 +131,212 @@ function agentHost() {
 		} as unknown as Host),
 	);
 }
+
+const DOCKER_CONNECTION = {
+	dockerHost: "tcp://10.0.0.6:2376",
+	id: "h2",
+	tlsCa: "ca",
+	tlsCert: "cert",
+	tlsKey: "key",
+};
+
+function dockerHost() {
+	restorers.push(
+		spyOn(RemoteHostDTO, "get").mockResolvedValue({
+			dockerHost: DOCKER_CONNECTION.dockerHost,
+			kind: "docker",
+			toAgentConnection: () => null,
+			toDockerConnection: async () => DOCKER_CONNECTION,
+		} as unknown as Host),
+	);
+}
+
+describe("WorkstationService on a raw Docker host", () => {
+	test("the header carries the daemon and its TLS material, not the row id", () => {
+		expect(
+			JSON.parse(
+				Buffer.from(dockerRemoteHeader(DOCKER_CONNECTION), "base64").toString(),
+			),
+		).toEqual({
+			dockerHost: "tcp://10.0.0.6:2376",
+			sshHostKey: "",
+			sshPrivateKey: "",
+			tlsCa: "ca",
+			tlsCert: "cert",
+			tlsKey: "key",
+		});
+	});
+
+	test("start goes through the local worker with the remote header and publishes the port", async () => {
+		dockerHost();
+		const request = spyOn(WorkerClient, "request").mockResolvedValue({});
+		restorers.push(request);
+		await WorkstationService.start(
+			workstation({ gitUrl: null, remoteHostId: "h2" }),
+		);
+		const [method, path, options] = request.mock.calls[0] as [
+			string,
+			string,
+			{ body: Record<string, unknown>; headers: Record<string, string> },
+		];
+		expect(method).toBe("PUT");
+		expect(path).toBe("/v1/workstations/ws1");
+		expect(options.headers).toEqual({
+			"x-homerun-docker-remote": dockerRemoteHeader(DOCKER_CONNECTION),
+		});
+		expect(options.body).toMatchObject({
+			labels: {},
+			network: "",
+			publish: true,
+		});
+	});
+
+	test("a running one is routed at the Docker host's published port", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "ws-route-"));
+		config.traefik.dynamicConfigDir = dir;
+		dockerHost();
+		restorers.push(
+			spyOn(WorkerClient, "request").mockResolvedValue({
+				hostPort: 49160,
+				state: "running",
+			}),
+		);
+		await WorkstationService.view(workstation({ remoteHostId: "h2" }));
+		expect(
+			await readFile(join(dir, "homerun-workstation-alice.yml"), "utf8"),
+		).toContain("http://10.0.0.6:49160");
+		await rm(dir, { force: true, recursive: true });
+	});
+
+	test("its logs stream through the local worker with the remote header", async () => {
+		dockerHost();
+		const body = new ReadableStream<Uint8Array>();
+		const stream = spyOn(WorkerClient, "stream").mockResolvedValue(body);
+		restorers.push(stream);
+		await WorkstationService.streamLogs(workstation({ remoteHostId: "h2" }));
+		expect(stream).toHaveBeenCalledWith("/v1/workstations/ws1/logs", {
+			headers: {
+				"x-homerun-docker-remote": dockerRemoteHeader(DOCKER_CONNECTION),
+			},
+			query: { follow: "1", tail: "500" },
+		});
+	});
+
+	test("an ssh:// Docker host gets its SSH key and host key in the header and is reached at its hostname", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "ws-route-"));
+		config.traefik.dynamicConfigDir = dir;
+		const connection = {
+			dockerHost: "ssh://deploy@10.0.0.7:2222",
+			id: "h3",
+			sshHostKey: "ssh-ed25519 AAAA",
+			sshPrivateKey: "PRIVATE",
+		};
+		restorers.push(
+			spyOn(RemoteHostDTO, "get").mockResolvedValue({
+				dockerHost: connection.dockerHost,
+				kind: "docker",
+				toAgentConnection: () => null,
+				toDockerConnection: async () => connection,
+			} as unknown as Host),
+		);
+		const request = spyOn(WorkerClient, "request").mockResolvedValue({
+			hostPort: 49161,
+			state: "running",
+		});
+		restorers.push(request);
+		await WorkstationService.view(workstation({ remoteHostId: "h3" }));
+		const [, , options] = request.mock.calls[0] as [
+			string,
+			string,
+			{ headers: Record<string, string> },
+		];
+		expect(
+			JSON.parse(
+				Buffer.from(
+					options.headers["x-homerun-docker-remote"] ?? "",
+					"base64",
+				).toString(),
+			),
+		).toMatchObject({
+			dockerHost: "ssh://deploy@10.0.0.7:2222",
+			sshHostKey: "ssh-ed25519 AAAA",
+			sshPrivateKey: "PRIVATE",
+		});
+		expect(
+			await readFile(join(dir, "homerun-workstation-alice.yml"), "utf8"),
+		).toContain("http://10.0.0.7:49161");
+		await rm(dir, { force: true, recursive: true });
+	});
+
+	test("a host that's neither an agent nor a Docker daemon can't run one", async () => {
+		restorers.push(
+			spyOn(RemoteHostDTO, "get").mockResolvedValue({
+				dockerHost: null,
+				kind: "docker",
+				toAgentConnection: () => null,
+			} as unknown as Host),
+		);
+		await expect(
+			WorkstationService.start(workstation({ remoteHostId: "h2" })),
+		).rejects.toThrow("isn't a registered agent or Docker host");
+	});
+});
+
+describe("WorkstationService.diskUsage", () => {
+	test("measures the home path through the worker", async () => {
+		const get = spyOn(WorkerClient, "get").mockResolvedValue({ bytes: 4096 });
+		restorers.push(get);
+		expect(await WorkstationService.diskUsage(workstation())).toBe(4096);
+		expect(get).toHaveBeenCalledWith("/v1/workstations/ws1/disk", {
+			path: "/home/coder",
+		});
+	});
+});
+
+describe("WorkstationService.removeAllOnHost", () => {
+	test("removes each container, route and DNS on the host, skipping failures", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "ws-route-"));
+		config.traefik.dynamicConfigDir = dir;
+		agentHost();
+		const reachable = workstation({ id: "a", remoteHostId: "h1", slug: "a" });
+		const unreachable = workstation({ id: "b", remoteHostId: "h1", slug: "b" });
+		await Bun.write(join(dir, "homerun-workstation-a.yml"), "x");
+		await Bun.write(join(dir, "homerun-workstation-b.yml"), "x");
+		const request = spyOn(AgentClientService, "request").mockImplementation(
+			(_connection, _method, path: string) =>
+				path.endsWith("/b")
+					? Promise.reject(new Error("agent down"))
+					: Promise.resolve(null as never),
+		);
+		const deleteDns = spyOn(dnsService, "deleteDns").mockResolvedValue([]);
+		restorers.push(
+			request,
+			deleteDns,
+			spyOn(WorkstationDTO, "listOnHost").mockResolvedValue([
+				reachable,
+				unreachable,
+			]),
+		);
+		await WorkstationService.removeAllOnHost("h1");
+		expect(request).toHaveBeenCalledWith(
+			expect.anything(),
+			"DELETE",
+			"/v1/workstations/a",
+			{ query: { volume: "0" } },
+		);
+		for (const slug of ["a", "b"]) {
+			expect(
+				await readFile(
+					join(dir, `homerun-workstation-${slug}.yml`),
+					"utf8",
+				).catch(() => null),
+			).toBeNull();
+		}
+		expect(deleteDns).toHaveBeenCalledTimes(2);
+		expect(reachable.delete).not.toHaveBeenCalled();
+		await rm(dir, { force: true, recursive: true });
+	});
+});
 
 describe("WorkstationService.start", () => {
 	test("a local workstation joins the network with Traefik labels and its credential", async () => {

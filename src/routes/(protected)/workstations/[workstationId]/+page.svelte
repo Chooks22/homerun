@@ -28,6 +28,7 @@
 		workstationStateLabel,
 	} from "#lib/workstations.js";
 	import { enhance } from "$app/forms";
+	import { resolve } from "$app/paths";
 
 	const { data } = $props();
 	const ws = $derived(data.workstation);
@@ -171,8 +172,9 @@
       {/if}
 
       <p class="text-text-subtle text-xs">
-        Start recreates the container from the current settings; the home
-        directory ({ws.homePath}) is a volume and survives it.
+        Start pulls the image again, so a moving tag like <code>:latest</code>
+        picks up its new release, and recreates the container from the current
+        settings; the home directory ({ws.homePath}) is a volume and survives it.
         {#if ws.gitUrl}
           The repository lives in <code>{ws.homePath.replace(/\/+$/, "")}/{repoDirectory(ws.gitUrl)}</code>.
         {/if}
@@ -244,7 +246,23 @@
     </form>
   </section>
 
-  {#if data.gitSignIn}
+  {#if data.loginWall}
+    <section class="panel rounded-xl">
+      <PanelHeader title="Sign-in" />
+      <div class="space-y-2 p-5">
+        <p class="text-text text-sm">
+          Opening it goes through this instance's login wall: you, and the
+          people its rules allow under
+          <a
+            class="text-accent underline"
+            href={resolve("/(protected)/workstations/[workstationId]/settings", {
+              workstationId: ws.id,
+            })}
+          >Settings</a>, get in.
+        </p>
+      </div>
+    </section>
+  {:else if data.gitSignIn}
     <section class="panel rounded-xl">
       <PanelHeader title="Sign-in" />
       <div class="space-y-2 p-5">

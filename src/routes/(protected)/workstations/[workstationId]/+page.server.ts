@@ -20,7 +20,9 @@ export const load = async ({ params, parent }) => {
 	const { user } = await parent();
 	const ws = await WorkstationDTO.get(params.workstationId, user.id);
 	const row = ws?.toPublic();
-	const gate = row ? await WorkstationSignInService.gateFor(row) : null;
+	const loginWall = row?.authRequired ?? false;
+	const gate =
+		row && !loginWall ? await WorkstationSignInService.gateFor(row) : null;
 	return {
 		gitSignIn: gate
 			? {
@@ -29,9 +31,10 @@ export const load = async ({ params, parent }) => {
 					provider: gate.provider.name,
 				}
 			: null,
+		loginWall,
 		password: ws?.password() ?? null,
 		passwordNeeded: !(
-			gate &&
+			(gate || loginWall) &&
 			row &&
 			!row.remoteHostId &&
 			isCodeServerImage(row.image)

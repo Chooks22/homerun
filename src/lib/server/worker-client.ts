@@ -76,6 +76,27 @@ class WorkerClientClass {
 	}
 
 	/**
+	 * Any JSON call, with extra request headers.
+	 * @throws `WorkerRequestError` on a non-2xx answer.
+	 */
+	request<T>(
+		method: "DELETE" | "GET" | "POST" | "PUT",
+		path: string,
+		options?: {
+			body?: unknown;
+			headers?: Record<string, string>;
+			query?: Record<string, string | undefined>;
+		},
+	): Promise<T> {
+		return this.#json<T>(
+			method,
+			this.#path(path, options?.query),
+			options?.body,
+			options?.headers,
+		);
+	}
+
+	/**
 	 * A PUT whose body is a raw byte stream rather than JSON, for writing a
 	 * tar archive into a container.
 	 * @throws `WorkerRequestError` on a non-2xx answer.
@@ -126,6 +147,7 @@ class WorkerClientClass {
 		path: string,
 		options?: {
 			body?: unknown;
+			headers?: Record<string, string>;
 			method?: string;
 			query?: Record<string, string | undefined>;
 			signal?: AbortSignal;
@@ -137,6 +159,7 @@ class WorkerClientClass {
 				options?.body === undefined ? undefined : JSON.stringify(options.body),
 			headers: {
 				authorization: `Bearer ${config.worker.token}`,
+				...options?.headers,
 				...(options?.body === undefined
 					? {}
 					: { "content-type": "application/json" }),
@@ -181,11 +204,18 @@ class WorkerClientClass {
 	}
 
 	/** Sends a request and decodes its JSON answer. */
-	async #json<T>(method: string, url: string, body?: unknown): Promise<T> {
+	async #json<T>(
+		method: string,
+		url: string,
+		body?: unknown,
+		headers?: Record<string, string>,
+	): Promise<T> {
 		const response = await this.#fetch(method, url, {
 			body: body === undefined ? undefined : JSON.stringify(body),
-			headers:
-				body === undefined ? undefined : { "content-type": "application/json" },
+			headers: {
+				...headers,
+				...(body === undefined ? {} : { "content-type": "application/json" }),
+			},
 		});
 		await this.#assertOk(response);
 		const text = await response.text();

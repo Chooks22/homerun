@@ -1,10 +1,14 @@
 package workstation_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -151,13 +155,16 @@ func TestSetupCommandPassesValuesAsArguments(t *testing.T) {
 }
 
 type engine struct {
-	calls     []string
-	created   map[string]any
-	exitCode  int
-	listed    string
-	mu        sync.Mutex
-	running   bool
-	hasVolume bool
+	calls      []string
+	created    map[string]any
+	exitCode   int
+	execOutput string
+	listed     string
+	mu         sync.Mutex
+	noImage    bool
+	pullFails  bool
+	running    bool
+	hasVolume  bool
 }
 
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +172,19 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer e.mu.Unlock()
 	e.calls = append(e.calls, r.Method+" "+r.URL.Path)
 	switch {
+	case r.URL.Path == "/images/create":
+		if e.pullFails {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"message":"registry unreachable"}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"status":"Status: Image is up to date"}`)
 	case r.URL.Path == "/images/codercom/code-server:latest/json":
+		if e.noImage {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"message":"no such image"}`)
+			return
+		}
 		_, _ = io.WriteString(w, `{}`)
 	case r.URL.Path == "/volumes/"+workstation.VolumeName(id):
 		if !e.hasVolume {
@@ -196,7 +215,11 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/containers/old/exec":
 		_, _ = io.WriteString(w, `{"Id":"exec2"}`)
 	case r.URL.Path == "/exec/exec2/start":
-		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, byte(len(procNetTCP) >> 8), byte(len(procNetTCP) & 0xff)}, procNetTCP...))
+		output := procNetTCP
+		if e.execOutput != "" {
+			output = e.execOutput
+		}
+		_, _ = w.Write(append([]byte{1, 0, 0, 0, 0, 0, byte(len(output) >> 8), byte(len(output) & 0xff)}, output...))
 	case r.URL.Path == "/exec/exec2/json":
 		_, _ = io.WriteString(w, `{"ExitCode":0}`)
 	case r.URL.Path == "/containers/old/stats":
@@ -276,7 +299,7 @@ func TestUpCreatesTheVolumeStartsTheContainerAndClones(t *testing.T) {
 	if status.HostPort != 49153 {
 		t.Errorf("the published port is reported, got %+v", status)
 	}
-	for _, call := range []string{"POST /volumes/create", "POST /containers/create", "POST /containers/new/start", "POST /containers/new/exec"} {
+	for _, call := range []string{"POST /images/create", "POST /volumes/create", "POST /containers/create", "POST /containers/new/start", "POST /containers/new/exec"} {
 		if !fake.sawCall(call) {
 			t.Errorf("missing %s", call)
 		}
@@ -427,5 +450,151 @@ func TestStatsRouteReadsTheRunningContainer(t *testing.T) {
 	_ = json.NewDecoder(response.Body).Decode(&sample)
 	if response.StatusCode != http.StatusOK || sample.MemUsedMb != 100 || sample.CPUPercent <= 0 {
 		t.Errorf("the container's use is reported, got %d %+v", response.StatusCode, sample)
+	}
+}
+
+func TestAFailedPullFallsBackToTheLocalImage(t *testing.T) {
+	fake := &engine{hasVolume: true, listed: `[]`, pullFails: true}
+	server := newServer(t, fake)
+	body, _ := json.Marshal(baseSpec())
+	request(t, http.MethodPut, server.URL+"/v1/workstations/"+id, string(body))
+	fake.mu.Lock()
+	fake.listed = `[{"Id":"old","State":"running"}]`
+	fake.mu.Unlock()
+	waitFor(t, server, workstation.StateRunning)
+	if !fake.sawCall("POST /containers/new/start") {
+		t.Errorf("the local copy starts, got %v", fake.calls)
+	}
+}
+
+func TestAFailedPullWithNoLocalImageFails(t *testing.T) {
+	fake := &engine{hasVolume: true, listed: `[]`, noImage: true, pullFails: true}
+	server := newServer(t, fake)
+	body, _ := json.Marshal(baseSpec())
+	request(t, http.MethodPut, server.URL+"/v1/workstations/"+id, string(body))
+	status := waitFor(t, server, workstation.StateFailed)
+	if !strings.Contains(status.Error, "couldn't pull") || fake.sawCall("POST /containers/create") {
+		t.Errorf("nothing to start from is a failure, got %q %v", status.Error, fake.calls)
+	}
+}
+
+func TestParseDuKilobytes(t *testing.T) {
+	if got, err := workstation.ParseDuKilobytes("2048\t/home/coder\n"); err != nil || got != 2048 {
+		t.Errorf("the first field, got %d %v", got, err)
+	}
+	if _, err := workstation.ParseDuKilobytes(""); err == nil {
+		t.Error("no output is an error")
+	}
+}
+
+func TestDiskRouteMeasuresTheRunningHome(t *testing.T) {
+	fake := &engine{execOutput: "1536\t/home/coder\n", listed: `[]`}
+	server := newServer(t, fake)
+	get := func(query string) (int, string) {
+		response, err := http.Get(server.URL + "/v1/workstations/" + id + "/disk" + query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = response.Body.Close() }()
+		body, _ := io.ReadAll(response.Body)
+		return response.StatusCode, strings.TrimSpace(string(body))
+	}
+	if code, _ := get("?path=/home/coder"); code != http.StatusNotFound {
+		t.Errorf("nothing running is a 404, got %d", code)
+	}
+	if code, _ := get("?path=home"); code != http.StatusBadRequest {
+		t.Errorf("a relative path is a 400, got %d", code)
+	}
+	fake.mu.Lock()
+	fake.listed = `[{"Id":"old","State":"running"}]`
+	fake.mu.Unlock()
+	if code, body := get("?path=/home/coder"); code != http.StatusOK || body != `{"bytes":1572864}` {
+		t.Errorf("du's kilobytes as bytes, got %d %s", code, body)
+	}
+}
+
+func TestHubDrivesTheRemoteDaemonTheHeaderNames(t *testing.T) {
+	local := &engine{listed: `[]`}
+	remote := &engine{listed: `[{"Id":"old","State":"exited"}]`}
+	localDaemon := httptest.NewServer(local)
+	t.Cleanup(localDaemon.Close)
+	remoteDaemon := httptest.NewServer(remote)
+	t.Cleanup(remoteDaemon.Close)
+	router := chi.NewRouter()
+	workstation.NewHub(workstation.NewManager(dockerapi.NewWithHTTP(localDaemon.Client(), localDaemon.URL))).Mount(router)
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	get := func(header string) (int, workstation.Status) {
+		req, _ := http.NewRequest(http.MethodGet, server.URL+"/v1/workstations/"+id, nil)
+		if header != "" {
+			req.Header.Set(workstation.RemoteHeader, header)
+		}
+		response, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = response.Body.Close() }()
+		var status workstation.Status
+		_ = json.NewDecoder(response.Body).Decode(&status)
+		return response.StatusCode, status
+	}
+	if _, status := get(""); status.State != workstation.StateMissing {
+		t.Errorf("no header is the local daemon, got %+v", status)
+	}
+	host, _ := json.Marshal(dockerapi.RemoteHost{DockerHost: "tcp://" + strings.TrimPrefix(remoteDaemon.URL, "http://")})
+	if _, status := get(base64.StdEncoding.EncodeToString(host)); status.State != workstation.StateRunning {
+		t.Errorf("the header's daemon answers, got %+v", status)
+	}
+	if !remote.sawCall("GET /containers/json") {
+		t.Errorf("the remote daemon was asked, got %v", remote.calls)
+	}
+	if code, _ := get("not base64!"); code != http.StatusBadRequest {
+		t.Errorf("a malformed header is a 400, got %d", code)
+	}
+	ssh, _ := json.Marshal(dockerapi.RemoteHost{DockerHost: "ssh://box"})
+	if code, _ := get(base64.StdEncoding.EncodeToString(ssh)); code != http.StatusBadRequest {
+		t.Errorf("a host the worker can't dial is a 400, got %d", code)
+	}
+}
+
+func TestSetupScriptDrivesOpenVSCodeServer(t *testing.T) {
+	shell, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("no sh")
+	}
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	server := filepath.Join(root, "ide", "bin", "openvscode-server")
+	if err := os.MkdirAll(filepath.Dir(server), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	calls := filepath.Join(root, "calls")
+	fakeIDE := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + calls + "\n"
+	if err := os.WriteFile(server, []byte(fakeIDE), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spec := baseSpec()
+	spec.HomePath = home
+	spec.Setup = &workstation.Setup{Extensions: []string{"golang.go"}, Settings: `{"editor.fontSize":14}`}
+	run := func(spec workstation.Spec) {
+		t.Helper()
+		command := workstation.SetupCommand(spec)
+		cmd := exec.Command(shell, command[1:]...)
+		cmd.Env = []string{"PATH=/usr/bin:/bin", "OPENVSCODE_SERVER_ROOT=" + filepath.Join(root, "ide")}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("setup failed: %v %s", err, output)
+		}
+	}
+	run(spec)
+	settings, err := os.ReadFile(filepath.Join(home, ".openvscode-server", "data", "Machine", "settings.json"))
+	if err != nil || strings.TrimSpace(string(settings)) != `{"editor.fontSize":14}` {
+		t.Errorf("the settings land in openvscode-server's Machine settings, got %q %v", settings, err)
+	}
+	spec.Setup = &workstation.Setup{}
+	run(spec)
+	logged, _ := os.ReadFile(calls)
+	if got := strings.Split(strings.TrimSpace(string(logged)), "\n"); !slices.Equal(got, []string{"--install-extension golang.go", "--uninstall-extension golang.go"}) {
+		t.Errorf("installed with its own CLI, then uninstalled once dropped, got %q", got)
 	}
 }
