@@ -13,6 +13,7 @@ import {
 } from "#lib/server/validation/infrastructure-api.js";
 import { AUTO_STOP_MODES } from "#lib/workstations.js";
 import type { ParamDef, RouteDef } from "./registry";
+import { errorResponse } from "./schemas";
 
 const timestamp = z.string().meta({ description: "ISO 8601 timestamp" });
 
@@ -98,8 +99,17 @@ const workstationSettingsResponse = {
 	userId: z.string(),
 };
 
+const workstationWallResponse = {
+	authAllowedEmails: z.array(z.string()),
+	authAllowedGroups: z.array(z.string()),
+	authAllowedUserIds: z.array(z.string()),
+	authProviders: z.array(z.string()),
+	authRequired: z.boolean(),
+};
+
 export const workstationResponse = z.object({
 	...workstationSettingsResponse,
+	...workstationWallResponse,
 	autoStopAt: timestamp.nullable(),
 	autoStopMinutes: z.number().int().nullable(),
 	autoStopMode: z.enum(AUTO_STOP_MODES).nullable(),
@@ -112,6 +122,7 @@ export const workstationResponse = z.object({
 
 export const workstationPresetResponse = z.object({
 	...workstationSettingsResponse,
+	...workstationWallResponse,
 	description: z.string().nullable(),
 });
 
@@ -178,7 +189,7 @@ export function infrastructureRoutes(
 				delete:
 					"Removes the container and the record. ?volume=true deletes the home volume too.",
 				update:
-					"Changes the fields sent and keeps the rest; settings apply on the next start. desiredState starts or stops it.",
+					"Changes the fields sent and keeps the rest; settings apply on the next start, the login wall policy at once. desiredState starts or stops it, and turning authRequired on or off restarts a running one.",
 			},
 			noun: "workstation",
 			paginated: true,
@@ -188,6 +199,25 @@ export function infrastructureRoutes(
 			tag: "Workstations",
 			updateBody: updateWorkstationApiBody,
 		}),
+		{
+			description:
+				"Recreates the workstation's container from its current settings, like the dashboard's Recreate: the image is pulled again, so a moving tag picks up its new release, and the home volume survives. Starts a stopped one. Answers once the start is under way.",
+			method: "post",
+			path: "/workstations/{workstationId}/recreate",
+			pathParams: [{ description: "Workstation id", name: "workstationId" }],
+			responses: {
+				200: { description: "Recreating", schema: workstationResponse },
+				401: { description: "Unauthorized", schema: errorResponse },
+				404: { description: "Not found", schema: errorResponse },
+				502: {
+					description:
+						"The worker or agent refused the start or couldn't be reached; the message is also the workstation's last error",
+					schema: errorResponse,
+				},
+			},
+			summary: "Recreate a workstation",
+			tags: ["Workstations"],
+		},
 		...crudRoutes({
 			createBody: workstationPresetApiBody,
 			idParam: { description: "Preset id", name: "presetId" },

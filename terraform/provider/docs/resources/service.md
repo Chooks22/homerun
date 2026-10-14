@@ -140,6 +140,8 @@ resource "homerun_service" "example" {
 - `preview_env_overrides` (Map of String)
 - `preview_inherit_env` (Boolean) Defaults to `true`.
 - `preview_report_github` (Boolean) Defaults to `true`.
+- `preview_uptime_enabled` (Boolean) Probe each pull request preview's uptime.
+  Applied when a preview is created or redeployed. Defaults to `false`.
 - `previews_enabled` (Boolean) Defaults to `false`.
 - `primary_domain` (String)
 - `privileged` (Boolean) Defaults to `false`.
@@ -168,12 +170,20 @@ resource "homerun_service" "example" {
   create only and never read back: changing it replaces the resource, unless it
   was imported without one.
 - `traces_enabled` (Boolean) Defaults to `false`.
+- `update_check_enabled` (Boolean) Image services: watch the registry for a
+  newer release of tag, or a new image behind a floating tag. The
+  homerun_service_version data source reads what it found. Defaults to `false`.
+- `update_trial_enabled` (Boolean) Image services: try each update in a
+  throwaway container before notifying it. Defaults to `true`.
 - `uptime_enabled` (Boolean)
 
 ### Read-only
 
 - `custom_ssl_set` (Boolean)
 - `id` (String) The object's id.
+- `pinned_from_tag` (String) The floating tag the service was pinned from on the
+  dashboard, the API or the CLI. Pinning here is setting tag.
+- `pinned_locally` (Boolean)
 - `registry_password_set` (Boolean)
 
 ### Nested schema for `published_ports`

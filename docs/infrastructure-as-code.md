@@ -95,6 +95,9 @@ provider "homerun" {
 | `homerun_service_account`         | A service account and its permissions. Its id goes in a service's `auth_allowed_user_ids`; its API keys are minted outside Terraform, so no secret lands in the state.                    |
 | `homerun_user`                    | A person's account: email, name, role and a custom role's permissions. Created without a password, like Users → Add user.                                                                 |
 | `homerun_oauth_provider`          | An OAuth/OIDC sign-in provider (Authentication → Providers). `client_secret` is write-only; a login wall offers it as `oauth:<name>`.                                                     |
+| `homerun_oidc_app`                | A "Sign in with Homerun" app: name, confidential or public (changing it replaces the app), token auth method, PKCE, consent. `client_id` and `discovery_url` are read-only.               |
+| `homerun_oidc_app_environment`    | One environment of an OIDC app: its `redirect_uris`, `allowed_origins` and `allow_localhost`. Nobody signs in to an app until it has one.                                                 |
+| `homerun_oidc_app_secret`         | A client secret of a confidential OIDC app, for one environment. Its `secret` is generated on create and kept in the state; an imported one has none.                                     |
 | `homerun_registry_token`          | A push and pull token for the built-in registry. Its `secret` is generated on create and kept in the state; an imported token has none.                                                   |
 | `homerun_instance_settings`       | Settings → General, Docker and Networking: base domain, dashboard URL, release channel, default UI mode, resource alerts, image scanning, orchestration mode, Traefik.                    |
 | `homerun_smtp_settings`           | Settings → Email.                                                                                                                                                                         |
@@ -107,11 +110,12 @@ provider "homerun" {
 | `homerun_domain`                  | A domain Homerun manages, linked to a DNS connection's zone or not, with its record target and automation switch.                                                                         |
 | `homerun_dns_record`              | A record made by hand at a domain's DNS provider.                                                                                                                                         |
 | `homerun_workstation`             | One of the API key owner's dev workstations: image, resources, repository, extensions, git identity, auto-stop and whether it runs.                                                       |
-| `homerun_workstation_preset`      | One of the API key owner's workstation presets.                                                                                                                                           |
+| `homerun_workstation_preset`      | One of the API key owner's workstation presets, login wall included.                                                                                                                      |
 
 The data sources `homerun_template`, `homerun_service` and `homerun_stack` read
 an object by `id`, a template also by `name`, a service or a stack also by
-`slug`.
+`slug`. `homerun_service_version` reads an image service's version pin and the
+update its last check found, by the service's `id`.
 
 How the attributes behave:
 
@@ -155,9 +159,20 @@ How the attributes behave:
   login wall method that isn't enabled on the instance, a wall with no method,
   or a malformed `auth_allowed_emails` entry is refused by the API, and the
   apply fails with the reason, like the Security tab would. Homerun's own OIDC
-  apps (Sign in with Homerun) are managed from the dashboard only.
+  apps (Sign in with Homerun) are three resources: the app, then an environment
+  per set of callback URLs, then for a confidential app a secret per
+  environment, wired to the app with `environment_id`. Rotate a secret by adding
+  the new `homerun_oidc_app_secret` before removing the old one.
 - **Uptime monitoring** is a service setting, `uptime_enabled` on
   `homerun_service`; there's no separate check to manage.
+- **Version pinning and update checks.** `update_check_enabled` and
+  `update_trial_enabled` on `homerun_service` turn the update watch and its
+  trial runs on or off. Pinning is setting `tag` to the version; a pin made on
+  the dashboard, the API or the CLI shows in the read-only `pinned_from_tag` and
+  `pinned_locally`. Applying an update is setting `tag` to the `available_tag`
+  the `homerun_service_version` data source reads, with `deploy_on_change` to
+  deploy it; finding pin tags and checking now stay on the dashboard, the API
+  and the CLI, since a plan can't run them.
 - **Instance settings are singletons.** The `*_settings` resources and
   `homerun_error_pages` each manage the one settings object the instance has, at
   its fixed id `instance`: creating one adopts it and applies what the
@@ -207,14 +222,15 @@ page, highlighted:
 
 Values a setting leaves at its default are left out. References between objects
 become Terraform references (`homerun_stack.apps.id`). No secret value is ever
-written in a `.tf` file: env vars marked secret, and secrets the API never
-returns, become sensitive variables. Their values go in `terraform.tfvars`: the
-env vars come filled in with what runs today, and each secret Homerun never
-reads back (a registry password, a provider's client secret) is a commented-out
-line to fill in, so Terraform asks for it instead of applying an empty value
-over the real one. The page shows that file with the values masked; the zip has
-them, so keep it private. `terraform.tfvars.example` is the same list, empty,
-safe to commit. Then:
+written in a `.tf` file: env vars marked secret (a service's or a cron job's
+`secret_env_keys`), and secrets the API never returns, become sensitive
+variables. Their values go in `terraform.tfvars`: the env vars come filled in
+with what runs today, and each secret Homerun never reads back (a registry
+password, a provider's client secret) is a commented-out line to fill in, so
+Terraform asks for it instead of applying an empty value over the real one. The
+page shows that file with every value behind the same fixed mask, whatever its
+length; the zip has them, so keep it private. `terraform.tfvars.example` is the
+same list, empty, safe to commit. Then:
 
 ```sh
 export HOMERUN_API_KEY=<an API key>

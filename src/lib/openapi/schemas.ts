@@ -138,6 +138,7 @@ export const serviceResponse = z.object({
 	previewCopyVolumes: z.boolean(),
 	previewEnvOverrides: z.record(z.string(), z.string()),
 	previewInheritEnv: z.boolean(),
+	previewUptimeEnabled: z.boolean(),
 	previewBranchInclude: z.array(z.string()),
 	previewDomainTemplate: z.string().nullable(),
 	previewsEnabled: z.boolean(),
@@ -192,7 +193,40 @@ export const serviceResponse = z.object({
 	slug: z.string(),
 	swarmServiceId: z.string().nullable(),
 	tag: z.string(),
+	pinnedFromTag: z.string().nullable().meta({
+		description:
+			"The floating tag the service was pinned from, null when it isn't pinned. See /services/{serviceId}/version.",
+	}),
+	pinnedLocally: z.boolean().meta({
+		description:
+			"Whether the pinned tag was made on this host from the running image rather than found in the registry",
+	}),
 	tracesEnabled: z.boolean(),
+	updateCheck: z
+		.object({
+			available: z
+				.object({
+					digest: z.string().nullable(),
+					foundAt: isoTimestamp,
+					tag: z.string(),
+				})
+				.nullable(),
+			checkedAt: isoTimestamp,
+			error: z.string().nullable(),
+			notifiedKey: z.string().nullable(),
+			trial: z
+				.object({
+					at: isoTimestamp,
+					message: z.string().nullable(),
+					status: z.enum(["running", "passed", "failed"]),
+					tag: z.string(),
+				})
+				.nullable(),
+		})
+		.nullable()
+		.meta({ description: "The last update check, null before the first" }),
+	updateCheckEnabled: z.boolean(),
+	updateTrialEnabled: z.boolean(),
 	updatedAt: isoTimestamp,
 	uptimeEnabled: z.boolean().meta({
 		description:
@@ -562,6 +596,42 @@ export const pushWebhookResponse = z.object({
 export const scanConflictResponse = z.object({
 	error: z.string(),
 	jobId: z.string().meta({ description: "The scan job already in flight" }),
+});
+
+export const domainConflictResponse = z.object({
+	canTakeOver: z.boolean().optional().meta({
+		description:
+			"Whether sending the same change again with takeOverDomains: true would move every conflicting domain to this service",
+	}),
+	conflicts: z
+		.array(
+			z.object({
+				canTakeOver: z.boolean().meta({
+					description:
+						"Whether this owner can give the domain up: only a service or a redirect can",
+				}),
+				domain: z.string().meta({
+					description: "The domain entry asked for, with its path if any",
+				}),
+				owner: z.string().meta({
+					description:
+						'Who routes it now, as the dashboard names it: the service "Web", a workstation, the Homerun dashboard',
+				}),
+				ownerId: z.string().nullable().meta({
+					description: "The service or redirect id, null for the others",
+				}),
+				ownerKind: z.enum(["core", "redirect", "service", "workstation"]).meta({
+					description:
+						"core is Homerun itself: the dashboard, the registry or object storage's public host, a status page",
+				}),
+			}),
+		)
+		.optional()
+		.meta({
+			description:
+				"Set when a domain this change adds (or the default hostname a slug or stack change moves) is already routed elsewhere",
+		}),
+	error: z.string(),
 });
 
 export const jobResponse = z.object({

@@ -421,6 +421,10 @@
 			"description": "Whether pull request previews start from this service's environment variables.",
 			"type": "boolean"
 		},
+		"previewUptimeEnabled": {
+			"description": "Probe each pull request preview's uptime. Applied when a preview is created or redeployed.",
+			"type": "boolean"
+		},
 		"previewsEnabled": {
 			"description": "Deploy a preview for every pull request.",
 			"type": "boolean"

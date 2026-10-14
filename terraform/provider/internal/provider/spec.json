@@ -68,6 +68,97 @@
 			"type": "homerun_service"
 		},
 		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "image",
+					"tf": "image"
+				},
+				{
+					"kind": "string",
+					"name": "tag",
+					"tf": "tag"
+				},
+				{
+					"kind": "bool",
+					"name": "pinned",
+					"tf": "pinned"
+				},
+				{
+					"kind": "string",
+					"name": "pinnedFromTag",
+					"tf": "pinned_from_tag"
+				},
+				{
+					"kind": "bool",
+					"name": "pinnedLocally",
+					"tf": "pinned_locally"
+				},
+				{
+					"kind": "bool",
+					"name": "updateCheckEnabled",
+					"tf": "update_check_enabled"
+				},
+				{
+					"kind": "bool",
+					"name": "updateTrialEnabled",
+					"tf": "update_trial_enabled"
+				},
+				{
+					"kind": "string",
+					"name": "checkedAt",
+					"tf": "checked_at"
+				},
+				{
+					"kind": "string",
+					"name": "checkError",
+					"tf": "check_error"
+				},
+				{
+					"kind": "string",
+					"name": "availableTag",
+					"tf": "available_tag",
+					"description": "The update the last check found, null when it's up to date. Set the service's tag to it to apply it."
+				},
+				{
+					"kind": "string",
+					"name": "availableDigest",
+					"tf": "available_digest"
+				},
+				{
+					"kind": "string",
+					"name": "availableFoundAt",
+					"tf": "available_found_at"
+				},
+				{
+					"kind": "string",
+					"name": "trialStatus",
+					"tf": "trial_status",
+					"description": "The update's trial run: running, passed or failed."
+				},
+				{
+					"kind": "string",
+					"name": "trialMessage",
+					"tf": "trial_message"
+				},
+				{
+					"kind": "string",
+					"name": "trialTag",
+					"tf": "trial_tag"
+				},
+				{
+					"kind": "string",
+					"name": "trialAt",
+					"tf": "trial_at"
+				}
+			],
+			"collectionPath": "/services",
+			"description": "An image service's version pin and its last update check, by the service's id.",
+			"itemPath": "/services/{id}/version",
+			"lookup": [],
+			"type": "homerun_service_version"
+		},
+		{
 			"collectionPath": "/stacks",
 			"description": "A stack, by id or slug.",
 			"itemPath": "/stacks/{id}",
@@ -166,6 +257,33 @@
 					"name": "pullPolicy",
 					"tf": "pull_policy",
 					"default": "always"
+				},
+				{
+					"kind": "bool",
+					"name": "updateCheckEnabled",
+					"tf": "update_check_enabled",
+					"default": false,
+					"description": "Image services: watch the registry for a newer release of tag, or a new image behind a floating tag. The homerun_service_version data source reads what it found."
+				},
+				{
+					"kind": "bool",
+					"name": "updateTrialEnabled",
+					"tf": "update_trial_enabled",
+					"default": true,
+					"description": "Image services: try each update in a throwaway container before notifying it."
+				},
+				{
+					"kind": "string",
+					"name": "pinnedFromTag",
+					"tf": "pinned_from_tag",
+					"description": "The floating tag the service was pinned from on the dashboard, the API or the CLI. Pinning here is setting tag.",
+					"readOnly": true
+				},
+				{
+					"kind": "bool",
+					"name": "pinnedLocally",
+					"tf": "pinned_locally",
+					"readOnly": true
 				},
 				{
 					"kind": "string",
@@ -574,6 +692,13 @@
 					"default": true
 				},
 				{
+					"kind": "bool",
+					"name": "previewUptimeEnabled",
+					"tf": "preview_uptime_enabled",
+					"default": false,
+					"description": "Probe each pull request preview's uptime. Applied when a preview is created or redeployed."
+				},
+				{
 					"kind": "stringMap",
 					"name": "previewEnvOverrides",
 					"tf": "preview_env_overrides"
@@ -965,6 +1090,11 @@
 					"name": "envVars",
 					"tf": "env_vars",
 					"sensitive": true
+				},
+				{
+					"kind": "strings",
+					"name": "secretEnvKeys",
+					"tf": "secret_env_keys"
 				},
 				{
 					"kind": "objects",
@@ -1565,6 +1695,12 @@
 					"name": "baseDomain",
 					"tf": "base_domain",
 					"description": "Each service gets a subdomain of it, named after its slug. A bare hostname."
+				},
+				{
+					"kind": "string",
+					"name": "serviceSubdomain",
+					"tf": "service_subdomain",
+					"description": "One DNS label services' default hostnames go under, `slug.service_subdomain.base_domain`. Left unset, they're `slug.base_domain`."
 				},
 				{
 					"kind": "string",
@@ -2357,6 +2493,37 @@
 					"tf": "auto_stop_minutes"
 				},
 				{
+					"kind": "bool",
+					"name": "authRequired",
+					"tf": "auth_required",
+					"default": false,
+					"description": "Put Homerun's login wall in front of the IDE instead of its password or git sign-in. The owner always gets in; turning it on or off restarts a running workstation."
+				},
+				{
+					"kind": "strings",
+					"name": "authProviders",
+					"tf": "auth_providers",
+					"description": "Sign-in methods the wall offers: \"password\", \"email-otp\" (an emailed code), \"magic-link\" (an emailed link) and \"oauth:\" followed by a homerun_oauth_provider's name (oauth:pocket-id). Each must be enabled on the instance (the emailed ones in homerun_authentication_settings, with SMTP set up) or the API refuses it, and auth_required needs at least one. An emailed method proves only the mailbox, so it lets any Homerun account through unless auth_allowed_emails or auth_allowed_user_ids narrow it."
+				},
+				{
+					"kind": "strings",
+					"name": "authAllowedEmails",
+					"tf": "auth_allowed_emails",
+					"description": "Addresses, or *@domain patterns, an account's email must match to get in. Empty lets any address through."
+				},
+				{
+					"kind": "strings",
+					"name": "authAllowedGroups",
+					"tf": "auth_allowed_groups",
+					"description": "OIDC groups (from a linked provider) or Homerun roles, one of which an account must have to get in. Empty skips the check."
+				},
+				{
+					"kind": "strings",
+					"name": "authAllowedUserIds",
+					"tf": "auth_allowed_user_ids",
+					"description": "The only accounts let in, by id (a homerun_user or homerun_service_account id). Empty lets every account through the other rules; a service account only ever gets in when listed here."
+				},
+				{
 					"kind": "string",
 					"name": "slug",
 					"tf": "slug",
@@ -2460,10 +2627,41 @@
 					"kind": "string",
 					"name": "gitAuthorEmail",
 					"tf": "git_author_email"
+				},
+				{
+					"kind": "bool",
+					"name": "authRequired",
+					"tf": "auth_required",
+					"default": false,
+					"description": "Put Homerun's login wall in front of the IDE of every workstation created from this preset, instead of its password or git sign-in."
+				},
+				{
+					"kind": "strings",
+					"name": "authProviders",
+					"tf": "auth_providers",
+					"description": "Sign-in methods the wall offers: \"password\", \"email-otp\" (an emailed code), \"magic-link\" (an emailed link) and \"oauth:\" followed by a homerun_oauth_provider's name (oauth:pocket-id). Each must be enabled on the instance (the emailed ones in homerun_authentication_settings, with SMTP set up) or the API refuses it, and auth_required needs at least one. An emailed method proves only the mailbox, so it lets any Homerun account through unless auth_allowed_emails or auth_allowed_user_ids narrow it."
+				},
+				{
+					"kind": "strings",
+					"name": "authAllowedEmails",
+					"tf": "auth_allowed_emails",
+					"description": "Addresses, or *@domain patterns, an account's email must match to get in. Empty lets any address through."
+				},
+				{
+					"kind": "strings",
+					"name": "authAllowedGroups",
+					"tf": "auth_allowed_groups",
+					"description": "OIDC groups (from a linked provider) or Homerun roles, one of which an account must have to get in. Empty skips the check."
+				},
+				{
+					"kind": "strings",
+					"name": "authAllowedUserIds",
+					"tf": "auth_allowed_user_ids",
+					"description": "The only accounts let in, by id (a homerun_user or homerun_service_account id). Empty lets every account through the other rules; a service account only ever gets in when listed here."
 				}
 			],
 			"collectionPath": "/workstation-presets",
-			"description": "One of the API key owner's workstation presets: settings a new workstation starts from.",
+			"description": "One of the API key owner's workstation presets: settings and a login wall a new workstation starts from.",
 			"importId": ["id"],
 			"itemPath": "/workstation-presets/{id}",
 			"label": "name",
@@ -2591,6 +2789,173 @@
 			"itemPath": "/oauth-providers/{id}",
 			"label": "name",
 			"type": "homerun_oauth_provider"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"required": true
+				},
+				{
+					"kind": "bool",
+					"name": "confidential",
+					"tf": "confidential",
+					"default": true,
+					"description": "A confidential app (a server) authenticates with a client secret (homerun_oidc_app_secret); a public one (a SPA or mobile app) has none and always uses PKCE. Changing it replaces the app, and with it the client id.",
+					"forceNew": true
+				},
+				{
+					"kind": "string",
+					"name": "tokenAuthMethod",
+					"tf": "token_auth_method",
+					"description": "How a confidential app sends its secret to the token endpoint: client_secret_basic (HTTP Basic, the default) or client_secret_post (request body, what Claude's connector uses). Leave it unset on a public app."
+				},
+				{
+					"kind": "bool",
+					"name": "requirePkce",
+					"tf": "require_pkce",
+					"default": true,
+					"description": "Require a PKCE challenge on every sign-in. A public app can't turn it off."
+				},
+				{
+					"kind": "bool",
+					"name": "skipConsent",
+					"tf": "skip_consent",
+					"default": false,
+					"description": "Sign people in without asking them to share their profile."
+				},
+				{
+					"kind": "bool",
+					"name": "enableEndSession",
+					"tf": "enable_end_session",
+					"default": false,
+					"description": "Let the app sign people out of Homerun (RP-initiated logout)."
+				},
+				{
+					"kind": "bool",
+					"name": "disabled",
+					"tf": "disabled",
+					"default": false,
+					"description": "Refuse new sign-ins without deleting the app."
+				},
+				{
+					"kind": "string",
+					"name": "clientId",
+					"tf": "client_id",
+					"description": "The client id to configure the app with.",
+					"readOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "discoveryUrl",
+					"tf": "discovery_url",
+					"description": "The OpenID discovery document to point the app at, empty until the Dashboard URL is set.",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/oidc-apps",
+			"description": "An app that signs people in with their Homerun account (\"Sign in with Homerun\", Authentication → Sign in with Homerun). Nobody can sign in until it has a homerun_oidc_app_environment with its callback URLs; a confidential app also needs a homerun_oidc_app_secret.",
+			"importId": ["id"],
+			"itemPath": "/oidc-apps/{id}",
+			"label": "name",
+			"type": "homerun_oidc_app"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "appId",
+					"tf": "app_id",
+					"forceNew": true,
+					"ref": "homerun_oidc_app",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"description": "Up to 32 letters, digits, spaces, dots, dashes or underscores, unique per app: production, staging…",
+					"required": true
+				},
+				{
+					"kind": "strings",
+					"name": "redirectUris",
+					"tf": "redirect_uris",
+					"description": "The callback URLs codes may be sent to, from the app's own OIDC settings: https, or http on localhost when allow_localhost is on.",
+					"required": true
+				},
+				{
+					"kind": "strings",
+					"name": "allowedOrigins",
+					"tf": "allowed_origins",
+					"default": [],
+					"description": "Browser origins (scheme, host and port) allowed to call the token endpoint, for a SPA."
+				},
+				{
+					"kind": "bool",
+					"name": "allowLocalhost",
+					"tf": "allow_localhost",
+					"default": false,
+					"description": "Accept localhost callbacks and origins, for a development environment."
+				}
+			],
+			"collectionPath": "/oidc-apps/{appId}/environments",
+			"description": "One environment of a homerun_oidc_app, with its own callback URLs and authorized origins. A client secret only redeems codes sent to its own environment's callbacks.",
+			"importId": ["appId", "id"],
+			"itemPath": "/oidc-apps/{appId}/environments/{id}",
+			"label": "name",
+			"type": "homerun_oidc_app_environment"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "appId",
+					"tf": "app_id",
+					"forceNew": true,
+					"ref": "homerun_oidc_app",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "environmentId",
+					"tf": "environment_id",
+					"forceNew": true,
+					"ref": "homerun_oidc_app_environment",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "label",
+					"tf": "label",
+					"description": "What the secret is for. Defaults to \"Client secret\".",
+					"forceNew": true
+				},
+				{
+					"kind": "string",
+					"name": "secret",
+					"tf": "secret",
+					"description": "The client secret, only known to a secret Terraform created: an imported one has none.",
+					"readOnly": true,
+					"returnedOnCreate": true,
+					"sensitive": true
+				},
+				{
+					"kind": "string",
+					"name": "hint",
+					"tf": "hint",
+					"description": "The secret's last four characters.",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/oidc-apps/{appId}/secrets",
+			"description": "A client secret of a confidential homerun_oidc_app, for one of its environments. It's generated on create and kept in the state, so treat the state as a secret; rotate it by creating the new one before destroying the old.",
+			"importId": ["appId", "id"],
+			"itemPath": "/oidc-apps/{appId}/secrets/{id}",
+			"label": "label",
+			"type": "homerun_oidc_app_secret"
 		}
 	]
 }

@@ -33,6 +33,24 @@ resource "homerun_workstation" "example" {
 
 ### Optional
 
+- `auth_allowed_emails` (List of String) Addresses, or *@domain patterns, an
+  account's email must match to get in. Empty lets any address through.
+- `auth_allowed_groups` (List of String) OIDC groups (from a linked provider) or
+  Homerun roles, one of which an account must have to get in. Empty skips the
+  check.
+- `auth_allowed_user_ids` (List of String) The only accounts let in, by id (a
+  homerun_user or homerun_service_account id). Empty lets every account through
+  the other rules; a service account only ever gets in when listed here.
+- `auth_providers` (List of String) Sign-in methods the wall offers: "password",
+  "email-otp" (an emailed code), "magic-link" (an emailed link) and "oauth:"
+  followed by a homerun_oauth_provider's name (oauth:pocket-id). Each must be
+  enabled on the instance (the emailed ones in homerun_authentication_settings,
+  with SMTP set up) or the API refuses it, and auth_required needs at least one.
+  An emailed method proves only the mailbox, so it lets any Homerun account
+  through unless auth_allowed_emails or auth_allowed_user_ids narrow it.
+- `auth_required` (Boolean) Put Homerun's login wall in front of the IDE instead
+  of its password or git sign-in. The owner always gets in; turning it on or off
+  restarts a running workstation. Defaults to `false`.
 - `auto_stop_minutes` (Number)
 - `auto_stop_mode` (String) idle or timer, unset for never.
 - `cpu_limit` (String) Cores, like 1.5.

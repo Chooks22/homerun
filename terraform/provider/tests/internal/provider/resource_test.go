@@ -233,3 +233,28 @@ data "homerun_template" "postgres" {
 		}},
 	})
 }
+
+func TestServiceVersionDataSourceReadsByServiceID(t *testing.T) {
+	requireTerraform(t)
+	fake := newFakeAPI(t)
+	fake.put("/services/svc-1/version", map[string]any{
+		"availableTag": "1.25.1", "id": "svc-1", "image": "nginx", "pinned": true,
+		"pinnedFromTag": "latest", "tag": "1.25.0", "updateCheckEnabled": true,
+	})
+	config := providerBlock(fake) + `
+data "homerun_service_version" "web" {
+  id = "svc-1"
+}
+`
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: factories(),
+		Steps: []resource.TestStep{{
+			Config: config,
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttr("data.homerun_service_version.web", "available_tag", "1.25.1"),
+				resource.TestCheckResourceAttr("data.homerun_service_version.web", "pinned_from_tag", "latest"),
+				resource.TestCheckResourceAttr("data.homerun_service_version.web", "update_check_enabled", "true"),
+			),
+		}},
+	})
+}

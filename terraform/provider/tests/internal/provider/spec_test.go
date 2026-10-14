@@ -24,7 +24,7 @@ func loadSpec(t *testing.T) provider.Spec {
 func TestEverySchemaIsValid(t *testing.T) {
 	ctx := context.Background()
 	spec := loadSpec(t)
-	if len(spec.Resources) < 15 || len(spec.DataSources) != 3 {
+	if len(spec.Resources) < 15 || len(spec.DataSources) != 4 {
 		t.Fatalf("unexpected spec size: %d resources, %d data sources", len(spec.Resources), len(spec.DataSources))
 	}
 	seen := map[string]bool{}

@@ -1,14 +1,10 @@
 import { z } from "zod";
 import {
-	createServiceApiBody,
-	createServiceFromTemplateApiBody,
 	createStackApiBody,
 	deployServiceApiBody,
 	startUpdateApiBody,
 	updateChannelApiBody,
-	updateServiceApiBody,
 } from "#lib/server/validation/api.js";
-import { serviceConfigSchema } from "#lib/service-config.js";
 import { backupRoutes } from "./backups";
 import { channelRoutes } from "./channels";
 import { dependencyRoutes } from "./dependencies";
@@ -33,12 +29,12 @@ import {
 	queuedJobResponse,
 	revisionResponse,
 	scanConflictResponse,
-	serviceResponse,
 	stackResponse,
 	successResponse,
 	systemStatsResponse,
 	templateResponse,
 } from "./schemas";
+import { serviceRoutes } from "./services";
 
 export interface ResponseDef {
 	description: string;
@@ -101,115 +97,7 @@ const badRequest: ResponseDef = {
  * `validation/api.ts`, so at least the request side can't silently drift.
  */
 export const routes: RouteDef[] = [
-	{
-		description:
-			"Paginated. The response body is the page's items; the total row count, current page and page size come back in the x-total-count, x-page and x-per-page headers.",
-		method: "get",
-		path: "/services",
-		queryParams: listQueryParams,
-		responses: {
-			200: {
-				description: "Every service on the instance",
-				isArray: true,
-				schema: serviceResponse,
-			},
-			401: unauthorized,
-		},
-		summary: "List services",
-		tags: ["Services"],
-	},
-	{
-		description:
-			"Persists config only : does not deploy. Call POST /services/{serviceId}/deploy afterward to actually pull/build and start it. Any setting PATCH takes may be sent too. With templateId, the service (and the template's linked services) is created from the template first.",
-		method: "post",
-		path: "/services",
-		requestBody: z.union([
-			createServiceApiBody,
-			createServiceFromTemplateApiBody,
-		]),
-		responses: {
-			201: { description: "Created", schema: serviceResponse },
-			400: badRequest,
-			401: unauthorized,
-			409: { description: "Slug already in use", schema: errorResponse },
-		},
-		summary: "Create a service",
-		tags: ["Services"],
-	},
-	{
-		method: "get",
-		path: "/services/{serviceId}",
-		pathParams: [{ description: "Service id", name: "serviceId" }],
-		responses: {
-			200: { description: "The service", schema: serviceResponse },
-			401: unauthorized,
-			404: notFound,
-		},
-		summary: "Get a service",
-		tags: ["Services"],
-	},
-	{
-		description:
-			"The service's settings grouped the way the dashboard's tabs group them (source, env, volumes, networking, compute, runtime, security, settings). Secrets are never included: a stored registry password or SSL key shows as a boolean, and an uploaded icon as \"uploaded\".",
-		method: "get",
-		path: "/services/{serviceId}/config",
-		pathParams: [{ description: "Service id", name: "serviceId" }],
-		responses: {
-			200: {
-				description: "The service's settings",
-				schema: serviceConfigSchema,
-			},
-			401: unauthorized,
-			404: notFound,
-		},
-		summary: "Get a service's settings, by tab",
-		tags: ["Services"],
-	},
-	{
-		method: "patch",
-		path: "/services/{serviceId}",
-		pathParams: [{ description: "Service id", name: "serviceId" }],
-		requestBody: updateServiceApiBody,
-		responses: {
-			200: { description: "Updated", schema: serviceResponse },
-			400: badRequest,
-			401: unauthorized,
-			404: notFound,
-		},
-		summary: "Update a service (partial)",
-		tags: ["Services"],
-	},
-	{
-		description:
-			"Removes the container or swarm service first, same as the Settings danger-zone action. One Docker reports as already gone counts as removed; any other removal failure answers 409 and deletes nothing, unless force=true.",
-		method: "delete",
-		path: "/services/{serviceId}",
-		pathParams: [{ description: "Service id", name: "serviceId" }],
-		queryParams: [
-			{
-				description:
-					"true deletes the service record even when its container or swarm service couldn't be removed",
-				name: "force",
-			},
-			{
-				description:
-					"true also deletes the volumes no other service mounts: the record, and the Docker volume behind a named one (a bind mount's host directory is left alone)",
-				name: "deleteVolumes",
-			},
-		],
-		responses: {
-			204: { description: "Deleted" },
-			401: unauthorized,
-			404: notFound,
-			409: {
-				description:
-					"The container or swarm service couldn't be removed, nothing was deleted",
-				schema: errorResponse,
-			},
-		},
-		summary: "Delete a service",
-		tags: ["Services"],
-	},
+	...serviceRoutes,
 	{
 		description:
 			"Awaits the full pull-or-build → create → start pipeline and returns once it's done : no separate polling endpoint for API clients. An optional tag switches an image-based service to that tag first, which is how CI deploys the image it just pushed.",

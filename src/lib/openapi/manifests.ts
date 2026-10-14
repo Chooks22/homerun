@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { manifestSchema } from "#lib/server/manifest.js";
 import type { RouteDef } from "./registry";
-import { errorResponse } from "./schemas";
+import { domainConflictResponse, errorResponse } from "./schemas";
 
 const appliedManifestResponse = z.object({
 	applied: z.array(z.string()).meta({ description: "The keys applied" }),
@@ -44,6 +44,11 @@ export const manifestRoutes: RouteDef[] = [
 			},
 			401: { description: "Unauthorized", schema: errorResponse },
 			404: { description: "Not found", schema: errorResponse },
+			409: {
+				description:
+					"A domain the manifest adds is already routed elsewhere, conflicts lists each one with its owner; nothing is saved",
+				schema: domainConflictResponse,
+			},
 		},
 		summary: "Apply a manifest to a service",
 		tags,

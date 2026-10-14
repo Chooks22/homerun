@@ -101,6 +101,9 @@ data "homerun_service" "example" {
 - `memory_limit_mb` (Number)
 - `name` (String) Required unless template_id is set.
 - `network_mode` (String)
+- `pinned_from_tag` (String) The floating tag the service was pinned from on the
+  dashboard, the API or the CLI. Pinning here is setting tag.
+- `pinned_locally` (Boolean)
 - `port_protocol` (String)
 - `preview_auth_allowed_emails` (List of String) Addresses, or *@domain
   patterns, an account's email must match to get in. Empty lets any address
@@ -128,6 +131,8 @@ data "homerun_service" "example" {
 - `preview_env_overrides` (Map of String)
 - `preview_inherit_env` (Boolean)
 - `preview_report_github` (Boolean)
+- `preview_uptime_enabled` (Boolean) Probe each pull request preview's uptime.
+  Applied when a preview is created or redeployed.
 - `previews_enabled` (Boolean)
 - `primary_domain` (String)
 - `privileged` (Boolean)
@@ -148,6 +153,11 @@ data "homerun_service" "example" {
   stripped before the request reaches the container (/api/v2 arrives as /v2).
 - `tag` (String)
 - `traces_enabled` (Boolean)
+- `update_check_enabled` (Boolean) Image services: watch the registry for a
+  newer release of tag, or a new image behind a floating tag. The
+  homerun_service_version data source reads what it found.
+- `update_trial_enabled` (Boolean) Image services: try each update in a
+  throwaway container before notifying it.
 - `uptime_enabled` (Boolean)
 
 ### Nested schema for `published_ports`

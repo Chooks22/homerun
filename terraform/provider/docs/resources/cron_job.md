@@ -53,6 +53,7 @@ resource "homerun_cron_job" "example" {
 - `run_as_user` (String) Docker User (uid, uid:gid, name or name:group), unset
   keeps the image's.
 - `runtime` (String) A script job's runtime: bun, node, deno, python or shell.
+- `secret_env_keys` (List of String)
 - `source` (String) A script job's source code.
 - `tag` (String) Defaults to `"latest"`.
 - `timeout_seconds` (Number) Defaults to `900`.

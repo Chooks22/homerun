@@ -36,6 +36,7 @@ import { volumeResponse } from "./backups";
 import { identityRoutes } from "./identity";
 import { infrastructureRoutes } from "./infrastructure";
 import { manifestRoutes } from "./manifests";
+import { operationsRoutes } from "./operations";
 import type { ParamDef, ResponseDef, RouteDef } from "./registry";
 import {
 	errorResponse,
@@ -126,6 +127,10 @@ export const cronJobResponse = z.object({
 	runAsUser: z.string().nullable(),
 	runtime: z.enum(SCRIPT_RUNTIMES).nullable(),
 	schedule: z.string(),
+	secretEnvKeys: z.array(z.string()).meta({
+		description:
+			"envVars keys marked secret: masked in the dashboard and always redacted for AI agents.",
+	}),
 	source: z.string().nullable(),
 	tag: z.string().nullable(),
 	timeoutSeconds: z.number().int(),
@@ -414,6 +419,7 @@ const volumeRoutes = crudRoutes({
 
 export const resourceRoutes: RouteDef[] = [
 	...stackItem,
+	...operationsRoutes,
 	...infrastructureRoutes(crudRoutes),
 	...serviceAccountRoutes,
 	...identityRoutes,

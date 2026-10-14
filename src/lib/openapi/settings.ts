@@ -27,6 +27,10 @@ const refused: ResponseDef = {
 	description: "Invalid body, or a value the instance refuses",
 	schema: errorResponse,
 };
+const unreachable: ResponseDef = {
+	description: "The registry isn't answering",
+	schema: errorResponse,
+};
 const failed: ResponseDef = {
 	description: "Saved up to the step that failed, with the reason",
 	schema: errorResponse,
@@ -36,6 +40,7 @@ export const instanceSettingsResponse = z.object({
 	authCheckUrl: nullableText,
 	authCrossSubdomainCookies: z.boolean().nullable(),
 	baseDomain: nullableText,
+	serviceSubdomain: nullableText,
 	cpuHardThreshold: percent,
 	cpuSoftThreshold: percent,
 	dashboardUrl: nullableText,
@@ -127,6 +132,22 @@ export const registryTokenResponse = z.object({
 	id: z.string(),
 	lastUsedAt: timestamp.nullable(),
 	username: z.string(),
+});
+
+export const registryTagResponse = z.object({
+	digest: z
+		.string()
+		.nullable()
+		.meta({ description: "The manifest digest the tag points at" }),
+	tag: z.string(),
+});
+
+export const registryRepositoryResponse = z.object({
+	repository: z.string(),
+	tags: z.array(registryTagResponse),
+	usedBy: z.array(z.object({ id: z.string(), name: z.string() })).meta({
+		description: "The services whose image lives in this repository",
+	}),
 });
 
 interface SingletonSpec {
@@ -289,6 +310,54 @@ export const settingsRoutes: RouteDef[] = [
 			404: { description: "Not found", schema: errorResponse },
 		},
 		summary: "Revoke a registry token",
+		tags: ["Registry"],
+	},
+	{
+		description:
+			"The built-in registry's repositories in name order, each with its tags, their digests and the services whose image lives in it.",
+		method: "get",
+		path: "/registry/repositories",
+		queryParams: [
+			{ description: "1-based page number (default 1)", name: "page" },
+			{ description: "Items per page (default 100, max 100)", name: "perPage" },
+			{ description: "Only repositories whose name contains this", name: "q" },
+		],
+		responses: {
+			200: {
+				description: "One page of repositories",
+				isArray: true,
+				schema: registryRepositoryResponse,
+			},
+			401: unauthorized,
+			503: unreachable,
+		},
+		summary: "List registry repositories",
+		tags: ["Registry"],
+	},
+	{
+		method: "get",
+		path: "/registry/repositories/{repository}/tags",
+		pathParams: [
+			{
+				description: "Repository name, slashes included (team/app)",
+				name: "repository",
+			},
+		],
+		responses: {
+			200: {
+				description: "The repository's tags",
+				isArray: true,
+				schema: registryTagResponse,
+			},
+			400: {
+				description: "Not a valid repository name",
+				schema: errorResponse,
+			},
+			401: unauthorized,
+			404: { description: "No tag in that repository", schema: errorResponse },
+			503: unreachable,
+		},
+		summary: "List a registry repository's tags",
 		tags: ["Registry"],
 	},
 ];

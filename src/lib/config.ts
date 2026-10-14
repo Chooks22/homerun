@@ -200,6 +200,7 @@ const configSchema = z.object({
 	pangolinEnabled: z.boolean().default(false),
 	pangolinOwnsAuth: z.boolean().default(false),
 	port: z.number().default(3000),
+	serviceSubdomain: z.string().default(""),
 	smtp: z
 		.object({
 			enabled: z.boolean().default(false),
@@ -240,6 +241,7 @@ export interface InstanceSettingsOverride {
 	authCheckUrl?: string | null;
 	pangolinEnabled?: boolean | null;
 	pangolinOwnsAuth?: boolean | null;
+	serviceSubdomain?: string | null;
 	authCrossSubdomainCookies?: boolean | null;
 	authOrigin?: string | null;
 	baseDomain?: string | null;
@@ -463,6 +465,18 @@ function applyCoreOverride(override: InstanceSettingsOverride): void {
 	config.pangolinOwnsAuth = override.pangolinOwnsAuth ?? false;
 	const domain = override.baseDomain ?? fileDefaults.baseDomain;
 	config.baseDomain = domain.split(":")[0] ?? domain;
+	config.serviceSubdomain = override.serviceSubdomain ?? "";
+}
+
+/**
+ * The domain services' default hostnames live under: the base domain, or
+ * `<serviceSubdomain>.<baseDomain>` once the Services subdomain setting is
+ * set, the way workstations get `<slug>.dev.<baseDomain>`.
+ */
+export function serviceDomain(): string {
+	return config.serviceSubdomain
+		? `${config.serviceSubdomain}.${config.baseDomain}`
+		: config.baseDomain;
 }
 
 function applyAuthOverride(override: InstanceSettingsOverride): void {

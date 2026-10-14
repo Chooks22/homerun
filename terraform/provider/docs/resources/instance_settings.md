@@ -58,6 +58,9 @@ resource "homerun_instance_settings" "example" {
 - `resource_alert_reminder_minutes` (Number)
 - `resource_alert_sustain_seconds` (Number)
 - `retained_images_per_service` (Number)
+- `service_subdomain` (String) One DNS label services' default hostnames go
+  under, `slug.service_subdomain.base_domain`. Left unset, they're
+  `slug.base_domain`.
 - `traefik_acme_email` (String)
 - `traefik_cert_resolver` (String)
 - `traefik_dynamic_config_dir` (String)
