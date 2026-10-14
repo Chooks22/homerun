@@ -8,6 +8,7 @@ import { z } from "zod";
 import { config } from "#lib/config.js";
 import { MCP_PATH, mcpAllowed } from "#lib/oidc-provider.js";
 import { APP_VERSION } from "#lib/server/app-version.js";
+import { registerAdminTools } from "#lib/server/mcp-admin-tools.js";
 import { registerCronJobTools } from "#lib/server/mcp-cron-job-tools.js";
 import { registerEnvironmentTools } from "#lib/server/mcp-environment-tools.js";
 import { registerNotificationTools } from "#lib/server/mcp-notification-tools.js";
@@ -22,6 +23,7 @@ import { registerRedirectTools } from "#lib/server/mcp-redirect-tools.js";
 import { registerScanTools } from "#lib/server/mcp-scan-tools.js";
 import { registerStackTools } from "#lib/server/mcp-stack-tools.js";
 import { registerStatusPageTools } from "#lib/server/mcp-status-page-tools.js";
+import { registerSystemTools } from "#lib/server/mcp-system-tools.js";
 import { registerTemplateTools } from "#lib/server/mcp-template-tools.js";
 import {
 	type ApiCall,
@@ -30,7 +32,9 @@ import {
 	errorResult,
 	read,
 } from "#lib/server/mcp-tool-kit.js";
+import { registerVersionTools } from "#lib/server/mcp-version-tools.js";
 import { registerVolumeTools } from "#lib/server/mcp-volume-tools.js";
+import { registerWorkstationTools } from "#lib/server/mcp-workstation-tools.js";
 
 export type { ApiCall } from "#lib/server/mcp-tool-kit.js";
 
@@ -47,6 +51,12 @@ Cron jobs run a container, a script or a host command on a schedule: list_cron_j
 Object storage (S3) is the built-in store and every S3-compatible provider connected to this instance: list_object_stores shows them, list_buckets and get_bucket a store's buckets with their expiry and whether they're public (a public bucket's objects are served to anyone at <instance>/public/<storeId>/<bucket>/<key>), create_bucket, update_bucket and delete_bucket (empty buckets only) change them.
 
 Redirects send a hostname, or a path under it, to another URL through Traefik, with no container: list_redirects shows them, create_redirect, update_redirect (enabled: false turns one off) and delete_redirect change them. Status pages show services' uptime: list_status_pages, create_status_page, update_status_page and delete_status_page. Notification channels are where alerts are sent: list_notification_channels, create_notification_channel, update_notification_channel and delete_notification_channel; mark_notifications_read clears the in-app feed.
+
+An image service can be pinned to a version and watched for updates: get_service_version shows its pin and the update its last check found (with that update's trial run), find_pin_tags the registry tags matching what it runs, pin_service and unpin_service change the pin, set_update_watch turns the watch on or off, check_service_updates checks now and apply_service_update moves it onto the update and deploys.
+
+get_monitoring and get_service_monitoring sum up traffic, availability and CPU and memory over a period, the latter with a service's latest uptime probe beats. With access to System: list_system_logs is Homerun's own warnings and errors, list_system_containers and system_container_logs its own containers (Traefik's logs included), preview_docker_cleanup and run_docker_cleanup reclaim disk space. DNS: list_domains, list_dns_records, create_dns_record, update_dns_record and delete_dns_record. The built-in image registry: list_registry_repositories lists the images it holds with their tags, digests and the services using them, list_registry_tags one repository's tags. get_registry_settings, list_registry_tokens, list_remote_hosts, list_users, list_git_providers and list_dns_connections read admin config; none of it is changed here, and no credential is ever returned.
+
+Dev workstations are the caller's own browser IDE containers: list_workstations and get_workstation show them (env redacted, never the IDE password), create_workstation, update_workstation (its login wall included), start_workstation, stop_workstation, recreate_workstation (a fresh container from its current settings and image) and delete_workstation (deleteVolume also drops the home volume) change them; list_workstation_presets, get_workstation_preset, create_workstation_preset, update_workstation_preset and delete_workstation_preset manage the presets new ones start from, login wall included.
 
 To fix one: update_service changes settings (applied on the next deploy), deploy_service rolls them out, restart_service restarts without redeploying, rollback_service redeploys an earlier revision. Say what you're about to change before changing it.`;
 
@@ -249,7 +259,7 @@ function registerReadTools(server: McpServer, api: ApiCall): void {
 		{
 			annotations: read,
 			description:
-				"A service's full record: status, container and swarm ids, image, domains and every setting as stored. Secret-looking env vars, URL passwords and password arguments are redacted.",
+				"A service's full record: status, container and swarm ids, image, domains and every setting as stored. Env vars marked secret, secret-looking or credential-looking env vars, URL passwords and password arguments are redacted.",
 			inputSchema: z.object({ serviceId }),
 		},
 		async ({ serviceId: id }) => asResult(await api("GET", servicePath(id))),
@@ -260,7 +270,7 @@ function registerReadTools(server: McpServer, api: ApiCall): void {
 		{
 			annotations: read,
 			description:
-				"A service's settings grouped by dashboard tab (source, env, volumes, networking, compute, runtime, security, settings). Secret-looking env vars, URL passwords and password arguments are redacted.",
+				"A service's settings grouped by dashboard tab (source, env, volumes, networking, compute, runtime, security, settings). Env vars marked secret, secret-looking or credential-looking env vars, URL passwords and password arguments are redacted.",
 			inputSchema: z.object({ serviceId }),
 		},
 		async ({ serviceId: id }) =>
@@ -431,18 +441,21 @@ function registerBackupTools(server: McpServer, api: ApiCall): void {
  * stored vars (`null` deletes one) rather than replacing them, and anything
  * the agent only saw redacted (an env value, a URL's password, a password
  * argument in the command) keeps its stored value; a placeholder that doesn't
- * match anything stored is refused instead of written.
+ * match anything stored is refused instead of written, and an uploaded icon
+ * sent back as the "uploaded" label it was read as is left alone.
  */
 async function updateService(
 	api: ApiCall,
 	id: string,
 	changes: Record<string, unknown>,
 ): Promise<CallToolResult> {
+	const { icon, ...rest } = changes;
+	const sent = icon === "uploaded" ? rest : changes;
 	const touchesSecrets = ["command", "entrypoint", "envVars"].some(
-		(key) => key in changes,
+		(key) => key in sent,
 	);
 	if (!touchesSecrets) {
-		return asResult(await api("PATCH", servicePath(id), changes));
+		return asResult(await api("PATCH", servicePath(id), sent));
 	}
 	const current = await api("GET", servicePath(id));
 	if (!current.ok) {
@@ -455,7 +468,7 @@ async function updateService(
 		secretEnvKeys?: string[];
 	};
 	try {
-		const patch = { ...changes };
+		const patch = { ...sent };
 		if (patch.envVars && typeof patch.envVars === "object") {
 			patch.envVars = mergeEnvChanges(
 				patch.envVars as Record<string, unknown>,
@@ -604,6 +617,10 @@ export function createHomerunMcpServer(api: ApiCall): McpServer {
 	registerCronJobTools(server, api);
 	registerStatusPageTools(server, api);
 	registerNotificationTools(server, api);
+	registerWorkstationTools(server, api);
+	registerVersionTools(server, api);
+	registerSystemTools(server, api);
+	registerAdminTools(server, api);
 	return server;
 }
 
