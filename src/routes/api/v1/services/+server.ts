@@ -160,7 +160,7 @@ async function createFromTemplate(
 	} catch (err) {
 		await ServiceLifecycleService.deleteService(created.svc, { force: true });
 		if (err instanceof ServiceSettingsError) {
-			return Response.json({ error: err.message }, { status: err.status });
+			return Response.json(err.body(), { status: err.status });
 		}
 		throw err;
 	}
@@ -226,7 +226,7 @@ export const POST = async ({ request, locals }) => {
 	} catch (err) {
 		await ServiceLifecycleService.deleteService(svc, { force: true });
 		if (err instanceof ServiceSettingsError) {
-			return Response.json({ error: err.message }, { status: err.status });
+			return Response.json(err.body(), { status: err.status });
 		}
 		throw err;
 	}

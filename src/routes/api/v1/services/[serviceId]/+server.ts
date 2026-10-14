@@ -5,7 +5,10 @@ import { serviceApiJson } from "#lib/server/api-json.js";
 import { updateServiceApiBody } from "#lib/server/validation/api.js";
 import { WorkloadDetachError } from "#lib/services/docker/workload-removal.js";
 import { DockerService } from "#lib/services/docker.service.js";
-import { ServiceLifecycleService } from "#lib/services/service-lifecycle.service.js";
+import {
+	ServiceBusyError,
+	ServiceLifecycleService,
+} from "#lib/services/service-lifecycle.service.js";
 import {
 	ServiceSettingsError,
 	ServiceSettingsService,
@@ -63,7 +66,7 @@ export const PATCH = async ({ params, request, locals }) => {
 		});
 	} catch (err) {
 		if (err instanceof ServiceSettingsError) {
-			return Response.json({ error: err.message }, { status: err.status });
+			return Response.json(err.body(), { status: err.status });
 		}
 		throw err;
 	}
@@ -87,7 +90,10 @@ export const DELETE = async ({ params, locals, url }) => {
 	try {
 		await ServiceLifecycleService.deleteService(svc, { deleteVolumes, force });
 	} catch (error) {
-		if (error instanceof WorkloadDetachError) {
+		if (
+			error instanceof WorkloadDetachError ||
+			error instanceof ServiceBusyError
+		) {
 			return Response.json({ error: error.message }, { status: 409 });
 		}
 		throw error;

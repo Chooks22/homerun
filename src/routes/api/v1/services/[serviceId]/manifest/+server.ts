@@ -39,7 +39,7 @@ export const PUT = async ({ params, request, locals, url }) => {
 		return Response.json({ ...result, deploymentId }, { status: 202 });
 	} catch (error) {
 		if (error instanceof ManifestError) {
-			return Response.json({ error: error.message }, { status: error.status });
+			return Response.json(error.body, { status: error.status });
 		}
 		throw error;
 	}
