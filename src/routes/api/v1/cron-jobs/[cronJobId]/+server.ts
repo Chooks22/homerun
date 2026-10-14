@@ -45,12 +45,13 @@ export const PATCH = async ({ locals, params, request }) => {
 	if ("response" in body) {
 		return body.response;
 	}
-	const { envVars, files, mounts, ...fields } = body.data;
+	const { envVars, files, mounts, secretEnvKeys, ...fields } = body.data;
 	const {
 		envVars: currentEnv,
 		files: currentFiles,
 		mounts: currentMounts,
 		registryPasswordEnc: _password,
+		secretEnvKeys: currentSecretEnvKeys,
 		...current
 	} = job.toJSON();
 	const result = parseCronJobInput(
@@ -63,6 +64,7 @@ export const PATCH = async ({ locals, params, request }) => {
 			envVars: envVars ?? currentEnv ?? {},
 			files: files ?? currentFiles,
 			mounts: mounts ?? currentMounts,
+			secretEnvKeys: secretEnvKeys ?? currentSecretEnvKeys,
 		},
 		{ hostAccess },
 	);
