@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { type DomainOwners, stubDomainOwners } from "../support/domain-owners";
 import { restoreStubs, stub } from "../support/stub";
 
 mock.module("$app/env", () => ({
@@ -97,11 +98,12 @@ let existing: Svc | null = null;
 let slugTaken = false;
 let created: Record<string, unknown>[] = [];
 let createdUpdates: Record<string, unknown>[] = [];
-let domainTaken: string | null = null;
+let owners: DomainOwners;
 let previews: Svc[] = [];
 const originalBaseDomain = config.baseDomain;
 
-beforeEach(() => {
+beforeEach(async () => {
+	owners = await stubDomainOwners();
 	enqueued = [];
 	deleted = [];
 	deleteError = null;
@@ -109,7 +111,6 @@ beforeEach(() => {
 	slugTaken = false;
 	created = [];
 	createdUpdates = [];
-	domainTaken = null;
 	previews = [];
 	config.baseDomain = "example.com";
 	stub(Logger.prototype, "info", () => undefined);
@@ -127,7 +128,6 @@ beforeEach(() => {
 	stub(ServiceGitDTO, "getPreview", async () => existing);
 	stub(ServiceGitDTO, "listPreviews", async () => previews);
 	stub(ServiceDTO, "slugTaken", async () => slugTaken);
-	stub(ServiceDTO, "domainTaken", async () => domainTaken);
 	stub(ServiceDTO, "create", async (input: Record<string, unknown>) => {
 		created.push(input);
 		const made = fakeService({ ...input, id: "preview" });
@@ -185,6 +185,34 @@ describe("PreviewService.handle", () => {
 		]);
 	});
 
+	test("a preview of a parent with preview uptime off gets no probes, and the parent keeps its own", async () => {
+		const { svc, updates } = fakeService({
+			previewUptimeEnabled: false,
+			uptimeEnabled: true,
+		});
+		await PreviewService.handle(svc, event());
+		expect(created[0].uptimeEnabled).toBe(false);
+		expect(svc.uptimeEnabled).toBe(true);
+		expect(updates.some((patch) => "uptimeEnabled" in patch)).toBe(false);
+	});
+
+	test("a preview of a parent with preview uptime on is probed", async () => {
+		const { svc } = fakeService({ previewUptimeEnabled: true });
+		await PreviewService.handle(svc, event());
+		expect(created[0].uptimeEnabled).toBe(true);
+	});
+
+	test("an existing preview takes the parent's preview uptime setting on redeploy", async () => {
+		const preview = fakeService({ id: "preview", uptimeEnabled: true });
+		existing = preview.svc;
+		const { svc } = fakeService({ previewUptimeEnabled: false });
+		await PreviewService.handle(
+			svc,
+			event({ action: "update", commit: "b".repeat(40) }),
+		);
+		expect(preview.updates[0]).toMatchObject({ uptimeEnabled: false });
+	});
+
 	test("gives a new preview its templated domain", async () => {
 		const { svc } = fakeService({
 			previewDefaultDomain: false,
@@ -213,7 +241,7 @@ describe("PreviewService.handle", () => {
 	});
 
 	test("keeps only the default hostname when the templated one is taken", async () => {
-		domainTaken = "pr-7.preview.io";
+		owners.services.push({ domains: ["pr-7.preview.io"], id: "other" });
 		const { svc } = fakeService({
 			previewDefaultDomain: false,
 			previewDomainTemplate: "pr-{pr}.preview.io",
@@ -224,6 +252,20 @@ describe("PreviewService.handle", () => {
 			defaultDomainEnabled: true,
 			primaryDomain: null,
 		});
+	});
+
+	test("skips a templated domain a workstation or a redirect routes", async () => {
+		owners.workstations.push("pr-7.preview.io");
+		owners.redirects.push("pr-8.preview.io/go");
+		for (const number of [7, 8]) {
+			const { svc } = fakeService({
+				previewDefaultDomain: false,
+				previewDomainTemplate: "pr-{pr}.preview.io",
+			});
+			// oxlint-disable-next-line no-await-in-loop -- one preview at a time
+			await PreviewService.handle(svc, event({ number }));
+		}
+		expect(created.map((input) => input.domains)).toEqual([[], []]);
 	});
 
 	test("builds the branch when the commit isn't a full SHA", async () => {

@@ -100,6 +100,14 @@ its redeploys. The copies show on the Storage page as the volume's name with
 `(PR #n)`, and are deleted with the preview. Turning the option on doesn't copy
 anything into previews that already exist.
 
+**Probe each preview's uptime** (off by default) gives every preview the same
+internal and public [uptime probes](observability.md) as a service, with their
+down and recovered alerts. Off, previews aren't probed, so a preview stopped or
+broken on purpose doesn't page anyone. The setting is applied when a preview is
+created or redeployed; an existing preview keeps what it had until then. In the
+REST API and a Homerun Manifest it's `previewUptimeEnabled`, in Terraform
+`preview_uptime_enabled`.
+
 ## Choosing which branches get previews
 
 ![The Only branches matching and Never branches matching filters](images/previews-branches.webp)
@@ -163,8 +171,9 @@ The template must contain `{pr}` or `{branch}`, so every preview gets a
 different domain. Point a wildcard DNS record (`*.preview.example.com`) at the
 host, or let the [DNS automation](dns-automation.md) create one record per
 preview; either way Traefik gets a certificate per preview domain. A template
-domain that another service already routes is skipped for that preview, which
-keeps its default hostname.
+domain something else already routes (another service, a redirect, a
+workstation, or Homerun's own hosts such as the dashboard) is skipped for that
+preview, which keeps its default hostname.
 
 **Keep the default hostname** decides whether previews still answer on
 `<slug>-pr-<number>.<baseDomain>` alongside the template's domain. It stays on

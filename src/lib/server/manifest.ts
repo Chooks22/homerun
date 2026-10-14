@@ -76,6 +76,7 @@ const PREVIEW_KEYS = [
 	"previewDomainTemplate",
 	"previewEnvOverrides",
 	"previewInheritEnv",
+	"previewUptimeEnabled",
 	"previewsEnabled",
 ] as const;
 

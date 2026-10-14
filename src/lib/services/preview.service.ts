@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
 import { ServiceVolumeDTO } from "#lib/dto/service-volume-dto.js";
@@ -9,6 +9,7 @@ import { type PullRequestEvent, previewSlug } from "#lib/git-webhooks.js";
 import { Logger } from "#lib/logger.js";
 import { previewBranchAllowed } from "#lib/preview-branches.js";
 import { invalidateGatedService } from "#lib/server/gated-service-cache.js";
+import { serviceDomainConflicts } from "#lib/server/hostname-owner.js";
 import {
 	defaultHostname,
 	primaryHostname,
@@ -118,7 +119,7 @@ async function previewEnv(
 	const inherited = row.previewInheritEnv
 		? rewriteHostnames(
 				parent.envVars ?? {},
-				serviceHostnames(row, stack?.slug, config.baseDomain),
+				serviceHostnames(row, stack?.slug, serviceDomain()),
 				previewHost,
 			)
 		: {};
@@ -178,12 +179,14 @@ export function mirroredSettings(parent: ServiceDTO) {
 		registryPasswordEnc: parent.registryPasswordEnc,
 		registryUrl: parent.registryUrl,
 		registryUsername: parent.registryUsername,
+		uptimeEnabled: parent.toJSON().previewUptimeEnabled,
 	};
 }
 
 /**
  * The domains a preview gets from its parent's settings: the templated
- * domain when the parent has one and no other service already routes it,
+ * domain when the parent has one and nothing else already routes it (see
+ * `serviceDomainConflicts`),
  * and the default `<slug>-pr-<n>` hostname when the parent keeps it or
  * there'd be nothing routed otherwise.
  */
@@ -197,12 +200,12 @@ async function previewDomains(
 		...values,
 		slug: parent.slug,
 	});
-	const taken = rendered
-		? await ServiceDTO.domainTaken([rendered], previewId)
-		: null;
+	const [taken] = rendered
+		? await serviceDomainConflicts([rendered], previewId)
+		: [];
 	if (taken) {
 		logger.warn(
-			`Preview domain already routed to another service, skipped: parent=${parent.id} pr=${values.pr} domain=${taken}`,
+			`Preview domain already routed elsewhere, skipped: parent=${parent.id} pr=${values.pr} domain=${taken.entry} owner=${taken.owner.label}`,
 		);
 	}
 	const domains = rendered && !taken ? [rendered] : [];
@@ -326,7 +329,7 @@ class PreviewServiceClass {
 		const previews = await ServiceGitDTO.listPreviews(parent.id);
 		await Promise.all(
 			previews.map((preview) =>
-				ServiceLifecycleService.deleteService(preview)
+				ServiceLifecycleService.deleteService(preview, { cancelJobs: true })
 					.then(() => GitHubReportService.closed(parent, preview))
 					.catch((err) => {
 						logger.warn(
@@ -351,7 +354,9 @@ class PreviewServiceClass {
 		);
 		await Promise.all(
 			excluded.map((preview) =>
-				ServiceLifecycleService.deleteService(preview).catch((err) => {
+				ServiceLifecycleService.deleteService(preview, {
+					cancelJobs: true,
+				}).catch((err) => {
 					logger.warn(
 						`Couldn't remove filtered-out preview: service=${preview.id} parent=${parent.id}`,
 						err,
@@ -379,7 +384,7 @@ class PreviewServiceClass {
 		return previews.map((preview) => {
 			const row = preview.toJSON();
 			const hostnames = preview.dnsResolvable
-				? serviceHostnames(row, stack?.slug, config.baseDomain)
+				? serviceHostnames(row, stack?.slug, serviceDomain())
 				: [];
 			return {
 				branch: row.previewBranch,
@@ -412,7 +417,7 @@ class PreviewServiceClass {
 		await Promise.all(
 			previews.map(async (preview) => {
 				const row = preview.toJSON();
-				const previous = serviceHostnames(row, stack?.slug, config.baseDomain);
+				const previous = serviceHostnames(row, stack?.slug, serviceDomain());
 				await preview.update(
 					await previewDomains(
 						parent,
@@ -423,7 +428,7 @@ class PreviewServiceClass {
 				if (preview.dnsResolvable) {
 					void syncServiceDomainsDns(
 						previous,
-						serviceHostnames(preview.toJSON(), stack?.slug, config.baseDomain),
+						serviceHostnames(preview.toJSON(), stack?.slug, serviceDomain()),
 						preview.id,
 					);
 				}
@@ -479,7 +484,7 @@ class PreviewServiceClass {
 	 */
 	async delete(parent: ServiceDTO, previewId: string): Promise<void> {
 		const preview = await this.#own(parent, previewId);
-		await ServiceLifecycleService.deleteService(preview);
+		await ServiceLifecycleService.deleteService(preview, { cancelJobs: true });
 		logger.info(
 			`Preview deleted by hand: parent=${parent.id} service=${preview.id}`,
 		);
@@ -528,7 +533,7 @@ class PreviewServiceClass {
 			envVars: await previewEnv(
 				parent,
 				domains.primaryDomain ??
-					defaultHostname(slug, stack?.slug, config.baseDomain),
+					defaultHostname(slug, stack?.slug, serviceDomain()),
 				{ branch: request.branch, pr: request.number, slug },
 			),
 			domains: domains.domains,
@@ -588,7 +593,7 @@ class PreviewServiceClass {
 			authPathsMode: "all",
 			envVars: await previewEnv(
 				parent,
-				primaryHostname(preview.toJSON(), stack?.slug, config.baseDomain),
+				primaryHostname(preview.toJSON(), stack?.slug, serviceDomain()),
 				{ branch: request.branch, pr: request.number, slug: preview.slug },
 			),
 			previewBranch: request.branch,
@@ -656,7 +661,9 @@ class PreviewServiceClass {
 			};
 		}
 		try {
-			await ServiceLifecycleService.deleteService(preview);
+			await ServiceLifecycleService.deleteService(preview, {
+				cancelJobs: true,
+			});
 		} catch (err) {
 			logger.warn(
 				`Couldn't remove preview: service=${preview.id} parent=${parent.id}`,

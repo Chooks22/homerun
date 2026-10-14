@@ -42,6 +42,7 @@
 				.map(([key, value]) => `${key}=${value}`)
 				.join("\n"),
 			previewInheritEnv: svc.previewInheritEnv ? "on" : "",
+			previewUptimeEnabled: svc.previewUptimeEnabled ? "on" : "",
 			previewBranchInclude: svc.previewBranchInclude.join("\n"),
 			previewDefaultDomain: svc.previewDefaultDomain ? "on" : "",
 			previewDomainTemplate: svc.previewDomainTemplate ?? "",
@@ -173,6 +174,7 @@
             copyVolumes={values.previewCopyVolumes === "on"}
             inheritEnv={values.previewInheritEnv === "on"}
             overrides={values.previewEnvOverrides}
+            uptimeEnabled={values.previewUptimeEnabled === "on"}
           />
 
         </div>

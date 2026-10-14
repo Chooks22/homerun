@@ -1,5 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { parseDotEnv } from "#lib/env-parse.js";
@@ -9,11 +9,11 @@ import {
 	branchPatternProblem,
 	parseBranchPatterns,
 } from "#lib/preview-branches.js";
+import { parseLoginWallForm } from "#lib/server/login-wall-form.js";
 import {
 	loginWallAvailability,
 	loginWallOptions,
-	parseLoginWallForm,
-} from "#lib/server/login-wall-form.js";
+} from "#lib/server/login-wall-options.js";
 import {
 	defaultHostname,
 	previewDomainTemplateProblem,
@@ -38,7 +38,7 @@ export const load = async ({ params }) => {
 		defaultPreviewHostname: defaultHostname(
 			`${svc.slug}-pr-<n>`,
 			stack?.slug,
-			config.baseDomain,
+			serviceDomain(),
 		),
 		...(await loginWallOptions()),
 		previewAccess: svc.previewAccessPolicy,
@@ -161,6 +161,7 @@ export const actions = {
 					),
 				),
 				previewInheritEnv: formData.get("previewInheritEnv") === "on",
+				previewUptimeEnabled: formData.get("previewUptimeEnabled") === "on",
 				previewsEnabled,
 			},
 			{

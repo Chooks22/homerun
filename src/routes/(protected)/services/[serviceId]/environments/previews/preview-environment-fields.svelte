@@ -7,12 +7,14 @@
 		inheritEnv: boolean;
 		/** The overrides as `KEY=value` lines. */
 		overrides: string;
+		uptimeEnabled: boolean;
 	}
 
 	const props: Props = $props();
 
 	let previewInheritEnv = $derived(props.inheritEnv);
 	let previewCopyVolumes = $derived(props.copyVolumes);
+	let previewUptimeEnabled = $derived(props.uptimeEnabled);
 
 	const label = "block mb-1.5 text-sm font-medium text-text";
 </script>
@@ -52,4 +54,12 @@
             label="Copy this service's volumes into each new preview"
             name="previewCopyVolumes"
             bind:checked={previewCopyVolumes}
+          />
+
+          <CheckBox
+            helperText="Each preview gets the internal and public uptime probes, and its down and recovered alerts. Applied when a preview is created or redeployed."
+            id="previewUptimeEnabled"
+            label="Probe each preview's uptime"
+            name="previewUptimeEnabled"
+            bind:checked={previewUptimeEnabled}
           />

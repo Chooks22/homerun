@@ -4,6 +4,7 @@ import {
 } from "#lib/iac/resources-identity.js";
 import { infrastructureResources } from "#lib/iac/resources-infrastructure.js";
 import { IAC_SETTINGS_RESOURCES } from "#lib/iac/resources-settings.js";
+import * as versions from "#lib/iac/resources-versions.js";
 import { PERMISSION_AREAS, PERMISSION_LEVELS } from "#lib/permissions.js";
 
 export type IacKind =
@@ -114,6 +115,7 @@ const serviceAttributes: IacAttribute[] = [
 	attr("image", "string"),
 	attr("tag", "string", { default: "latest" }),
 	attr("pullPolicy", "string", { default: "always" }),
+	...versions.versionAttributes(attr),
 	attr("registryUrl", "string"),
 	attr("registryUsername", "string"),
 	attr("registryPassword", "string", secret),
@@ -204,6 +206,11 @@ const serviceAttributes: IacAttribute[] = [
 	attr("previewBranchInclude", "strings"),
 	attr("previewBranchExclude", "strings"),
 	attr("previewInheritEnv", "bool", on),
+	attr("previewUptimeEnabled", "bool", {
+		...off,
+		description:
+			"Probe each pull request preview's uptime. Applied when a preview is created or redeployed.",
+	}),
 	attr("previewEnvOverrides", "stringMap"),
 	attr("previewCopyVolumes", "bool", off),
 	attr("previewReportGithub", "bool", on),
@@ -360,6 +367,7 @@ export const IAC_RESOURCES: IacResource[] = [
 			}),
 			attr("source", "string", { description: "A script job's source code." }),
 			attr("envVars", "stringMap", { sensitive: true }),
+			attr("secretEnvKeys", "strings"),
 			attr("files", "objects", {
 				description: "Text files written into the container before it starts.",
 				fields: [
@@ -646,6 +654,7 @@ export const IAC_DATA_SOURCES: IacDataSource[] = [
 		resource: "homerun_service",
 		type: "homerun_service",
 	},
+	versions.serviceVersionDataSource(attr),
 	{
 		collectionPath: "/stacks",
 		description: "A stack, by id or slug.",
