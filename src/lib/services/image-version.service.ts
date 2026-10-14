@@ -42,6 +42,27 @@ const TRIAL_POLL_MS = 2000;
 const TRIAL_LOG_LINES = 20;
 const MAX_TRIAL_MESSAGE = 4000;
 
+/** A service's version pinning and update-check state, flat, as the REST API, the CLI and the Terraform data source read it. */
+export interface ServiceVersionState {
+	availableDigest: string | null;
+	availableFoundAt: string | null;
+	availableTag: string | null;
+	checkedAt: string | null;
+	checkError: string | null;
+	id: string;
+	image: string;
+	pinned: boolean;
+	pinnedFromTag: string | null;
+	pinnedLocally: boolean;
+	tag: string;
+	trialAt: string | null;
+	trialMessage: string | null;
+	trialStatus: ImageUpdateTrial["status"] | null;
+	trialTag: string | null;
+	updateCheckEnabled: boolean;
+	updateTrialEnabled: boolean;
+}
+
 interface RunningImage {
 	digest: string | null;
 	imageId: string | null;
@@ -54,6 +75,25 @@ interface TrialInspect {
 		Restarting?: boolean;
 		Running?: boolean;
 		Status?: string;
+	};
+}
+
+/** The available update's fields of a `ServiceVersionState`. */
+function availableState(available: ImageUpdateAvailable | null) {
+	return {
+		availableDigest: available?.digest ?? null,
+		availableFoundAt: available?.foundAt ?? null,
+		availableTag: available?.tag ?? null,
+	};
+}
+
+/** The trial run's fields of a `ServiceVersionState`. */
+function trialState(trial: ImageUpdateTrial | null) {
+	return {
+		trialAt: trial?.at ?? null,
+		trialMessage: trial?.message ?? null,
+		trialStatus: trial?.status ?? null,
+		trialTag: trial?.tag ?? null,
 	};
 }
 
@@ -76,6 +116,60 @@ function messageOf(err: unknown): string {
  */
 class ImageVersionServiceClass {
 	readonly #inFlight = new Set<string>();
+
+	/** Why the service has no version pinning or update checks (built from git, or an environment, preview or canary of another service), or null when it has them. */
+	unsupportedReason(svc: ServiceDTO): string | null {
+		if (svc.buildSource !== "image") {
+			return "Only a service deployed from an image has version pinning and update checks.";
+		}
+		if (svc.toJSON().previewParentId) {
+			return "Version pinning and update checks are set on the service itself, not on its environments, previews or canary.";
+		}
+		return null;
+	}
+
+	/** The service's pin and its last update check, flat. */
+	describe(svc: ServiceDTO): ServiceVersionState {
+		const row = svc.toJSON();
+		const check = row.updateCheck;
+		return {
+			...availableState(check?.available ?? null),
+			...trialState(check?.trial ?? null),
+			checkedAt: check?.checkedAt ?? null,
+			checkError: check?.error ?? null,
+			id: svc.id,
+			image: svc.image,
+			pinned: row.pinnedFromTag !== null,
+			pinnedFromTag: row.pinnedFromTag,
+			pinnedLocally: row.pinnedLocally,
+			tag: svc.tag,
+			updateCheckEnabled: row.updateCheckEnabled,
+			updateTrialEnabled: row.updateTrialEnabled,
+		};
+	}
+
+	/**
+	 * Turns watching the registry for updates, and trying each one first, on
+	 * or off; a setting left out keeps its value. Turning the watch off
+	 * forgets the last check, turning it on runs the first check in the
+	 * background.
+	 */
+	async setWatch(
+		svc: ServiceDTO,
+		input: { updateCheckEnabled?: boolean; updateTrialEnabled?: boolean },
+	): Promise<void> {
+		const updateCheckEnabled =
+			input.updateCheckEnabled ?? svc.toJSON().updateCheckEnabled;
+		await svc.update({
+			updateCheckEnabled,
+			updateTrialEnabled:
+				input.updateTrialEnabled ?? svc.toJSON().updateTrialEnabled,
+			...(updateCheckEnabled ? {} : { updateCheck: null }),
+		});
+		if (updateCheckEnabled && !svc.toJSON().updateCheck) {
+			await this.check(svc, { background: true });
+		}
+	}
 
 	/** The digest and local image id the service's live revision runs, from its newest running deployment, falling back to the local image behind its tag. */
 	async #runningImage(svc: ServiceDTO): Promise<RunningImage> {

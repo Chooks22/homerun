@@ -61,6 +61,12 @@ removed either way; the pulled image stays for the real deploy. An app that
 can't start without its database or its data fails this trial, so turn it off
 for those.
 
+The same pin, watch and update are on the [REST API and the CLI](api-and-cli.md)
+(`/api/v1/services/:id/version`, `homerun services version`), the
+[MCP server](mcp.md) and [Terraform](infrastructure-as-code.md) (the watch
+switches on `homerun_service`, what a check found in the
+`homerun_service_version` data source).
+
 ## Build methods
 
 ![The Source section's build method picker, open on the six methods](images/source-build-methods.webp)

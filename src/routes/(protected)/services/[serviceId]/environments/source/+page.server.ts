@@ -321,15 +321,10 @@ export const actions = {
 			return fail(404, { error: "Service not found." });
 		}
 		const formData = await request.formData();
-		const updateCheckEnabled = formData.get("updateCheckEnabled") === "on";
-		await svc.update({
-			updateCheckEnabled,
+		await ImageVersionService.setWatch(svc, {
+			updateCheckEnabled: formData.get("updateCheckEnabled") === "on",
 			updateTrialEnabled: formData.get("updateTrialEnabled") === "on",
-			...(updateCheckEnabled ? {} : { updateCheck: null }),
 		});
-		if (updateCheckEnabled && !svc.toJSON().updateCheck) {
-			await ImageVersionService.check(svc, { background: true });
-		}
 		return { success: true };
 	},
 	checkUpdates: async ({ params, locals }) => {
