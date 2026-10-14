@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.60](https://github.com/orochibraru/homerun/compare/v1.0.59...v1.0.60) (2026-10-14)
+
+### Features
+
+- path-based service domains with prefix stripping and per-path login wall,
+  Dokploy paths kept, MIT license
+  ([985dd0f](https://github.com/orochibraru/homerun/commit/985dd0f7c188230a7762fa214bd09828907a388f))
+
 ## [1.0.59](https://github.com/orochibraru/homerun/compare/v1.0.58...v1.0.59) (2026-10-14)
 
 ### ⚠ BREAKING CHANGES
