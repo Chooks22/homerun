@@ -1,6 +1,7 @@
 import { config } from "#lib/config.js";
 import { Logger } from "#lib/logger.js";
-import { defaultHostname } from "#lib/service-domains.js";
+import { serviceRoutedHosts } from "#lib/server/hostname-owner.js";
+import { defaultHostname, domainHosts } from "#lib/service-domains.js";
 import type { DnsSyncResult } from "./dns-result.ts";
 import { dashboardHostFrom } from "./docker/dashboard.ts";
 import { DomainDnsService } from "./domain-dns.service.ts";
@@ -138,18 +139,42 @@ export async function syncCoreHostDns(
 }
 
 /**
+ * The hosts of a service's `previous` domain entries that `next` no longer
+ * has and no other service than `serviceId` still routes: the ones whose DNS
+ * records can go. A domain with a path shares its host, so dropping
+ * `example.com/api` frees nothing while another service serves `example.com`.
+ */
+export async function releasedHosts(
+	previous: string[],
+	next: string[],
+	serviceId?: string,
+): Promise<string[]> {
+	const nextHosts = domainHosts(next);
+	const dropped = domainHosts(previous).filter(
+		(host) => !nextHosts.includes(host),
+	);
+	if (dropped.length === 0) {
+		return [];
+	}
+	const routed = await serviceRoutedHosts(serviceId);
+	return dropped.filter((host) => !routed.has(host));
+}
+
+/**
  * Brings DNS in line with a service's edited domains right away, rather than
- * on its next deploy: syncs every hostname in `next` and deletes the ones
- * `previous` had that `next` dropped, across every configured provider. Logs
- * the outcome per hostname and provider rather than returning it, since
- * nothing awaits this call.
+ * on its next deploy: syncs the host of every entry in `next` and deletes the
+ * hosts `releasedHosts` frees, across every configured provider. Logs the
+ * outcome per hostname and provider rather than returning it.
  */
 export async function syncServiceDomainsDns(
 	previous: string[],
 	next: string[],
+	serviceId?: string,
 ): Promise<void> {
-	const removed = previous.filter((hostname) => !next.includes(hostname));
-	const results = [...(await syncDns(next)), ...(await deleteDns(removed))];
+	const results = [
+		...(await syncDns(domainHosts(next))),
+		...(await deleteDns(await releasedHosts(previous, next, serviceId))),
+	];
 	for (const result of results) {
 		if (result.ok) {
 			logger.info(`Service domain (${result.provider}): ${result.detail}`);

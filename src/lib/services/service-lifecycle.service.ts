@@ -8,7 +8,7 @@ import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
 import { serviceHostnames } from "#lib/service-domains.js";
 import type { ContainerStatus } from "#lib/types.js";
-import { deleteDns } from "./dns.service.ts";
+import { deleteDns, releasedHosts } from "./dns.service.ts";
 import {
 	tryRemoveWorkload,
 	WorkloadDetachError,
@@ -344,7 +344,8 @@ class ServiceLifecycleServiceClass {
 	/**
 	 * Removes a deleted service's footprint outside Homerun: the git push
 	 * webhook on its provider, and the DNS records for its hostname and custom
-	 * domain when it was publicly routed. Best effort, never throws.
+	 * domains when it was publicly routed, except a host another service still
+	 * routes. Best effort, never throws.
 	 */
 	async #cleanUpOutside(
 		svc: ServiceDTO,
@@ -355,7 +356,11 @@ class ServiceLifecycleServiceClass {
 			return;
 		}
 		await deleteDns(
-			serviceHostnames(svc.toJSON(), stackSlug, config.baseDomain),
+			await releasedHosts(
+				serviceHostnames(svc.toJSON(), stackSlug, config.baseDomain),
+				[],
+				svc.id,
+			),
 		).catch((err) => {
 			logger.warn(`Couldn't remove DNS records for service=${svc.id}`, err);
 		});

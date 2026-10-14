@@ -159,6 +159,36 @@ describe("dokployRefs", () => {
 });
 
 describe("dokployApplication", () => {
+	test("keeps a domain's path, its strip flag, and warns about an internal path", () => {
+		const entry = dokployApplication(
+			{
+				...IMAGE_APP,
+				domains: [
+					{
+						host: "www.example.com",
+						path: "/api",
+						port: 3000,
+						stripPath: true,
+					},
+					{
+						host: "www.example.com",
+						internalPath: "/v1",
+						path: "/legacy/",
+						port: 3000,
+					},
+				],
+			},
+			"Auth",
+		);
+		expect(entry.drafts[0]).toMatchObject({
+			domains: ["www.example.com/api", "www.example.com/legacy"],
+			stripPathDomains: ["www.example.com/api"],
+		});
+		expect(entry.warnings).toContain(
+			"www.example.com/legacy forwards to the internal path /v1 on Dokploy, which isn't carried over : serve the app under that path itself.",
+		);
+	});
+
 	test("maps a docker-image app with its domain port, env and mounts", () => {
 		const entry = dokployApplication(IMAGE_APP, "Auth");
 		expect(entry.blocked).toBeNull();

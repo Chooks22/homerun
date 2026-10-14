@@ -5,7 +5,7 @@
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
-	import { isUnderDomain } from "#lib/service-domains.js";
+	import { domainHosts, isUnderDomain } from "#lib/service-domains.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
 
@@ -31,7 +31,9 @@
 	}: Props = $props();
 
 	const outsideDomains = $derived(
-		svc.domains.filter((domain) => !isUnderDomain(domain, baseDomain)),
+		domainHosts(svc.domains).filter(
+			(domain) => !isUnderDomain(domain, baseDomain),
+		),
 	);
 	const certEditable = $derived(
 		svc.dnsResolvable && !behindPangolin && outsideDomains.length > 0,

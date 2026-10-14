@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	branchLabel,
 	defaultHostname,
+	domainHosts,
+	isDomainEntry,
 	isUnderDomain,
 	normalizeDomains,
 	previewDomainTemplateProblem,
@@ -9,6 +11,7 @@ import {
 	renderPreviewDomain,
 	rewriteHostnames,
 	serviceHostnames,
+	splitDomain,
 } from "#lib/service-domains.js";
 
 const base = "example.com";
@@ -126,5 +129,42 @@ describe("service domains", () => {
 				A: "sergios.fr",
 			},
 		);
+	});
+});
+
+describe("domains with a path", () => {
+	test("splits an entry into its host and path prefix", () => {
+		expect(splitDomain("example.com")).toEqual({
+			host: "example.com",
+			path: "",
+		});
+		expect(splitDomain("example.com/api/v2")).toEqual({
+			host: "example.com",
+			path: "/api/v2",
+		});
+	});
+
+	test("accepts a domain with a path and refuses what would break a Traefik rule", () => {
+		expect(isDomainEntry("example.com")).toBe(true);
+		expect(isDomainEntry("example.com/api")).toBe(true);
+		expect(isDomainEntry("example.com/api/v2")).toBe(true);
+		expect(isDomainEntry("example.com/")).toBe(false);
+		expect(isDomainEntry("example.com//api")).toBe(false);
+		expect(isDomainEntry("example.com/a`b")).toBe(false);
+		expect(isDomainEntry("example.com/a b")).toBe(false);
+		expect(isDomainEntry("example.com/api?x=1")).toBe(false);
+		expect(isDomainEntry("nope/api")).toBe(false);
+	});
+
+	test("normalizes away a trailing slash", () => {
+		expect(normalizeDomains([" Example.com/API/ ", "example.com/api"])).toEqual(
+			["example.com/api"],
+		);
+	});
+
+	test("one host per distinct hostname, paths folded in", () => {
+		expect(
+			domainHosts(["example.com", "example.com/api", "api.example.com"]),
+		).toEqual(["example.com", "api.example.com"]);
 	});
 });

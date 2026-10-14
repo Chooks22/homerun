@@ -7,6 +7,7 @@ import { signInUrlFor } from "#lib/redirect-target.js";
 import {
 	GATE_CALLBACK_PATH,
 	GATE_GRANT_TTL_MS,
+	gatePrefix,
 	signGateToken,
 	verifyGateToken,
 } from "#lib/server/app-gate.js";
@@ -106,7 +107,9 @@ export const load = async (event) => {
 		},
 		GATE_GRANT_TTL_MS,
 	);
-	const callback = new URL(GATE_CALLBACK_PATH, new URL(request.target).origin);
+	const target = new URL(request.target);
+	const prefix = gatePrefix(svc.domains, target.host, target.pathname);
+	const callback = new URL(`${prefix}${GATE_CALLBACK_PATH}`, target.origin);
 	callback.searchParams.set("token", grant);
 	redirect(302, callback.toString(), { external: true });
 };

@@ -5,7 +5,7 @@ import {
 	publishedPortsProblem,
 } from "#lib/published-ports.js";
 import { environmentNameField } from "#lib/server/validation/environment-name.js";
-import { DOMAIN_RE } from "#lib/service-domains.js";
+import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
 import { splitShellWords } from "#lib/shell-words.js";
 
@@ -50,10 +50,9 @@ const baseServiceSchema = z.object({
 	cpuLimit: z.string().optional(),
 	domain: z
 		.string()
-		.trim()
-		.toLowerCase()
+		.overwrite(normalizeDomain)
 		.refine(
-			(value) => value === "" || DOMAIN_RE.test(value),
+			(value) => value === "" || isDomainEntry(value),
 			"That doesn't look like a domain name.",
 		)
 		.optional(),

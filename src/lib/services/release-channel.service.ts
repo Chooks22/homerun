@@ -310,7 +310,7 @@ class ReleaseChannelServiceClass {
 				config.baseDomain,
 			);
 			if (existing.dnsResolvable && previous.join() !== next.join()) {
-				void syncServiceDomainsDns(previous, next);
+				void syncServiceDomainsDns(previous, next, existing.id);
 			}
 			return existing;
 		}

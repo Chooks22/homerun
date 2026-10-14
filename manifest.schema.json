@@ -131,9 +131,8 @@
 			"type": "object"
 		},
 		"domains": {
-			"description": "Hostnames routed to the service.",
+			"description": "Hostnames routed to the service. One may carry a path (\"example.com/api\") to route only that path and what's under it, even while another service has the bare hostname.",
 			"items": {
-				"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
 				"type": "string"
 			},
 			"type": "array"
@@ -449,6 +448,13 @@
 		"runAsUser": {
 			"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
 			"type": ["string", "null"]
+		},
+		"stripPathDomains": {
+			"description": "The domains with a path whose prefix is stripped before the request reaches the container.",
+			"items": {
+				"type": "string"
+			},
+			"type": "array"
 		},
 		"tag": {
 			"description": "The image tag to run.",

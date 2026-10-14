@@ -213,6 +213,7 @@ export interface SingleDraftInput {
 	cpuLimit?: string | null;
 	devices?: string[];
 	domains?: string[];
+	stripPathDomains?: string[];
 	entrypoint?: string[] | null;
 	envVars: Record<string, string>;
 	files?: ComposeFileDraft[];
@@ -266,6 +267,7 @@ export function singleDraft(input: SingleDraftInput): ComposeServiceDraft {
 		restartPolicy: "unless-stopped",
 		runAsUser: input.runAsUser ?? null,
 		slug,
+		stripPathDomains: input.stripPathDomains ?? [],
 		tag: ref.tag,
 		volumes: input.volumes ?? [],
 		warnings: [],

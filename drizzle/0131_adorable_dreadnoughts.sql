@@ -1,0 +1,1 @@
+ALTER TABLE "service" ADD COLUMN "strip_path_domains" text[] DEFAULT '{}'::text[] NOT NULL;

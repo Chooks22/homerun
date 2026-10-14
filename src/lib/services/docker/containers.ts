@@ -145,6 +145,7 @@ export interface CreateContainerParams {
 	// <slug>.<baseDomain>, subnet-only reachability. Defaults to true.
 	dnsResolvable?: boolean;
 	domainPorts?: Record<string, number>;
+	stripPathDomains?: string[];
 	authPaths?: string[];
 	authPathsMode?: AuthPathsMode;
 	authRequired?: boolean;
@@ -272,6 +273,7 @@ export function containerCreateTemplate(params: CreateContainerParams) {
 				dnsResolvable: isHostNetwork ? false : params.dnsResolvable,
 				domainPorts: params.domainPorts,
 				domains: params.domains,
+				stripPathDomains: params.stripPathDomains,
 				errorPages: !params.remote && errorPagesPublished(),
 				httpCacheTtl: params.httpCacheTtl,
 				serviceId: params.serviceId,

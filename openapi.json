@@ -11083,9 +11083,8 @@
 										"type": "object"
 									},
 									"domains": {
-										"description": "Hostnames routed to the service.",
+										"description": "Hostnames routed to the service. One may carry a path (\"example.com/api\") to route only that path and what's under it, even while another service has the bare hostname.",
 										"items": {
-											"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
 											"type": "string"
 										},
 										"type": "array"
@@ -11401,6 +11400,13 @@
 									"runAsUser": {
 										"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
 										"type": ["string", "null"]
+									},
+									"stripPathDomains": {
+										"description": "The domains with a path whose prefix is stripped before the request reaches the container.",
+										"items": {
+											"type": "string"
+										},
+										"type": "array"
 									},
 									"tag": {
 										"description": "The image tag to run.",
@@ -19797,6 +19803,13 @@
 											"stackId": {
 												"type": ["string", "null"]
 											},
+											"stripPathDomains": {
+												"description": "The custom domains with a path whose prefix is stripped before the request reaches the container",
+												"items": {
+													"type": "string"
+												},
+												"type": "array"
+											},
 											"swarmServiceId": {
 												"type": ["string", "null"]
 											},
@@ -19914,6 +19927,7 @@
 											"portProtocol",
 											"publishedPorts",
 											"domainPorts",
+											"stripPathDomains",
 											"category",
 											"icon",
 											"stackId",
@@ -20173,8 +20187,8 @@
 												"type": "object"
 											},
 											"domains": {
+												"description": "Custom domains. One may carry a path (example.com/api) to route only that path prefix.",
 												"items": {
-													"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
 													"type": "string"
 												},
 												"type": "array"
@@ -20565,6 +20579,13 @@
 											"stackId": {
 												"type": "string"
 											},
+											"stripPathDomains": {
+												"description": "The domains with a path whose prefix is stripped before the request reaches the container.",
+												"items": {
+													"type": "string"
+												},
+												"type": "array"
+											},
 											"tag": {
 												"minLength": 1,
 												"type": "string"
@@ -20766,8 +20787,8 @@
 												"type": "object"
 											},
 											"domains": {
+												"description": "Custom domains. One may carry a path (example.com/api) to route only that path prefix.",
 												"items": {
-													"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
 													"type": "string"
 												},
 												"type": "array"
@@ -21165,6 +21186,13 @@
 											},
 											"stackId": {
 												"type": ["string", "null"]
+											},
+											"stripPathDomains": {
+												"description": "The domains with a path whose prefix is stripped before the request reaches the container.",
+												"items": {
+													"type": "string"
+												},
+												"type": "array"
 											},
 											"tag": {
 												"minLength": 1,
@@ -21759,6 +21787,13 @@
 										"stackId": {
 											"type": ["string", "null"]
 										},
+										"stripPathDomains": {
+											"description": "The custom domains with a path whose prefix is stripped before the request reaches the container",
+											"items": {
+												"type": "string"
+											},
+											"type": "array"
+										},
 										"swarmServiceId": {
 											"type": ["string", "null"]
 										},
@@ -21876,6 +21911,7 @@
 										"portProtocol",
 										"publishedPorts",
 										"domainPorts",
+										"stripPathDomains",
 										"category",
 										"icon",
 										"stackId",
@@ -22686,6 +22722,13 @@
 										"stackId": {
 											"type": ["string", "null"]
 										},
+										"stripPathDomains": {
+											"description": "The custom domains with a path whose prefix is stripped before the request reaches the container",
+											"items": {
+												"type": "string"
+											},
+											"type": "array"
+										},
 										"swarmServiceId": {
 											"type": ["string", "null"]
 										},
@@ -22803,6 +22846,7 @@
 										"portProtocol",
 										"publishedPorts",
 										"domainPorts",
+										"stripPathDomains",
 										"category",
 										"icon",
 										"stackId",
@@ -23079,8 +23123,8 @@
 										"type": "object"
 									},
 									"domains": {
+										"description": "Custom domains. One may carry a path (example.com/api) to route only that path prefix.",
 										"items": {
-											"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
 											"type": "string"
 										},
 										"type": "array"
@@ -23473,6 +23517,13 @@
 									},
 									"stackId": {
 										"type": ["string", "null"]
+									},
+									"stripPathDomains": {
+										"description": "The domains with a path whose prefix is stripped before the request reaches the container.",
+										"items": {
+											"type": "string"
+										},
+										"type": "array"
 									},
 									"tag": {
 										"minLength": 1,
@@ -24059,6 +24110,13 @@
 										"stackId": {
 											"type": ["string", "null"]
 										},
+										"stripPathDomains": {
+											"description": "The custom domains with a path whose prefix is stripped before the request reaches the container",
+											"items": {
+												"type": "string"
+											},
+											"type": "array"
+										},
 										"swarmServiceId": {
 											"type": ["string", "null"]
 										},
@@ -24176,6 +24234,7 @@
 										"portProtocol",
 										"publishedPorts",
 										"domainPorts",
+										"stripPathDomains",
 										"category",
 										"icon",
 										"stackId",
@@ -24848,6 +24907,12 @@
 														"type": "object"
 													},
 													"type": "array"
+												},
+												"stripPathDomains": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
 												}
 											},
 											"required": [
@@ -24861,6 +24926,7 @@
 												"networkMode",
 												"portProtocol",
 												"primaryDomain",
+												"stripPathDomains",
 												"publishedPorts"
 											],
 											"type": "object"
@@ -27472,9 +27538,8 @@
 										"type": "object"
 									},
 									"domains": {
-										"description": "Hostnames routed to the service.",
+										"description": "Hostnames routed to the service. One may carry a path (\"example.com/api\") to route only that path and what's under it, even while another service has the bare hostname.",
 										"items": {
-											"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
 											"type": "string"
 										},
 										"type": "array"
@@ -27790,6 +27855,13 @@
 									"runAsUser": {
 										"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
 										"type": ["string", "null"]
+									},
+									"stripPathDomains": {
+										"description": "The domains with a path whose prefix is stripped before the request reaches the container.",
+										"items": {
+											"type": "string"
+										},
+										"type": "array"
 									},
 									"tag": {
 										"description": "The image tag to run.",

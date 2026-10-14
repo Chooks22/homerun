@@ -67,6 +67,7 @@ export interface ComposeServiceDraft {
 	restartPolicy: ComposeRestartPolicy;
 	runAsUser: string | null;
 	slug: string;
+	stripPathDomains: string[];
 	tag: string;
 	volumes: ComposeVolumeDraft[];
 	warnings: string[];
@@ -689,6 +690,7 @@ function draftFor(
 		restartPolicy: parseRestart(raw.restart),
 		runAsUser: parseUser(raw.user, warnings),
 		slug,
+		stripPathDomains: [],
 		tag,
 		volumes,
 		warnings,

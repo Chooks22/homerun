@@ -23,6 +23,7 @@
 			dnsResolvable: boolean;
 			domainPorts: Record<string, number>;
 			networkMode: string;
+			stripPathDomains: string[];
 		};
 	}
 
@@ -45,6 +46,9 @@
 	let ports = $derived(
 		svc.domains.map((domain) => String(svc.domainPorts[domain] ?? "")),
 	);
+	let strips = $derived(
+		svc.domains.map((domain) => svc.stripPathDomains.includes(domain)),
+	);
 	let defaultEnabled = $derived(svc.defaultDomainEnabled);
 	let primary = $derived(mainHost ?? "");
 
@@ -62,6 +66,7 @@
 		}
 		domains = domains.filter((_, i) => i !== index);
 		ports = ports.filter((_, i) => i !== index);
+		strips = strips.filter((_, i) => i !== index);
 	}
 </script>
 
@@ -137,6 +142,7 @@
             value={fallbackHost}
           />
           <div class="hidden w-28 shrink-0 sm:block"></div>
+          <div class="hidden w-24 shrink-0 sm:block"></div>
           {@render mainToggle(fallbackHost, !defaultEnabled)}
           <label class="text-text-muted ml-auto flex shrink-0 items-center gap-2 text-xs sm:ml-0 sm:w-20">
             <Checkbox
@@ -158,7 +164,7 @@
               aria-label="Domain"
               name="domains"
               oninput={(event) => renameDomain(index, event.currentTarget.value)}
-              placeholder="app.example.com"
+              placeholder="app.example.com or example.com/api"
               spellcheck="false"
               type="text"
               value={domain}
@@ -178,6 +184,22 @@
               type="number"
               value={ports[index]}
             />
+            <input name="domainStripPaths" type="hidden" value={strips[index] ? "on" : ""}>
+            <div class="flex shrink-0 items-center sm:w-24">
+              {#if domain.includes("/")}
+                <label class="text-text-muted flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={strips[index]}
+                    onCheckedChange={(checked) => {
+                      strips = strips.map((strip, i) =>
+                        i === index ? checked : strip,
+                      );
+                    }}
+                  />
+                  Strip path
+                </label>
+              {/if}
+            </div>
             {@render mainToggle(domain, !domain)}
             <div class="shrink-0 sm:w-20">
               <Button
@@ -197,6 +219,7 @@
         onclick={() => {
           domains = [...domains, ""];
           ports = [...ports, ""];
+          strips = [...strips, false];
         }}
         size="sm"
         type="button"
@@ -207,8 +230,11 @@
       </Button>
       <p class="text-text-subtle text-xs">
         A domain's port sends it to another port of the same container (blank
-        means {svc.containerPort}), e.g. a web UI and an API side by side. The
-        main domain is the service's link. Point each domain's
+        means {svc.containerPort}), e.g. a web UI and an API side by side. A
+        domain with a path, like example.com/api, routes only that path and
+        what's under it, even when another service has example.com itself;
+        Strip path sends /api/v2 to the container as /v2. The main domain is
+        the service's link. Point each domain's
         DNS (A/CNAME) at this server yourself first : this app only tells
         Traefik to route it, it doesn't manage DNS for domains outside
         {baseDomain}.

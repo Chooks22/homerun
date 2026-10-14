@@ -196,7 +196,7 @@ class EnvironmentServiceClass {
 			config.baseDomain,
 		);
 		if (environment.dnsResolvable && previous.join() !== next.join()) {
-			void syncServiceDomainsDns(previous, next);
+			void syncServiceDomainsDns(previous, next, environment.id);
 		}
 		logger.info(
 			`Environment updated: parent=${parent.id} service=${environment.id} ref=${input.ref}`,

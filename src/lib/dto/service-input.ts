@@ -21,6 +21,7 @@ export interface NewServiceInput {
 	cpuLimit?: string | null;
 	dnsResolvable?: boolean;
 	domains?: string[];
+	stripPathDomains?: string[];
 	envVars: Record<string, string>;
 	secretEnvKeys?: string[];
 	gitBakeFile?: string | null;
@@ -93,6 +94,7 @@ export type ServiceUpdateInput = Partial<
 		| "currentStatus"
 		| "defaultDomainEnabled"
 		| "domains"
+		| "stripPathDomains"
 		| "primaryDomain"
 		| "customSslCertEnc"
 		| "customSslKeyEnc"

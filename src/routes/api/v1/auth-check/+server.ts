@@ -7,8 +7,9 @@ import {
 	GATE_REDIRECT_TTL_MS,
 	GATE_SESSION_TTL_MS,
 	gateCookie,
+	gatePrefix,
 	policyVersion,
-	readGateCookie,
+	readGateCookies,
 	signGateToken,
 	verifyGateToken,
 } from "#lib/server/app-gate.js";
@@ -85,6 +86,7 @@ function challenge(svc: ServiceDTO, forwarded: ForwardedRequest): Response {
 async function handleCallback(
 	svc: ServiceDTO,
 	forwarded: ForwardedRequest,
+	prefix: string,
 ): Promise<Response> {
 	const token = new URLSearchParams(forwarded.search).get("token");
 	const payload = token ? verifyGateToken(token) : null;
@@ -116,8 +118,13 @@ async function handleCallback(
 		`App gate granted: service=${svc.id} user=${payload.userId} host=${forwarded.host}`,
 	);
 	return redirect(
-		payload.target ?? forwarded.origin,
-		gateCookie(session, forwarded.secure, GATE_SESSION_TTL_MS / 1000),
+		payload.target ?? `${forwarded.origin}${prefix}`,
+		gateCookie(
+			session,
+			forwarded.secure,
+			GATE_SESSION_TTL_MS / 1000,
+			prefix || "/",
+		),
 	);
 }
 
@@ -187,14 +194,18 @@ async function checkWorkstation(
 		);
 	}
 
-	const cookie = readGateCookie(request.headers.get("cookie"));
-	const payload = cookie ? verifyGateToken(cookie) : null;
-	if (
-		payload?.userId === gate.ownerId &&
-		payload.serviceId === key &&
-		payload.host === forwarded.host &&
-		payload.policyVersion === gate.version
-	) {
+	const signedIn = readGateCookies(request.headers.get("cookie")).some(
+		(cookie) => {
+			const payload = verifyGateToken(cookie);
+			return (
+				payload?.userId === gate.ownerId &&
+				payload.serviceId === key &&
+				payload.host === forwarded.host &&
+				payload.policyVersion === gate.version
+			);
+		},
+	);
+	if (signedIn) {
 		return new Response("OK", { status: 200 });
 	}
 
@@ -232,16 +243,21 @@ export const GET = async ({ request, url }) => {
 	}
 
 	const forwarded = readForwarded(request, url);
+	const prefix = gatePrefix(svc.domains, forwarded.host, forwarded.path);
 
-	if (forwarded.path === GATE_LOGOUT_PATH) {
-		return redirect(forwarded.origin, gateCookie("", forwarded.secure, 0));
+	if (forwarded.path === `${prefix}${GATE_LOGOUT_PATH}`) {
+		return redirect(
+			`${forwarded.origin}${prefix}`,
+			gateCookie("", forwarded.secure, 0, prefix || "/"),
+		);
 	}
-	if (forwarded.path === GATE_CALLBACK_PATH) {
-		return await handleCallback(svc, forwarded);
+	if (forwarded.path === `${prefix}${GATE_CALLBACK_PATH}`) {
+		return await handleCallback(svc, forwarded, prefix);
 	}
 
-	const cookie = readGateCookie(request.headers.get("cookie"));
-	const payload = cookie ? verifyGateToken(cookie) : null;
+	const payload = readGateCookies(request.headers.get("cookie"))
+		.map(verifyGateToken)
+		.find((candidate) => candidate?.serviceId === svc.id);
 	const currentPolicy = policyVersion(svc);
 	if (
 		payload?.userId &&

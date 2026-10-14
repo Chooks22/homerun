@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { config } from "#lib/config.js";
+import { splitDomain } from "#lib/service-domains.js";
 
 export const GATE_COOKIE_NAME = "homerun_app_session";
 export const GATE_CALLBACK_PATH = "/__homerun_auth/callback";
@@ -106,41 +107,66 @@ export function verifyGateToken(token: string): GateTokenPayload | null {
 }
 
 /**
- * Pulls the login-wall session cookie out of a raw `Cookie` header, as
- * forwarded from the gated app's own host.
- *
- * @returns The decoded cookie value, or undefined when it isn't present.
+ * The path prefix of the domain entry in `domains` that routes `host` and
+ * `path` (`/api` for `example.com/api`), the longest when several match, or
+ * an empty string when a bare hostname routes it. The login wall's callback,
+ * logout and session cookie live under it, since that's all of the host the
+ * service answers.
  */
-export function readGateCookie(
-	cookieHeader: string | null,
-): string | undefined {
+export function gatePrefix(
+	domains: readonly string[],
+	host: string,
+	path: string,
+): string {
+	const bareHost = host.split(":")[0]?.toLowerCase();
+	let prefix = "";
+	for (const entry of domains) {
+		const split = splitDomain(entry);
+		if (
+			split.host === bareHost &&
+			split.path.length > prefix.length &&
+			(path === split.path || path.startsWith(`${split.path}/`))
+		) {
+			prefix = split.path;
+		}
+	}
+	return prefix;
+}
+
+/**
+ * Pulls every login-wall session cookie out of a raw `Cookie` header, as
+ * forwarded from the gated app's own host. There can be several when gated
+ * services share a host under different paths, each cookie scoped to its own.
+ *
+ * @returns The decoded cookie values, most specific path first as browsers
+ * send them.
+ */
+export function readGateCookies(cookieHeader: string | null): string[] {
 	if (!cookieHeader) {
-		return undefined;
+		return [];
 	}
-	for (const part of cookieHeader.split(";")) {
+	return cookieHeader.split(";").flatMap((part) => {
 		const eq = part.indexOf("=");
-		if (eq === -1) {
-			continue;
-		}
-		if (part.slice(0, eq).trim() === GATE_COOKIE_NAME) {
-			return decodeURIComponent(part.slice(eq + 1).trim());
-		}
-	}
-	return undefined;
+		return eq !== -1 && part.slice(0, eq).trim() === GATE_COOKIE_NAME
+			? [decodeURIComponent(part.slice(eq + 1).trim())]
+			: [];
+	});
 }
 
 /**
  * Builds the `Set-Cookie` value for the login-wall session cookie : HttpOnly,
- * SameSite=Lax, path `/`, Secure when requested. A max age of 0 clears it.
+ * SameSite=Lax, scoped to `path` (`/` unless the service is routed under a
+ * path prefix), Secure when requested. A max age of 0 clears it.
  */
 export function gateCookie(
 	value: string,
 	secure: boolean,
 	maxAgeSeconds: number,
+	path = "/",
 ) {
 	const attrs = [
 		`${GATE_COOKIE_NAME}=${encodeURIComponent(value)}`,
-		"Path=/",
+		`Path=${path}`,
 		"HttpOnly",
 		"SameSite=Lax",
 		`Max-Age=${maxAgeSeconds}`,

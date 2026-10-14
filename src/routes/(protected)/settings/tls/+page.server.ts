@@ -4,7 +4,7 @@ import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
-import { serviceHostnames } from "#lib/service-domains.js";
+import { domainHosts, serviceHostnames } from "#lib/service-domains.js";
 import { DeploymentService } from "#lib/services/deploy.service.js";
 import {
 	InstanceSettingsError,
@@ -29,10 +29,12 @@ async function coveredServices(names: string[]) {
 		(svc) =>
 			(svc.containerId || svc.swarmServiceId) &&
 			svc.dnsResolvable &&
-			serviceHostnames(
-				svc.toJSON(),
-				svc.stackId ? slugs.get(svc.stackId) : null,
-				config.baseDomain,
+			domainHosts(
+				serviceHostnames(
+					svc.toJSON(),
+					svc.stackId ? slugs.get(svc.stackId) : null,
+					config.baseDomain,
+				),
 			).some((host) => certificateCovers(names, host)),
 	);
 }

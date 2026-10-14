@@ -118,6 +118,7 @@ function dockerError(statusCode: number, message: string) {
 }
 
 const dnsDeletes: string[] = [];
+let otherServices: Svc[] = [];
 let dnsFailure: unknown = null;
 const warnings: string[] = [];
 const originalBaseDomain = config.baseDomain;
@@ -149,6 +150,9 @@ beforeEach(() => {
 		return null;
 	});
 	stub(PangolinService, "deleteDnsRecord", async () => null);
+	otherServices = [];
+	stub(ServiceDTO, "list", async () => otherServices);
+	stub(StackDTO, "list", async () => []);
 	stub(Logger.prototype, "warn", (message: string) => {
 		warnings.push(message);
 	});
@@ -401,6 +405,27 @@ describe("ServiceLifecycleService DNS cleanup", () => {
 
 		expect(dnsDeletes).toEqual(["shop-web.example.com", "shop.acme.io"]);
 		expect(state.deleted).toBe(true);
+	});
+
+	test("a domain with a path keeps the host record another service still routes", async () => {
+		stub(StackDTO, "get", async () => null);
+		otherServices = [
+			fakeService({
+				dnsResolvable: true,
+				domains: ["shop.acme.io"],
+				id: "front",
+				slug: "front",
+			}).svc,
+		];
+		const { svc } = fakeService({
+			defaultDomainEnabled: false,
+			dnsResolvable: true,
+			domains: ["shop.acme.io/api", "api.acme.io/v1"],
+		});
+
+		await ServiceLifecycleService.deleteService(svc);
+
+		expect(dnsDeletes).toEqual(["api.acme.io"]);
 	});
 
 	test("a DNS provider failure doesn't block the delete or surface as a warning", async () => {

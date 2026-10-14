@@ -30,6 +30,7 @@ export const serviceConfigSchema = z.object({
 		networkMode: z.enum(["bridge", "host"]),
 		portProtocol: z.enum(["tcp", "udp", "both"]),
 		primaryDomain: z.string().nullable(),
+		stripPathDomains: z.array(z.string()),
 		publishedPorts: z.array(
 			z.object({
 				containerPort: z.number().int(),
@@ -192,6 +193,7 @@ export function serviceConfig(
 			networkMode: row.networkMode,
 			portProtocol: row.portProtocol,
 			primaryDomain: row.primaryDomain,
+			stripPathDomains: row.stripPathDomains,
 			publishedPorts: row.publishedPorts,
 		},
 		runtime: {

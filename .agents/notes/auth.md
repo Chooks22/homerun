@@ -614,6 +614,17 @@ The round trip, all of it through the one forwardAuth channel:
 
 `/__homerun_auth/logout` clears the cookie the same way.
 
+**On a path domain (`example.com/api`) all of it moves under the path.** The
+service's routers only answer `/api` and below, so a callback at the host root
+would land on whichever service owns `example.com`. `gatePrefix` (`app-gate.ts`)
+finds the domain entry a request came in on, and auth-check, `/app-auth` and the
+`_gate` router label all use `/api/__homerun_auth/callback` and `/logout`. The
+session cookie gets `Path=/api`: two gated services on one host would otherwise
+overwrite each other's `homerun_app_session` and bounce the visitor between
+sign-ins. auth-check reads every cookie of that name (`readGateCookies`) and
+keeps the one signed for its service, so the `/` service's cookie riding along
+on `/api` requests is harmless.
+
 **The hot path is DB-free.** The cookie is a self-contained signed token
 (`src/lib/server/app-gate.ts`), so a request with a valid one costs an HMAC
 verify plus a 10s-TTL in-memory lookup of the service row

@@ -806,6 +806,25 @@ renamed, and an override keyed on it would silently go stale. Anything that
 isn't HTTP (SSH, UDP) can't be routed by hostname at all, it needs a published
 port below.
 
+## Path domains (`example.com/api`, `service.stripPathDomains`)
+
+A custom domain entry can carry a path, stored as-is in `domains`
+(`isDomainEntry` validates it, `splitDomain` splits it). Keeping it a string is
+what makes it cheap: `domainTaken`'s exact-string overlap already lets
+`example.com` on one service and `example.com/api` on another coexist, and
+`domainPorts` stays keyed per entry. The router rule is
+`Host() && (Path(/api) || PathPrefix(/api/))`, never a bare `PathPrefix(/api)`,
+which would also match `/apifoo`; no explicit priority, Traefik's default (rule
+length) already ranks it above the bare host's router. Anything about hosts
+rather than routes goes through `domainHosts` first: DNS sync, the cert
+resolver, TLS coverage, the error page's "is this host ours". Service DNS
+deletion (`syncServiceDomainsDns`, also used on service delete) skips any host
+`serviceRoutedHosts` says another service still routes, since a path domain
+going away mustn't take down the record its sibling serves. Stripping is a
+`stripprefix` middleware appended last to the entry's router chains, after
+forwardAuth, so auth-check always sees the public path. The login wall's side of
+it is in `auth.md`.
+
 ## Published ports (`service.publishedPorts`, Networking tab)
 
 HTTP(S) goes through Traefik by domain, but UDP and non-TLS TCP (a VPN, SSH for

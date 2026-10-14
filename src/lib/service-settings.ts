@@ -1,8 +1,9 @@
 import {
-	DOMAIN_RE,
 	defaultHostname,
+	isDomainEntry,
 	normalizeDomains,
 	serviceHostnames,
+	splitDomain,
 } from "#lib/service-domains.js";
 import { parseCronSchedule } from "#lib/services/cron/cron-expression.js";
 
@@ -13,6 +14,7 @@ export interface RoutingFields {
 	domains: string[];
 	primaryDomain: string | null;
 	slug: string;
+	stripPathDomains: string[];
 }
 
 export interface RoutingPatch {
@@ -20,13 +22,15 @@ export interface RoutingPatch {
 	domainPorts: Record<string, number>;
 	domains: string[];
 	primaryDomain: string | null;
+	stripPathDomains: string[];
 }
 
 /**
  * A service's routed domains after an update: `input`'s fields over
  * `current`'s, the default hostname dropped from the custom list, a port
- * kept only for a listed domain that isn't the container port, and the main
- * domain kept only while it's routed. Null when the update touches none of
+ * kept only for a listed domain that isn't the container port, path
+ * stripping kept only for a listed domain with a path, and the main domain
+ * kept only while it's routed. Null when the update touches none of
  * them.
  *
  * @returns The new routing columns and every hostname they route, or why
@@ -41,7 +45,8 @@ export function routingPatch(
 		input.domains === undefined &&
 		input.defaultDomainEnabled === undefined &&
 		input.primaryDomain === undefined &&
-		input.domainPorts === undefined
+		input.domainPorts === undefined &&
+		input.stripPathDomains === undefined
 	) {
 		return null;
 	}
@@ -59,7 +64,7 @@ export function routingPatch(
 	const domains = normalizeDomains(merged.domains).filter(
 		(domain) => domain !== fallback,
 	);
-	const invalid = domains.find((domain) => !DOMAIN_RE.test(domain));
+	const invalid = domains.find((domain) => !isDomainEntry(domain));
 	if (invalid) {
 		return { error: `"${invalid}" isn't a valid domain.` };
 	}
@@ -85,6 +90,9 @@ export function routingPatch(
 				domains.includes(domain) && port !== merged.containerPort,
 		),
 	);
+	const stripPathDomains = normalizeDomains(merged.stripPathDomains).filter(
+		(domain) => domains.includes(domain) && splitDomain(domain).path !== "",
+	);
 	const chosen = merged.primaryDomain?.trim().toLowerCase() ?? "";
 	return {
 		hostnames,
@@ -95,6 +103,7 @@ export function routingPatch(
 			primaryDomain: hostnames.includes(chosen)
 				? chosen
 				: (hostnames[0] ?? null),
+			stripPathDomains,
 		},
 	};
 }

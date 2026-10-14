@@ -6,6 +6,7 @@ import {
 	type ComposeServiceDraft,
 	type ComposeVolumeDraft,
 } from "#lib/compose-import.js";
+import { normalizeDomain } from "#lib/service-domains.js";
 import {
 	composeDrafts,
 	imageSummary,
@@ -155,11 +156,51 @@ function publicPort(row: RawRow): number | null {
 	return null;
 }
 
-function dokployDomains(row: RawRow): string[] {
-	return rows(row.domains).flatMap((domain) => {
-		const host = str(domain, "host");
-		return host ? [host] : [];
+/**
+ * A Dokploy domain row as a Homerun domain entry: its host, plus its path
+ * when it routes one (`example.com/api`), whether Dokploy strips that path,
+ * and a warning when it also rewrote the request to an internal path, which
+ * isn't carried over. Null without a host.
+ */
+function dokployDomain(
+	domain: RawRow,
+): { entry: string; strip: boolean; warning: string | null } | null {
+	const host = str(domain, "host");
+	if (!host) {
+		return null;
+	}
+	const path = (str(domain, "path") ?? "").replace(/^\/*/, "/");
+	const entry = normalizeDomain(`${host}${path}`);
+	const internalPath = str(domain, "internalPath");
+	return {
+		entry,
+		strip: entry.includes("/") && domain.stripPath === true,
+		warning:
+			internalPath && internalPath !== "/"
+				? `${entry} forwards to the internal path ${internalPath} on Dokploy, which isn't carried over : serve the app under that path itself.`
+				: null,
+	};
+}
+
+/** Every Dokploy domain of `row` as Homerun domain entries, the ones whose path is stripped, and what couldn't be carried over. */
+function dokployDomains(row: RawRow): {
+	domains: string[];
+	stripPathDomains: string[];
+	warnings: string[];
+} {
+	const entries = rows(row.domains).flatMap((domain) => {
+		const parsed = dokployDomain(domain);
+		return parsed ? [parsed] : [];
 	});
+	return {
+		domains: entries.map((parsed) => parsed.entry),
+		stripPathDomains: entries
+			.filter((parsed) => parsed.strip)
+			.map((parsed) => parsed.entry),
+		warnings: entries.flatMap((parsed) =>
+			parsed.warning ? [parsed.warning] : [],
+		),
+	};
 }
 
 function limits(row: RawRow): {
@@ -276,6 +317,7 @@ interface AppContext {
 		memoryLimitMb: number | null;
 		name: string;
 		public: boolean;
+		stripPathDomains: string[];
 	};
 	row: RawRow;
 	slug: string;
@@ -389,19 +431,20 @@ export function dokployApplication(
 	projectName: string,
 ): MigrationEntry {
 	const name = str(row, "name", "appName") ?? "unnamed";
+	const { warnings, ...domains } = dokployDomains(row);
 	const context: AppContext = {
 		base: {
 			envVars: parseEnvBlob(row.env),
 			files: dokployFileMounts(row),
 			name,
-			domains: dokployDomains(row),
+			...domains,
 			public: rows(row.domains).length > 0,
 			...dokployStartCommand(row),
 			...limits(row),
 		},
 		row,
 		slug: sourceSlug(name),
-		warnings: [],
+		warnings,
 	};
 	if (
 		Object.values(context.base.envVars).some((value) =>
@@ -532,11 +575,17 @@ export function dokployCompose(
 			parsed.drafts.find((d) => d.key === target) ??
 			(parsed.drafts.length === 1 ? parsed.drafts[0] : undefined);
 		const port = num(domain, "port");
-		const host = str(domain, "host");
+		const mapped = dokployDomain(domain);
 		if (draft) {
 			draft.dnsResolvable = true;
-			if (host && !draft.domains.includes(host)) {
-				draft.domains.push(host);
+			if (mapped && !draft.domains.includes(mapped.entry)) {
+				draft.domains.push(mapped.entry);
+				if (mapped.strip) {
+					draft.stripPathDomains.push(mapped.entry);
+				}
+				if (mapped.warning) {
+					draft.warnings.push(mapped.warning);
+				}
 			}
 			if (port) {
 				draft.containerPort = port;

@@ -20,11 +20,23 @@ DNS-resolvability. The per-app login wall lives on the
   `<slug>.<baseDomain>` one (which has its own "Routed" toggle, so it can be
   dropped once a real domain replaces it). Each extra domain can target its own
   container port (blank means the container port above), so one container can
-  serve its web UI and its API on two hostnames. Pick one as the main domain:
-  it's the link shown under the service's name and the one used for deploy
-  notifications, the uptime probe and search. At least one hostname has to stay
-  routed, otherwise turn public routing off in the Network section below
-  instead.
+  serve its web UI and its API on two hostnames. A domain can carry a path,
+  `example.com/api`: it then routes only `/api` and what's under it, even while
+  another service serves `example.com` itself (the longer rule wins), so a
+  frontend and its API can share one origin without CORS. Its **Strip path** box
+  removes the prefix before the request reaches the container (`/api/v2` arrives
+  as `/v2`); leave it off for an app configured to serve under that path itself.
+  Two services can't claim the same domain and path. In the
+  [REST API](api-and-cli.md), a [Homerun Manifest](manifest.md) and
+  [Terraform](infrastructure-as-code.md), the path goes in `domains` as is and
+  the stripped ones are listed in `stripPathDomains` (`strip_path_domains`). DNS
+  automation manages the host once, and deleting a path domain never deletes a
+  record another service still routes. The [login wall](login-wall.md) works on
+  a path domain too, with its sign-in scoped to that path, so two gated services
+  on one host each keep their own session. Pick one as the main domain: it's the
+  link shown under the service's name and the one used for deploy notifications,
+  the uptime probe and search. At least one hostname has to stay routed,
+  otherwise turn public routing off in the Network section below instead.
 
 ![A service's Networking tab, with its automatic hostname and domains](images/networking.webp)
 

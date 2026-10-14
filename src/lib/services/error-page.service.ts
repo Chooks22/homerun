@@ -7,7 +7,7 @@ import {
 	errorPageKind,
 	renderErrorPage,
 } from "#lib/error-pages.js";
-import { serviceHostnames } from "#lib/service-domains.js";
+import { domainHosts, serviceHostnames } from "#lib/service-domains.js";
 
 /**
  * Serves the branded pages Traefik shows instead of its own errors: the
@@ -56,10 +56,12 @@ class ErrorPageServiceClass {
 		const stackSlugs = new Map(stacks.map((stack) => [stack.id, stack.slug]));
 		return services.some((entry) => {
 			const row = entry.toJSON();
-			return serviceHostnames(
-				row,
-				row.stackId ? stackSlugs.get(row.stackId) : null,
-				config.baseDomain,
+			return domainHosts(
+				serviceHostnames(
+					row,
+					row.stackId ? stackSlugs.get(row.stackId) : null,
+					config.baseDomain,
+				),
 			).includes(host);
 		});
 	}

@@ -13,7 +13,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { HOST_ACCESS_MESSAGE, hostAccessRequested } from "#lib/host-access.js";
 import { Logger } from "#lib/logger.js";
-import { DOMAIN_RE, normalizeDomains } from "#lib/service-domains.js";
+import { isDomainEntry, normalizeDomains } from "#lib/service-domains.js";
 import { uniqueSlug } from "#lib/slug.js";
 import { tarArchive } from "#lib/tar.js";
 import { CapacityService } from "./capacity.service.ts";
@@ -162,12 +162,12 @@ class ComposeImportServiceClass {
 		}
 	}
 
-	/** The draft's valid hostnames that no other service already routes, so an imported domain never collides with an existing one. */
+	/** The draft's valid domains (with or without a path) that no other service already routes, so an imported domain never collides with an existing one. */
 	async #freeDomains(raw: string[]): Promise<string[]> {
 		const free: string[] = [];
 		for (const domain of normalizeDomains(raw)) {
 			// oxlint-disable-next-line no-await-in-loop -- a handful of domains per service
-			if (DOMAIN_RE.test(domain) && !(await ServiceDTO.domainTaken([domain]))) {
+			if (isDomainEntry(domain) && !(await ServiceDTO.domainTaken([domain]))) {
 				free.push(domain);
 			}
 		}
@@ -193,6 +193,9 @@ class ComposeImportServiceClass {
 			cpuLimit: draft.cpuLimit,
 			dnsResolvable: draft.dnsResolvable,
 			domains,
+			stripPathDomains: draft.stripPathDomains.filter((domain) =>
+				domains.includes(domain),
+			),
 			envVars: draft.envVars,
 			gitBuildContext: draft.build?.context ?? null,
 			gitBuildMethod: draft.build?.method ?? "dockerfile",

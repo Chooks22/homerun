@@ -7675,7 +7675,7 @@ export interface operations {
 					domainPorts?: {
 						[key: string]: number;
 					};
-					/** @description Hostnames routed to the service. */
+					/** @description Hostnames routed to the service. One may carry a path ("example.com/api") to route only that path and what's under it, even while another service has the bare hostname. */
 					domains?: string[];
 					/** @description Argv list, null keeps the image's own */
 					entrypoint?: string[] | null;
@@ -7779,6 +7779,8 @@ export interface operations {
 					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
 					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 					runAsUser?: string | null;
+					/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
+					stripPathDomains?: string[];
 					/** @description The image tag to run. */
 					tag?: string;
 					/** @description Collect OpenTelemetry traces from the service. */
@@ -12104,6 +12106,8 @@ export interface operations {
 						secretEnvKeys: string[];
 						slug: string;
 						stackId: string | null;
+						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
+						stripPathDomains: string[];
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -12213,6 +12217,7 @@ export interface operations {
 							domainPorts?: {
 								[key: string]: number;
 							};
+							/** @description Custom domains. One may carry a path (example.com/api) to route only that path prefix. */
 							domains?: string[];
 							/** @description Argv list, null keeps the image's own */
 							entrypoint?: string[] | null;
@@ -12327,6 +12332,8 @@ export interface operations {
 							secretEnvKeys?: string[];
 							slug: string;
 							stackId?: string;
+							/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
+							stripPathDomains?: string[];
 							tag?: string;
 							tracesEnabled?: boolean;
 							uptimeEnabled?: boolean;
@@ -12380,6 +12387,7 @@ export interface operations {
 							domainPorts?: {
 								[key: string]: number;
 							};
+							/** @description Custom domains. One may carry a path (example.com/api) to route only that path prefix. */
 							domains?: string[];
 							/** @description Argv list, null keeps the image's own */
 							entrypoint?: string[] | null;
@@ -12479,6 +12487,8 @@ export interface operations {
 							secretEnvKeys?: string[];
 							slug?: string;
 							stackId?: string | null;
+							/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
+							stripPathDomains?: string[];
 							tag?: string;
 							/** @description Create the service from this template (image, variables, volumes and linked services), then apply the other fields sent. name and slug default to the template's. */
 							templateId: string;
@@ -12656,6 +12666,8 @@ export interface operations {
 						secretEnvKeys: string[];
 						slug: string;
 						stackId: string | null;
+						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
+						stripPathDomains: string[];
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -12900,6 +12912,8 @@ export interface operations {
 						secretEnvKeys: string[];
 						slug: string;
 						stackId: string | null;
+						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
+						stripPathDomains: string[];
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -13087,6 +13101,7 @@ export interface operations {
 					domainPorts?: {
 						[key: string]: number;
 					};
+					/** @description Custom domains. One may carry a path (example.com/api) to route only that path prefix. */
 					domains?: string[];
 					/** @description Argv list, null keeps the image's own */
 					entrypoint?: string[] | null;
@@ -13186,6 +13201,8 @@ export interface operations {
 					secretEnvKeys?: string[];
 					slug?: string;
 					stackId?: string | null;
+					/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
+					stripPathDomains?: string[];
 					tag?: string;
 					tracesEnabled?: boolean;
 					uptimeEnabled?: boolean;
@@ -13361,6 +13378,8 @@ export interface operations {
 						secretEnvKeys: string[];
 						slug: string;
 						stackId: string | null;
+						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
+						stripPathDomains: string[];
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -13675,6 +13694,7 @@ export interface operations {
 								/** @enum {string} */
 								protocol: "tcp" | "udp";
 							}[];
+							stripPathDomains: string[];
 						};
 						runtime: {
 							capAdd: string[];
@@ -14707,7 +14727,7 @@ export interface operations {
 					domainPorts?: {
 						[key: string]: number;
 					};
-					/** @description Hostnames routed to the service. */
+					/** @description Hostnames routed to the service. One may carry a path ("example.com/api") to route only that path and what's under it, even while another service has the bare hostname. */
 					domains?: string[];
 					/** @description Argv list, null keeps the image's own */
 					entrypoint?: string[] | null;
@@ -14811,6 +14831,8 @@ export interface operations {
 					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
 					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 					runAsUser?: string | null;
+					/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
+					stripPathDomains?: string[];
 					/** @description The image tag to run. */
 					tag?: string;
 					/** @description Collect OpenTelemetry traces from the service. */

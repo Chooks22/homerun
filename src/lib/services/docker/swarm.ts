@@ -144,6 +144,7 @@ export function swarmServiceTemplate(params: CreateSwarmServiceParams) {
 					params.networkMode === "host" ? false : params.dnsResolvable,
 				domainPorts: params.domainPorts,
 				domains: params.domains,
+				stripPathDomains: params.stripPathDomains,
 				errorPages: errorPagesPublished(),
 				httpCacheTtl: params.httpCacheTtl,
 				networkName: swarmNetworkName(),
@@ -287,6 +288,7 @@ export interface CreateSwarmServiceParams {
 	defaultDomainEnabled?: boolean;
 	dnsResolvable?: boolean;
 	domainPorts?: Record<string, number>;
+	stripPathDomains?: string[];
 	authPaths?: string[];
 	authPathsMode?: AuthPathsMode;
 	authRequired?: boolean;

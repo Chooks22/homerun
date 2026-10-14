@@ -34,7 +34,7 @@ const UNTRUSTED_CERT_NOTE =
  * an outage would be noise, and reporting it as up would be a lie.
  */
 export function externalProbeSkipReason(host: string): string | null {
-	const bare = host.split(":")[0]?.toLowerCase() ?? "";
+	const bare = host.split(/[:/]/)[0]?.toLowerCase() ?? "";
 	if (LOOPBACK_HOSTS.has(bare) || bare.endsWith(".localhost")) {
 		return `${host} is a loopback address, so there's nothing to reach from outside this machine. Set a real base domain in Settings → General.`;
 	}

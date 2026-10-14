@@ -362,7 +362,8 @@
 				{
 					"kind": "strings",
 					"name": "domains",
-					"tf": "domains"
+					"tf": "domains",
+					"description": "Custom domains. One may carry a path (example.com/api) to route only that path and what's under it."
 				},
 				{
 					"kind": "string",
@@ -373,6 +374,12 @@
 					"kind": "intMap",
 					"name": "domainPorts",
 					"tf": "domain_ports"
+				},
+				{
+					"kind": "strings",
+					"name": "stripPathDomains",
+					"tf": "strip_path_domains",
+					"description": "Domains with a path whose prefix is stripped before the request reaches the container (/api/v2 arrives as /v2)."
 				},
 				{
 					"kind": "int",

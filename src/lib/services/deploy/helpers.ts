@@ -13,7 +13,7 @@ import {
 } from "#lib/git-clone-url.js";
 import { DEPLOY_LOG_SCOPE, Logger } from "#lib/logger.js";
 import type { GitProviderKind } from "#lib/server/db/schema.js";
-import { serviceHostnames } from "#lib/service-domains.js";
+import { domainHosts, serviceHostnames } from "#lib/service-domains.js";
 import { syncDns } from "../dns.service.ts";
 import { GitProviderService } from "../git-provider.service.ts";
 
@@ -43,7 +43,7 @@ export async function syncAutoDns(
 		stack?.slug,
 		config.baseDomain,
 	);
-	const results = await syncDns(hostnames);
+	const results = await syncDns(domainHosts(hostnames));
 	if (results.length > 0) {
 		await dep.appendLog(
 			results

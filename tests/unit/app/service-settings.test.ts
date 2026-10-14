@@ -13,6 +13,7 @@ const current = {
 	domains: [],
 	primaryDomain: null,
 	slug: "web",
+	stripPathDomains: [],
 };
 const context = { baseDomain: "example.com", stackSlug: null };
 
@@ -50,7 +51,23 @@ describe("routingPatch", () => {
 				domainPorts: { "app.io": 8080 },
 				domains: ["app.io", "www.app.io"],
 				primaryDomain: "www.app.io",
+				stripPathDomains: [],
 			},
+		});
+	});
+
+	test("accepts a domain with a path and keeps stripping only for listed path domains", () => {
+		const result = routingPatch(
+			current,
+			{
+				domains: ["app.io", "app.io/API/"],
+				stripPathDomains: ["app.io/api", "app.io", "gone.io/api"],
+			},
+			context,
+		);
+		expect(result && "patch" in result ? result.patch : null).toMatchObject({
+			domains: ["app.io", "app.io/api"],
+			stripPathDomains: ["app.io/api"],
 		});
 	});
 

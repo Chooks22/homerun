@@ -163,9 +163,16 @@ const serviceAttributes: IacAttribute[] = [
 		description: "Public routing through Traefik.",
 	}),
 	attr("defaultDomainEnabled", "bool", on),
-	attr("domains", "strings"),
+	attr("domains", "strings", {
+		description:
+			"Custom domains. One may carry a path (example.com/api) to route only that path and what's under it.",
+	}),
 	attr("primaryDomain", "string"),
 	attr("domainPorts", "intMap"),
+	attr("stripPathDomains", "strings", {
+		description:
+			"Domains with a path whose prefix is stripped before the request reaches the container (/api/v2 arrives as /v2).",
+	}),
 	attr("httpCacheTtl", "int"),
 	attr("publishedPorts", "objects", { fields: publishedPortFields }),
 	attr("customSslCert", "string", secret),

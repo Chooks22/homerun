@@ -67,7 +67,8 @@ data "homerun_service" "example" {
 - `devices` (List of String)
 - `dns_resolvable` (Boolean) Public routing through Traefik.
 - `domain_ports` (Map of Number)
-- `domains` (List of String)
+- `domains` (List of String) Custom domains. One may carry a path
+  (example.com/api) to route only that path and what's under it.
 - `entrypoint` (List of String)
 - `env_files` (List of String)
 - `env_vars` (Map of String, Sensitive)
@@ -143,6 +144,8 @@ data "homerun_service" "example" {
 - `run_as_user` (String)
 - `secret_env_keys` (List of String)
 - `stack_id` (String)
+- `strip_path_domains` (List of String) Domains with a path whose prefix is
+  stripped before the request reaches the container (/api/v2 arrives as /v2).
 - `tag` (String)
 - `traces_enabled` (Boolean)
 - `uptime_enabled` (Boolean)

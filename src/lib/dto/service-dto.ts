@@ -165,10 +165,7 @@ export class ServiceDTO extends BaseDTO<Service> {
 			if (stacks.includes(UNGROUPED_LABEL)) {
 				parts.push(isNull(service.stackId));
 			}
-			const combined = or(...parts);
-			if (combined) {
-				conditions.push(combined);
-			}
+			conditions.push(or(...parts) as SQL);
 		}
 
 		return and(...conditions);
@@ -466,6 +463,7 @@ export class ServiceDTO extends BaseDTO<Service> {
 			defaultDomainEnabled: true,
 			domains: input.domains ?? [],
 			primaryDomain: input.domains?.[0] ?? null,
+			stripPathDomains: input.stripPathDomains ?? [],
 			desiredState: "stopped",
 			envVars: input.envVars,
 			secretEnvKeys: input.secretEnvKeys ?? [],

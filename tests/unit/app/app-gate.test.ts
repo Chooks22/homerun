@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	GATE_COOKIE_NAME,
 	gateCookie,
-	readGateCookie,
+	gatePrefix,
+	readGateCookies,
 	signGateToken,
 	verifyGateToken,
 } from "../../../src/lib/server/app-gate";
@@ -54,16 +55,26 @@ describe("gate tokens", () => {
 describe("gate cookie", () => {
 	test("reads its own value back out of a crowded Cookie header", () => {
 		const header = `other=1; ${GATE_COOKIE_NAME}=abc%3D; another=2`;
-		expect(readGateCookie(header)).toBe("abc=");
+		expect(readGateCookies(header)).toEqual(["abc="]);
 	});
 
-	test("returns undefined when absent or when there is no header", () => {
-		expect(readGateCookie("other=1")).toBeUndefined();
-		expect(readGateCookie(null)).toBeUndefined();
+	test("returns every one when services on one host each set theirs", () => {
+		const header = `${GATE_COOKIE_NAME}=api; ${GATE_COOKIE_NAME}=web`;
+		expect(readGateCookies(header)).toEqual(["api", "web"]);
+	});
+
+	test("returns nothing when absent or when there is no header", () => {
+		expect(readGateCookies("other=1")).toEqual([]);
+		expect(readGateCookies(null)).toEqual([]);
 	});
 
 	test("never matches a cookie whose name merely ends with ours", () => {
-		expect(readGateCookie(`not_${GATE_COOKIE_NAME}=nope`)).toBeUndefined();
+		expect(readGateCookies(`not_${GATE_COOKIE_NAME}=nope`)).toEqual([]);
+	});
+
+	test("is scoped to the service's path prefix when it has one", () => {
+		expect(gateCookie("v", true, 60)).toContain("Path=/;");
+		expect(gateCookie("v", true, 60, "/api")).toContain("Path=/api;");
 	});
 
 	test("only adds Secure over https", () => {
@@ -128,5 +139,27 @@ describe("gate user state", () => {
 		).toBe(false);
 		expect(isBanned({ banExpires: null, banned: false }, now)).toBe(false);
 		expect(isBanned({ banExpires: null, banned: null }, now)).toBe(false);
+	});
+});
+
+describe("gate prefix", () => {
+	const domains = [
+		"app.example.com",
+		"www.example.com/api",
+		"www.example.com/api/v2",
+	];
+
+	test("is empty for a service reached on a bare hostname", () => {
+		expect(gatePrefix(domains, "app.example.com", "/api/x")).toBe("");
+	});
+
+	test("is the path of the domain the request came in on, the longest match", () => {
+		expect(gatePrefix(domains, "www.example.com", "/api")).toBe("/api");
+		expect(gatePrefix(domains, "WWW.example.com:443", "/api/x")).toBe("/api");
+		expect(gatePrefix(domains, "www.example.com", "/api/v2/y")).toBe("/api/v2");
+	});
+
+	test("doesn't treat a longer segment as under the prefix", () => {
+		expect(gatePrefix(domains, "www.example.com", "/apifoo")).toBe("");
 	});
 });

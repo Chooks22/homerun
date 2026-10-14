@@ -7,6 +7,7 @@ import {
 	parsePublishedPortsField,
 	updatePortsSchema,
 } from "#lib/server/validation/service.js";
+import { normalizeDomain } from "#lib/service-domains.js";
 import {
 	ServiceSettingsError,
 	ServiceSettingsService,
@@ -56,9 +57,13 @@ export const actions = {
 		const formData = await request.formData();
 		const rawDomains = formData.getAll("domains").map(String);
 		const rawPorts = formData.getAll("domainPorts").map(String);
+		const rawStrips = formData.getAll("domainStripPaths").map(String);
+		const stripPathDomains = rawDomains
+			.filter((_, index) => rawStrips[index] === "on")
+			.map(normalizeDomain);
 		const domainPorts: Record<string, number> = {};
 		for (const [index, raw] of rawDomains.entries()) {
-			const domain = raw.trim().toLowerCase();
+			const domain = normalizeDomain(raw);
 			const port = (rawPorts[index] ?? "").trim();
 			if (!(port && domain)) {
 				continue;
@@ -78,6 +83,7 @@ export const actions = {
 				domainPorts,
 				domains: rawDomains,
 				primaryDomain: String(formData.get("primaryDomain") ?? ""),
+				stripPathDomains,
 			},
 			{
 				hostAccess: can(locals.permissions, "system", "write"),

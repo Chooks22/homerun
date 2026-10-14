@@ -79,7 +79,8 @@ resource "homerun_service" "example" {
 - `devices` (List of String)
 - `dns_resolvable` (Boolean) Public routing through Traefik. Defaults to `true`.
 - `domain_ports` (Map of Number)
-- `domains` (List of String)
+- `domains` (List of String) Custom domains. One may carry a path
+  (example.com/api) to route only that path and what's under it.
 - `entrypoint` (List of String)
 - `env_files` (List of String)
 - `env_vars` (Map of String, Sensitive)
@@ -158,6 +159,8 @@ resource "homerun_service" "example" {
 - `slug` (String) Subdomain and container name, unique. Required unless
   template_id is set.
 - `stack_id` (String)
+- `strip_path_domains` (List of String) Domains with a path whose prefix is
+  stripped before the request reaches the container (/api/v2 arrives as /v2).
 - `tag` (String) Defaults to `"latest"`.
 - `template_id` (String) Create the service from this template (its image,
   variables, volumes and linked services), then apply the other attributes.

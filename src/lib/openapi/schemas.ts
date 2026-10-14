@@ -164,6 +164,10 @@ export const serviceResponse = z.object({
 		description:
 			"Per custom domain, the container port it routes to instead of containerPort",
 	}),
+	stripPathDomains: z.array(z.string()).meta({
+		description:
+			"The custom domains with a path whose prefix is stripped before the request reaches the container",
+	}),
 	category: z.string().nullable().meta({
 		description: "The app's type, a template category like database",
 	}),

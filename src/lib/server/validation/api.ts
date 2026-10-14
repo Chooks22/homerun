@@ -4,7 +4,7 @@ import { AUTH_PATHS_MODES, pathPatternsProblem } from "#lib/path-patterns.js";
 import { PERMISSION_AREAS, PERMISSION_LEVELS } from "#lib/permissions.js";
 import { branchPatternProblem } from "#lib/preview-branches.js";
 import { environmentNameField } from "#lib/server/validation/environment-name.js";
-import { DOMAIN_RE } from "#lib/service-domains.js";
+import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
 import { UPDATE_CHANNELS } from "#lib/update-channel.js";
 
@@ -127,9 +127,15 @@ const serviceSettingsFields = {
 		),
 	customSslKey: z.string().trim().nullable().optional(),
 	domainPorts: z
-		.record(z.string().trim().toLowerCase(), portNumber)
+		.record(z.string().overwrite(normalizeDomain), portNumber)
 		.optional()
 		.describe("Container port per domain, when it isn't containerPort."),
+	stripPathDomains: z
+		.array(z.string().overwrite(normalizeDomain))
+		.optional()
+		.describe(
+			"The domains with a path whose prefix is stripped before the request reaches the container.",
+		),
 	healthcheckDisabled: z.boolean().optional(),
 	healthcheckIntervalSeconds: healthSeconds.optional(),
 	healthcheckRetries: z.number().int().min(1).max(100).nullable().optional(),
@@ -197,7 +203,17 @@ export const updateServiceApiBody = z.object({
 	containerPort: z.number().int().min(1).max(65_535).optional(),
 	cpuLimit: z.string().nullable().optional(),
 	defaultDomainEnabled: z.boolean().optional(),
-	domains: z.array(z.string().trim().toLowerCase().regex(DOMAIN_RE)).optional(),
+	domains: z
+		.array(
+			z
+				.string()
+				.overwrite(normalizeDomain)
+				.refine(isDomainEntry, "Expected a domain, optionally with a path"),
+		)
+		.optional()
+		.describe(
+			"Custom domains. One may carry a path (example.com/api) to route only that path prefix.",
+		),
 	primaryDomain: z.string().trim().toLowerCase().nullable().optional(),
 	devices: runtimeFields.devices.optional(),
 	dnsResolvable: z.boolean().optional(),

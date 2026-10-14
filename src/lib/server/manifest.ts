@@ -49,6 +49,7 @@ const ROUTING_KEYS = [
 	"httpCacheTtl",
 	"portProtocol",
 	"primaryDomain",
+	"stripPathDomains",
 ] as const;
 
 const ACCESS_KEYS = [
@@ -129,7 +130,8 @@ const DESCRIPTIONS: Partial<Record<ManifestKey, string>> = {
 	defaultDomainEnabled: "Also route the service at <slug>.<base domain>.",
 	dnsResolvable:
 		"Publish the service's hostnames through the instance's DNS automation.",
-	domains: "Hostnames routed to the service.",
+	domains:
+		'Hostnames routed to the service. One may carry a path ("example.com/api") to route only that path and what\'s under it, even while another service has the bare hostname.',
 	envVars:
 		"Environment variables, merged into the service's environment: a variable set elsewhere and missing here is kept. Keep secrets out of the repository; set them on the dashboard.",
 	gitBakeFile:

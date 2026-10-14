@@ -424,6 +424,7 @@ class PreviewServiceClass {
 					void syncServiceDomainsDns(
 						previous,
 						serviceHostnames(preview.toJSON(), stack?.slug, config.baseDomain),
+						preview.id,
 					);
 				}
 				if (isDeployed(preview)) {

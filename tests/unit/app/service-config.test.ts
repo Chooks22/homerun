@@ -77,6 +77,7 @@ function row(overrides: Partial<Service> = {}): Service {
 		requiredStatusChecks: [],
 		restartPolicy: "unless-stopped",
 		slug: "db",
+		stripPathDomains: [],
 		tag: "18",
 		uptimeEnabled: true,
 		...overrides,

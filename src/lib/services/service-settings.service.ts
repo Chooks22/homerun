@@ -158,7 +158,7 @@ class ServiceSettingsServiceClass {
 			config.baseDomain,
 		);
 		if (svc.dnsResolvable && previous.join() !== next.join()) {
-			void syncServiceDomainsDns(previous, next);
+			void syncServiceDomainsDns(previous, next, svc.id);
 		}
 		if (patch.customSslCertEnc !== undefined) {
 			await DockerService.syncCustomSslConfig(svc);
@@ -406,6 +406,7 @@ class ServiceSettingsServiceClass {
 				domains: input.domains,
 				primaryDomain: input.primaryDomain,
 				slug: input.slug,
+				stripPathDomains: input.stripPathDomains,
 			},
 			{
 				baseDomain: config.baseDomain,

@@ -303,6 +303,7 @@ function workloadSpec(ctx: WorkerSpecContext, workload: WorkloadPlan) {
 		dnsResolvable: svc.dnsResolvable,
 		domainPorts: svc.domainPorts,
 		domains: svc.domains,
+		stripPathDomains: svc.toJSON().stripPathDomains,
 		authPaths: svc.authPaths,
 		authPathsMode: svc.authPathsMode,
 		authRequired: svc.authRequired,

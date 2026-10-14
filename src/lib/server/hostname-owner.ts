@@ -6,7 +6,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { StatusPageDTO } from "#lib/dto/status-page-dto.js";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { splitSource } from "#lib/redirects.js";
-import { serviceHostnames } from "#lib/service-domains.js";
+import { domainHosts, serviceHostnames } from "#lib/service-domains.js";
 import { workstationHostname } from "#lib/workstations.js";
 
 /** The host part of a URL, null when it isn't one. */
@@ -57,10 +57,12 @@ export async function hostnameOwner(
 	const stackSlugs = new Map(stacks.map((s) => [s.id, s.toJSON().slug]));
 	const service = services.find((svc) => {
 		const svcRow = svc.toJSON();
-		return serviceHostnames(
-			svcRow,
-			svcRow.stackId ? stackSlugs.get(svcRow.stackId) : null,
-			config.baseDomain,
+		return domainHosts(
+			serviceHostnames(
+				svcRow,
+				svcRow.stackId ? stackSlugs.get(svcRow.stackId) : null,
+				config.baseDomain,
+			),
 		).some((name) => name.toLowerCase() === host);
 	});
 	if (service) {
@@ -78,4 +80,34 @@ export async function hostnameOwner(
 			workstationHostname(ws.toJSON(), config.baseDomain) === host,
 	);
 	return workstation ? "another workstation" : null;
+}
+
+/**
+ * Every host a publicly routed service other than `exceptServiceId` still
+ * routes, by its default hostname or a custom domain with or without a path.
+ * What a service's DNS cleanup must leave alone: `example.com/api` going away
+ * doesn't free `example.com` while another service serves it.
+ */
+export async function serviceRoutedHosts(
+	exceptServiceId?: string,
+): Promise<Set<string>> {
+	const [services, stacks] = await Promise.all([
+		ServiceDTO.list(),
+		StackDTO.list(),
+	]);
+	const stackSlugs = new Map(stacks.map((s) => [s.id, s.toJSON().slug]));
+	return new Set(
+		services
+			.filter((svc) => svc.id !== exceptServiceId && svc.dnsResolvable)
+			.flatMap((svc) => {
+				const row = svc.toJSON();
+				return domainHosts(
+					serviceHostnames(
+						row,
+						row.stackId ? stackSlugs.get(row.stackId) : null,
+						config.baseDomain,
+					),
+				);
+			}),
+	);
 }

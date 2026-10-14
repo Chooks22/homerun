@@ -96,3 +96,54 @@ describe("response cache middleware", () => {
 		).toBe(false);
 	});
 });
+
+describe("domains with a path", () => {
+	const labels = buildContainerLabels({
+		containerPort: 3000,
+		domains: ["www.example.org/api", "www.example.org/docs"],
+		serviceId: "svc-1",
+		slug: "api",
+		stripPathDomains: ["www.example.org/api"],
+	});
+
+	test("routes only the path and what's under it", () => {
+		expect(labels["traefik.http.routers.api-1.rule"]).toBe(
+			"Host(`www.example.org`) && (Path(`/api`) || PathPrefix(`/api/`))",
+		);
+	});
+
+	test("strips the prefix last in the chain when asked", () => {
+		expect(labels["traefik.http.routers.api-1.middlewares"]).toBe(
+			"api-retry,api-1_stripprefix",
+		);
+		expect(
+			labels["traefik.http.middlewares.api-1_stripprefix.stripprefix.prefixes"],
+		).toBe("/api");
+	});
+
+	test("keeps the prefix otherwise", () => {
+		expect(labels["traefik.http.routers.api-2.middlewares"]).toBe("api-retry");
+		expect(
+			Object.keys(labels).some((key) => key.includes("api-2_stripprefix")),
+		).toBe(false);
+	});
+});
+
+describe("login wall on a domain with a path", () => {
+	const labels = buildContainerLabels({
+		authPaths: ["/admin/*"],
+		authPathsMode: "only",
+		authRequired: true,
+		containerPort: 3000,
+		defaultDomainEnabled: false,
+		domains: ["www.example.org/api"],
+		serviceId: "svc-1",
+		slug: "api",
+	});
+
+	test("keeps the callback and logout under the path, where the service is routed", () => {
+		expect(labels["traefik.http.routers.api_gate.rule"]).toBe(
+			"Host(`www.example.org`) && (Path(`/api`) || PathPrefix(`/api/`)) && (Path(`/api/__homerun_auth/callback`) || Path(`/api/__homerun_auth/logout`))",
+		);
+	});
+});

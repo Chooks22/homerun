@@ -1153,6 +1153,10 @@ export const service = pgTable(
 			.default({})
 			.notNull(),
 		primaryDomain: text("primary_domain"),
+		stripPathDomains: text("strip_path_domains")
+			.array()
+			.default(sql`'{}'::text[]`)
+			.notNull(),
 		// AES-256-GCM ciphertext (PEM), same scheme as registryPasswordEnc.
 		// Only take effect together : see
 		// $lib/services/docker/custom-ssl.ts. Requires the admin's own opt-in

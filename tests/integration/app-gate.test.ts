@@ -391,6 +391,54 @@ describe("per-app auth gate", () => {
 		expect(await on.text()).toContain("canonicalSignInUrl:null");
 	});
 
+	test("on a domain with a path, the sign-in round trip and its cookie stay under that path", async () => {
+		await updateAppAuth({ authProvider: "password", authRequired: "on" });
+		const patched = await nativeFetch(
+			`${fixture.origin}/api/v1/services/${fixture.serviceId}`,
+			{
+				body: JSON.stringify({ domains: [`${GATED_HOST}/api`] }),
+				headers: {
+					"content-type": "application/json",
+					"x-api-key": fixture.apiKey,
+				},
+				method: "PATCH",
+			},
+		);
+		expect(patched.status).toBe(200);
+
+		const challenge = await gateCheck("/api/items?a=b");
+		const rd = new URL(
+			challenge.headers.get("location") ?? "",
+		).searchParams.get("rd");
+		const authed = await nativeFetch(
+			`${fixture.origin}/app-auth?rd=${encodeURIComponent(rd ?? "")}`,
+			{ headers: { "x-api-key": fixture.apiKey }, redirect: "manual" },
+		);
+		const callback = new URL(authed.headers.get("location") ?? "");
+		expect(callback.pathname).toBe("/api/__homerun_auth/callback");
+
+		const minted = await gateCheck(`${callback.pathname}${callback.search}`);
+		expect(minted.status).toBe(302);
+		expect(minted.headers.get("location")).toBe(
+			`https://${GATED_HOST}/api/items?a=b`,
+		);
+		expect((minted.headers.getSetCookie?.() ?? [])[0]).toContain("Path=/api;");
+		const cookie = gateCookieFrom(minted);
+
+		const through = await gateCheck(
+			"/api/items",
+			`${cookie}; homerun_app_session=another.services.cookie`,
+		);
+		expect(through.status).toBe(200);
+
+		const logout = await gateCheck("/api/__homerun_auth/logout", cookie);
+		expect(logout.status).toBe(302);
+		expect(logout.headers.get("location")).toBe(`https://${GATED_HOST}/api`);
+		const cleared = (logout.headers.getSetCookie?.() ?? [])[0] ?? "";
+		expect(cleared).toContain("Path=/api;");
+		expect(cleared).toContain("Max-Age=0");
+	});
+
 	test("an expired redirect token is refused rather than followed", async () => {
 		const res = await nativeFetch(`${fixture.origin}/app-auth?rd=bogus.token`, {
 			headers: { "x-api-key": fixture.apiKey },

@@ -1,7 +1,7 @@
 import { config } from "#lib/config.js";
 import { type AuthPathsMode, pathPatternsRegex } from "#lib/path-patterns.js";
 import { GATE_CALLBACK_PATH, GATE_LOGOUT_PATH } from "#lib/server/app-gate.js";
-import { serviceHostnames } from "#lib/service-domains.js";
+import { serviceHostnames, splitDomain } from "#lib/service-domains.js";
 import { certResolverFor } from "./cert-resolver.ts";
 import {
 	BLOCKED_PAGE_MIDDLEWARE,
@@ -76,6 +76,12 @@ export const SERVICE_ID_LABEL = "homerun.service.id";
  * reply, so a revalidating browser gets the full cached 200 instead. With `errorPages`, the instance's error pages middleware comes
  * first, so a 502, 503 or 504 shows the branded page instead of Traefik's.
  *
+ * A domain with a path (`example.com/api`) only matches that path and what's
+ * under it, and wins over a bare `example.com` router on another service
+ * since Traefik ranks routers by rule length; listed in `stripPathDomains`,
+ * a `stripprefix` middleware ends its chain so the container sees `/v2` for
+ * `/api/v2`.
+ *
  * Each hostname also gets a `_blocked` router for `blockedPaths`, above
  * every other one, answering 403 through the blocked page (`errorPages`) or
  * a deny-everyone allowlist (without it). A gated service whose
@@ -104,6 +110,7 @@ export function buildContainerLabels(params: {
 	serviceId: string;
 	slug: string;
 	stackSlug?: string | null;
+	stripPathDomains?: string[];
 }): Record<string, string> {
 	const {
 		serviceId,
@@ -199,13 +206,27 @@ export function buildContainerLabels(params: {
 
 	hostnames.forEach((hostname, index) => {
 		const router = index === 0 ? slug : `${slug}-${index}`;
-		const host = `Host(\`${hostname}\`)`;
+		const { host: domainHost, path } = splitDomain(hostname);
+		const host = path
+			? `Host(\`${domainHost}\`) && (Path(\`${path}\`) || PathPrefix(\`${path}/\`))`
+			: `Host(\`${domainHost}\`)`;
+		const stripMiddleware =
+			path && params.stripPathDomains?.includes(hostname)
+				? `${router}_stripprefix`
+				: null;
+		if (stripMiddleware) {
+			labels[
+				`traefik.http.middlewares.${stripMiddleware}.stripprefix.prefixes`
+			] = path;
+		}
+		const withStrip = (middlewares: string) =>
+			stripMiddleware ? `${middlewares},${stripMiddleware}` : middlewares;
 		const port = params.domainPorts?.[hostname] ?? containerPort;
 		const service = port === containerPort ? slug : `${slug}-${port}`;
 		labels[`traefik.http.services.${service}.loadbalancer.server.port`] =
 			String(port);
 		const resolver = certResolverFor(
-			hostname,
+			domainHost,
 			config.traefik.certResolver,
 			config.pangolinEnabled,
 			config.traefik.instanceCertNames,
@@ -238,24 +259,24 @@ export function buildContainerLabels(params: {
 		};
 
 		route({
-			middlewares: chain(gated && splitMode !== "only"),
+			middlewares: withStrip(chain(gated && splitMode !== "only")),
 			name: router,
 			rule: host,
 			target: service,
 		});
 		if (splitMode && params.authPaths) {
 			route({
-				middlewares: chain(splitMode === "only"),
+				middlewares: withStrip(chain(splitMode === "only")),
 				name: `${router}_paths`,
 				priority: AUTH_PATHS_ROUTER_PRIORITY,
 				rule: `${host} && PathRegexp(\`${pathPatternsRegex(params.authPaths)}\`)`,
 				target: service,
 			});
 			route({
-				middlewares: chain(true),
+				middlewares: withStrip(chain(true)),
 				name: `${router}_gate`,
 				priority: GATE_ROUTER_PRIORITY,
-				rule: `${host} && (Path(\`${GATE_CALLBACK_PATH}\`) || Path(\`${GATE_LOGOUT_PATH}\`))`,
+				rule: `${host} && (Path(\`${path}${GATE_CALLBACK_PATH}\`) || Path(\`${path}${GATE_LOGOUT_PATH}\`))`,
 				target: service,
 			});
 		}
