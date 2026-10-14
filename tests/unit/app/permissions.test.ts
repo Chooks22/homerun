@@ -166,6 +166,12 @@ describe("requiredPermission", () => {
 			area: "storage",
 			level: "read",
 		});
+		expect(
+			requiredPermission(
+				"PATCH",
+				"/api/v1/oidc-apps/[appId]/environments/[environmentId]",
+			),
+		).toEqual({ area: "users", level: "write" });
 	});
 
 	test("leaves open routes and routes outside the dashboard alone", () => {

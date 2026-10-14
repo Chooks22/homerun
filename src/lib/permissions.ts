@@ -11,6 +11,7 @@ export const PERMISSION_AREAS = [
 			"/services",
 			"/deployments",
 			"/monitoring",
+			"/api/v1/monitoring",
 			"/api/v1/services",
 			"/api/v1/service-environments",
 			"/api/v1/service-dependencies",
@@ -122,7 +123,13 @@ export const PERMISSION_AREAS = [
 			"Root on the box: the host terminal, system logs, Docker cleanup, host command cron jobs and host-level service options.",
 		key: "system",
 		label: "System",
-		routes: ["/terminal", "/system-logs", "/docker-cleanup", "/api/v1/jobs"],
+		routes: [
+			"/terminal",
+			"/system-logs",
+			"/docker-cleanup",
+			"/api/v1/jobs",
+			"/api/v1/system",
+		],
 	},
 	{
 		description: "IaC projects, their state and code generation.",
@@ -144,6 +151,7 @@ export const PERMISSION_AREAS = [
 			"/api/v1/authentication",
 			"/api/v1/users",
 			"/api/v1/oauth-providers",
+			"/api/v1/oidc-apps",
 		],
 	},
 	{
