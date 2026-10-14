@@ -25,7 +25,7 @@
 
 <section class="panel rounded-xl">
   <PanelHeader
-    description="Applied by code-server on every start. A repository's dev container config can fill this in on creation."
+    description="Applied by code-server or openvscode-server on every start. A repository's dev container config can fill this in."
     title="Editor"
     {trailing}
   />
@@ -49,8 +49,9 @@
         bind:value={settings}
       />
       <p class="text-text-subtle mt-1.5 text-xs">
-        Replaces code-server's user settings.json on every start. Leave it empty
-        to keep whatever you set from the IDE.
+        Replaces code-server's user settings.json (openvscode-server's machine
+        settings.json) on every start. Leave it empty to keep whatever you set
+        from the IDE.
       </p>
     </div>
   </div>

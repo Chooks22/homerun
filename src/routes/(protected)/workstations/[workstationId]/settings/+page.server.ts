@@ -1,18 +1,36 @@
 import { fail, redirect } from "@sveltejs/kit";
+import { config } from "#lib/config.js";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { WorkstationPresetDTO } from "#lib/dto/workstation-preset-dto.js";
 import { Logger } from "#lib/logger.js";
+import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { parseLoginWallForm } from "#lib/server/login-wall-form.js";
+import {
+	loginWallAvailability,
+	loginWallOptions,
+} from "#lib/server/login-wall-options.js";
 import { saveWorkstationSection } from "#lib/server/workstation-actions.js";
 import { presetFromWorkstation } from "#lib/server/workstation-presets.js";
+import {
+	WorkstationSettingsError,
+	WorkstationSettingsService,
+} from "#lib/services/workstation/settings.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("Workstation");
 
-export const load = async ({ parent }) => {
+export const load = async ({ locals, parent }) => {
 	const { user } = await parent();
-	return { gitProviders: await connectedGitProviders(user.id) };
+	const [gitProviders, wall] = await Promise.all([
+		connectedGitProviders(user.id),
+		loginWallOptions(can(locals.permissions, "services", "read")),
+	]);
+	return {
+		gitProviders,
+		wall,
+	};
 };
 
 export const actions = {
@@ -39,6 +57,15 @@ export const actions = {
 		redirect(303, resolve("workstations"));
 	},
 
+	devcontainer: ({ locals, params, request }) =>
+		saveWorkstationSection(
+			locals,
+			request,
+			params.workstationId,
+			"editor",
+			"container",
+		),
+
 	editor: ({ locals, params, request }) =>
 		saveWorkstationSection(locals, request, params.workstationId, "editor"),
 
@@ -61,6 +88,45 @@ export const actions = {
 
 	git: ({ locals, params, request }) =>
 		saveWorkstationSection(locals, request, params.workstationId, "git"),
+
+	loginWall: async ({ locals, params, request }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
+		if (!ws) {
+			return fail(404, { error: "Workstation not found." });
+		}
+		const parsed = parseLoginWallForm(
+			await request.formData(),
+			await loginWallAvailability(),
+			config.auth.origin,
+		);
+		if ("error" in parsed) {
+			return fail(400, { authError: parsed.error });
+		}
+		try {
+			const { restarted } = await WorkstationSettingsService.update(
+				ws,
+				parsed.policy,
+			);
+			logger.info(
+				`Workstation login wall saved: workstation=${ws.id} authRequired=${parsed.policy.authRequired} methods=${parsed.policy.authProviders.join("|") || "none"}`,
+			);
+			return { authSuccess: true, redeploying: restarted };
+		} catch (error) {
+			if (error instanceof WorkstationSettingsError) {
+				return fail(error.status, { authError: error.message });
+			}
+			logger.error(
+				`Workstation restart for its login wall failed: workstation=${ws.id}`,
+				error,
+			);
+			return fail(502, {
+				authError: `Saved, but the restart failed: ${error instanceof Error ? error.message : String(error)}`,
+			});
+		}
+	},
 
 	savePreset: async ({ locals, params, request }) => {
 		if (!locals.user) {

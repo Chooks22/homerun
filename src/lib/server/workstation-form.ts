@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { parseDotEnv } from "#lib/env-parse.js";
+import {
+	type LoginWallPolicy,
+	loginWallFromForm,
+} from "#lib/server/login-wall-form.js";
 import { DOMAIN_RE } from "#lib/service-domains.js";
 import {
 	AUTO_STOP_MODES,
@@ -171,15 +175,19 @@ export interface WorkstationSettings {
 	port: number;
 }
 
-/** The settings plus what only the create form picks. */
-export interface NewWorkstationForm extends WorkstationSettings {
+/** The settings and login wall plus what only the create form picks. */
+export interface NewWorkstationForm
+	extends WorkstationSettings,
+		LoginWallPolicy {
 	domain: string | null;
 	name: string;
 	remoteHostId: string | null;
 }
 
-/** A preset's fields, normalised into DTO-ready columns. */
-export interface WorkstationPresetForm extends WorkstationSettings {
+/** A preset's fields and login wall, normalised into DTO-ready columns. */
+export interface WorkstationPresetForm
+	extends WorkstationSettings,
+		LoginWallPolicy {
 	description: string | null;
 	name: string;
 	remoteHostId: string | null;
@@ -236,7 +244,8 @@ export function parseWorkstationSection(
 }
 
 /**
- * Validates the new-workstation form.
+ * Validates the new-workstation form. Its login wall is only read here; the
+ * settings service checks it against the instance's sign-in methods.
  *
  * @returns The parsed fields, or the first validation error message.
  */
@@ -247,7 +256,13 @@ export function parseNewWorkstation(
 	if (!result.success) {
 		return { error: firstIssue(result.error) };
 	}
-	return { parsed: { ...result.data, env: envFrom(result.data.env) } };
+	return {
+		parsed: {
+			...result.data,
+			...loginWallFromForm(formData),
+			env: envFrom(result.data.env),
+		},
+	};
 }
 
 /**
@@ -263,7 +278,13 @@ export function parseWorkstationPreset(
 	if (!result.success) {
 		return { error: firstIssue(result.error) };
 	}
-	return { parsed: { ...result.data, env: envFrom(result.data.env) } };
+	return {
+		parsed: {
+			...result.data,
+			...loginWallFromForm(formData),
+			env: envFrom(result.data.env),
+		},
+	};
 }
 
 const autoStopSchema = z.discriminatedUnion("autoStopMode", [

@@ -4,6 +4,7 @@ import { Logger } from "#lib/logger.js";
 import {
 	parseWorkstationSection,
 	type WorkstationSection,
+	type WorkstationSettings,
 } from "#lib/server/workstation-form.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { resolve } from "$app/paths";
@@ -53,18 +54,20 @@ export async function workstationAction(
 }
 
 /**
- * Saves one Settings section of the signed-in user's workstation `id`: only
- * that section's columns are validated and written, so each section's form
- * saves on its own.
+ * Saves Settings sections of the signed-in user's workstation `id` from one
+ * form: only those sections' columns are validated and written, so each
+ * section's form saves on its own, and the dev container Apply saves the
+ * Editor and Container sections together.
  *
- * @returns `{ ok: true }`, or a 400/404 failure carrying the message.
+ * @returns `{ ok: true }`, or a 400/404 failure carrying the first message;
+ *   nothing is written when any section is invalid.
  * @throws A redirect to sign-in when nobody is signed in.
  */
 export async function saveWorkstationSection(
 	locals: App.Locals,
 	request: Request,
 	id: string,
-	section: WorkstationSection,
+	...sections: WorkstationSection[]
 ) {
 	if (!locals.user) {
 		throw redirect(302, resolve("auth/sign-in"));
@@ -73,13 +76,18 @@ export async function saveWorkstationSection(
 	if (!ws) {
 		return fail(404, { error: "Workstation not found." });
 	}
-	const result = parseWorkstationSection(section, await request.formData());
-	if ("error" in result) {
-		return fail(400, { error: result.error });
+	const formData = await request.formData();
+	const parsed: Partial<WorkstationSettings> = {};
+	for (const section of sections) {
+		const result = parseWorkstationSection(section, formData);
+		if ("error" in result) {
+			return fail(400, { error: result.error });
+		}
+		Object.assign(parsed, result.parsed);
 	}
-	await ws.update(result.parsed);
+	await ws.update(parsed);
 	logger.info(
-		`Workstation settings saved: workstation=${ws.id} section=${section}`,
+		`Workstation settings saved: workstation=${ws.id} section=${sections.join(",")}`,
 	);
 	return { ok: true };
 }

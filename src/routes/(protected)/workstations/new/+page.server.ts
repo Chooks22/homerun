@@ -1,27 +1,28 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
-import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { WorkstationPresetDTO } from "#lib/dto/workstation-preset-dto.js";
+import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { loginWallOptions } from "#lib/server/login-wall-options.js";
 import { parseNewWorkstation } from "#lib/server/workstation-form.js";
+import { workstationHosts } from "#lib/server/workstation-presets.js";
 import {
 	WorkstationSettingsError,
 	WorkstationSettingsService,
 } from "#lib/services/workstation/settings.js";
 import { resolve } from "$app/paths";
 
-export const load = async ({ parent, url }) => {
+export const load = async ({ locals, parent, url }) => {
 	const { user } = await parent();
-	const [hosts, gitProviders, presets] = await Promise.all([
-		RemoteHostDTO.list(),
+	const [hosts, gitProviders, presets, wall] = await Promise.all([
+		workstationHosts(),
 		connectedGitProviders(user.id),
 		WorkstationPresetDTO.listForUser(user.id),
+		loginWallOptions(can(locals.permissions, "services", "read")),
 	]);
 	const presetId = url.searchParams.get("preset");
 	return {
-		agentHosts: hosts
-			.filter((host) => host.kind === "agent")
-			.map((host) => ({ id: host.id, name: host.name })),
+		hosts,
 		baseDomain: config.baseDomain,
 		gitProviders,
 		preset: presets.find((p) => p.id === presetId)?.toJSON() ?? null,
@@ -30,6 +31,7 @@ export const load = async ({ parent, url }) => {
 			id: p.id,
 			name: p.name,
 		})),
+		wall,
 	};
 };
 

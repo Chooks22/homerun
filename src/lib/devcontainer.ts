@@ -1,3 +1,4 @@
+import { parseDotEnv } from "#lib/env-parse.js";
 import { EXTENSION_ID_RE } from "#lib/workstations.js";
 
 export const DEVCONTAINER_PATHS = [
@@ -176,5 +177,94 @@ export function hasApplicable(config: DevcontainerConfig): boolean {
 		config.extensions.length > 0 ||
 		Object.keys(config.settings).length > 0 ||
 		Object.keys(config.env).length > 0
+	);
+}
+
+/** The Editor and Container section fields a dev container config is applied over. */
+export interface DevcontainerFormValues extends DevcontainerTarget {
+	cpuLimit: number | null;
+	homePath: string;
+	image: string;
+	memoryLimitMb: number | null;
+	port: number;
+}
+
+/** `text` parsed as a JSON object, `{}` when it isn't one. */
+function objectOf(text: string): Record<string, unknown> {
+	try {
+		const parsed: unknown = JSON.parse(text);
+		return isObject(parsed) ? parsed : {};
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Applies `config` over the Editor and Container fields as `data` holds them
+ * (the forms' current values, typed but maybe unsaved), so nothing typed
+ * there is lost. A blank image, home path or port keeps `fallback`'s; every
+ * other key of `fallback` is kept as is.
+ */
+export function mergeDevcontainerForm<T extends DevcontainerFormValues>(
+	data: FormData,
+	fallback: T,
+	config: DevcontainerConfig,
+): T {
+	const text = (key: string) => String(data.get(key) ?? "").trim();
+	const number = (key: string) => (text(key) ? Number(text(key)) : null);
+	const env: Record<string, string> = {};
+	for (const row of parseDotEnv(String(data.get("env") ?? ""))) {
+		if (row.key) {
+			env[row.key] = row.value;
+		}
+	}
+	return {
+		...fallback,
+		...applyDevcontainer(
+			{
+				editorSettings: objectOf(String(data.get("editorSettings") ?? "")),
+				env,
+				extensions: data.getAll("extensions").map(String),
+			},
+			config,
+		),
+		cpuLimit: number("cpuLimit"),
+		homePath: text("homePath") || fallback.homePath,
+		image: text("image") || fallback.image,
+		memoryLimitMb: number("memoryLimitMb"),
+		port: number("port") ?? fallback.port,
+	};
+}
+
+/** Writes Editor and Container section `values` into `formData` the way those sections' own fields post them. */
+export function appendDevcontainerForm(
+	formData: FormData,
+	values: DevcontainerFormValues,
+): void {
+	for (const extension of values.extensions) {
+		formData.append("extensions", extension);
+	}
+	formData.set(
+		"editorSettings",
+		Object.keys(values.editorSettings).length > 0
+			? JSON.stringify(values.editorSettings, null, 2)
+			: "",
+	);
+	formData.set(
+		"env",
+		Object.entries(values.env)
+			.map(([key, value]) => `${key}=${value}`)
+			.join("\n"),
+	);
+	formData.set("image", values.image);
+	formData.set("homePath", values.homePath);
+	formData.set("port", String(values.port));
+	formData.set(
+		"cpuLimit",
+		values.cpuLimit === null ? "" : String(values.cpuLimit),
+	);
+	formData.set(
+		"memoryLimitMb",
+		values.memoryLimitMb === null ? "" : String(values.memoryLimitMb),
 	);
 }

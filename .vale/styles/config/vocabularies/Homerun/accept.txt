@@ -170,3 +170,8 @@ IPs
 [Uu]nmanaged
 Deno
 npm
+IDE(s|'s)?
+linuxserver
+(?i)preset's
+sshd
+(?i)booleans?

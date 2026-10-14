@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { WorkstationLoginWall } from "#lib/dto/workstation-dto.js";
 import { isDomainName, isTarget } from "#lib/server/validation/dns-forms.js";
 import type { WorkstationSettings } from "#lib/server/workstation-form.js";
 import { DOMAIN_RE } from "#lib/service-domains.js";
@@ -228,7 +229,48 @@ const workstationRuntimeShape = {
 	name: text.min(1, "Give the workstation a name.").max(80),
 };
 
+const wallList = z.array(text.min(1)).max(200).optional();
+
+const workstationWallShape = {
+	authAllowedEmails: wallList.describe(
+		"Login wall email allowlist, *@domain matching a whole domain.",
+	),
+	authAllowedGroups: wallList.describe(
+		"Login wall group allowlist, matched against the identity provider's group and role claims and the Homerun role.",
+	),
+	authAllowedUserIds: wallList.describe("Login wall user allowlist, by id."),
+	authProviders: wallList.describe(
+		'Sign-in methods the login wall offers: "password", "email-otp", "magic-link" or "oauth:<provider name>", each enabled on the instance.',
+	),
+	authRequired: z
+		.boolean()
+		.optional()
+		.describe(
+			"Put Homerun's login wall in front of the IDE instead of its password or git sign-in. The owner always gets in. Turning it on or off restarts a running workstation; a preset's applies to the workstations created from it.",
+		),
+};
+
 const workstationSettingsSchema = z.object(workstationSettingsShape);
+
+/**
+ * The login wall fields a workstation body sets, each list de-duplicated.
+ * Fields left out stay out.
+ */
+export function workstationWallColumns(
+	body: Partial<z.infer<z.ZodObject<typeof workstationWallShape>>>,
+): Partial<WorkstationLoginWall> {
+	const unique = (list: string[] | undefined) => list && [...new Set(list)];
+	const columns = {
+		authAllowedEmails: unique(body.authAllowedEmails),
+		authAllowedGroups: unique(body.authAllowedGroups),
+		authAllowedUserIds: unique(body.authAllowedUserIds),
+		authProviders: unique(body.authProviders),
+		authRequired: body.authRequired,
+	};
+	return Object.fromEntries(
+		Object.entries(columns).filter(([, value]) => value !== undefined),
+	);
+}
 
 /**
  * The workstation or preset columns a request body sets: blank text as
@@ -273,6 +315,7 @@ export function workstationColumns(
 export const workstationApiBody = z.object({
 	...workstationSettingsShape,
 	...workstationRuntimeShape,
+	...workstationWallShape,
 	domain: text
 		.toLowerCase()
 		.nullable()
@@ -289,6 +332,7 @@ export const updateWorkstationApiBody = workstationApiBody
 
 export const workstationPresetApiBody = z.object({
 	...workstationSettingsShape,
+	...workstationWallShape,
 	description: nullableText.refine((value) => (value?.length ?? 0) <= 300, {
 		message: "Keep the description under 300 characters.",
 	}),

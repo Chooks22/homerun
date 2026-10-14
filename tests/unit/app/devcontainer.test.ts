@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+	appendDevcontainerForm,
 	applyDevcontainer,
+	type DevcontainerFormValues,
 	hasApplicable,
+	mergeDevcontainerForm,
 	parseDevcontainer,
 	repoPathOf,
 	stripJsonc,
@@ -96,5 +99,66 @@ describe("devcontainer", () => {
 		);
 		expect(repoPathOf("https://github.com/")).toBeNull();
 		expect(repoPathOf("nope")).toBeNull();
+	});
+
+	test("merging into the forms keeps what's typed there and fills blanks from the fallback", () => {
+		const config = parseDevcontainer(SAMPLE, "p");
+		if (!config) {
+			throw new Error("no config");
+		}
+		const typed = new FormData();
+		typed.append("extensions", "mine.ext");
+		typed.set("editorSettings", '{"files.eol":"\\n"}');
+		typed.set("env", "KEEP=1");
+		typed.set("image", "");
+		typed.set("port", "3000");
+		typed.set("homePath", "/home/workspace");
+		typed.set("cpuLimit", "2");
+		typed.set("memoryLimitMb", "");
+		const fallback: DevcontainerFormValues & { id: string } = {
+			cpuLimit: null,
+			editorSettings: {},
+			env: {},
+			extensions: [],
+			homePath: "/home/coder",
+			id: "ws1",
+			image: "codercom/code-server:latest",
+			memoryLimitMb: 512,
+			port: 8080,
+		};
+		const merged = mergeDevcontainerForm(typed, fallback, config);
+		expect(merged).toEqual({
+			cpuLimit: 2,
+			editorSettings: { "editor.tabSize": 2, "files.eol": "\n" },
+			env: {
+				API_URL: "https://api.example.com//v1",
+				KEEP: "1",
+				NODE_ENV: "development",
+			},
+			extensions: [
+				"mine.ext",
+				"dbaeumer.vscode-eslint",
+				"esbenp.prettier-vscode",
+			],
+			homePath: "/home/workspace",
+			id: "ws1",
+			image: "codercom/code-server:latest",
+			memoryLimitMb: null,
+			port: 3000,
+		});
+
+		const posted = new FormData();
+		appendDevcontainerForm(posted, merged);
+		expect(posted.getAll("extensions")).toEqual(merged.extensions);
+		expect(JSON.parse(String(posted.get("editorSettings")))).toEqual(
+			merged.editorSettings,
+		);
+		expect(String(posted.get("env")).split("\n").sort()).toEqual([
+			"API_URL=https://api.example.com//v1",
+			"KEEP=1",
+			"NODE_ENV=development",
+		]);
+		expect(posted.get("port")).toBe("3000");
+		expect(posted.get("memoryLimitMb")).toBe("");
 	});
 });

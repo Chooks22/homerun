@@ -50,9 +50,10 @@
     })}
   >
     <WorkstationFields
-      agentHosts={data.agentHosts}
+      hosts={data.hosts}
       providers={data.gitProviders}
       values={DEFAULT_WORKSTATION_FIELDS}
+      wall={data.wall}
     >
       <WorkstationPresetHead description={null} name="" />
     </WorkstationFields>

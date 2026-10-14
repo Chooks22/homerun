@@ -1,24 +1,26 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
+import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { loginWallOptions } from "#lib/server/login-wall-options.js";
 import { parseWorkstationPreset } from "#lib/server/workstation-form.js";
+import { workstationHosts } from "#lib/server/workstation-presets.js";
 import {
 	WorkstationSettingsError,
 	WorkstationSettingsService,
 } from "#lib/services/workstation/settings.js";
 import { resolve } from "$app/paths";
 
-export const load = async ({ parent }) => {
+export const load = async ({ locals, parent }) => {
 	const { user } = await parent();
-	const [hosts, gitProviders] = await Promise.all([
-		RemoteHostDTO.list(),
+	const [hosts, gitProviders, wall] = await Promise.all([
+		workstationHosts(),
 		connectedGitProviders(user.id),
+		loginWallOptions(can(locals.permissions, "services", "read")),
 	]);
 	return {
-		agentHosts: hosts
-			.filter((host) => host.kind === "agent")
-			.map((host) => ({ id: host.id, name: host.name })),
+		hosts,
 		gitProviders,
+		wall,
 	};
 };
 

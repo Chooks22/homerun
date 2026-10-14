@@ -1,9 +1,11 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { WorkstationPresetDTO } from "#lib/dto/workstation-preset-dto.js";
 import { Logger } from "#lib/logger.js";
+import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { loginWallOptions } from "#lib/server/login-wall-options.js";
 import { parseWorkstationPreset } from "#lib/server/workstation-form.js";
+import { workstationHosts } from "#lib/server/workstation-presets.js";
 import {
 	WorkstationSettingsError,
 	WorkstationSettingsService,
@@ -12,22 +14,22 @@ import { resolve } from "$app/paths";
 
 const logger = new Logger("WorkstationPreset");
 
-export const load = async ({ params, parent }) => {
+export const load = async ({ locals, params, parent }) => {
 	const { user } = await parent();
-	const [preset, hosts, gitProviders] = await Promise.all([
+	const [preset, hosts, gitProviders, wall] = await Promise.all([
 		WorkstationPresetDTO.get(params.presetId, user.id),
-		RemoteHostDTO.list(),
+		workstationHosts(),
 		connectedGitProviders(user.id),
+		loginWallOptions(can(locals.permissions, "services", "read")),
 	]);
 	if (!preset) {
 		error(404, "Preset not found");
 	}
 	return {
-		agentHosts: hosts
-			.filter((host) => host.kind === "agent")
-			.map((host) => ({ id: host.id, name: host.name })),
+		hosts,
 		gitProviders,
 		preset: preset.toJSON(),
+		wall,
 	};
 };
 

@@ -60,9 +60,10 @@
   >
     {#key preset.id}
       <WorkstationFields
-        agentHosts={data.agentHosts}
+        hosts={data.hosts}
         providers={data.gitProviders}
         values={preset}
+        wall={data.wall}
       >
         <WorkstationPresetHead description={preset.description} name={preset.name} />
       </WorkstationFields>

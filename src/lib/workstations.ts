@@ -135,8 +135,13 @@ export function autoStopLabel(
 		: `${minutes} min after it starts`;
 }
 
-/** Every setting a workstation and a preset share, as the form fields take them. */
+/** Every setting a workstation and a preset share, login wall included, as the form fields take them. */
 export interface WorkstationFieldValues {
+	authAllowedEmails: string[];
+	authAllowedGroups: string[];
+	authAllowedUserIds: string[];
+	authProviders: string[];
+	authRequired: boolean;
 	cpuLimit: number | null;
 	editorSettings: Record<string, unknown>;
 	env: Record<string, string>;
@@ -155,6 +160,11 @@ export interface WorkstationFieldValues {
 
 /** The settings a new workstation starts from when no preset is picked. */
 export const DEFAULT_WORKSTATION_FIELDS: WorkstationFieldValues = {
+	authAllowedEmails: [],
+	authAllowedGroups: [],
+	authAllowedUserIds: [],
+	authProviders: [],
+	authRequired: false,
 	cpuLimit: null,
 	editorSettings: {},
 	env: {},

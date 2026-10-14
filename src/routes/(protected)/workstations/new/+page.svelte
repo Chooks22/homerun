@@ -117,9 +117,10 @@
   >
     {#key presetId}
       <WorkstationFields
-        agentHosts={data.agentHosts}
+        hosts={data.hosts}
         providers={data.gitProviders}
         values={data.preset ?? DEFAULT_WORKSTATION_FIELDS}
+        wall={data.wall}
       >
         <div class="space-y-3">
           <div>

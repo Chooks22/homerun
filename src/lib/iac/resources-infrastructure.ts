@@ -1,4 +1,5 @@
 import type { IacAttribute, IacKind, IacResource } from "#lib/iac/resources.js";
+import { loginWallAttributes } from "#lib/iac/resources-identity.js";
 import {
 	DEFAULT_WORKSTATION_HOME,
 	DEFAULT_WORKSTATION_IMAGE,
@@ -188,6 +189,12 @@ function workstationResources(attr: AttributeFactory): IacResource[] {
 					description: "idle or timer, unset for never.",
 				}),
 				attr("autoStopMinutes", "int"),
+				attr("authRequired", "bool", {
+					default: false,
+					description:
+						"Put Homerun's login wall in front of the IDE instead of its password or git sign-in. The owner always gets in; turning it on or off restarts a running workstation.",
+				}),
+				...loginWallAttributes("auth"),
 				attr("slug", "string", readOnly),
 			],
 			collectionPath: "/workstations",
@@ -207,10 +214,16 @@ function workstationResources(attr: AttributeFactory): IacResource[] {
 					ref: "homerun_remote_host",
 				}),
 				...workstationSettings(attr),
+				attr("authRequired", "bool", {
+					default: false,
+					description:
+						"Put Homerun's login wall in front of the IDE of every workstation created from this preset, instead of its password or git sign-in.",
+				}),
+				...loginWallAttributes("auth"),
 			],
 			collectionPath: "/workstation-presets",
 			description:
-				"One of the API key owner's workstation presets: settings a new workstation starts from.",
+				"One of the API key owner's workstation presets: settings and a login wall a new workstation starts from.",
 			importId: ["id"],
 			itemPath: "/workstation-presets/{id}",
 			label: "name",

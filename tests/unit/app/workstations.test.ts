@@ -10,7 +10,7 @@ import {
 } from "#lib/server/workstation-form.js";
 import { presetFromWorkstation } from "#lib/server/workstation-presets.js";
 import {
-	agentHostAddress,
+	remoteHostAddress,
 	workstationAuthCheckUrl,
 	workstationLabels,
 	workstationRouteFile,
@@ -183,11 +183,13 @@ describe("routing", () => {
 		expect(workstationGateKey("abc")).toBe("workstation:abc");
 	});
 
-	test("an agent's address is its URL's hostname", () => {
-		expect(agentHostAddress("http://10.0.0.5:7430")).toBe("10.0.0.5");
-		expect(agentHostAddress("https://build.example.com")).toBe(
+	test("a remote host's address is its agent URL's or Docker address's hostname", () => {
+		expect(remoteHostAddress("http://10.0.0.5:7430")).toBe("10.0.0.5");
+		expect(remoteHostAddress("https://build.example.com")).toBe(
 			"build.example.com",
 		);
+		expect(remoteHostAddress("tcp://10.0.0.6:2376")).toBe("10.0.0.6");
+		expect(remoteHostAddress("ssh://deploy@10.0.0.7:2222")).toBe("10.0.0.7");
 	});
 });
 
@@ -208,6 +210,8 @@ describe("workstation presets", () => {
 			throw new Error(result.error);
 		}
 		expect(result.parsed).toMatchObject({
+			authProviders: [],
+			authRequired: false,
 			description: "node box",
 			env: { A: "1" },
 			homePath: DEFAULT_WORKSTATION_HOME,
@@ -217,9 +221,38 @@ describe("workstation presets", () => {
 		});
 	});
 
+	test("a preset's form carries its login wall", () => {
+		const data = form({
+			authAllowedEmails: "a@example.com\n*@example.org",
+			authAllowedGroups: "dev, ops",
+			authRequired: "on",
+			name: "Walled",
+		});
+		data.append("authProvider", "password");
+		data.append("authProvider", "password");
+		data.append("authAllowedUserId", "u2");
+		const result = parseWorkstationPreset(data);
+		if ("error" in result) {
+			throw new Error(result.error);
+		}
+		expect(result.parsed).toMatchObject({
+			authAllowedEmails: ["a@example.com", "*@example.org"],
+			authAllowedGroups: ["dev", "ops"],
+			authAllowedUserIds: ["u2"],
+			authProviders: ["password"],
+			authRequired: true,
+			name: "Walled",
+		});
+	});
+
 	test("saving a workstation as a preset copies its settings, not its identity", () => {
 		const preset = presetFromWorkstation(
 			{
+				authAllowedEmails: ["*@example.com"],
+				authAllowedGroups: [],
+				authAllowedUserIds: [],
+				authProviders: ["password"],
+				authRequired: true,
 				autoStopAt: null,
 				autoStopMinutes: 30,
 				autoStopMode: "idle",
@@ -252,6 +285,11 @@ describe("workstation presets", () => {
 			null,
 		);
 		expect(preset).toEqual({
+			authAllowedEmails: ["*@example.com"],
+			authAllowedGroups: [],
+			authAllowedUserIds: [],
+			authProviders: ["password"],
+			authRequired: true,
 			cpuLimit: 2,
 			description: null,
 			editorSettings: { "editor.tabSize": 2 },
@@ -277,6 +315,11 @@ describe("workstation forms", () => {
 		const result = parseNewWorkstation(form({ name: " dev " }));
 		expect(result).toEqual({
 			parsed: {
+				authAllowedEmails: [],
+				authAllowedGroups: [],
+				authAllowedUserIds: [],
+				authProviders: [],
+				authRequired: false,
 				cpuLimit: null,
 				domain: null,
 				editorSettings: {},

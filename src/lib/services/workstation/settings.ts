@@ -1,17 +1,23 @@
 import { config } from "#lib/config.js";
-import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
+import {
+	WorkstationDTO,
+	type WorkstationLoginWall,
+} from "#lib/dto/workstation-dto.js";
 import {
 	WorkstationPresetDTO,
 	type WorkstationPresetInput,
 } from "#lib/dto/workstation-preset-dto.js";
 import { Logger } from "#lib/logger.js";
 import { hostnameOwner } from "#lib/server/hostname-owner.js";
+import { loginWallPolicyProblem } from "#lib/server/login-wall-form.js";
+import { loginWallAvailability } from "#lib/server/login-wall-options.js";
 import {
 	generateWorkstationPassword,
 	type WorkstationSettings,
 } from "#lib/server/workstation-form.js";
-import { agentHostProblem } from "#lib/server/workstation-presets.js";
+import { workstationHostProblem } from "#lib/server/workstation-presets.js";
 import { encryptSecret } from "#lib/services/secrets.js";
+import { WorkstationSignInService } from "#lib/services/workstation/sign-in.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
 import { slugify, uniqueSlug } from "#lib/slug.js";
 import {
@@ -50,8 +56,10 @@ const DEFAULT_SETTINGS: WorkstationSettings = {
 	port: DEFAULT_WORKSTATION_PORT,
 };
 
-/** What a new workstation is made of: its settings (defaults fill the rest), a name, and the domain and host it can't change later. */
-export interface NewWorkstation extends Partial<WorkstationSettings> {
+/** What a new workstation is made of: its settings and login wall (defaults fill the rest), a name, and the domain and host it can't change later. */
+export interface NewWorkstation
+	extends Partial<WorkstationSettings>,
+		Partial<WorkstationLoginWall> {
 	domain?: string | null;
 	name: string;
 	remoteHostId?: string | null;
@@ -63,8 +71,10 @@ export interface AutoStopSetting {
 	mode: AutoStopMode | null;
 }
 
-/** A change to a workstation: its name, settings, auto-stop and whether it should run. */
-export interface WorkstationPatch extends Partial<WorkstationSettings> {
+/** A change to a workstation: its name, settings, login wall, auto-stop and whether it should run. */
+export interface WorkstationPatch
+	extends Partial<WorkstationSettings>,
+		Partial<WorkstationLoginWall> {
 	autoStop?: AutoStopSetting;
 	desiredState?: "running" | "stopped";
 	name?: string;
@@ -78,9 +88,58 @@ function checkedAutoStop(setting: AutoStopSetting): AutoStopSetting {
 	return setting.mode ? setting : { minutes: null, mode: null };
 }
 
+/**
+ * Throws when the login wall `changes` leave on a workstation (merged over
+ * `current`) can't be saved: a method that isn't enabled, a wall with no
+ * method or no Dashboard URL, a malformed email pattern. Nothing to check
+ * when `changes` touches no wall field.
+ */
+async function checkWall(
+	current: WorkstationLoginWall,
+	changes: Partial<WorkstationLoginWall>,
+): Promise<void> {
+	if (Object.values(changes).every((value) => value === undefined)) {
+		return;
+	}
+	const problem = loginWallPolicyProblem(
+		{
+			authAllowedEmails: changes.authAllowedEmails ?? current.authAllowedEmails,
+			authAllowedGroups: changes.authAllowedGroups ?? current.authAllowedGroups,
+			authAllowedUserIds:
+				changes.authAllowedUserIds ?? current.authAllowedUserIds,
+			authProviders: changes.authProviders ?? current.authProviders,
+			authRequired: changes.authRequired ?? current.authRequired,
+		},
+		await loginWallAvailability(),
+		config.auth.origin,
+	);
+	if (problem) {
+		throw new WorkstationSettingsError(problem);
+	}
+}
+
+/** The login wall fields of a workstation change, the ones left out undefined. */
+function wallChanges(input: Partial<WorkstationLoginWall>) {
+	return {
+		authAllowedEmails: input.authAllowedEmails,
+		authAllowedGroups: input.authAllowedGroups,
+		authAllowedUserIds: input.authAllowedUserIds,
+		authProviders: input.authProviders,
+		authRequired: input.authRequired,
+	};
+}
+
+const WALL_OFF: WorkstationLoginWall = {
+	authAllowedEmails: [],
+	authAllowedGroups: [],
+	authAllowedUserIds: [],
+	authProviders: [],
+	authRequired: false,
+};
+
 /** Throws when `remoteHostId` can't run a workstation. */
 async function checkHost(remoteHostId: string | null | undefined) {
-	const problem = await agentHostProblem(remoteHostId ?? null);
+	const problem = await workstationHostProblem(remoteHostId ?? null);
 	if (problem) {
 		throw new WorkstationSettingsError(problem);
 	}
@@ -98,7 +157,8 @@ class WorkstationSettingsServiceClass {
 	 * start that fails is logged and left on the workstation's last error.
 	 *
 	 * @throws {WorkstationSettingsError} When the host can't run a
-	 *   workstation (400), or the hostname is already routed (409).
+	 *   workstation or the login wall can't be saved (400), or the hostname
+	 *   is already routed (409).
 	 */
 	async create(
 		userId: string,
@@ -107,6 +167,7 @@ class WorkstationSettingsServiceClass {
 	): Promise<WorkstationDTO> {
 		const { domain, name, remoteHostId = null, ...settings } = input;
 		await checkHost(remoteHostId);
+		await checkWall(WALL_OFF, wallChanges(settings));
 		const autoStop = options.autoStop && checkedAutoStop(options.autoStop);
 		const slug = await uniqueSlug(slugify(name) || "workstation", (candidate) =>
 			WorkstationDTO.slugTaken(candidate),
@@ -151,17 +212,26 @@ class WorkstationSettingsServiceClass {
 	/**
 	 * Saves the fields sent, then the auto-stop setting, then starts or stops
 	 * the workstation when `desiredState` asks for the other state. A change
-	 * to a running workstation's settings applies on its next start.
+	 * to a running workstation's settings applies on its next start, except
+	 * the login wall: its policy applies at once, and turning it on or off
+	 * restarts a running workstation so its route and IDE password follow.
 	 *
+	 * @returns Whether the workstation was restarted for a login wall change.
 	 * @throws {WorkstationSettingsError} When the auto-stop setting has no
-	 *   minutes.
+	 *   minutes, or the login wall can't be saved.
 	 * @throws When the worker or agent refuses a start or a stop.
 	 */
-	async update(ws: WorkstationDTO, patch: WorkstationPatch): Promise<void> {
+	async update(
+		ws: WorkstationDTO,
+		patch: WorkstationPatch,
+	): Promise<{ restarted: boolean }> {
 		const { autoStop, desiredState, ...columns } = patch;
 		const checked = autoStop && checkedAutoStop(autoStop);
+		const wasWalled = ws.toJSON().authRequired;
+		await checkWall(ws.toJSON(), wallChanges(columns));
 		if (Object.keys(columns).length > 0) {
 			await ws.update(columns);
+			WorkstationSignInService.forget(ws.id);
 			logger.info(`Workstation settings saved: workstation=${ws.id}`);
 		}
 		if (checked) {
@@ -171,21 +241,35 @@ class WorkstationSettingsServiceClass {
 			await WorkstationService.start(ws);
 		} else if (desiredState === "stopped" && ws.desiredState !== "stopped") {
 			await WorkstationService.stop(ws);
+		} else if (
+			ws.desiredState === "running" &&
+			ws.toJSON().authRequired !== wasWalled
+		) {
+			await WorkstationService.start(ws);
+			logger.info(
+				`Workstation restarted for its login wall: workstation=${ws.id} authRequired=${ws.toJSON().authRequired}`,
+			);
+			return { restarted: true };
 		}
+		return { restarted: false };
 	}
 
 	/**
-	 * Saves a preset for `userId`, defaults filling the settings left out.
+	 * Saves a preset for `userId`, defaults filling the settings left out and
+	 * its login wall off unless sent.
 	 *
-	 * @throws {WorkstationSettingsError} When its host can't run a workstation.
+	 * @throws {WorkstationSettingsError} When its host can't run a
+	 *   workstation or its login wall can't be saved.
 	 */
 	async createPreset(
 		userId: string,
 		input: Partial<WorkstationPresetInput> & { name: string },
 	): Promise<WorkstationPresetDTO> {
 		await checkHost(input.remoteHostId);
+		await checkWall(WALL_OFF, wallChanges(input));
 		const preset = await WorkstationPresetDTO.create(userId, {
 			...DEFAULT_SETTINGS,
+			...WALL_OFF,
 			description: null,
 			remoteHostId: null,
 			...input,
@@ -200,7 +284,7 @@ class WorkstationSettingsServiceClass {
 	 * Saves the preset fields sent, keeping the rest.
 	 *
 	 * @throws {WorkstationSettingsError} When its new host can't run a
-	 *   workstation.
+	 *   workstation, or the login wall it's left with can't be saved.
 	 */
 	async updatePreset(
 		preset: WorkstationPresetDTO,
@@ -209,6 +293,7 @@ class WorkstationSettingsServiceClass {
 		if (input.remoteHostId !== undefined) {
 			await checkHost(input.remoteHostId);
 		}
+		await checkWall(preset.toJSON(), wallChanges(input));
 		if (Object.keys(input).length === 0) {
 			return;
 		}

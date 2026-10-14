@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { AlertTriangle, Layers, Stethoscope, Trash2 } from "@lucide/svelte";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import { toast } from "svelte-sonner";
 	import Alert from "#lib/components/alert.svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
+	import DevcontainerDetection from "#lib/components/devcontainer-detection.svelte";
 	import { labelClass } from "#lib/components/form-styles.js";
+	import LoginWallSection from "#lib/components/login-wall-section.svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import SelfTestChecks from "#lib/components/self-test-checks.svelte";
@@ -16,6 +18,11 @@
 	import WorkstationEditorFields from "#lib/components/workstation-editor-fields.svelte";
 	import WorkstationGitFields from "#lib/components/workstation-git-fields.svelte";
 	import WorkstationRepoFields from "#lib/components/workstation-repo-fields.svelte";
+	import {
+		appendDevcontainerForm,
+		type DevcontainerConfig,
+		mergeDevcontainerForm,
+	} from "#lib/devcontainer.js";
 	import { testWorkstation } from "#lib/remote/workstations.remote.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast, toastError } from "#lib/toast.js";
@@ -56,6 +63,24 @@
 					: "Saved. Start the workstation again to apply it.",
 		});
 	}
+
+	let current = $state(untrack(() => ({ ...data.workstation })));
+	let applied = $state(0);
+	let repo = $state({ branch: "", gitUrl: "" });
+	let editorForm = $state<HTMLFormElement | null>(null);
+	let containerForm = $state<HTMLFormElement | null>(null);
+	let devcontainerForm = $state<HTMLFormElement | null>(null);
+
+	function applyDevcontainerConfig(config: DevcontainerConfig) {
+		const formData = new FormData(editorForm ?? undefined);
+		for (const [key, value] of new FormData(containerForm ?? undefined)) {
+			formData.append(key, value);
+		}
+		current = mergeDevcontainerForm(formData, current, config);
+		applied += 1;
+		devcontainerForm?.requestSubmit();
+	}
+
 	let deleting = $state(false);
 	let deleteVolume = $state(false);
 	let deleteDialogOpen = $state(false);
@@ -124,24 +149,53 @@
     method="POST"
     use:enhance={sectionToast("repository", "the repository")}
   >
-    <WorkstationRepoFields providers={data.gitProviders} values={ws}>
+    <WorkstationRepoFields
+      onrepochange={(gitUrl, branch) => {
+        repo = { branch, gitUrl };
+      }}
+      providers={data.gitProviders}
+      values={ws}
+    >
       {#snippet trailing()}
         <SaveButton form="ws-repository" pending={saving === "repository"} />
       {/snippet}
     </WorkstationRepoFields>
   </form>
 
+  <DevcontainerDetection
+    branch={repo.branch}
+    gitUrl={repo.gitUrl}
+    onapply={applyDevcontainerConfig}
+    target="the Editor and Container sections, saved right away"
+  />
+
+  <form
+    bind:this={devcontainerForm}
+    class="hidden"
+    action="?/devcontainer"
+    method="POST"
+    use:enhance={enhanceToast({
+      error: "Couldn't save the dev container config.",
+      loading: "Saving the dev container config",
+      onSubmit: ({ formData }) => appendDevcontainerForm(formData, current),
+      success: "Saved. Start the workstation again to apply it.",
+    })}
+  ></form>
+
   <form
     id="ws-editor"
+    bind:this={editorForm}
     action="?/editor"
     method="POST"
     use:enhance={sectionToast("editor", "the editor")}
   >
-    <WorkstationEditorFields values={ws}>
-      {#snippet trailing()}
-        <SaveButton form="ws-editor" pending={saving === "editor"} />
-      {/snippet}
-    </WorkstationEditorFields>
+    {#key applied}
+      <WorkstationEditorFields values={current}>
+        {#snippet trailing()}
+          <SaveButton form="ws-editor" pending={saving === "editor"} />
+        {/snippet}
+      </WorkstationEditorFields>
+    {/key}
   </form>
 
   <form
@@ -157,17 +211,32 @@
     </WorkstationGitFields>
   </form>
 
+  <LoginWallSection
+    action="?/loginWall"
+    authError={form?.authError}
+    dashboardOrigin={data.wall.dashboardOrigin}
+    emailSignIn={data.wall.emailSignIn}
+    oauthProviders={data.wall.oauthProviders}
+    subject="workstation"
+    svc={{ ...ws, dnsResolvable: true }}
+    title="Login wall"
+    users={data.wall.users}
+  />
+
   <form
     id="ws-container"
+    bind:this={containerForm}
     action="?/container"
     method="POST"
     use:enhance={sectionToast("container", "the container")}
   >
-    <WorkstationContainerFields values={ws}>
-      {#snippet trailing()}
-        <SaveButton form="ws-container" pending={saving === "container"} />
-      {/snippet}
-    </WorkstationContainerFields>
+    {#key applied}
+      <WorkstationContainerFields values={current}>
+        {#snippet trailing()}
+          <SaveButton form="ws-container" pending={saving === "container"} />
+        {/snippet}
+      </WorkstationContainerFields>
+    {/key}
   </form>
 
   <form
