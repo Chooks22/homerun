@@ -50,7 +50,7 @@ export function registerTemplateTools(server: McpServer, api: ApiCall): void {
 		{
 			annotations: read,
 			description:
-				"One template's full settings: image and tag, port, env vars, command, resources, runtime options. Secret-looking env vars are redacted.",
+				"One template's full settings: image and tag, port, env vars, command, resources, runtime options. Secret-looking and credential-looking env vars are redacted.",
 			inputSchema: z.object({
 				templateId: z
 					.string()

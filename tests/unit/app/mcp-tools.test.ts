@@ -293,6 +293,7 @@ describe("MCP tools", () => {
 					mounts: [],
 					name: "Ping",
 					schedule: "*/5 * * * *",
+					secretEnvKeys: [],
 				},
 				method: "POST",
 				path: "/cron-jobs",
@@ -701,6 +702,27 @@ describe("list_services and update_service", () => {
 		expect((await refused.call("list_services")).isError).toBe(true);
 	});
 
+	test("get_service shows an uploaded icon as a label, update_service doesn't write the label back", async () => {
+		const { call, calls } = harness(({ method }) =>
+			Response.json(
+				method === "GET"
+					? { icon: "data:image/png;base64,iVBORw0KGgo=", id: "svc" }
+					: {},
+			),
+		);
+		const read = await call("get_service", { serviceId: "svc" });
+		expect(JSON.parse(read.content[0]?.text ?? "").icon).toBe("uploaded");
+		await call("update_service", {
+			changes: { icon: "uploaded", name: "Web" },
+			serviceId: "svc",
+		});
+		expect(calls.at(-1)).toEqual({
+			body: { name: "Web" },
+			method: "PATCH",
+			path: "/services/svc",
+		});
+	});
+
 	test("update_service merges env and restores redacted arguments", async () => {
 		const stored = {
 			command: ["valkey-server", "--requirepass", "s3cret"],
@@ -779,6 +801,31 @@ describe("update_cron_job", () => {
 		expect(result.isError).toBe(true);
 		expect(result.content[0]?.text).toContain("command still contains");
 		expect(calls.map((c) => c.method)).toEqual(["GET"]);
+	});
+
+	test("a var marked secret is redacted on read and kept when echoed back", async () => {
+		const marked = {
+			...stored,
+			envVars: { TMDB: "abc123", TZ: "UTC" },
+			secretEnvKeys: ["TMDB"],
+		};
+		const { call, calls } = harness(({ method }) =>
+			Response.json(method === "GET" ? marked : { id: "c1" }),
+		);
+		const read = await call("get_cron_job", { cronJobId: "c1" });
+		expect(JSON.parse(read.content[0]?.text ?? "").envVars).toEqual({
+			TMDB: REDACTED,
+			TZ: "UTC",
+		});
+		await call("update_cron_job", {
+			cronJobId: "c1",
+			envVars: { TMDB: REDACTED, TZ: "Europe/Paris" },
+		});
+		expect(calls.at(-1)).toEqual({
+			body: { envVars: { TMDB: "abc123", TZ: "Europe/Paris" } },
+			method: "PATCH",
+			path: "/cron-jobs/c1",
+		});
 	});
 
 	test("passes the cron job's own refusal through", async () => {

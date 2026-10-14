@@ -1,8 +1,10 @@
 import type { CallToolResult, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import {
+	maskFileText,
 	mergeEnvChanges,
 	REDACTED,
+	restoreFiles,
 	restoreMaskedText,
 } from "#lib/server/mcp-redact.js";
 import {
@@ -26,9 +28,11 @@ function cronJobPath(id: string, suffix = ""): string {
 
 /**
  * Patches a cron job for `update_cron_job`. Env changes are merged into the
- * stored vars (`null` deletes one) instead of replacing them, and a command or
- * env value sent back exactly as the agent read it, redacted parts included,
- * keeps its stored value; a placeholder that matches nothing stored is refused.
+ * stored vars (`null` deletes one) instead of replacing them, and a command,
+ * script source, file content or env value sent back exactly as the agent
+ * read it, redacted parts included (a var the owner marked secret too),
+ * keeps its stored value; a placeholder that matches nothing stored is
+ * refused.
  */
 async function updateCronJob(
 	api: ApiCall,
@@ -36,7 +40,11 @@ async function updateCronJob(
 	changes: Record<string, unknown>,
 ): Promise<CallToolResult> {
 	const patch = { ...changes };
-	if (patch.envVars === undefined && typeof patch.command !== "string") {
+	const masked = [patch.command, patch.source, JSON.stringify(patch.files)];
+	if (
+		patch.envVars === undefined &&
+		!masked.some((text) => typeof text === "string" && text.includes(REDACTED))
+	) {
 		return asResult(await api("PATCH", cronJobPath(id), patch));
 	}
 	const current = await api("GET", cronJobPath(id));
@@ -46,12 +54,16 @@ async function updateCronJob(
 	const stored = (await current.json()) as {
 		command: string | null;
 		envVars: Record<string, string> | null;
+		files: { content: string; path: string }[] | null;
+		secretEnvKeys?: string[];
+		source: string | null;
 	};
 	try {
 		if (patch.envVars && typeof patch.envVars === "object") {
 			patch.envVars = mergeEnvChanges(
 				patch.envVars as Record<string, unknown>,
 				stored.envVars ?? {},
+				new Set(stored.secretEnvKeys ?? []),
 			);
 		}
 		if (typeof patch.command === "string") {
@@ -60,6 +72,17 @@ async function updateCronJob(
 				patch.command,
 				stored.command,
 			);
+		}
+		if (typeof patch.source === "string") {
+			patch.source = restoreMaskedText(
+				"source",
+				patch.source,
+				stored.source,
+				maskFileText,
+			);
+		}
+		if (Array.isArray(patch.files)) {
+			patch.files = restoreFiles(patch.files, stored.files);
 		}
 	} catch (err) {
 		return errorResult(err);
@@ -114,7 +137,7 @@ function registerCronJobConfigTools(server: McpServer, api: ApiCall): void {
 		{
 			annotations: read,
 			description:
-				"A cron job's full config: kind, schedule, enabled, image and tag or script runtime and source, command, env vars, files, volume mounts, Docker socket, user, timeout and remote host. Secret-looking env vars and URL passwords are redacted.",
+				"A cron job's full config: kind, schedule, enabled, image and tag or script runtime and source, command, env vars, files, volume mounts, Docker socket, user, timeout and remote host. Env vars marked secret (secretEnvKeys), secret-looking or credential-looking env vars, URL passwords and password arguments are redacted, and so are the values a script's source or a file assigns to a secret-looking name.",
 			inputSchema: z.object({ cronJobId }),
 		},
 		async ({ cronJobId: id }) => asResult(await api("GET", cronJobPath(id))),
@@ -135,8 +158,7 @@ function registerCronJobConfigTools(server: McpServer, api: ApiCall): void {
 		"update_cron_job",
 		{
 			annotations: change,
-			description:
-				"Change a cron job's fields, keeping the ones left out. enabled turns its schedule on or off. Applies from its next run.",
+			description: `Change a cron job's fields, keeping the ones left out. enabled turns its schedule on or off. Applies from its next run. A command, source or file content sent back as you read it, "${REDACTED}" included, keeps its stored value.`,
 			inputSchema: updateCronJobApiBody.extend({
 				cronJobId,
 				envVars: z
