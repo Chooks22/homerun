@@ -1,8 +1,9 @@
 # Homerun
 
-**A self-hosted PaaS for deploying Docker containers with a click-config form**:
-a Dokploy / Cloud Run alternative for your own hardware, from one homelab box to
-a Docker Swarm of several machines, for you alone or a whole team.
+**A self-hosted PaaS that starts on one box. Swarm workers when you want more.
+No Kubernetes, no separate control plane.** Deploy Docker containers with a
+click-config form, a Dokploy / Cloud Run alternative for your own hardware, for
+you alone or a whole team. MIT licensed.
 
 [![Homerun | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/homerun/about/?utm_source=badge&utm_medium=referral)
 
@@ -19,7 +20,7 @@ Actions, a manifest in your repo or Terraform, whichever fits.
 
 [![Homerun: point at an image, hit deploy](docs/images/feature.webp)](docs/showcase.md)
 
-**[See the full showcase →](docs/showcase.md)** — every screen, light and dark,
+**[See the full showcase →](docs/showcase.md)**: every screen, light and dark,
 generated from a real instance.
 
 ## Why Homerun
@@ -140,8 +141,11 @@ roles, previews, IaC and the API are all just features, not a paid tier.
 - **Custom templates**: save any service's config as your own template, or build
   one from scratch
 
-### Workstations
+### Workstations & terminals
 
+- **[Machine terminals](docs/machine-terminals.md)**: a shell on this server and
+  every remote host, in the browser, over SSH from Homerun's worker, so a
+  machine only needs an SSH server and Homerun's public key
 - **[Browser-based dev boxes](docs/workstations.md)**: a code-server or
   openvscode-server container with a persistent home volume, your repo already
   cloned and its dev container config applied, on this server or any remote
@@ -236,9 +240,11 @@ roles, previews, IaC and the API are all just features, not a paid tier.
 
 ### Users & security
 
-- **[Multi-user, with roles & invites](docs/users-and-roles.md)**: admin,
-  developer, read-only and custom (pick the areas) roles, email or direct-create
-  invites, and a resource pool the whole team shares
+- **[Multi-user, with roles & invites](docs/users-and-roles.md)**: five roles
+  (admin, developer, read-only, app access only and custom, where you pick the
+  areas), email or direct-create invites, and a resource pool the whole team
+  shares; an app access only account never sees the dashboard, it only gets
+  through the login walls of the apps you choose
 - **[Service accounts](docs/users-and-roles.md#service-accounts)**: non-human
   accounts for CI and scripts, with no sign-in method, API keys as their only
   credential, permissions capped at yours and every use logged on an Activity
@@ -274,6 +280,9 @@ Everything you can click, you can script.
   OpenTofu provider and Pulumi for stacks, services, every setting and the
   objects around them, with state kept in your own object storage, a starter
   config generated from what's already running, and drift detection
+- **[Deploying from CI](docs/ci-cd.md)**: when your pipeline builds the image,
+  it tells Homerun to deploy (optionally switching to the tag it just pushed)
+  and waits for the deploy, so a failed deploy fails the pipeline
 - **[GitHub Actions](docs/ci-cd.md#github-actions)**: `deploy`, `rollback` and
   `preview` actions that deploy the image CI just pushed and wait for it, so a
   broken deploy fails the pipeline, plus `gate-session` to run E2E tests behind
@@ -300,8 +309,11 @@ Everything you can click, you can script.
   maintain, and an
   [optional `homerun.yaml`](docs/configuration.md#the-optional-yaml-file) if you
   want config as code
-- **[One-click self-update](docs/upgrading.md)**: to the latest release,
-  straight from the sidebar
+- **[One-click self-update](docs/upgrading.md)**: from the sidebar, on the
+  stable, canary or nightly release channel; the new version boots next to the
+  running one as a candidate first and only takes over once it answers its
+  readiness check, and a switch that doesn't come up rolls back to the version
+  you had
 - **[Setup diagnostics](docs/dashboard.md#setup-diagnostics)**: a banner that
   deep-links to the exact setting that's wrong
 - **[System logs](docs/system-logs.md)**: live logs of Traefik, Postgres and
@@ -327,7 +339,7 @@ the container needs to boot and then hands you a first-run wizard; after that,
 base domain, Docker, Traefik, email, sign-in methods, DNS automation and
 orchestration mode are all settings pages. There's no config file to maintain,
 just `AUTH_SECRET` and `ORIGIN` if you're running `docker compose` by hand
-instead of using the installer — an optional `homerun.yaml` file mirrors every
+instead of using the installer. An optional `homerun.yaml` file mirrors every
 setting for config-as-code setups, with a dashboard change always winning over
 the file. See [`docs/configuration.md`](docs/configuration.md).
 
@@ -357,3 +369,7 @@ root, not part of the SvelteKit build:
 
 Plus the [Terraform provider](terraform/provider) under `terraform/` and the
 GitHub Actions under [`actions/`](actions).
+
+## License
+
+MIT, see [`LICENSE`](LICENSE).
