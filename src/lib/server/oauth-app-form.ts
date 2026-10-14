@@ -1,5 +1,5 @@
 import type { EnvironmentInput } from "#lib/dto/oauth-client-environment-dto.js";
-import { callbackUrlProblem, originProblem } from "#lib/oidc-provider.js";
+import { environmentProblem } from "#lib/oidc-provider.js";
 import { checkbox } from "#lib/server/validation/instance-settings-form.js";
 import type {
 	OauthAppInput,
@@ -8,8 +8,6 @@ import type {
 } from "#lib/services/oauth-app.service.js";
 
 type Parsed<T> = { error: string; input: null } | { error: null; input: T };
-
-const ENVIRONMENT_NAME = /^[\w .-]{1,32}$/;
 
 /** The non-empty, trimmed, de-duplicated values of a repeated form field. */
 function list(formData: FormData, name: string): string[] {
@@ -53,53 +51,27 @@ export function parseOauthAppSettings(
 }
 
 /**
- * Reads an environment: its name, localhost switch, callback URLs (at least
- * one, https, loopback only where localhost is allowed) and authorized
- * origins, normalized without a trailing slash.
+ * Reads an environment: its name, localhost switch, callback URLs and
+ * authorized origins, de-duplicated and normalized without a trailing slash,
+ * then checked by `environmentProblem`.
  */
 export function parseEnvironmentForm(
 	formData: FormData,
 ): Parsed<EnvironmentInput> {
-	const name = String(formData.get("environmentName") ?? "").trim();
-	if (!ENVIRONMENT_NAME.test(name)) {
-		return {
-			error:
-				"Name the environment with up to 32 letters, digits, spaces, dots, dashes or underscores.",
-			input: null,
-		};
-	}
-	const allowLocalhost = checkbox(formData, "allowLocalhost");
-	const redirectUris = list(formData, "redirectUris");
-	if (redirectUris.length === 0) {
-		return {
-			error: "Add at least one callback URL, from the app's own OIDC settings.",
-			input: null,
-		};
-	}
-	for (const uri of redirectUris) {
-		const problem = callbackUrlProblem(uri, allowLocalhost);
-		if (problem) {
-			return { error: `${uri}: ${problem}`, input: null };
-		}
-	}
-	const allowedOrigins = list(formData, "allowedOrigins").map((origin) =>
-		origin.replace(/\/+$/, ""),
-	);
-	for (const origin of allowedOrigins) {
-		const problem = originProblem(origin, allowLocalhost);
-		if (problem) {
-			return { error: `${origin}: ${problem}`, input: null };
-		}
-	}
-	return {
-		error: null,
-		input: {
-			allowedOrigins: [...new Set(allowedOrigins)],
-			allowLocalhost,
-			name,
-			redirectUris,
-		},
+	const input: EnvironmentInput = {
+		allowedOrigins: [
+			...new Set(
+				list(formData, "allowedOrigins").map((origin) =>
+					origin.replace(/\/+$/, ""),
+				),
+			),
+		],
+		allowLocalhost: checkbox(formData, "allowLocalhost"),
+		name: String(formData.get("environmentName") ?? "").trim(),
+		redirectUris: list(formData, "redirectUris"),
 	};
+	const problem = environmentProblem(input);
+	return problem ? { error: problem, input: null } : { error: null, input };
 }
 
 /** Reads the registration form: the app's settings, its client type and its first environment. */

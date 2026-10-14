@@ -134,6 +134,41 @@ export function originProblem(
 	return url.protocol === "https:" ? null : "Origins have to use https.";
 }
 
+const ENVIRONMENT_NAME = /^[\w .-]{1,32}$/;
+
+/**
+ * Why an app environment can't be saved as given, null when it can: a name
+ * of up to 32 letters, digits, spaces, dots, dashes or underscores, at least
+ * one callback URL, and every callback and authorized origin acceptable for
+ * its localhost switch (see `callbackUrlProblem` and `originProblem`).
+ */
+export function environmentProblem(environment: {
+	allowedOrigins: string[];
+	allowLocalhost: boolean;
+	name: string;
+	redirectUris: string[];
+}): string | null {
+	if (!ENVIRONMENT_NAME.test(environment.name)) {
+		return "Name the environment with up to 32 letters, digits, spaces, dots, dashes or underscores.";
+	}
+	if (environment.redirectUris.length === 0) {
+		return "Add at least one callback URL, from the app's own OIDC settings.";
+	}
+	for (const uri of environment.redirectUris) {
+		const problem = callbackUrlProblem(uri, environment.allowLocalhost);
+		if (problem) {
+			return `${uri}: ${problem}`;
+		}
+	}
+	for (const origin of environment.allowedOrigins) {
+		const problem = originProblem(origin, environment.allowLocalhost);
+		if (problem) {
+			return `${origin}: ${problem}`;
+		}
+	}
+	return null;
+}
+
 /** The discovery document URL an app is pointed at to configure "Sign in with Homerun", under the issuer. */
 export function oidcDiscoveryUrl(origin: string): string {
 	return `${oidcIssuer(origin)}/.well-known/openid-configuration`;

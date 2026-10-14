@@ -3,7 +3,7 @@ import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseOauthAppSettings } from "#lib/server/oauth-app-form.js";
 import {
-	authErrorMessage,
+	OauthAppError,
 	OauthAppService,
 } from "#lib/services/oauth-app.service.js";
 import { resolve } from "$app/paths";
@@ -23,16 +23,22 @@ export const actions = {
 		if (!parsed.input) {
 			return fail(400, { error: parsed.error });
 		}
+		const confidential = app.summary().confidential;
 		try {
-			await OauthAppService.update(app.clientId, parsed.input, request.headers);
-			if (app.summary().confidential) {
-				await app.setRequirePkce(parsed.input.requirePkce);
-				await app.setTokenEndpointAuthMethod(parsed.input.tokenAuthMethod);
-			}
-		} catch (err) {
-			return fail(400, {
-				error: authErrorMessage(err, "Couldn't save the app."),
+			await OauthAppService.update(app, {
+				enableEndSession: parsed.input.enableEndSession,
+				name: parsed.input.name,
+				requirePkce: confidential ? parsed.input.requirePkce : undefined,
+				skipConsent: parsed.input.skipConsent,
+				tokenEndpointAuthMethod: confidential
+					? parsed.input.tokenAuthMethod
+					: undefined,
 			});
+		} catch (err) {
+			if (err instanceof OauthAppError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
 		logger.info(
 			`OAuth app updated: client=${app.clientId} user=${locals.user.id}`,

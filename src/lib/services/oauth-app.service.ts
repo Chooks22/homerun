@@ -1,5 +1,8 @@
 import { config } from "#lib/config.js";
-import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
+import {
+	type OauthClientChanges,
+	OauthClientDTO,
+} from "#lib/dto/oauth-client-dto.js";
 import {
 	type EnvironmentInput,
 	OauthClientEnvironmentDTO,
@@ -7,25 +10,14 @@ import {
 import { OauthClientSecretDTO } from "#lib/dto/oauth-client-secret-dto.js";
 import {
 	CLAUDE_MCP_CALLBACK,
-	OIDC_SCOPES,
+	environmentProblem,
+	mcpAllowed,
+	mcpResource,
 	registeredCallbacks,
 } from "#lib/oidc-provider.js";
-import { hashClientSecret } from "#lib/server/client-secret.js";
-import { auth } from "./auth.ts";
 
-/**
- * The readable reason behind a failed better-auth call. Its `APIError`s carry
- * an empty `message` and put the detail in the body, as an OAuth
- * `error_description` or a plain `message`.
- */
-export function authErrorMessage(err: unknown, fallback: string): string {
-	const body = (err as { body?: Record<string, unknown> } | null)?.body;
-	const detail = body?.error_description ?? body?.message ?? body?.error;
-	if (typeof detail === "string" && detail) {
-		return detail;
-	}
-	return err instanceof Error && err.message ? err.message : fallback;
-}
+/** A change to an app Homerun refuses, with a message fit for the person or API caller who asked. */
+export class OauthAppError extends Error {}
 
 export interface OauthAppSettings {
 	enableEndSession: boolean;
@@ -35,26 +27,15 @@ export interface OauthAppSettings {
 
 export type SecretAuthMethod = "client_secret_basic" | "client_secret_post";
 
-export interface OauthAppInput extends OauthAppSettings {
+export interface OauthAppRegistration extends OauthAppSettings {
 	confidential: boolean;
-	environment: EnvironmentInput;
+	disabled?: boolean;
 	requirePkce: boolean;
 	tokenAuthMethod: SecretAuthMethod;
 }
 
-/**
- * How a new app authenticates at the token endpoint. better-auth accepts only
- * the method a client registered with; Claude's connector sends its secret
- * in the request body whatever was picked, so a client with Claude's callback
- * registers for that.
- */
-function tokenAuthMethod(input: OauthAppInput): SecretAuthMethod | "none" {
-	if (!input.confidential) {
-		return "none";
-	}
-	return input.environment.redirectUris.includes(CLAUDE_MCP_CALLBACK)
-		? "client_secret_post"
-		: input.tokenAuthMethod;
+export interface OauthAppInput extends OauthAppRegistration {
+	environment: EnvironmentInput;
 }
 
 export interface CreatedOauthApp {
@@ -62,119 +43,236 @@ export interface CreatedOauthApp {
 	clientSecret: string | null;
 }
 
+/** An environment with its callbacks and origins de-duplicated, origins without a trailing slash. */
+function normalizedEnvironment(input: EnvironmentInput): EnvironmentInput {
+	return {
+		...input,
+		allowedOrigins: [
+			...new Set(
+				input.allowedOrigins.map((origin) => origin.replace(/\/+$/, "")),
+			),
+		],
+		redirectUris: [...new Set(input.redirectUris)],
+	};
+}
+
 /**
- * Registers and edits the apps allowed to use "Sign in with Homerun",
- * through better-auth's own OAuth provider endpoints for the client row,
- * while environments and secrets live in Homerun's own tables. Reads go
- * through the DTOs instead.
+ * Registers and edits the apps allowed to use "Sign in with Homerun". Their
+ * client rows are written straight to the database rather than through
+ * better-auth's client endpoints, which need a session and only let the
+ * admin who created a client change it: here any admin, or an API key with
+ * write access to Users & authentication, can. Environments and secrets live
+ * in Homerun's own tables, and the client's registered callbacks follow its
+ * environments.
  */
 class OauthAppServiceClass {
 	/**
-	 * Registers an app with its first environment. A confidential app gets a
-	 * client secret in that environment, returned here once and never
-	 * readable again; a public one (a SPA or mobile app) gets none and must
-	 * use PKCE. Runs as the signed-in admin whose request `headers` are
-	 * passed: better-auth checks that session against `clientPrivileges` even
-	 * for its server-only admin endpoint.
-	 *
-	 * @throws When better-auth rejects the input, or when the OIDC provider
-	 * isn't enabled because the Dashboard URL isn't set.
+	 * Registers an app with no environment yet, so no callback but Homerun's
+	 * own test one: nothing can sign in until an environment is added. A
+	 * public app (a SPA or mobile app) has no secret and always needs PKCE,
+	 * whatever `requirePkce` and `tokenAuthMethod` say. Where the MCP server
+	 * runs, the app is linked to it like every client the provider registers,
+	 * so it can also serve as an MCP connector.
 	 */
-	async create(
-		input: OauthAppInput,
-		headers: Headers,
-	): Promise<CreatedOauthApp> {
-		const registered = registeredCallbacks(
-			[input.environment],
-			config.auth.origin,
-		);
-		const created = await auth.api.adminCreateOAuthClient({
-			headers,
-			body: {
-				application_type: registered.applicationType,
-				client_name: input.name,
-				enable_end_session: input.enableEndSession,
-				grant_types: ["authorization_code", "refresh_token"],
-				redirect_uris: registered.redirectUris,
-				require_pkce: input.confidential ? input.requirePkce : true,
-				response_types: ["code"],
-				scope: OIDC_SCOPES.join(" "),
-				skip_consent: input.skipConsent,
-				token_endpoint_auth_method: tokenAuthMethod(input),
-			},
+	async register(input: OauthAppRegistration): Promise<OauthClientDTO> {
+		const origin = config.auth.origin;
+		const registered = registeredCallbacks([], origin);
+		const app = await OauthClientDTO.create({
+			applicationType: registered.applicationType,
+			disabled: input.disabled ?? false,
+			enableEndSession: input.enableEndSession,
+			name: input.name,
+			redirectUris: registered.redirectUris,
+			requirePkce: input.confidential ? input.requirePkce : true,
+			skipConsent: input.skipConsent,
+			tokenEndpointAuthMethod: input.confidential
+				? input.tokenAuthMethod
+				: "none",
 		});
-		const environment = await OauthClientEnvironmentDTO.create(
-			created.client_id,
-			input.environment,
-		);
-		const secret = created.client_secret ?? null;
-		if (secret) {
-			await OauthClientSecretDTO.adoptHash({
-				clientId: created.client_id,
-				environmentId: environment.id,
-				hint: secret.slice(-4),
-				label: "Initial secret",
-				secretHash: hashClientSecret(secret),
-			});
-			await OauthClientDTO.useSecretTable(created.client_id);
+		if (origin && mcpAllowed(origin)) {
+			await app.linkResource(mcpResource(origin));
 		}
-		return { clientId: created.client_id, clientSecret: secret };
+		return app;
 	}
 
 	/**
-	 * Saves an app's name and consent/logout options. Whether it's
-	 * confidential is fixed at creation, its PKCE requirement is changed
-	 * through `OauthClientDTO.setRequirePkce`, and its callbacks through its
-	 * environments. Runs as the admin whose request `headers` are passed.
+	 * Registers an app with its first environment, the dashboard's
+	 * registration form. A confidential app gets a client secret in that
+	 * environment, returned here once and never readable again. One with
+	 * Claude's connector callback sends its secret in the request body,
+	 * since Claude does whatever was picked.
 	 *
-	 * @throws When better-auth rejects the update.
+	 * @throws {OauthAppError} When the input is refused.
+	 */
+	async create(input: OauthAppInput): Promise<CreatedOauthApp> {
+		const problem = environmentProblem(input.environment);
+		if (problem) {
+			throw new OauthAppError(problem);
+		}
+		const app = await this.register({
+			...input,
+			tokenAuthMethod: input.environment.redirectUris.includes(
+				CLAUDE_MCP_CALLBACK,
+			)
+				? "client_secret_post"
+				: input.tokenAuthMethod,
+		});
+		const environment = await this.addEnvironment(app, input.environment);
+		if (!app.summary().confidential) {
+			return { clientId: app.clientId, clientSecret: null };
+		}
+		const { secret } = await OauthClientSecretDTO.issue(
+			app.clientId,
+			environment.id,
+			"Initial secret",
+		);
+		return { clientId: app.clientId, clientSecret: secret };
+	}
+
+	/**
+	 * Saves the fields in `changes`. Whether an app is confidential is fixed
+	 * at creation, so a public one takes neither a token auth method nor a
+	 * PKCE exemption.
+	 *
+	 * @throws {OauthAppError} When a public app is asked for either.
 	 */
 	async update(
-		clientId: string,
-		input: OauthAppSettings,
-		headers: Headers,
+		app: OauthClientDTO,
+		changes: OauthClientChanges,
 	): Promise<void> {
-		await auth.api.adminUpdateOAuthClient({
-			headers,
-			body: {
-				client_id: clientId,
-				update: {
-					client_name: input.name,
-					enable_end_session: input.enableEndSession,
-					skip_consent: input.skipConsent,
-				},
-			},
-		});
+		if (!app.summary().confidential) {
+			if (changes.tokenEndpointAuthMethod) {
+				throw new OauthAppError(
+					"This app is public: it has no secret, so no token auth method.",
+				);
+			}
+			if (changes.requirePkce === false) {
+				throw new OauthAppError("A public app always requires PKCE.");
+			}
+		}
+		await app.update(changes);
 	}
 
 	/**
-	 * Re-registers the client's callbacks with the provider from its
-	 * environments (plus the test callback), after an environment changed.
+	 * Adds an environment to an app and registers its callbacks.
 	 *
-	 * @throws When no callback is left, or better-auth rejects one.
+	 * @throws {OauthAppError} When the environment is invalid or the app
+	 * already has one by that name.
 	 */
-	async syncCallbacks(clientId: string, headers: Headers): Promise<void> {
-		const environments =
-			await OauthClientEnvironmentDTO.listForClient(clientId);
+	async addEnvironment(
+		app: OauthClientDTO,
+		input: EnvironmentInput,
+	): Promise<OauthClientEnvironmentDTO> {
+		const normalized = normalizedEnvironment(input);
+		await this.#checkEnvironment(app, normalized, null);
+		const environment = await OauthClientEnvironmentDTO.create(
+			app.clientId,
+			normalized,
+		);
+		await this.syncCallbacks(app);
+		return environment;
+	}
+
+	/**
+	 * Saves an environment's name, callbacks, origins and localhost switch,
+	 * and registers its callbacks.
+	 *
+	 * @throws {OauthAppError} When the environment is invalid or another of
+	 * the app's environments has that name.
+	 */
+	async updateEnvironment(
+		app: OauthClientDTO,
+		environment: OauthClientEnvironmentDTO,
+		input: EnvironmentInput,
+	): Promise<void> {
+		const normalized = normalizedEnvironment(input);
+		await this.#checkEnvironment(app, normalized, environment.id);
+		await environment.update(normalized);
+		await this.syncCallbacks(app);
+	}
+
+	/** Deletes an environment with its secrets, and drops its callbacks. */
+	async deleteEnvironment(
+		app: OauthClientDTO,
+		environment: OauthClientEnvironmentDTO,
+	): Promise<void> {
+		await environment.delete();
+		await this.syncCallbacks(app);
+	}
+
+	/**
+	 * Mints a secret for one of a confidential app's environments, returned
+	 * here once and never readable again.
+	 *
+	 * @throws {OauthAppError} When the app is public or the environment isn't
+	 * the app's.
+	 */
+	async issueSecret(
+		app: OauthClientDTO,
+		environmentId: string,
+		label: string,
+	): Promise<{
+		environment: OauthClientEnvironmentDTO;
+		row: OauthClientSecretDTO;
+		secret: string;
+	}> {
+		if (!app.summary().confidential) {
+			throw new OauthAppError("This app is public, so it has no secrets.");
+		}
+		const environment = await OauthClientEnvironmentDTO.get(
+			app.clientId,
+			environmentId,
+		);
+		if (!environment) {
+			throw new OauthAppError("That environment doesn't exist any more.");
+		}
+		const issued = await OauthClientSecretDTO.issue(
+			app.clientId,
+			environment.id,
+			label.trim().slice(0, 64) || "Client secret",
+		);
+		return { ...issued, environment };
+	}
+
+	/**
+	 * Re-registers the client's callbacks from its environments (plus the
+	 * test callback), after an environment changed, and the application type
+	 * that lets loopback ones through.
+	 */
+	async syncCallbacks(app: OauthClientDTO): Promise<void> {
+		const environments = await OauthClientEnvironmentDTO.listForClient(
+			app.clientId,
+		);
 		const registered = registeredCallbacks(
-			environments.map((env) => ({ redirectUris: env.redirectUris })),
+			environments.map((environment) => ({
+				redirectUris: environment.redirectUris,
+			})),
 			config.auth.origin,
 		);
-		if (registered.redirectUris.length === 0) {
-			throw new Error(
-				"The app needs at least one callback URL in one of its environments.",
-			);
+		await app.setCallbacks(registered.applicationType, registered.redirectUris);
+	}
+
+	/** Refuses an invalid environment, or a name another of the app's environments has. */
+	async #checkEnvironment(
+		app: OauthClientDTO,
+		input: EnvironmentInput,
+		environmentId: string | null,
+	): Promise<void> {
+		const problem = environmentProblem(input);
+		if (problem) {
+			throw new OauthAppError(problem);
 		}
-		await auth.api.adminUpdateOAuthClient({
-			headers,
-			body: {
-				client_id: clientId,
-				update: {
-					application_type: registered.applicationType,
-					redirect_uris: registered.redirectUris,
-				},
-			},
-		});
+		const existing = await OauthClientEnvironmentDTO.listForClient(
+			app.clientId,
+		);
+		if (
+			existing.some(
+				(environment) =>
+					environment.id !== environmentId && environment.name === input.name,
+			)
+		) {
+			throw new OauthAppError(`There's already a "${input.name}" environment.`);
+		}
 	}
 }
 

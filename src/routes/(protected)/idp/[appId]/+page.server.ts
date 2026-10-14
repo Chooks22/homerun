@@ -3,10 +3,7 @@ import { config } from "#lib/config.js";
 import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
 import { Logger } from "#lib/logger.js";
 import { adminApp } from "#lib/server/oauth-app-admin.js";
-import {
-	authErrorMessage,
-	OauthAppService,
-} from "#lib/services/oauth-app.service.js";
+import { OauthAppService } from "#lib/services/oauth-app.service.js";
 import {
 	OAUTH_TEST_COOKIE,
 	OauthTestService,
@@ -25,14 +22,14 @@ export const actions = {
 			return fail(404, { error: "That app isn't registered." });
 		}
 		const disabled = !app.summary().disabled;
-		await app.setDisabled(disabled);
+		await OauthAppService.update(app, { disabled });
 		logger.info(
 			`OAuth app ${disabled ? "disabled" : "enabled"}: client=${app.clientId} user=${locals.user.id}`,
 		);
 		return { disabled };
 	},
 
-	test: async ({ cookies, locals, params, request, url }) => {
+	test: async ({ cookies, locals, params, url }) => {
 		const app = await adminApp(locals, params.appId);
 		const origin = config.auth.origin;
 		if (!origin) {
@@ -40,13 +37,7 @@ export const actions = {
 				error: "Set the Dashboard URL under Settings → General first.",
 			});
 		}
-		try {
-			await OauthAppService.syncCallbacks(app.clientId, request.headers);
-		} catch (err) {
-			return fail(400, {
-				error: authErrorMessage(err, "Couldn't register the test callback."),
-			});
-		}
+		await OauthAppService.syncCallbacks(app);
 		const { authorizeUrl, state } = await OauthTestService.start(app, origin);
 		cookies.set(OAUTH_TEST_COOKIE, JSON.stringify(state), {
 			httpOnly: true,

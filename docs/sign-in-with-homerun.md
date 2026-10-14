@@ -89,9 +89,22 @@ sign-in behaves), **Environments** (callbacks, origins and secrets per
 environment), **Users** (everyone who has authorized it, with **Revoke** per
 person or **Revoke everyone**: their tokens stop working and the next sign-in
 asks for consent again) and **Settings** (name, consent, PKCE, how the secret is
-sent, and deletion).
+sent, and deletion). Any account with write access to Users & authentication
+(every admin) can change any app, whoever registered it.
 
 ![The IDP page listing registered apps with their users, last use and on/off switch](images/idp-apps.webp)
+
+**From the REST API or Terraform.** `/api/v1/oidc-apps` (an API key with write
+access to Users & authentication) and the Terraform resources
+`homerun_oidc_app`, `homerun_oidc_app_environment` and `homerun_oidc_app_secret`
+manage the same apps, with the same checks. They split what the Register app
+page does in one go: an app is created with no environment, so nobody can sign
+in until one is added with its callback URLs, and a confidential app's secrets
+are minted one at a time per environment (`POST .../secrets`, whose response is
+the only place the value appears). An app's last environment can be deleted
+there, unlike on the dashboard, so a Terraform destroy goes through. See
+[REST API and CLI](api-and-cli.md) and
+[Infrastructure as code](infrastructure-as-code.md#resources).
 
 **Connecting Claude.** An AI agent reaches Homerun's [MCP server](mcp.md)
 through this same provider. One that supports Client ID Metadata Documents signs

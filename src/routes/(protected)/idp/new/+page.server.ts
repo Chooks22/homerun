@@ -9,7 +9,7 @@ import {
 } from "#lib/oidc-provider.js";
 import { parseOauthAppForm } from "#lib/server/oauth-app-form.js";
 import {
-	authErrorMessage,
+	OauthAppError,
 	OauthAppService,
 } from "#lib/services/oauth-app.service.js";
 import { resolve } from "$app/paths";
@@ -43,22 +43,16 @@ export const actions = {
 		}
 
 		try {
-			const created = await OauthAppService.create(
-				parsed.input,
-				request.headers,
-			);
+			const created = await OauthAppService.create(parsed.input);
 			logger.info(
 				`OAuth app registered: client=${created.clientId} name=${parsed.input.name} user=${locals.user.id}`,
 			);
 			return { created: { ...created, name: parsed.input.name } };
 		} catch (err) {
-			logger.warn(
-				`OAuth app registration failed: name=${parsed.input.name}`,
-				err,
-			);
-			return fail(400, {
-				error: authErrorMessage(err, "Couldn't register the app."),
-			});
+			if (err instanceof OauthAppError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
 	},
 };

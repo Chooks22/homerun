@@ -1,10 +1,17 @@
+import { generateRandomString } from "better-auth/crypto";
 import { desc, eq } from "drizzle-orm";
 import {
 	CLIENT_SECRET_MARKER,
+	OIDC_SCOPES,
 	OIDC_TEST_CALLBACK_PATH,
 } from "#lib/oidc-provider.js";
 import { db } from "#lib/server/db/lib.js";
-import { type OauthClient, oauthClient } from "#lib/server/db/schema.js";
+import {
+	type OauthClient,
+	oauthClient,
+	oauthClientResource,
+	oauthResource,
+} from "#lib/server/db/schema.js";
 import { BaseDTO } from "./base-dto";
 
 /** A string-array column the auth adapter stores as JSON text, read back as a list. */
@@ -20,6 +27,31 @@ function jsonList(value: string | null): string[] {
 	} catch {
 		return [];
 	}
+}
+
+export type TokenEndpointAuthMethod =
+	| "client_secret_basic"
+	| "client_secret_post"
+	| "none";
+
+export interface NewOauthClient {
+	applicationType: "native" | "web";
+	disabled: boolean;
+	enableEndSession: boolean;
+	name: string;
+	redirectUris: string[];
+	requirePkce: boolean;
+	skipConsent: boolean;
+	tokenEndpointAuthMethod: TokenEndpointAuthMethod;
+}
+
+export interface OauthClientChanges {
+	disabled?: boolean;
+	enableEndSession?: boolean;
+	name?: string;
+	requirePkce?: boolean;
+	skipConsent?: boolean;
+	tokenEndpointAuthMethod?: "client_secret_basic" | "client_secret_post";
 }
 
 export interface OauthClientSummary {
@@ -39,9 +71,9 @@ export interface OauthClientSummary {
 
 /**
  * Wraps the `oauth_client` table: the apps registered to use "Sign in with
- * Homerun". Reads only; creating a client, changing it and rotating its
- * secret go through `OauthAppService`, since better-auth owns secret hashing
- * and field validation for those.
+ * Homerun". Written here rather than through better-auth's client endpoints,
+ * which need a session and only let the admin who created a client change
+ * it; `OauthAppService` validates the input first.
  */
 export class OauthClientDTO extends BaseDTO<OauthClient> {
 	/** Every registered app, newest first. */
@@ -74,57 +106,141 @@ export class OauthClientDTO extends BaseDTO<OauthClient> {
 	}
 
 	/**
-	 * Points the client's `client_secret` at the `oauth_client_secret` table
-	 * (`homerun-secrets:<client id>`), which `OauthClientSecretDTO.verify`
-	 * reads, so its secrets can be several, per environment, and revoked one
-	 * by one. Written here because better-auth would store a hash instead.
+	 * Inserts an app's client row the way better-auth's provider registers
+	 * one (list columns as JSON text, the id it signs in with), owned by no
+	 * user, so any admin or API key with the right permission can manage it.
+	 * A confidential app's `client_secret` points at the
+	 * `oauth_client_secret` table (`homerun-secrets:<client id>`), which
+	 * `OauthClientSecretDTO.verify` reads; a public one has none.
 	 */
-	static async useSecretTable(clientId: string): Promise<void> {
+	static async create(input: NewOauthClient): Promise<OauthClientDTO> {
+		const clientId = generateRandomString(32, "a-z", "A-Z");
+		const now = new Date();
+		const row: OauthClient = {
+			applicationType: input.applicationType,
+			backchannelLogoutSessionRequired: null,
+			backchannelLogoutUri: null,
+			clientCredentialsScopes: "[]",
+			clientDiscoveryId: null,
+			clientId,
+			clientSecret:
+				input.tokenEndpointAuthMethod === "none"
+					? null
+					: `${CLIENT_SECRET_MARKER}${clientId}`,
+			contacts: null,
+			createdAt: now,
+			disabled: input.disabled,
+			dpopBoundAccessTokens: false,
+			enableEndSession: input.enableEndSession,
+			grantTypes: JSON.stringify(["authorization_code", "refresh_token"]),
+			icon: null,
+			id: crypto.randomUUID(),
+			jwks: null,
+			jwksUri: null,
+			metadata: null,
+			name: input.name,
+			policy: null,
+			postLogoutRedirectUris: null,
+			redirectUris: JSON.stringify(input.redirectUris),
+			referenceId: null,
+			requirePKCE: input.requirePkce,
+			responseTypes: JSON.stringify(["code"]),
+			scopes: JSON.stringify([...OIDC_SCOPES]),
+			skipConsent: input.skipConsent,
+			softwareId: null,
+			softwareStatement: null,
+			softwareVersion: null,
+			subjectType: null,
+			tokenEndpointAuthMethod: input.tokenEndpointAuthMethod,
+			tos: null,
+			updatedAt: now,
+			uri: null,
+			userId: null,
+		};
+		await db.insert(oauthClient).values(row);
+		return new OauthClientDTO(row);
+	}
+
+	/**
+	 * Links the app to a protected resource (the MCP endpoint), as
+	 * better-auth's provider does for every client it registers, so its
+	 * tokens may carry that audience: the provider refuses a resource a
+	 * client isn't linked to. Seeds the resource row first when the provider
+	 * hasn't yet, the way it would.
+	 */
+	async linkResource(identifier: string): Promise<void> {
+		const now = new Date();
 		await db
-			.update(oauthClient)
-			.set({
-				clientSecret: `${CLIENT_SECRET_MARKER}${clientId}`,
-				updatedAt: new Date(),
+			.insert(oauthResource)
+			.values({
+				createdAt: now,
+				disabled: false,
+				dpopBoundAccessTokensRequired: false,
+				id: generateRandomString(32, "a-z", "A-Z"),
+				identifier,
+				name: identifier,
+				policyVersion: 1,
+				updatedAt: now,
 			})
-			.where(eq(oauthClient.clientId, clientId));
-	}
-
-	/** Turns the app on or off; a disabled app can't start new sign-ins. */
-	async setDisabled(disabled: boolean): Promise<void> {
+			.onConflictDoNothing({ target: oauthResource.identifier });
 		await db
-			.update(oauthClient)
-			.set({ disabled, updatedAt: new Date() })
-			.where(eq(oauthClient.id, this.row.id));
-		this.row.disabled = disabled;
+			.insert(oauthClientResource)
+			.values({
+				clientId: this.row.clientId,
+				createdAt: now,
+				id: generateRandomString(32, "a-z", "A-Z"),
+				resourceId: identifier,
+			})
+			.onConflictDoNothing();
 	}
 
 	/**
-	 * Sets whether sign-ins must send a PKCE challenge. Written here rather
-	 * than through better-auth, whose update endpoint doesn't take it. A public
-	 * app always needs PKCE whatever this says.
+	 * Saves the fields in `changes`. `tokenEndpointAuthMethod` only switches a
+	 * confidential app between `client_secret_basic` and `client_secret_post`;
+	 * whether an app is public is fixed at creation.
 	 */
-	async setRequirePkce(requirePkce: boolean): Promise<void> {
+	async update(changes: OauthClientChanges): Promise<void> {
+		const set: Partial<OauthClient> = {
+			disabled: changes.disabled,
+			enableEndSession: changes.enableEndSession,
+			name: changes.name,
+			requirePKCE: changes.requirePkce,
+			skipConsent: changes.skipConsent,
+			tokenEndpointAuthMethod: changes.tokenEndpointAuthMethod,
+		};
+		const defined = Object.fromEntries(
+			Object.entries(set).filter(([, value]) => value !== undefined),
+		) as Partial<OauthClient>;
+		if (Object.keys(defined).length === 0) {
+			return;
+		}
+		const updatedAt = new Date();
 		await db
 			.update(oauthClient)
-			.set({ requirePKCE: requirePkce, updatedAt: new Date() })
+			.set({ ...defined, updatedAt })
 			.where(eq(oauthClient.id, this.row.id));
-		this.row.requirePKCE = requirePkce;
+		Object.assign(this.row, defined, { updatedAt });
 	}
 
 	/**
-	 * Sets how a confidential app sends its secret to the token endpoint:
-	 * `client_secret_basic` (HTTP Basic header) or `client_secret_post`
-	 * (request body). The provider only accepts the registered one, and its
-	 * update endpoint doesn't take it, so it's written here.
+	 * Registers the callbacks codes may be sent to, and the application type
+	 * that lets loopback ones through (`native`), with the provider.
 	 */
-	async setTokenEndpointAuthMethod(
-		method: "client_secret_basic" | "client_secret_post",
+	async setCallbacks(
+		applicationType: "native" | "web",
+		redirectUris: string[],
 	): Promise<void> {
+		const updatedAt = new Date();
+		const redirectUrisJson = JSON.stringify(redirectUris);
 		await db
 			.update(oauthClient)
-			.set({ tokenEndpointAuthMethod: method, updatedAt: new Date() })
+			.set({ applicationType, redirectUris: redirectUrisJson, updatedAt })
 			.where(eq(oauthClient.id, this.row.id));
-		this.row.tokenEndpointAuthMethod = method;
+		Object.assign(this.row, {
+			applicationType,
+			redirectUris: redirectUrisJson,
+			updatedAt,
+		});
 	}
 
 	/**

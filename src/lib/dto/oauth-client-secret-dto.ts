@@ -101,25 +101,6 @@ export class OauthClientSecretDTO extends BaseDTO<OauthClientSecret> {
 		);
 	}
 
-	/** Stores an existing secret's hash, e.g. the one better-auth generated at registration. */
-	static async adoptHash(input: {
-		clientId: string;
-		environmentId: string;
-		hint: string;
-		label: string;
-		secretHash: string;
-	}): Promise<OauthClientSecretDTO> {
-		const row: OauthClientSecret = {
-			...input,
-			createdAt: new Date(),
-			expiresAt: null,
-			id: crypto.randomUUID(),
-			lastUsedAt: null,
-		};
-		await db.insert(oauthClientSecret).values(row);
-		return new OauthClientSecretDTO(row);
-	}
-
 	/**
 	 * Mints a new secret for a client's environment, or an expiring one with
 	 * no environment for a test sign-in.

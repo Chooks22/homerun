@@ -5,11 +5,19 @@ import { Logger } from "#lib/logger.js";
 import { adminApp } from "#lib/server/oauth-app-admin.js";
 import { parseEnvironmentForm } from "#lib/server/oauth-app-form.js";
 import {
-	authErrorMessage,
+	OauthAppError,
 	OauthAppService,
 } from "#lib/services/oauth-app.service.js";
 
 const logger = new Logger("OidcProvider");
+
+/** The 400 for a change the app service refused; anything else is rethrown. */
+function refused(err: unknown) {
+	if (err instanceof OauthAppError) {
+		return fail(400, { error: err.message });
+	}
+	throw err;
+}
 
 export const load = async ({ parent }) => {
 	const { app } = await parent();
@@ -32,41 +40,29 @@ export const actions = {
 		if (!parsed.input) {
 			return fail(400, { error: parsed.error });
 		}
-		const existing = await OauthClientEnvironmentDTO.listForClient(
-			app.clientId,
-		);
-		if (existing.some((env) => env.name === parsed.input.name)) {
-			return fail(400, {
-				error: `There's already a "${parsed.input.name}" environment.`,
-			});
-		}
-		const environment = await OauthClientEnvironmentDTO.create(
-			app.clientId,
-			parsed.input,
-		);
 		try {
-			await OauthAppService.syncCallbacks(app.clientId, request.headers);
+			const environment = await OauthAppService.addEnvironment(
+				app,
+				parsed.input,
+			);
+			logger.info(
+				`OAuth app environment added: client=${app.clientId} env=${environment.name}`,
+			);
+			if (!app.summary().confidential) {
+				return { created: environment.name };
+			}
+			const { secret } = await OauthAppService.issueSecret(
+				app,
+				environment.id,
+				"Initial secret",
+			);
+			return {
+				created: environment.name,
+				secret: { environment: environment.name, value: secret },
+			};
 		} catch (err) {
-			await environment.delete();
-			return fail(400, {
-				error: authErrorMessage(err, "Couldn't add the environment."),
-			});
+			return refused(err);
 		}
-		logger.info(
-			`OAuth app environment added: client=${app.clientId} env=${environment.name}`,
-		);
-		if (!app.summary().confidential) {
-			return { created: environment.name };
-		}
-		const { secret } = await OauthClientSecretDTO.issue(
-			app.clientId,
-			environment.id,
-			"Initial secret",
-		);
-		return {
-			created: environment.name,
-			secret: { environment: environment.name, value: secret },
-		};
 	},
 
 	updateEnvironment: async ({ locals, params, request }) => {
@@ -83,30 +79,10 @@ export const actions = {
 		if (!parsed.input) {
 			return fail(400, { error: parsed.error });
 		}
-		const others = await OauthClientEnvironmentDTO.listForClient(app.clientId);
-		if (
-			others.some(
-				(env) => env.id !== environment.id && env.name === parsed.input.name,
-			)
-		) {
-			return fail(400, {
-				error: `There's already a "${parsed.input.name}" environment.`,
-			});
-		}
-		const previous = {
-			allowedOrigins: environment.allowedOrigins,
-			allowLocalhost: environment.allowLocalhost,
-			name: environment.name,
-			redirectUris: environment.redirectUris,
-		};
-		await environment.update(parsed.input);
 		try {
-			await OauthAppService.syncCallbacks(app.clientId, request.headers);
+			await OauthAppService.updateEnvironment(app, environment, parsed.input);
 		} catch (err) {
-			await environment.update(previous);
-			return fail(400, {
-				error: authErrorMessage(err, "Couldn't save the environment."),
-			});
+			return refused(err);
 		}
 		logger.info(
 			`OAuth app environment saved: client=${app.clientId} env=${environment.name}`,
@@ -131,14 +107,7 @@ export const actions = {
 				error: "An app keeps at least one environment. Delete the app instead.",
 			});
 		}
-		await environment.delete();
-		try {
-			await OauthAppService.syncCallbacks(app.clientId, request.headers);
-		} catch (err) {
-			return fail(400, {
-				error: authErrorMessage(err, "Couldn't remove its callbacks."),
-			});
-		}
+		await OauthAppService.deleteEnvironment(app, environment);
 		logger.info(
 			`OAuth app environment deleted: client=${app.clientId} env=${environment.name}`,
 		);
@@ -147,30 +116,20 @@ export const actions = {
 
 	issueSecret: async ({ locals, params, request }) => {
 		const app = await adminApp(locals, params.appId);
-		if (!app.summary().confidential) {
-			return fail(400, { error: "This app is public, so it has no secrets." });
-		}
 		const formData = await request.formData();
-		const environment = await OauthClientEnvironmentDTO.get(
-			app.clientId,
-			String(formData.get("environmentId")),
-		);
-		if (!environment) {
-			return fail(404, { error: "That environment doesn't exist any more." });
+		try {
+			const { environment, secret } = await OauthAppService.issueSecret(
+				app,
+				String(formData.get("environmentId")),
+				String(formData.get("label") ?? ""),
+			);
+			logger.info(
+				`OAuth app secret issued: client=${app.clientId} env=${environment.name} user=${locals.user?.id}`,
+			);
+			return { secret: { environment: environment.name, value: secret } };
+		} catch (err) {
+			return refused(err);
 		}
-		const label =
-			String(formData.get("label") ?? "")
-				.trim()
-				.slice(0, 64) || "Client secret";
-		const { secret } = await OauthClientSecretDTO.issue(
-			app.clientId,
-			environment.id,
-			label,
-		);
-		logger.info(
-			`OAuth app secret issued: client=${app.clientId} env=${environment.name} user=${locals.user?.id}`,
-		);
-		return { secret: { environment: environment.name, value: secret } };
 	},
 
 	revokeSecret: async ({ locals, params, request }) => {

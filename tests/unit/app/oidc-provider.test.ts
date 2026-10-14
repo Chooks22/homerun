@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	callbackUrlProblem,
+	environmentProblem,
 	matchesCallback,
 	mcpAllowed,
 	mcpResource,
@@ -216,5 +217,50 @@ describe("rebaseOnOrigin", () => {
 		expect(rebaseOnOrigin(request, "https://homerun.example.com/")).toBe(
 			request,
 		);
+	});
+});
+
+describe("environmentProblem", () => {
+	const production = {
+		allowedOrigins: ["https://app.example.com"],
+		allowLocalhost: false,
+		name: "production",
+		redirectUris: ["https://app.example.com/callback"],
+	};
+
+	test("accepts a valid environment", () => {
+		expect(environmentProblem(production)).toBeNull();
+	});
+
+	test("refuses a bad name, no callback, and callbacks or origins its localhost switch rules out", () => {
+		expect(environmentProblem({ ...production, name: "" })).toContain(
+			"Name the environment",
+		);
+		expect(environmentProblem({ ...production, name: "a/b" })).toContain(
+			"Name the environment",
+		);
+		expect(environmentProblem({ ...production, redirectUris: [] })).toContain(
+			"at least one callback URL",
+		);
+		expect(
+			environmentProblem({
+				...production,
+				redirectUris: ["http://localhost:3000/callback"],
+			}),
+		).toStartWith("http://localhost:3000/callback: ");
+		expect(
+			environmentProblem({
+				...production,
+				allowedOrigins: ["http://app.example.com"],
+			}),
+		).toStartWith("http://app.example.com: ");
+		expect(
+			environmentProblem({
+				...production,
+				allowLocalhost: true,
+				allowedOrigins: ["http://localhost:5173"],
+				redirectUris: ["http://localhost:3000/callback"],
+			}),
+		).toBeNull();
 	});
 });
