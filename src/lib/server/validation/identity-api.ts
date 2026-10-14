@@ -91,3 +91,111 @@ export const updateOauthProviderApiBody = z.object({
 	signOutOfProvider: z.boolean().optional(),
 	tokenAuthMethod: tokenAuthMethod.optional(),
 });
+
+const secretAuthMethod = z
+	.enum(["client_secret_basic", "client_secret_post"])
+	.meta({
+		description:
+			"How a confidential app sends its secret to the token endpoint: client_secret_basic (HTTP Basic) or client_secret_post (request body). Not taken by a public app.",
+	});
+
+const oidcAppName = text.min(1).max(100);
+
+export const createOidcAppApiBody = z
+	.object({
+		confidential: z.boolean().default(true).meta({
+			description:
+				"A confidential app (a server) authenticates with a client secret; a public one (a SPA or mobile app) has none and always uses PKCE. Can't change later.",
+		}),
+		disabled: z
+			.boolean()
+			.default(false)
+			.describe("A disabled app can't start new sign-ins."),
+		enableEndSession: z
+			.boolean()
+			.default(false)
+			.describe(
+				"Let the app sign people out of Homerun (RP-initiated logout).",
+			),
+		name: oidcAppName,
+		requirePkce: z
+			.boolean()
+			.optional()
+			.describe(
+				"Require a PKCE challenge on every sign-in. Defaults to true, and a public app can't turn it off.",
+			),
+		skipConsent: z
+			.boolean()
+			.default(false)
+			.describe("Sign people in without asking them to share their profile."),
+		tokenAuthMethod: secretAuthMethod.optional(),
+	})
+	.superRefine((body, context) => {
+		if (body.confidential) {
+			return;
+		}
+		if (body.tokenAuthMethod) {
+			context.addIssue({
+				code: "custom",
+				message: "A public app has no secret, so no token auth method.",
+				path: ["tokenAuthMethod"],
+			});
+		}
+		if (body.requirePkce === false) {
+			context.addIssue({
+				code: "custom",
+				message: "A public app always requires PKCE.",
+				path: ["requirePkce"],
+			});
+		}
+	});
+
+export const updateOidcAppApiBody = z.object({
+	disabled: z.boolean().optional(),
+	enableEndSession: z.boolean().optional(),
+	name: oidcAppName.optional(),
+	requirePkce: z.boolean().optional(),
+	skipConsent: z.boolean().optional(),
+	tokenAuthMethod: secretAuthMethod.optional(),
+});
+
+const environmentFields = {
+	allowedOrigins: z.array(text.min(1)).meta({
+		description:
+			"Browser origins (scheme, host and port) allowed to call the token endpoint for this environment, for a SPA.",
+	}),
+	allowLocalhost: z
+		.boolean()
+		.describe(
+			"Accept http://localhost callbacks and origins, for development only.",
+		),
+	name: text.meta({
+		description:
+			"Up to 32 letters, digits, spaces, dots, dashes or underscores, unique per app.",
+	}),
+	redirectUris: z.array(text.min(1)).min(1).meta({
+		description:
+			"The callback URLs codes may be sent to: https, or http on localhost when allowLocalhost is on.",
+	}),
+};
+
+export const createOidcAppEnvironmentApiBody = z.object({
+	...environmentFields,
+	allowedOrigins: environmentFields.allowedOrigins.default([]),
+	allowLocalhost: environmentFields.allowLocalhost.default(false),
+});
+
+export const updateOidcAppEnvironmentApiBody = z.object({
+	allowedOrigins: environmentFields.allowedOrigins.optional(),
+	allowLocalhost: environmentFields.allowLocalhost.optional(),
+	name: environmentFields.name.optional(),
+	redirectUris: environmentFields.redirectUris.optional(),
+});
+
+export const createOidcAppSecretApiBody = z.object({
+	environmentId: text.min(1).describe("The environment the secret works in."),
+	label: text
+		.max(64)
+		.optional()
+		.describe('What the secret is for. Defaults to "Client secret".'),
+});

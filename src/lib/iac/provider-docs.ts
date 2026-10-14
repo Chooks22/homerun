@@ -109,6 +109,21 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 			"https://id.example.com/.well-known/openid-configuration",
 		],
 	],
+	homerun_oidc_app: [
+		["name", "Grafana"],
+		["confidential", true],
+		["token_auth_method", "client_secret_basic"],
+	],
+	homerun_oidc_app_environment: [
+		["app_id", expression("homerun_oidc_app.example.id")],
+		["name", "production"],
+		["redirect_uris", ["https://grafana.example.com/login/generic_oauth"]],
+	],
+	homerun_oidc_app_secret: [
+		["app_id", expression("homerun_oidc_app.example.id")],
+		["environment_id", expression("homerun_oidc_app_environment.example.id")],
+		["label", "grafana"],
+	],
 	homerun_object_store: [
 		["name", "r2"],
 		["endpoint", "https://<account>.r2.cloudflarestorage.com"],
@@ -212,6 +227,7 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 
 const DATA_SOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 	homerun_service: [["slug", "whoami"]],
+	homerun_service_version: [["id", expression("homerun_service.whoami.id")]],
 	homerun_stack: [["slug", "media"]],
 	homerun_template: [["name", "PostgreSQL"]],
 };
@@ -415,7 +431,10 @@ function dataSourcePage(dataSource: IacDataSource): string {
 	);
 	const lookupIds: IacAttribute = {
 		...ID,
-		description: `The object's id. Set it, or ${lookups.map((attribute) => `\`${attribute.tf}\``).join(" or ")}, to pick the object.`,
+		description:
+			lookups.length > 0
+				? `The object's id. Set it, or ${lookups.map((attribute) => `\`${attribute.tf}\``).join(" or ")}, to pick the object.`
+				: "The object's id, which picks it. Required.",
 		readOnly: false,
 	};
 	return [

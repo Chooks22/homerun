@@ -86,6 +86,128 @@ export const IAC_IDENTITY_RESOURCES: IacResource[] = [
 		label: "name",
 		type: "homerun_oauth_provider",
 	},
+	{
+		attributes: [
+			field("name", "string", required),
+			field("confidential", "bool", {
+				default: true,
+				description:
+					"A confidential app (a server) authenticates with a client secret (homerun_oidc_app_secret); a public one (a SPA or mobile app) has none and always uses PKCE. Changing it replaces the app, and with it the client id.",
+				forceNew: true,
+			}),
+			field("tokenAuthMethod", "string", {
+				description:
+					"How a confidential app sends its secret to the token endpoint: client_secret_basic (HTTP Basic, the default) or client_secret_post (request body, what Claude's connector uses). Leave it unset on a public app.",
+			}),
+			field("requirePkce", "bool", {
+				default: true,
+				description:
+					"Require a PKCE challenge on every sign-in. A public app can't turn it off.",
+			}),
+			field("skipConsent", "bool", {
+				default: false,
+				description:
+					"Sign people in without asking them to share their profile.",
+			}),
+			field("enableEndSession", "bool", {
+				default: false,
+				description:
+					"Let the app sign people out of Homerun (RP-initiated logout).",
+			}),
+			field("disabled", "bool", {
+				default: false,
+				description: "Refuse new sign-ins without deleting the app.",
+			}),
+			field("clientId", "string", {
+				description: "The client id to configure the app with.",
+				readOnly: true,
+			}),
+			field("discoveryUrl", "string", {
+				description:
+					"The OpenID discovery document to point the app at, empty until the Dashboard URL is set.",
+				readOnly: true,
+			}),
+		],
+		collectionPath: "/oidc-apps",
+		description:
+			'An app that signs people in with their Homerun account ("Sign in with Homerun", Authentication → Sign in with Homerun). Nobody can sign in until it has a homerun_oidc_app_environment with its callback URLs; a confidential app also needs a homerun_oidc_app_secret.',
+		importId: ["id"],
+		itemPath: "/oidc-apps/{id}",
+		label: "name",
+		type: "homerun_oidc_app",
+	},
+	{
+		attributes: [
+			field("appId", "string", {
+				forceNew: true,
+				ref: "homerun_oidc_app",
+				required: true,
+			}),
+			field("name", "string", {
+				description:
+					"Up to 32 letters, digits, spaces, dots, dashes or underscores, unique per app: production, staging…",
+				required: true,
+			}),
+			field("redirectUris", "strings", {
+				description:
+					"The callback URLs codes may be sent to, from the app's own OIDC settings: https, or http on localhost when allow_localhost is on.",
+				required: true,
+			}),
+			field("allowedOrigins", "strings", {
+				default: [],
+				description:
+					"Browser origins (scheme, host and port) allowed to call the token endpoint, for a SPA.",
+			}),
+			field("allowLocalhost", "bool", {
+				default: false,
+				description:
+					"Accept localhost callbacks and origins, for a development environment.",
+			}),
+		],
+		collectionPath: "/oidc-apps/{appId}/environments",
+		description:
+			"One environment of a homerun_oidc_app, with its own callback URLs and authorized origins. A client secret only redeems codes sent to its own environment's callbacks.",
+		importId: ["appId", "id"],
+		itemPath: "/oidc-apps/{appId}/environments/{id}",
+		label: "name",
+		type: "homerun_oidc_app_environment",
+	},
+	{
+		attributes: [
+			field("appId", "string", {
+				forceNew: true,
+				ref: "homerun_oidc_app",
+				required: true,
+			}),
+			field("environmentId", "string", {
+				forceNew: true,
+				ref: "homerun_oidc_app_environment",
+				required: true,
+			}),
+			field("label", "string", {
+				description: 'What the secret is for. Defaults to "Client secret".',
+				forceNew: true,
+			}),
+			field("secret", "string", {
+				description:
+					"The client secret, only known to a secret Terraform created: an imported one has none.",
+				readOnly: true,
+				returnedOnCreate: true,
+				sensitive: true,
+			}),
+			field("hint", "string", {
+				description: "The secret's last four characters.",
+				readOnly: true,
+			}),
+		],
+		collectionPath: "/oidc-apps/{appId}/secrets",
+		description:
+			"A client secret of a confidential homerun_oidc_app, for one of its environments. It's generated on create and kept in the state, so treat the state as a secret; rotate it by creating the new one before destroying the old.",
+		importId: ["appId", "id"],
+		itemPath: "/oidc-apps/{appId}/secrets/{id}",
+		label: "label",
+		type: "homerun_oidc_app_secret",
+	},
 ];
 
 /**

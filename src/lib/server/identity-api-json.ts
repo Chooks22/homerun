@@ -1,3 +1,8 @@
+import { config } from "#lib/config.js";
+import type { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
+import type { OauthClientEnvironmentDTO } from "#lib/dto/oauth-client-environment-dto.js";
+import type { OauthClientSecretSummary } from "#lib/dto/oauth-client-secret-dto.js";
+import { oidcDiscoveryUrl } from "#lib/oidc-provider.js";
 import { parsePermissions } from "#lib/permissions.js";
 import type { InstanceOauthProvider, User } from "#lib/server/db/schema.js";
 
@@ -38,5 +43,60 @@ export function oauthProviderApiJson(provider: InstanceOauthProvider) {
 		scopes: provider.scopes,
 		signOutOfProvider: provider.signOutOfProvider ?? false,
 		tokenAuthMethod: provider.tokenAuthMethod ?? "auto",
+	};
+}
+
+/**
+ * A "Sign in with Homerun" app as the REST API returns it: its token auth
+ * method only when it's confidential, and the discovery document to point
+ * it at once the Dashboard URL is set.
+ */
+export function oidcAppApiJson(app: OauthClientDTO) {
+	const summary = app.summary();
+	return {
+		clientId: summary.clientId,
+		confidential: summary.confidential,
+		createdAt: summary.createdAt,
+		disabled: summary.disabled,
+		discoveryUrl: config.auth.origin
+			? oidcDiscoveryUrl(config.auth.origin)
+			: null,
+		enableEndSession: summary.enableEndSession,
+		id: summary.id,
+		name: summary.name,
+		requirePkce: summary.requirePkce,
+		skipConsent: summary.skipConsent,
+		tokenAuthMethod: summary.confidential ? summary.tokenAuthMethod : null,
+	};
+}
+
+/** One environment of an app as the REST API returns it, with the app's id. */
+export function oidcAppEnvironmentApiJson(
+	appId: string,
+	environment: OauthClientEnvironmentDTO,
+) {
+	return {
+		allowedOrigins: environment.allowedOrigins,
+		allowLocalhost: environment.allowLocalhost,
+		appId,
+		id: environment.id,
+		name: environment.name,
+		redirectUris: environment.redirectUris,
+	};
+}
+
+/** One client secret of an app as the REST API returns it: never the secret, only its last characters. */
+export function oidcAppSecretApiJson(
+	appId: string,
+	secret: OauthClientSecretSummary,
+) {
+	return {
+		appId,
+		createdAt: secret.createdAt,
+		environmentId: secret.environmentId,
+		hint: secret.hint,
+		id: secret.id,
+		label: secret.label,
+		lastUsedAt: secret.lastUsedAt,
 	};
 }
