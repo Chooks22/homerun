@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
@@ -8,6 +8,7 @@ import {
 	deployEnvironment,
 	newEnvironmentProblem,
 } from "#lib/release-channels.js";
+import { serviceDomainConflicts } from "#lib/server/hostname-owner.js";
 import {
 	primaryHostname,
 	rewriteHostnames,
@@ -42,7 +43,11 @@ export function environmentSlug(parentSlug: string, name: string): string {
 
 /** The parent's build and runtime settings an environment starts with, without its env vars: those are worked out separately. */
 function copiedSettings(parent: ServiceDTO) {
-	const { envVars: _envVars, ...settings } = mirroredSettings(parent);
+	const {
+		envVars: _envVars,
+		uptimeEnabled: _uptimeEnabled,
+		...settings
+	} = mirroredSettings(parent);
 	return settings;
 }
 
@@ -133,14 +138,14 @@ class EnvironmentServiceClass {
 				primaryDomain: input.domain,
 			});
 		} catch (err) {
-			await ServiceLifecycleService.deleteService(environment).catch(
-				(cleanup: unknown) => {
-					logger.warn(
-						`Couldn't remove a half-created environment: service=${environment.id}`,
-						cleanup,
-					);
-				},
-			);
+			await ServiceLifecycleService.deleteService(environment, {
+				cancelJobs: true,
+			}).catch((cleanup: unknown) => {
+				logger.warn(
+					`Couldn't remove a half-created environment: service=${environment.id}`,
+					cleanup,
+				);
+			});
 			throw err;
 		}
 		logger.info(
@@ -176,7 +181,7 @@ class EnvironmentServiceClass {
 		const previous = serviceHostnames(
 			environment.toJSON(),
 			stack?.slug,
-			config.baseDomain,
+			serviceDomain(),
 		);
 		const row = environment.toJSON();
 		const replaced = row.primaryDomain ?? row.domains[0] ?? null;
@@ -193,7 +198,7 @@ class EnvironmentServiceClass {
 		const next = serviceHostnames(
 			environment.toJSON(),
 			stack?.slug,
-			config.baseDomain,
+			serviceDomain(),
 		);
 		if (environment.dnsResolvable && previous.join() !== next.join()) {
 			void syncServiceDomainsDns(previous, next, environment.id);
@@ -211,7 +216,9 @@ class EnvironmentServiceClass {
 	 */
 	async delete(parent: ServiceDTO, environmentId: string): Promise<void> {
 		const environment = await this.#own(parent, environmentId);
-		await ServiceLifecycleService.deleteService(environment);
+		await ServiceLifecycleService.deleteService(environment, {
+			cancelJobs: true,
+		});
 		GitHubReportService.environmentRemoved(
 			parent,
 			environment.toJSON().environmentName ?? environment.slug,
@@ -313,14 +320,17 @@ class EnvironmentServiceClass {
 		return environment;
 	}
 
-	/** Throws when another service already routes `domain`. */
+	/** Throws when something other than the service `exceptId` already routes `domain`: Homerun itself, a workstation, a redirect or another service. */
 	async #assertDomainFree(
 		domain: string | null,
 		exceptId?: string,
 	): Promise<void> {
-		if (domain && (await ServiceDTO.domainTaken([domain], exceptId))) {
+		const [taken] = domain
+			? await serviceDomainConflicts([domain], exceptId)
+			: [];
+		if (taken) {
 			throw new EnvironmentError(
-				`${domain} is already routed to another service.`,
+				`${domain} is already routed to ${taken.owner.label}.`,
 			);
 		}
 	}
@@ -334,8 +344,8 @@ class EnvironmentServiceClass {
 		const stack = parent.stackId ? await StackDTO.get(parent.stackId) : null;
 		const inherited = rewriteHostnames(
 			parent.envVars ?? {},
-			serviceHostnames(parent.toJSON(), stack?.slug, config.baseDomain),
-			primaryHostname(environment.toJSON(), stack?.slug, config.baseDomain),
+			serviceHostnames(parent.toJSON(), stack?.slug, serviceDomain()),
+			primaryHostname(environment.toJSON(), stack?.slug, serviceDomain()),
 		);
 		return { ...inherited, ...input.envOverrides };
 	}

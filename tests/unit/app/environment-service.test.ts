@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { type DomainOwners, stubDomainOwners } from "../support/domain-owners";
 import { restoreStubs, stub } from "../support/stub";
 
 mock.module("$app/env", () => ({
@@ -83,23 +84,22 @@ let created: Record<string, unknown>[] = [];
 let enqueued: unknown[] = [];
 let deleted: unknown[] = [];
 let slugTaken = false;
-let domainTaken: string | null = null;
+let owners: DomainOwners;
 let full: string | null = null;
 
-beforeEach(() => {
+beforeEach(async () => {
+	owners = await stubDomainOwners();
 	config.baseDomain = "example.com";
 	environments = [];
 	created = [];
 	enqueued = [];
 	deleted = [];
 	slugTaken = false;
-	domainTaken = null;
 	full = null;
 	stub(Logger.prototype, "info", () => undefined);
 	stub(Logger.prototype, "warn", () => undefined);
 	stub(ServiceGitDTO, "listEnvironments", async () => environments);
 	stub(ServiceDTO, "slugTaken", async () => slugTaken);
-	stub(ServiceDTO, "domainTaken", async () => domainTaken);
 	stub(CapacityService, "refusal", async () => full);
 	stub(ServiceDTO, "create", async (input: Record<string, unknown>) => {
 		created.push(input);
@@ -187,6 +187,7 @@ describe("EnvironmentService.create", () => {
 			previewParentId: "parent",
 			slug: "app-staging",
 		});
+		expect(created[0]).not.toHaveProperty("uptimeEnabled");
 		expect(environment.toJSON()).toMatchObject({
 			environmentName: "staging",
 			envVars: {
@@ -256,11 +257,16 @@ describe("EnvironmentService.create", () => {
 			EnvironmentService.create(parent.svc, "staging", input, { userId: "u" }),
 		).rejects.toThrow("slug");
 		slugTaken = false;
-		domainTaken = "staging.example.com";
+		owners.services.push({ domains: ["staging.example.com"], id: "other" });
 		await expect(
 			EnvironmentService.create(parent.svc, "staging", input, { userId: "u" }),
-		).rejects.toThrow("already routed");
-		domainTaken = null;
+		).rejects.toThrow('already routed to the service "other"');
+		owners.services = [];
+		owners.workstations.push("staging.example.com");
+		await expect(
+			EnvironmentService.create(parent.svc, "staging", input, { userId: "u" }),
+		).rejects.toThrow("already routed to a workstation");
+		owners.workstations = [];
 		full = "This instance is full.";
 		await expect(
 			EnvironmentService.create(parent.svc, "staging", input, { userId: "u" }),

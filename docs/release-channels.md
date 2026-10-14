@@ -28,7 +28,9 @@ Open a git service's **Environments & Deployments → Channels** section, tick
   included), `?` exactly one; everything else is literal. `v*` matches `v1.2.0`
   and `v2.0.0-rc.1`; `v[0-9]*` doesn't work, there are no character classes.
 - **Canary domain**: a domain for the canary, e.g. `canary.example.com`. Without
-  one it answers at `<slug>-canary.<baseDomain>`.
+  one it answers at `<slug>-canary.<baseDomain>`. A domain the service itself or
+  anything else already routes (another service, a redirect, a workstation,
+  Homerun's own hosts) is refused.
 
 Saving creates the canary and deploys it from the canary branch. From the CLI:
 

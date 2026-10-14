@@ -34,7 +34,7 @@
 		},
 	) =>
 		row.dnsResolvable
-			? primaryHostname(row, data.stackSlug, data.baseDomain)
+			? primaryHostname(row, data.stackSlug, data.serviceDomain)
 			: null;
 
 	const taken = $derived([

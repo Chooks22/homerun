@@ -1,5 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { canarySlug } from "#lib/release-channels.js";
@@ -22,7 +22,7 @@ export const load = async ({ params }) => {
 		defaultCanaryHostname: defaultHostname(
 			canarySlug(svc.slug),
 			stack?.slug,
-			config.baseDomain,
+			serviceDomain(),
 		),
 		pushWebhook: await GitWebhookService.describe(svc),
 	};

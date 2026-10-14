@@ -16,10 +16,12 @@ deploy it.
 What carries over:
 
 - **Docker image apps**: image and tag, env vars, the port of their first domain
-  (public) or internal-only when they had no domain, each domain's path (with
-  Dokploy's **Strip Path** carried over as [Strip path](networking.md); an
-  **Internal Path** is a warning), CPU/memory limits, named-volume and bind
-  mounts, and Dokploy's private registry credentials.
+  (public) or internal-only when they had no domain, each domain (one something
+  on this instance already routes, a service, a redirect, a workstation or the
+  dashboard, is dropped) with its path (with Dokploy's **Strip Path** carried
+  over as [Strip path](networking.md); an **Internal Path** is a warning),
+  CPU/memory limits, named-volume and bind mounts, and Dokploy's private
+  registry credentials.
 - **Start commands**: a Dokploy command runs through `/bin/sh -c` and its
   arguments replace the image's, the same way Dokploy starts it. On Coolify,
   `start_command` becomes the container command, and the custom docker run

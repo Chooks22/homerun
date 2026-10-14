@@ -30,7 +30,9 @@ their canary uses it.
 - **Branch** (a service built from git) or **Image tag** (an image service):
   what the environment runs. It starts as the service's own.
 - **Domain**: an extra hostname for it. It always gets its default one,
-  `<service-slug>-<name>` under the instance's base domain.
+  `<service-slug>-<name>` under the instance's base domain. A domain something
+  else already routes (another service, a redirect, a workstation, or Homerun's
+  own hosts such as the dashboard) is refused.
 - **Variable overrides**: `KEY=value` lines set on top of a copy of the
   service's environment variables, in which the service's own hostnames point at
   the environment instead.

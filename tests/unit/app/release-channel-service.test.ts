@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { type DomainOwners, stubDomainOwners } from "../support/domain-owners";
 import { restoreStubs, stub } from "../support/stub";
 
 mock.module("$app/env", () => ({
@@ -72,20 +73,20 @@ let created: Record<string, unknown>[] = [];
 let enqueued: { svc: { id: string }; trigger: string }[] = [];
 let deleted: string[] = [];
 let slugTaken = false;
-let domainTaken = false;
+let owners: DomainOwners;
 let refusal: string | null = null;
 const originalBaseDomain = config.baseDomain;
 
 let environments: Svc[] = [];
 
-beforeEach(() => {
+beforeEach(async () => {
+	owners = await stubDomainOwners();
 	canary = null;
 	canaryUpdates = [];
 	created = [];
 	enqueued = [];
 	deleted = [];
 	slugTaken = false;
-	domainTaken = false;
 	refusal = null;
 	config.baseDomain = "example.com";
 	stub(Logger.prototype, "info", () => undefined);
@@ -93,7 +94,6 @@ beforeEach(() => {
 	environments = [];
 	stub(ServiceGitDTO, "listEnvironments", async () => environments);
 	stub(ServiceDTO, "slugTaken", async () => slugTaken);
-	stub(ServiceDTO, "domainTaken", async () => (domainTaken ? "x" : null));
 	stub(CapacityService, "refusal", async () => refusal);
 	stub(StackDTO, "get", async (id: string) => ({ id, slug: "stk" }));
 	stub(ServiceDTO, "create", async (input: Record<string, unknown>) => {
@@ -154,15 +154,24 @@ describe("ReleaseChannelService.configure", () => {
 				"u1",
 			),
 		).rejects.toThrow("isn't a valid domain");
-		domainTaken = true;
+		owners.services.push({ domains: ["canary.example.org"], id: "other" });
 		await expect(
 			ReleaseChannelService.configure(
 				svc,
 				{ canaryDomain: "canary.example.org", enabled: true },
 				"u1",
 			),
-		).rejects.toThrow("already routed");
-		domainTaken = false;
+		).rejects.toThrow('already routed to the service "other"');
+		owners.services = [];
+		owners.redirects.push("canary.example.org/old");
+		await expect(
+			ReleaseChannelService.configure(
+				svc,
+				{ canaryDomain: "canary.example.org", enabled: true },
+				"u1",
+			),
+		).rejects.toThrow("already routed to the redirect");
+		owners.redirects = [];
 		await expect(
 			ReleaseChannelService.configure(
 				svc,
@@ -196,6 +205,7 @@ describe("ReleaseChannelService.configure", () => {
 			previewParentId: "parent",
 			slug: "web-canary",
 		});
+		expect(created[0]).not.toHaveProperty("uptimeEnabled");
 		expect(canaryUpdates[0]).toMatchObject({
 			defaultDomainEnabled: false,
 			primaryDomain: "canary.example.org",

@@ -1,10 +1,11 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import type { DeployTrigger } from "#lib/deploy-trigger.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
 import { canarySlug, tagPatternProblem } from "#lib/release-channels.js";
+import { serviceDomainConflicts } from "#lib/server/hostname-owner.js";
 import {
 	DOMAIN_RE,
 	primaryHostname,
@@ -54,6 +55,13 @@ export class ReleaseChannelError extends Error {
 }
 
 /** The domain columns a canary gets from its parent's canary domain: that domain when set, else only its default hostname. */
+/** The parent's settings a canary mirrors: a preview's, without the preview-only uptime choice, so the canary keeps its own probes. */
+function canarySettings(parent: ServiceDTO) {
+	const { uptimeEnabled: _uptimeEnabled, ...settings } =
+		mirroredSettings(parent);
+	return settings;
+}
+
 function canaryDomains(canaryDomain: string | null) {
 	return {
 		defaultDomainEnabled: !canaryDomain,
@@ -84,7 +92,7 @@ class ReleaseChannelServiceClass {
 				? {
 						gitRef: canary.gitRef,
 						hostname: canary.dnsResolvable
-							? primaryHostname(canary.toJSON(), stack?.slug, config.baseDomain)
+							? primaryHostname(canary.toJSON(), stack?.slug, serviceDomain())
 							: null,
 						id: canary.id,
 						name: canary.name,
@@ -145,7 +153,9 @@ class ReleaseChannelServiceClass {
 
 		if (!settings.enabled) {
 			if (existing) {
-				await ServiceLifecycleService.deleteService(existing);
+				await ServiceLifecycleService.deleteService(existing, {
+					cancelJobs: true,
+				});
 				logger.info(
 					`Canary removed: parent=${parent.id} service=${existing.id}`,
 				);
@@ -258,8 +268,9 @@ class ReleaseChannelServiceClass {
 	}
 
 	/**
-	 * Refuses a canary domain the stable service itself answers at or another
-	 * service already routes.
+	 * Refuses a canary domain the stable service itself answers at or
+	 * something else already routes: Homerun itself, a workstation, a
+	 * redirect or another service.
 	 *
 	 * @throws {ReleaseChannelError} When the domain is taken.
 	 */
@@ -269,19 +280,16 @@ class ReleaseChannelServiceClass {
 		existing: ServiceDTO | null,
 	): Promise<void> {
 		const stack = parent.stackId ? await StackDTO.get(parent.stackId) : null;
-		const own = serviceHostnames(
-			parent.toJSON(),
-			stack?.slug,
-			config.baseDomain,
-		);
+		const own = serviceHostnames(parent.toJSON(), stack?.slug, serviceDomain());
 		if (own.includes(canaryDomain)) {
 			throw new ReleaseChannelError(
 				`${canaryDomain} is where this service itself answers: pick another domain for the canary.`,
 			);
 		}
-		if (await ServiceDTO.domainTaken([canaryDomain], existing?.id)) {
+		const [taken] = await serviceDomainConflicts([canaryDomain], existing?.id);
+		if (taken) {
 			throw new ReleaseChannelError(
-				`${canaryDomain} is already routed to another service.`,
+				`${canaryDomain} is already routed to ${taken.owner.label}.`,
 			);
 		}
 	}
@@ -297,17 +305,17 @@ class ReleaseChannelServiceClass {
 			const previous = serviceHostnames(
 				existing.toJSON(),
 				stack?.slug,
-				config.baseDomain,
+				serviceDomain(),
 			);
 			await existing.update({
-				...mirroredSettings(parent),
+				...canarySettings(parent),
 				...domains,
 				gitRef: branch,
 			});
 			const next = serviceHostnames(
 				existing.toJSON(),
 				stack?.slug,
-				config.baseDomain,
+				serviceDomain(),
 			);
 			if (existing.dnsResolvable && previous.join() !== next.join()) {
 				void syncServiceDomainsDns(previous, next, existing.id);
@@ -325,7 +333,7 @@ class ReleaseChannelServiceClass {
 		if (full) {
 			throw new ReleaseChannelError(full);
 		}
-		const settings = mirroredSettings(parent);
+		const settings = canarySettings(parent);
 		const canary = await ServiceDTO.create({
 			...settings,
 			autoDeployOnPush: true,

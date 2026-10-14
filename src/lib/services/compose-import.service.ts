@@ -13,6 +13,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { HOST_ACCESS_MESSAGE, hostAccessRequested } from "#lib/host-access.js";
 import { Logger } from "#lib/logger.js";
+import { serviceDomainConflicts } from "#lib/server/hostname-owner.js";
 import { isDomainEntry, normalizeDomains } from "#lib/service-domains.js";
 import { uniqueSlug } from "#lib/slug.js";
 import { tarArchive } from "#lib/tar.js";
@@ -162,16 +163,13 @@ class ComposeImportServiceClass {
 		}
 	}
 
-	/** The draft's valid domains (with or without a path) that no other service already routes, so an imported domain never collides with an existing one. */
+	/** The draft's valid domains (with or without a path) that nothing already routes (see `serviceDomainConflicts`), so an imported domain never collides with a service, a redirect, a workstation or Homerun's own hosts. */
 	async #freeDomains(raw: string[]): Promise<string[]> {
-		const free: string[] = [];
-		for (const domain of normalizeDomains(raw)) {
-			// oxlint-disable-next-line no-await-in-loop -- a handful of domains per service
-			if (isDomainEntry(domain) && !(await ServiceDTO.domainTaken([domain]))) {
-				free.push(domain);
-			}
-		}
-		return free;
+		const valid = normalizeDomains(raw).filter(isDomainEntry);
+		const taken = new Set(
+			(await serviceDomainConflicts(valid)).map((conflict) => conflict.entry),
+		);
+		return valid.filter((domain) => !taken.has(domain.toLowerCase()));
 	}
 
 	/**
