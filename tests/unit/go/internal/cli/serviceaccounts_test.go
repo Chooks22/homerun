@@ -77,3 +77,73 @@ func TestServiceAccountsCreateAndDelete(t *testing.T) {
 		t.Errorf("unexpected delete request %+v (%s)", last, failed)
 	}
 }
+
+func TestServiceAccountsCreateSendsPermissions(t *testing.T) {
+	client, seen := jsonAPI(t, `{"id":"a1","name":"ci"}`)
+	env := cli.Env{Client: func() *cli.Client { return client }}
+	_, failed := runCLI(t, func() {
+		cli.Execute(env, []string{"service-accounts", "create", "ci", "--permissions", "services=write, stacks=read"})
+	})
+	request := (*seen)[0]
+	if failed != "" || request.Body != `{"name":"ci","permissions":{"services":"write","stacks":"read"}}` {
+		t.Errorf("unexpected create request %+v (%s)", request, failed)
+	}
+}
+
+func TestServiceAccountsUpdate(t *testing.T) {
+	cases := map[string]struct {
+		args     []string
+		expected string
+	}{
+		"rename":            {[]string{"service-accounts", "update", "a1", "--name", "deployer"}, `{"name":"deployer"}`},
+		"permissions":       {[]string{"service-accounts", "update", "a1", "--permissions", "services=read"}, `{"permissions":{"services":"read"}}`},
+		"clear permissions": {[]string{"service-accounts", "update", "a1", "--permissions", ""}, `{"permissions":{}}`},
+		"disable":           {[]string{"service-accounts", "disable", "a1"}, `{"disabled":true}`},
+		"enable":            {[]string{"service-accounts", "enable", "a1"}, `{"disabled":false}`},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			client, seen := jsonAPI(t, `{"id":"a1","name":"deployer","disabled":false,"permissions":{}}`)
+			out, failed := runCLI(t, func() {
+				cli.Execute(cli.Env{Client: func() *cli.Client { return client }}, testCase.args)
+			})
+			if failed != "" {
+				t.Fatalf("failed: %s", failed)
+			}
+			request := (*seen)[0]
+			if request.Method != http.MethodPatch || request.Path != "/api/v1/service-accounts/a1" || request.Body != testCase.expected {
+				t.Errorf("unexpected request %+v", request)
+			}
+			if !strings.Contains(out, `"id": "a1"`) {
+				t.Errorf("the account should be printed, got %q", out)
+			}
+		})
+	}
+}
+
+func TestServiceAccountsUpdateRefusesBadInput(t *testing.T) {
+	cases := map[string]struct {
+		args     []string
+		expected string
+	}{
+		"nothing":     {[]string{"service-accounts", "update", "a1"}, "Nothing to change"},
+		"bad level":   {[]string{"service-accounts", "update", "a1", "--permissions", "services=admin"}, "area=read or area=write"},
+		"no level":    {[]string{"service-accounts", "update", "a1", "--permissions", "services"}, "area=read or area=write"},
+		"empty name":  {[]string{"service-accounts", "update", "a1", "--name", " "}, "--name can't be empty"},
+		"bad on make": {[]string{"service-accounts", "create", "ci", "--permissions", "=write"}, "area=read or area=write"},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			client, seen := jsonAPI(t, `{}`)
+			_, failed := runCLI(t, func() {
+				cli.Execute(cli.Env{Client: func() *cli.Client { return client }}, testCase.args)
+			})
+			if !strings.Contains(failed, testCase.expected) {
+				t.Errorf("expected %q, got %q", testCase.expected, failed)
+			}
+			if len(*seen) != 0 {
+				t.Errorf("nothing should be sent, got %+v", *seen)
+			}
+		})
+	}
+}

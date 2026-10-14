@@ -116,6 +116,13 @@ homerun services scan <id> [--wait] [--fail-on critical|high|medium|low] [--time
 homerun services logs <id> [--tail <lines>] [--follow]
 homerun services revisions <id> [--json]
 homerun services rollback <id> [revisionId] [--restore-config]
+homerun services version <id>
+homerun services version tags <id>
+homerun services version pin <id> <tag> [--local]
+homerun services version unpin <id>
+homerun services version watch <id> [--check[=false]] [--trial[=false]]
+homerun services version check <id>
+homerun services version update <id>
 homerun previews list <id> [--json]
 homerun previews get <id> <pr>
 homerun previews wait <id> <pr> [--commit <sha>] [--timeout 20m] [--json]
@@ -135,6 +142,10 @@ homerun <resource> get [<store>] <id> [--json]
 homerun <resource> create [<store>] [--set <key=value>]... [--file <body.json>|-] [--json]
 homerun <resource> update [<store>] <id> [--set <key=value>]... [--file <body.json>|-] [--json]
 homerun <resource> delete [<store>] <id> [--yes]
+homerun workstations list|get|create|update ...
+homerun workstations start|stop|recreate <id|slug> [--json]
+homerun workstations delete <id|slug> [--volume] [--yes]
+homerun workstation-presets list|get|create|update|delete ...
 homerun iac generate (--stack <id|slug> | --service <id|slug>) [--state-project <id>] [--out <dir> | --zip <file> | --stdout] [--force]
 homerun iac projects list|get|create|delete ...
 homerun iac state pull <project>
@@ -146,8 +157,12 @@ homerun redirects create <source> <destination> [--enabled=false] [--keep-path=f
 homerun redirects update <id> [--source <host[/path]>] [--destination <url>] [--enabled=<bool>] [--keep-path=<bool>] [--permanent=<bool>]
 homerun redirects enable|disable <id>
 homerun redirects delete <id>
+homerun registry repositories [--json] [--page <n>] [--per-page <n>] [--search <term>]
+homerun registry tags <repository> [--json]
 homerun service-accounts list [--json]
-homerun service-accounts create <name>
+homerun service-accounts create <name> [--permissions <area>=<level>,...]
+homerun service-accounts update <id> [--name <name>] [--permissions <area>=<level>,...]
+homerun service-accounts disable|enable <id>
 homerun service-accounts delete <id>
 homerun service-accounts keys list <accountId> [--json]
 homerun service-accounts keys create <accountId> [--name <label>] [--expires-in-days <n> | --never-expires]
@@ -178,7 +193,11 @@ API answers for it (a `404` for a typo).
 `homerun service-accounts keys create` prints the new key's JSON, the only time
 its `key` secret is returned (a reminder goes to stderr, so stdout stays
 machine-readable). Keys expire after 90 days unless `--expires-in-days` or
-`--never-expires` says otherwise.
+`--never-expires` says otherwise. `--permissions` takes comma-separated
+`area=read` or `area=write` pairs (`services=write,stacks=read`) and, on
+`update`, replaces the account's whole set (`--permissions ""` removes them
+all); the API cuts them down to what your own key holds. `disable` refuses the
+account's keys without deleting it, `enable` lets them work again.
 
 `homerun manifest apply` applies a Homerun Manifest (`.homerun.json`,
 `.homerun.yaml` or `.homerun.yml` in the current directory unless `--file` names
@@ -244,6 +263,19 @@ homerun buckets create <storeId> --set name=logs --set expirationDays=30
 homerun volumes delete <id> --yes
 ```
 
+`workstations list|get|create|update` and
+`workstation-presets list|get|create|update|delete` are resource commands too,
+over the caller's own workstations and presets (`workstations` is paginated and
+takes a slug). `workstations start|stop <id|slug>` send
+`PATCH /workstations/{id}` with `desiredState` `running` or `stopped` and print
+the workstation. `workstations recreate <id|slug>` sends
+`POST /workstations/{id}/recreate`, which recreates the container from the
+current settings like the dashboard's Recreate, and prints the workstation.
+`workstations delete` asks first unless `--yes` and keeps the home volume unless
+`--volume` (`?volume=true`). The login wall is the `authRequired` and `auth*`
+fields, on a workstation or a preset:
+`homerun workstations update box --set authRequired=true --set 'authProviders=["password"]'`.
+
 `homerun volumes backup <id|name>` is `homerun backups run` under the volumes
 group. `homerun services deployments <id>` calls
 `GET /services/{serviceId}/deployments` and prints the latest deploy attempts,
@@ -254,7 +286,11 @@ latest event and stack trace as JSON (`--event <eventId>` for another retained
 event), and `homerun services errors resolve <id> <issueId>` marks it resolved
 (`PATCH /services/{serviceId}/errors/{issueId}`; `--status ignored` or
 `--status unresolved` instead). `homerun system stats` prints the host's CPU,
-memory, disk and GPU usage.
+memory, disk and GPU usage. `homerun registry repositories` lists the built-in
+registry's repositories with their tag count and the services using them
+(`GET /registry/repositories`), and `homerun registry tags <repository>` one
+repository's tags and digests (`GET /registry/repositories/{repository}/tags`,
+slashes in the name kept).
 
 ### Infrastructure as code
 
@@ -284,10 +320,11 @@ and it asks first unless `--yes`. All of them are admin-only.
 
 `homerun services delete <id>` calls `DELETE /services/{serviceId}`, the same
 danger-zone action as the Settings tab's Delete button; `--force` adds
-`?force=true`, which deletes Homerun's record even when the container or swarm
-service itself couldn't be removed (without it, that case answers a 409 and
-deletes nothing); `--volumes` adds `?deleteVolumes=true`, which also deletes the
-volumes no other service mounts. `homerun services webhook <id>` calls
+`?force=true`, which cancels the service's queued or running jobs and deletes
+Homerun's record even when the container or swarm service itself couldn't be
+removed (without it, either case answers a 409 and deletes nothing); `--volumes`
+adds `?deleteVolumes=true`, which also deletes the volumes no other service
+mounts. `homerun services webhook <id>` calls
 `GET /services/{serviceId}/webhook` and prints the push-to-deploy URL and secret
 for that service (a 404 when neither Deploy on push nor pull request previews
 are turned on).
@@ -305,6 +342,15 @@ as an error when waiting. `--fail-on <level>` implies `--wait` and exits 1 when
 the scan's counts at or above that severity are non-zero (`FindingsAtOrAbove()`
 in `internal/cli/commands.go`); a failed or cancelled job, or a wait past
 `--timeout <seconds>` (default 1800), exits 1 too.
+
+`homerun services version <id>` calls `GET /services/{serviceId}/version`;
+`tags` reads `GET /version/pin`, `pin <id> <tag>` sends
+`POST /version/pin {"tag", "local"}` (`--local` sets it), `unpin` is
+`DELETE /version/pin`, `watch` sends `PATCH /version` with only the switches
+whose flag was passed (`--check` for `updateCheckEnabled`, `--trial` for
+`updateTrialEnabled`, `=false` to turn one off; neither fails before calling),
+and `check` and `update` `POST /version/check` and `/version/update`. Each
+prints the JSON answer.
 
 `homerun services logs <id>` calls `GET /services/{serviceId}/logs` and writes
 the plain-text body to stdout as it arrives: the last 200 lines by default,

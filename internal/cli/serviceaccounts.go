@@ -78,11 +78,46 @@ func ServiceAccountsList(client *Client, asJSON bool) {
 	PrintTable(rows, serviceAccountColumns)
 }
 
-// ServiceAccountCreate creates a service account and prints it as JSON.
-func ServiceAccountCreate(client *Client, name string) {
+// parsePermissions reads a --permissions value, comma-separated area=level
+// pairs with level read or write, into the map the API takes. An empty
+// value is no permissions at all; the API refuses an unknown area.
+func parsePermissions(spec string) map[string]string {
+	permissions := map[string]string{}
+	for _, entry := range strings.Split(spec, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		area, level, found := strings.Cut(entry, "=")
+		area, level = strings.TrimSpace(area), strings.TrimSpace(level)
+		if !found || area == "" || (level != "read" && level != "write") {
+			Fail(fmt.Sprintf("--permissions takes area=read or area=write pairs separated by commas, got %q.", entry))
+		}
+		permissions[area] = level
+	}
+	return permissions
+}
+
+// ServiceAccountCreate creates a service account, with the given
+// permissions when they're not nil, and prints it as JSON.
+func ServiceAccountCreate(client *Client, name string, permissions map[string]string) {
+	payload := map[string]any{"name": name}
+	if permissions != nil {
+		payload["permissions"] = permissions
+	}
 	var created map[string]any
-	client.decodeJSON("POST", "/service-accounts", map[string]string{"name": name}, &created)
+	client.decodeJSON("POST", "/service-accounts", payload, &created)
 	PrintValue(created)
+}
+
+// ServiceAccountUpdate sends the fields in changes (name, disabled,
+// permissions) to a service account and prints the updated account as JSON.
+// Permissions replace the account's whole set, cut down by the API to what
+// the caller's own key holds.
+func ServiceAccountUpdate(client *Client, id string, changes map[string]any) {
+	var updated map[string]any
+	client.decodeJSON("PATCH", serviceAccountPath(id), changes, &updated)
+	PrintValue(updated)
 }
 
 // ServiceAccountDelete deletes a service account, which revokes all of its keys.
@@ -155,7 +190,57 @@ var serviceAccountCommands = []Command{
 		Args:    "<name>",
 		Name:    "service-accounts create",
 		Summary: "create a service account, a non-human identity with its own API keys",
-		Setup:   noFlags(func(env Env, args []string) { ServiceAccountCreate(env.Client(), args[0]) }),
+		Setup: func(set *flag.FlagSet) Runner {
+			permissions := set.String("permissions", "", "grant these `areas`, e.g. services=write,stacks=read")
+			return func(env Env, args []string) {
+				var granted map[string]string
+				if flagSet(set, "permissions") {
+					granted = parsePermissions(*permissions)
+				}
+				ServiceAccountCreate(env.Client(), args[0], granted)
+			}
+		},
+	},
+	{
+		Args:    "<id>",
+		Name:    "service-accounts update",
+		Summary: "rename a service account or replace its permissions",
+		Setup: func(set *flag.FlagSet) Runner {
+			name := set.String("name", "", "the account's new `name`")
+			permissions := set.String("permissions", "", "replace its permissions with these `areas`, e.g. services=write,stacks=read; \"\" removes them all")
+			return func(env Env, args []string) {
+				changes := map[string]any{}
+				if flagSet(set, "name") {
+					if strings.TrimSpace(*name) == "" {
+						Fail("--name can't be empty.")
+					}
+					changes["name"] = *name
+				}
+				if flagSet(set, "permissions") {
+					changes["permissions"] = parsePermissions(*permissions)
+				}
+				if len(changes) == 0 {
+					Fail("Nothing to change: pass --name or --permissions.")
+				}
+				ServiceAccountUpdate(env.Client(), args[0], changes)
+			}
+		},
+	},
+	{
+		Args:    "<id>",
+		Name:    "service-accounts disable",
+		Summary: "refuse a service account's API keys without deleting it",
+		Setup: noFlags(func(env Env, args []string) {
+			ServiceAccountUpdate(env.Client(), args[0], map[string]any{"disabled": true})
+		}),
+	},
+	{
+		Args:    "<id>",
+		Name:    "service-accounts enable",
+		Summary: "let a disabled service account's API keys work again",
+		Setup: noFlags(func(env Env, args []string) {
+			ServiceAccountUpdate(env.Client(), args[0], map[string]any{"disabled": false})
+		}),
 	},
 	{
 		Args:    "<id>",

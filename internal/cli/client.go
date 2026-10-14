@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -57,8 +59,25 @@ func (c *Client) decode(method, path string, query url.Values, out any) http.Hea
 // decodeJSON sends payload as a JSON body and unmarshals the answer into out, exiting on failure.
 func (c *Client) decodeJSON(method, path string, payload, out any) {
 	if err := c.api.DecodeJSON(method, path, payload, out); err != nil {
-		Fail(err.Error())
+		Fail(err.Error() + TakeOverHint(err))
 	}
+}
+
+// TakeOverHint is the line to add to a 409 the instance answered with
+// canTakeOver set (domains another service or a redirect already routes),
+// saying how to send the change again and take them over; empty otherwise.
+func TakeOverHint(err error) string {
+	var apiError *homerun.APIError
+	if !errors.As(err, &apiError) || apiError.Status != http.StatusConflict {
+		return ""
+	}
+	var body struct {
+		CanTakeOver bool `json:"canTakeOver"`
+	}
+	if json.Unmarshal(apiError.Body, &body) != nil || !body.CanTakeOver {
+		return ""
+	}
+	return "\nSend it again with --set takeOverDomains=true to take them over."
 }
 
 // decodeBody sends body with the given content type and unmarshals the answer into out, exiting on failure.

@@ -11,7 +11,7 @@ var instanceChannels = []string{"stable", "canary", "nightly"}
 var deployEnvironments = []string{"canary", "stable"}
 
 // Commands is every command the CLI has, in the order the top-level usage lists them.
-var Commands = slices.Concat(baseCommands, ResourceCommands(resources), resourceExtras, redirectCommands, serviceAccountCommands, gateCommands, manifestCommands, iacCommands, adminCommands)
+var Commands = slices.Concat(baseCommands, versionCommands, ResourceCommands(resources), resourceExtras, ResourceCommands(workstationResources), workstationCommands, redirectCommands, registryCommands, serviceAccountCommands, gateCommands, manifestCommands, iacCommands, adminCommands)
 
 var baseCommands = []Command{
 	{
@@ -87,7 +87,7 @@ var baseCommands = []Command{
 		Name:    "services delete",
 		Summary: "delete a service",
 		Setup: func(set *flag.FlagSet) Runner {
-			force := set.Bool("force", false, "delete Homerun's record even if the workload couldn't be removed")
+			force := set.Bool("force", false, "cancel the service's queued or running jobs, and delete Homerun's record even if the workload couldn't be removed")
 			volumes := set.Bool("volumes", false, "also delete the volumes no other service mounts")
 			return func(env Env, args []string) { ServiceDelete(env.Client(), serviceID(env, args[0]), *force, *volumes) }
 		},
