@@ -20,6 +20,7 @@ export interface WizardData {
 	builtinCacheRunning: boolean;
 	connectedGitProviders: ComponentProps<typeof GitSourceFields>["providers"];
 	linkableServices: ComponentProps<typeof ServiceLinkPicker>["services"];
+	serviceDomain: string;
 	stackId: string | null;
 	stackSlug: string | null;
 	stacks: ComponentProps<typeof ServiceLinkPicker>["stacks"];

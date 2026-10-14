@@ -364,7 +364,7 @@
                   primaryHostname(
                     svc,
                     data.stacks.find((stack) => stack.id === svc.stackId)?.slug,
-                    data.baseDomain,
+                    data.serviceDomain,
                   ) ?? svc.slug,
                 title: svc.name,
                 }))}

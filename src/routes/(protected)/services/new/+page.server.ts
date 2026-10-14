@@ -1,6 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { buildCacheChoice } from "#lib/build-cache.js";
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { HOST_VOLUME_PREFIX } from "#lib/constants.js";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
 import { NotificationDTO } from "#lib/dto/notification-dto.js";
@@ -13,6 +13,7 @@ import { TemplateLinkDTO } from "#lib/dto/template-link-dto.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { serviceDomainConflicts } from "#lib/server/hostname-owner.js";
 import {
 	type CreateServiceInput,
 	createServiceSchema,
@@ -150,6 +151,7 @@ export const load = async ({ url, parent, locals }) => {
 
 	return {
 		baseDomain: config.baseDomain,
+		serviceDomain: serviceDomain(),
 		buildCacheRegistries: cacheRegistries.map((r) => r.toJSON()),
 		builtinCacheRunning: await DockerService.imageMirrorRunning().catch(
 			() => false,
@@ -259,17 +261,27 @@ async function finishLinkedStack(
 	return linkedServices;
 }
 
-/** The two uniqueness checks a new service can fail on, as one guard. */
+/** The uniqueness checks a new service can fail on, as one guard: its slug, and its default hostname and domain while publicly routed. */
 async function takenFieldFailure(
-	input: { domain?: string; slug: string },
+	input: { dnsResolvable: boolean; domain?: string; slug: string },
+	stackId: string | null,
 	formData: FormData,
 ) {
 	const errors: Record<string, string[]> = {};
 	if (await ServiceDTO.slugTaken(input.slug)) {
 		errors.slug = ["That slug is already in use."];
 	}
-	if (input.domain && (await ServiceDTO.domainTaken([input.domain]))) {
-		errors.domain = ["That domain is already in use."];
+	const stackSlug = stackId ? (await StackDTO.get(stackId))?.slug : null;
+	const conflicts = input.dnsResolvable
+		? await serviceDomainConflicts([
+				defaultHostname(input.slug, stackSlug, serviceDomain()),
+				...(input.domain ? [input.domain] : []),
+			])
+		: [];
+	for (const conflict of conflicts) {
+		errors[conflict.entry === input.domain ? "domain" : "slug"] = [
+			`${conflict.entry} is already routed to ${conflict.owner.label}.`,
+		];
 	}
 	if (Object.keys(errors).length === 0) {
 		return null;
@@ -358,7 +370,7 @@ async function formEnvVars(
 		? (await StackDTO.get(target.stackId))?.slug
 		: null;
 	const host =
-		target.domain || defaultHostname(target.slug, stackSlug, config.baseDomain);
+		target.domain || defaultHostname(target.slug, stackSlug, serviceDomain());
 	return fillUrlInEnv(
 		links.length > 0
 			? resolveEnvVarsWithLinks(parseEnvVars(formData), links)
@@ -457,7 +469,7 @@ async function createServiceFromForm(
 		} as const;
 	}
 
-	const taken = await takenFieldFailure(input, formData);
+	const taken = await takenFieldFailure(input, initialStackId, formData);
 	if (taken) {
 		return taken;
 	}

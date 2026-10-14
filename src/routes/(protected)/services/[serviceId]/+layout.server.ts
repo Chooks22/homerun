@@ -1,5 +1,5 @@
 import { error } from "@sveltejs/kit";
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { ErrorIssueDTO } from "#lib/dto/error-issue-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
@@ -76,6 +76,7 @@ export const load = async ({ params, parent }) => {
 
 	return {
 		baseDomain: config.baseDomain,
+		serviceDomain: serviceDomain(),
 		behindPangolin: config.pangolinEnabled,
 		crumbRoot: crumbRoot(trail, previewParent),
 		certResolver: certResolverFor(

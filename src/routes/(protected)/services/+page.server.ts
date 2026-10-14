@@ -1,5 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { ServiceDependencyDTO } from "#lib/dto/service-dependency-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
@@ -231,6 +231,7 @@ export const load = async ({ parent, url }) => {
 	);
 	return {
 		baseDomain: config.baseDomain,
+		serviceDomain: serviceDomain(),
 		facets,
 		filtered: query.active,
 		page: query.page,

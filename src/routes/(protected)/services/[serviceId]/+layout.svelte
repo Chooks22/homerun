@@ -38,7 +38,7 @@
 	);
 	const publicDomains = $derived.by(() => {
 		const main = svc.dnsResolvable
-			? primaryHostname(svc, data.stackSlug, data.baseDomain)
+			? primaryHostname(svc, data.stackSlug, data.serviceDomain)
 			: null;
 		return main ? [main] : [];
 	});

@@ -81,7 +81,7 @@
     </div>
 
     <CheckBox
-      helperText="Get a public {slug || 'slug'}.{data.baseDomain} route. Turn off to keep this service reachable only from other services on the same network."
+      helperText="Get a public {slug || 'slug'}.{data.serviceDomain} route. Turn off to keep this service reachable only from other services on the same network."
       id="dnsResolvable"
       label="DNS-resolvable"
       name="dnsResolvable"
