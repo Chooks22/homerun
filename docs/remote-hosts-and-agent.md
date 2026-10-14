@@ -66,6 +66,10 @@ From `/remote-hosts` → **Register by hand**: a name, plus a connection type:
 Either kind builds: a Docker-connection host runs the build directly against
 that daemon's Docker API, an agent host through its own `POST /v1/build`.
 
+The same registration is available over the REST API (`/api/v1/remote-hosts`)
+and as the Terraform provider's `homerun_remote_host`, see
+[Infrastructure as code](infrastructure-as-code.md).
+
 `/remote-hosts` has a search box and a Connection-type filter (Docker
 socket/Homerun Agent) once you have more than a couple registered, plus a pager
 if you have more than a page's worth, searched/paginated server-side.

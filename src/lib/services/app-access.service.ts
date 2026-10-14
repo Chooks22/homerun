@@ -15,6 +15,7 @@ import {
 	user as userTable,
 } from "#lib/server/db/schema.js";
 import { primaryHostname } from "#lib/service-domains.js";
+import { isServiceAccount } from "#lib/user-types.js";
 import { emailSignInAvailability } from "./email-sign-in.ts";
 
 const GROUP_CLAIMS = ["groups", "roles", "grp"];
@@ -120,6 +121,7 @@ interface GateUser {
 	banned: boolean | null;
 	email: string;
 	role: string | null;
+	type: string;
 }
 
 /**
@@ -234,6 +236,11 @@ class AppAccessServiceClass {
 	 * linked for every account: it signs in on the email address alone), and
 	 * (if set) that their linked accounts' OIDC groups
 	 * or their Homerun role intersect `authAllowedGroups`.
+	 *
+	 * A service account never signs in interactively, so its API key stands
+	 * in for the sign-in method: it's let through only when the wall lists it
+	 * by id and it isn't disabled, whatever the email, method and group rules
+	 * say.
 	 */
 	async evaluate(svc: ServiceDTO, userId: string): Promise<AccessDecision> {
 		if (svc.authProviders.length === 0) {
@@ -252,6 +259,11 @@ class AppAccessServiceClass {
 		]);
 		if (!account || isBanned(account)) {
 			return { allowed: false, reason: "user-not-allowed" };
+		}
+		if (isServiceAccount(account)) {
+			return svc.authAllowedUserIds.includes(userId)
+				? { allowed: true }
+				: { allowed: false, reason: "user-not-allowed" };
 		}
 		if (!emailAllowed(svc, account.email)) {
 			return { allowed: false, reason: "email-not-allowed" };
@@ -365,6 +377,7 @@ class AppAccessServiceClass {
 				banned: userTable.banned,
 				email: userTable.email,
 				role: userTable.role,
+				type: userTable.type,
 			})
 			.from(userTable)
 			.where(eq(userTable.id, userId))

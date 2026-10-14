@@ -4,6 +4,7 @@ import {
 	ArrowRightLeft,
 	BarChart3,
 	BookOpen,
+	Bot,
 	Boxes,
 	CalendarClock,
 	Clock,
@@ -240,6 +241,13 @@ export const allNavItems: NavItem[] = [
 		href: resolve("users"),
 		icon: Users,
 		label: "Users",
+	},
+	{
+		category: "Administration",
+		exact: false,
+		href: resolve("service-accounts"),
+		icon: Bot,
+		label: "Service accounts",
 	},
 	{
 		category: "Administration",

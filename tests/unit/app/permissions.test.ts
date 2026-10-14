@@ -28,6 +28,7 @@ import {
 import {
 	appOnlyRejection,
 	permissionRejection,
+	serviceAccountRejection,
 } from "../../../src/lib/server/access-gate";
 
 function request(method: string, headers: Record<string, string> = {}) {
@@ -469,5 +470,48 @@ describe("samePermissions", () => {
 		);
 		expect(samePermissions({ services: "read" }, {})).toBe(false);
 		expect(samePermissions({}, { dns: "read" })).toBe(false);
+	});
+});
+
+describe("serviceAccountRejection", () => {
+	test("lets an ungranted account through /app-auth only", async () => {
+		expect(
+			serviceAccountRejection(request("GET"), "/app-auth", "/app-auth", {}),
+		).toBeNull();
+		for (const [pathname, routeId] of [
+			["/api/v1/services", "/api/v1/services"],
+			["/api/v1/notifications", "/api/v1/notifications"],
+			["/api/v1/mcp", "/api/v1/mcp"],
+			["/profile", "/(protected)/profile"],
+			["/my-apps", "/my-apps"],
+			["/nowhere", null],
+		] as const) {
+			const response = serviceAccountRejection(
+				request("GET"),
+				pathname,
+				routeId,
+				{},
+			);
+			expect(response?.status).toBe(403);
+		}
+	});
+
+	test("opens the areas it was granted and leaves the level to permissionRejection", () => {
+		expect(
+			serviceAccountRejection(
+				request("POST"),
+				"/api/v1/services",
+				"/api/v1/services",
+				{ services: "read" },
+			),
+		).toBeNull();
+		expect(
+			serviceAccountRejection(
+				request("GET"),
+				"/api/v1/stacks",
+				"/api/v1/stacks",
+				{ services: "read" },
+			)?.status,
+		).toBe(403);
 	});
 });

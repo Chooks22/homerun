@@ -104,6 +104,47 @@ dashboard shows them only the list of apps they're allowed into. See
 [Users and roles](users-and-roles.md). Note that a wall with all three lists
 empty lets **any** signed-in account through, app-access accounts included.
 
+**Letting CI through: service accounts.** A CI job running end-to-end tests
+against an app or a pull request preview behind the wall shouldn't borrow a
+person's API key, whose permissions cover the whole instance. Create a **service
+account** under Administration → **Service accounts** instead (or
+`homerun service-accounts create`, the REST API, or the Terraform
+`homerun_service_account` resource), mint it an API key on its **API keys** tab
+(`homerun service-accounts keys create <id>`, shown once), and tick it under
+**Users** on the app's Security tab or the Previews access policy, or put its id
+in `auth_allowed_user_ids` / `preview_auth_allowed_user_ids`.
+
+A service account has no sign-in method at all: no password, no emailed code or
+link, no passkey, no OAuth. It can never open a dashboard session, and no code
+or link is ever mailed to it. Its API key is its only credential, and it stands
+in for the sign-in method: the account is let through a wall **only when that
+wall lists it under Users**, whatever its methods, emails and groups say. By
+default its key reaches nothing else, neither the dashboard nor the REST API; an
+admin can grant it permission areas on its Settings tab, as for a custom role.
+
+In CI, trade the key for the app's session cookie with the CLI:
+
+```sh
+export HOMERUN_BASE_URL=https://homerun.example.com
+export HOMERUN_API_KEY=<the service account's key>
+homerun gate session https://pr-42.app.example.com                # prints homerun_app_session=…
+homerun gate session https://pr-42.app.example.com --playwright state.json
+```
+
+The first prints a `Cookie` header value; `--playwright` writes a Playwright
+`storageState` file to load into the browser context instead. The handshake
+follows no redirect automatically: the key is only ever sent to the Homerun
+dashboard's own address, after checking the wall really redirected there, never
+to the app's host. The cookie lasts eight hours, like a person's.
+
+**Disable** a service account on its Settings tab to refuse its keys right away
+without deleting it; cookies it already holds stop working within five minutes.
+Every use of its keys, through a wall or the API and refused ones included, is
+recorded under its **Activity** tab and in Service accounts → **Activity**, with
+the account's name, the outcome and the caller's address, and stays there after
+the account is deleted. Service accounts don't apply when Pangolin owns the
+login (the wall is then Pangolin's, not Homerun's).
+
 **Revocation.** Access is re-checked when the app cookie is issued, whenever the
 rules change, and again at least every five minutes while the cookie is in use.
 Deleting, banning or re-roling a user in Homerun, or unlinking one of their

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, ne } from "drizzle-orm";
 import { db } from "#lib/server/db/lib.js";
 import {
 	type Notification,
@@ -7,6 +7,7 @@ import {
 	stack,
 	user,
 } from "#lib/server/db/schema.js";
+import { SERVICE_ACCOUNT } from "#lib/user-types.js";
 import { BaseDTO } from "./base-dto";
 
 export interface NewNotificationInput {
@@ -86,7 +87,10 @@ export class NotificationDTO extends BaseDTO<Notification> {
 	 * down to its newest 200 entries.
 	 */
 	static async broadcast(input: NewNotificationInput): Promise<void> {
-		const users = await db.select({ id: user.id }).from(user);
+		const users = await db
+			.select({ id: user.id })
+			.from(user)
+			.where(ne(user.type, SERVICE_ACCOUNT));
 		if (users.length === 0) {
 			return;
 		}

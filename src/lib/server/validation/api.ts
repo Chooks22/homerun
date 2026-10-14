@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BAKE_TARGET_PATTERN, BUILD_METHODS } from "#lib/build-methods.js";
 import { AUTH_PATHS_MODES, pathPatternsProblem } from "#lib/path-patterns.js";
+import { PERMISSION_AREAS, PERMISSION_LEVELS } from "#lib/permissions.js";
 import { branchPatternProblem } from "#lib/preview-branches.js";
 import { environmentNameField } from "#lib/server/validation/environment-name.js";
 import { DOMAIN_RE } from "#lib/service-domains.js";
@@ -90,7 +91,9 @@ const serviceSettingsFields = {
 	authAllowedUserIds: stringList.optional(),
 	authProviders: stringList
 		.optional()
-		.describe("Sign-in methods the login wall offers, e.g. email, passkey."),
+		.describe(
+			'Sign-in methods the login wall offers: "password", "email-otp", "magic-link" or "oauth:<provider name>", each enabled on the instance. An emailed method lets any account through unless authAllowedEmails or authAllowedUserIds narrow it.',
+		),
 	buildCacheBuiltin: z
 		.boolean()
 		.optional()
@@ -535,4 +538,35 @@ export const markNotificationsReadApiBody = z.object({
 		.describe(
 			"The notification to mark read. Omitted, every unread one is marked read.",
 		),
+});
+
+const permissionsField = z
+	.partialRecord(
+		z.enum(PERMISSION_AREAS.map((area) => area.key)),
+		z.enum(PERMISSION_LEVELS),
+	)
+	.meta({
+		description:
+			'Dashboard and API areas the account may use, each "read" or "write". None by default: the account\'s keys then only get through login walls that list it.',
+	});
+
+export const createServiceAccountApiBody = z.object({
+	name: z.string().trim().min(1).max(100),
+	permissions: permissionsField.optional(),
+});
+
+export const updateServiceAccountApiBody = z.object({
+	disabled: z.boolean().optional().meta({
+		description:
+			"A disabled account's keys are refused, and the login-wall cookies it already holds stop working within five minutes",
+	}),
+	name: z.string().trim().min(1).max(100).optional(),
+	permissions: permissionsField.optional(),
+});
+
+export const createServiceAccountKeyApiBody = z.object({
+	expiresInDays: z.number().int().min(1).max(3650).nullable().optional().meta({
+		description: "Days until the key expires; null never expires. Default 90",
+	}),
+	name: z.string().trim().min(1).max(100).optional(),
 });

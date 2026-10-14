@@ -110,30 +110,41 @@ takes the same fields on top of the ones a new service needs, and with
 `templateId` creates the service (and the template's linked services) from a
 template first. Every other object has its own routes, each with create, read by
 id, update and delete, each with a UUID as its id (a bucket's is
-`<storeId>/<name>`). Secrets are accepted and never returned: a response says
-whether one is set instead (`registryPasswordSet`, `customSslSet`, `passwordSet`
-and so on).
+`<storeId>/<name>`, a DNS record's `<domainId>/<recordId>`). Secrets are
+accepted and never returned: a response says whether one is set instead
+(`registryPasswordSet`, `customSslSet`, `passwordSet` and so on).
 
-| Object               | Routes                                                                                                                                                                                   |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stack                | `/stacks`, `/stacks/:id`                                                                                                                                                                 |
-| Service              | `/services`, `/services/:id`                                                                                                                                                             |
-| Service environment  | `/service-environments`, `/service-environments/:id`                                                                                                                                     |
-| Service dependency   | `/service-dependencies`, `/service-dependencies/:id` (no update)                                                                                                                         |
-| Volume               | `/volumes`, `/volumes/:id`                                                                                                                                                               |
-| Volume mount         | `/volume-mounts`, `/volume-mounts/:id`                                                                                                                                                   |
-| Cron job             | `/cron-jobs`, `/cron-jobs/:id`, plus `POST /cron-jobs/:id/run` (queue a run now), `GET /cron-jobs/:id/runs` (latest runs) and `GET /cron-jobs/:id/runs/:runId` (one run with its output) |
-| Redirect             | `/redirects`, `/redirects/:id`                                                                                                                                                           |
-| Notification channel | `/notification-channels`, `/notification-channels/:id` (the caller's own)                                                                                                                |
-| Notification         | `GET /notifications` (the caller's own feed, `?unread=true` for the unread ones), `POST /notifications/read` (one by `id`, or all)                                                       |
-| Backup destination   | `/backup-destinations`, `/backup-destinations/:id`                                                                                                                                       |
-| Status page          | `/status-pages`, `/status-pages/:id`                                                                                                                                                     |
-| DNS connection       | `/dns-connections`, `/dns-connections/:id` (DNS area)                                                                                                                                    |
-| Git provider         | `/git-providers`, `/git-providers/:id` (Git providers area)                                                                                                                              |
-| Build cache registry | `/build-cache-registries`, `/build-cache-registries/:id`                                                                                                                                 |
-| Object store         | `/object-stores`, `/object-stores/:id` (Object storage area)                                                                                                                             |
-| Bucket               | `/object-stores/:storeId/buckets`, `/object-stores/:storeId/buckets/:name` (Object storage area)                                                                                         |
-| Template             | `/templates`, `/templates/:id` (read only)                                                                                                                                               |
+| Object                  | Routes                                                                                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stack                   | `/stacks`, `/stacks/:id`                                                                                                                                                                 |
+| Service                 | `/services`, `/services/:id`                                                                                                                                                             |
+| Service environment     | `/service-environments`, `/service-environments/:id`                                                                                                                                     |
+| Service dependency      | `/service-dependencies`, `/service-dependencies/:id` (no update)                                                                                                                         |
+| Volume                  | `/volumes`, `/volumes/:id`                                                                                                                                                               |
+| Volume mount            | `/volume-mounts`, `/volume-mounts/:id`                                                                                                                                                   |
+| Cron job                | `/cron-jobs`, `/cron-jobs/:id`, plus `POST /cron-jobs/:id/run` (queue a run now), `GET /cron-jobs/:id/runs` (latest runs) and `GET /cron-jobs/:id/runs/:runId` (one run with its output) |
+| Redirect                | `/redirects`, `/redirects/:id`                                                                                                                                                           |
+| Notification channel    | `/notification-channels`, `/notification-channels/:id` (the caller's own)                                                                                                                |
+| Notification            | `GET /notifications` (the caller's own feed, `?unread=true` for the unread ones), `POST /notifications/read` (one by `id`, or all)                                                       |
+| Backup destination      | `/backup-destinations`, `/backup-destinations/:id`                                                                                                                                       |
+| Status page             | `/status-pages`, `/status-pages/:id`                                                                                                                                                     |
+| DNS connection          | `/dns-connections`, `/dns-connections/:id` (DNS area)                                                                                                                                    |
+| Domain                  | `/domains`, `/domains/:id` (DNS area)                                                                                                                                                    |
+| DNS record              | `/domains/:domainId/records`, `/domains/:domainId/records/:recordId`, read and written live at the domain's provider; an update can change the record's id (DNS area)                    |
+| Remote host             | `/remote-hosts`, `/remote-hosts/:id` (Remote hosts area)                                                                                                                                 |
+| Workstation             | `/workstations`, `/workstations/:id` (the caller's own; `desiredState` starts or stops it, `DELETE ?volume=true` also deletes its home volume; Workstations area)                        |
+| Workstation preset      | `/workstation-presets`, `/workstation-presets/:id` (the caller's own; Workstations area)                                                                                                 |
+| Git provider            | `/git-providers`, `/git-providers/:id` (Git providers area)                                                                                                                              |
+| Build cache registry    | `/build-cache-registries`, `/build-cache-registries/:id`                                                                                                                                 |
+| Object store            | `/object-stores`, `/object-stores/:id` (Object storage area)                                                                                                                             |
+| Bucket                  | `/object-stores/:storeId/buckets`, `/object-stores/:storeId/buckets/:name` (Object storage area)                                                                                         |
+| Template                | `/templates`, `/templates/:id` (read only)                                                                                                                                               |
+| Registry token          | `/registry/tokens`, `/registry/tokens/:id` (no update; the secret is only in the create response; Docker Registry area)                                                                  |
+| Instance settings       | `GET`/`PATCH` `/instance/settings` (General, Docker, Networking), `/instance/smtp`, `/instance/tls`, `/instance/error-pages`, `/instance/ip-bans` (Settings area)                        |
+| Authentication settings | `GET`/`PATCH` `/authentication/settings` (Users & authentication area)                                                                                                                   |
+| User                    | `/users`, `/users/:id` (people only, service accounts have their own routes; refuses demoting or deleting the last admin and deleting yourself; Users & authentication area)             |
+| OAuth provider          | `/oauth-providers`, `/oauth-providers/:name` (the name is the id; checks the discovery URL on every save; Users & authentication area)                                                   |
+| Registry settings       | `GET`/`PATCH` `/registry/settings`, waits for the registry's container to be recreated (Docker Registry area)                                                                            |
 
 This is what the [Terraform provider](infrastructure-as-code.md) is built on,
 and the CLI has a command group for each, see
@@ -402,12 +413,41 @@ homerun iac projects list|get|create|delete
 homerun iac state pull <project>
 homerun iac unlock <project> --force [--yes]
 homerun system stats [--json]
+homerun service-accounts list [--json]
+homerun service-accounts create <name>
+homerun service-accounts delete <id>
+homerun service-accounts keys list <accountId> [--json]
+homerun service-accounts keys create <accountId> [--name <label>] [--expires-in-days <n> | --never-expires]
+homerun service-accounts keys revoke <accountId> <keyId>
+homerun gate session <url> [--playwright <file>]
+homerun manifest apply <id|slug> [--file <path>] [--deploy]
+homerun manifest validate [--file <path>]
 homerun jobs list [--status queued,running,succeeded,failed,cancelled] [--json]
 homerun jobs get <id> [--json]
 homerun instance status [--json]
 homerun instance update [--wait=false] [--timeout <seconds>] [--force]
 homerun instance channel stable|canary|nightly
 ```
+
+`homerun service-accounts keys create` prints the new key's JSON, the only time
+its `key` secret is returned (a reminder goes to stderr, so stdout stays
+machine-readable). Keys expire after 90 days unless `--expires-in-days` or
+`--never-expires` says otherwise.
+
+`homerun manifest apply` and `homerun manifest validate` read `.homerun.json`,
+`.homerun.yaml` or `.homerun.yml` in the current directory unless `--file` names
+another; see [Homerun Manifest](manifest.md).
+
+`homerun gate session <url>` signs in through an app's
+[login wall](login-wall.md) without a browser, for CI and end-to-end tests. It
+requests the app's URL, follows the wall's redirect to your Homerun server
+(aborting before sending anything if that redirect points anywhere else),
+presents your saved API key there, and exchanges the result at the app for its
+session cookie. The key only ever goes to your Homerun server, never to the app.
+It prints `homerun_app_session=<value>`, ready for a `Cookie` header, or with
+`--playwright <file>` writes a Playwright `storageState` file (mode `0600`)
+instead. It fails when the app has no login wall, when the key is invalid or
+disabled, or when the key's owner isn't allowed on the app.
 
 `homerun update` above is the CLI's own self-updater, unrelated to
 `homerun services update`. Every `services` and `previews` command takes a

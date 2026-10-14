@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/orochibraru/homerun/internal/dockerapi"
+	"github.com/orochibraru/homerun/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -97,6 +100,11 @@ func (r *run) startContainer(ctx context.Context, image resolvedImage, recreate 
 	if recreate {
 		plan = RolloutPlan{}
 	}
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.Bool("homerun.deploy.blue_green", plan.BlueGreen),
+		attribute.String("homerun.deploy.readiness", check.Kind),
+		attribute.Int("homerun.deploy.previous_containers", len(previous)),
+	)
 	if plan.BlueGreen {
 		r.progress.line("Keeping the previous container serving until the new one is ready...")
 	} else {
@@ -121,12 +129,17 @@ func (r *run) startContainer(ctx context.Context, image resolvedImage, recreate 
 	}
 	name := workload.NamePrefix + "-" + randomSuffix()
 	r.progress.line("Creating container...")
-	id, err := r.docker.CreateContainerFrom(ctx, name, body)
-	if err != nil {
+	var id string
+	if err := tracing.Stage(ctx, "create container", func(ctx context.Context) error {
+		id, err = r.docker.CreateContainerFrom(ctx, name, body)
+		return err
+	}, attribute.String("homerun.container.name", name), attribute.String("homerun.deploy.image", image.ref())); err != nil {
 		return "", err
 	}
 	r.progress.line("Starting container...")
-	if err := r.docker.StartContainer(ctx, id); err != nil {
+	if err := tracing.Stage(ctx, "start container", func(ctx context.Context) error {
+		return r.docker.StartContainer(ctx, id)
+	}, attribute.String("homerun.container.id", id)); err != nil {
 		if plan.BlueGreen {
 			r.removeQuietly(ctx, id)
 		}
@@ -136,7 +149,9 @@ func (r *run) startContainer(ctx context.Context, image resolvedImage, recreate 
 
 	r.joinStackNetwork(ctx, id)
 	if plan.BlueGreen {
-		if err := r.awaitReadyOrDiscard(ctx, id, check); err != nil {
+		if err := tracing.Stage(ctx, "wait until ready", func(ctx context.Context) error {
+			return r.awaitReadyOrDiscard(ctx, id, check)
+		}, attribute.String("homerun.deploy.readiness", check.Kind), attribute.String("homerun.container.id", id)); err != nil {
 			if !RetryStopFirst(Routed(workload.Template), r.spec.Volumes) {
 				return "", err
 			}
@@ -197,16 +212,19 @@ func (r *run) removePrevious(ctx context.Context, previous []dockerapi.Container
 		return
 	}
 	r.progress.line("Removing the previous container...")
-	var wait sync.WaitGroup
-	for _, container := range previous {
-		wait.Go(func() {
-			if container.State == "running" {
-				_ = r.docker.StopContainer(ctx, container.ID)
-			}
-			_ = r.docker.RemoveContainer(ctx, container.ID)
-		})
-	}
-	wait.Wait()
+	_ = tracing.Stage(ctx, "remove previous container", func(ctx context.Context) error {
+		var wait sync.WaitGroup
+		for _, container := range previous {
+			wait.Go(func() {
+				if container.State == "running" {
+					_ = r.docker.StopContainer(ctx, container.ID)
+				}
+				_ = r.docker.RemoveContainer(ctx, container.ID)
+			})
+		}
+		wait.Wait()
+		return nil
+	}, attribute.Int("homerun.deploy.previous_containers", len(previous)))
 }
 
 // removeQuietly removes container id on its own timeout, ignoring any error.

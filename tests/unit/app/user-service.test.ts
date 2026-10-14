@@ -143,7 +143,7 @@ describe("UserService.cleanupUserResources", () => {
 
 		const lookup = chains.find((calls) => calls[0]?.method === "select");
 		expect(arg(lookup ?? [], "from")).toBe(schema.user);
-		expect(rendered(lookup ?? [])?.params).toEqual(["self"]);
+		expect(rendered(lookup ?? [])?.params).toEqual(["self", "service-account"]);
 		expect(arg(lookup ?? [], "limit")).toBe(1);
 		const updates = chains.filter((calls) => calls[0]?.method === "update");
 		expect(updates).toHaveLength(14);
@@ -216,6 +216,7 @@ describe("UserService reads", () => {
 		expect(arg(page ?? [], "offset")).toBe(4);
 		for (const calls of [page, total]) {
 			expect(rendered(calls ?? [])?.params).toEqual([
+				"service-account",
 				"%ann%",
 				"%ann%",
 				"admin",
@@ -224,7 +225,7 @@ describe("UserService reads", () => {
 		}
 	});
 
-	test("listUsersPaged with no search or filters is unfiltered and totals 0 when empty", async () => {
+	test("listUsersPaged with no search or filters only leaves out service accounts and totals 0 when empty", async () => {
 		respond = () => [];
 
 		const result = await UserService.listUsersPaged({
@@ -241,7 +242,7 @@ describe("UserService reads", () => {
 		expect(result.total).toBe(0);
 		expect(result.items).toEqual([]);
 		for (const calls of chains) {
-			expect(arg(calls, "where")).toBeUndefined();
+			expect(rendered(calls)?.params).toEqual(["service-account"]);
 		}
 	});
 
@@ -252,7 +253,11 @@ describe("UserService reads", () => {
 			{ id: "u1" },
 		] as never);
 		const [calls] = chains;
-		expect(rendered(calls ?? [])?.params).toEqual(["%bob%", "%bob%"]);
+		expect(rendered(calls ?? [])?.params).toEqual([
+			"service-account",
+			"%bob%",
+			"%bob%",
+		]);
 		expect(arg(calls ?? [], "limit")).toBe(5);
 	});
 
@@ -263,6 +268,30 @@ describe("UserService reads", () => {
 
 		respond = () => [];
 		expect(await UserService.firstAdminId()).toBeNull();
+	});
+
+	test("isServiceAccount reads the row's type", async () => {
+		respond = () => [{ type: "service-account" }];
+		expect(await UserService.isServiceAccount("sa")).toBe(true);
+		expect(rendered(chains[0] ?? [])?.params).toEqual(["sa"]);
+
+		respond = () => [{ type: "human" }];
+		expect(await UserService.isServiceAccount("u1")).toBe(false);
+		respond = () => [];
+		expect(await UserService.isServiceAccount("gone")).toBe(false);
+	});
+
+	test("getUser and findByEmail return the row, or null", async () => {
+		respond = () => [{ id: "u1" }];
+		expect(await UserService.getUser("u1")).toEqual({ id: "u1" } as never);
+		expect(await UserService.findByEmail("a@example.com")).toEqual({
+			id: "u1",
+		} as never);
+		expect(rendered(chains[1] ?? [])?.params).toEqual(["a@example.com"]);
+
+		respond = () => [];
+		expect(await UserService.getUser("gone")).toBeNull();
+		expect(await UserService.findByEmail("b@example.com")).toBeNull();
 	});
 
 	test("countAdmins returns the admin count, or 0 without a row", async () => {
@@ -299,6 +328,17 @@ describe("UserService writes", () => {
 			email: "new@example.com",
 			emailVerified: true,
 		});
+	});
+
+	test("recordSignIn stamps the last sign-in time", async () => {
+		const at = new Date("2026-10-14T10:00:00Z");
+		await UserService.recordSignIn("u1", at);
+		expect(arg(chains[0] ?? [], "set")).toEqual({ lastSignInAt: at });
+	});
+
+	test("setName changes the display name", async () => {
+		await UserService.setName("u1", "Ada");
+		expect(arg(chains[0] ?? [], "set")).toEqual({ name: "Ada" });
 	});
 
 	test("deleteUser deletes the row by id", async () => {

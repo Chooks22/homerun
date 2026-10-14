@@ -1,0 +1,469 @@
+{
+	"$id": "https://raw.githubusercontent.com/orochibraru/homerun/main/manifest.schema.json",
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"additionalProperties": false,
+	"description": "A Homerun Manifest: a service's configuration, kept as .homerun.json (or .homerun.yaml / .homerun.yml) in its repository and applied on every deploy, or applied to any service with `homerun manifest apply`. Every key is optional and uses the REST API's field name; keys left out keep their current value, and envVars are merged into the service's environment rather than replacing it.",
+	"properties": {
+		"$schema": {
+			"description": "The JSON schema this file follows, for editor support",
+			"type": "string"
+		},
+		"authAllowedEmails": {
+			"description": "Addresses let through the login wall, exact or *@example.com for a whole domain. With an emailed sign-in method, leaving this and authAllowedUserIds empty lets any Homerun account through.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"authAllowedGroups": {
+			"description": "Group or role claims from the OAuth provider's id token, or Homerun roles (admin, developer, viewer, custom, app-user), let through the login wall.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"authAllowedUserIds": {
+			"description": "Homerun account ids let through the login wall, service accounts included (a service account only gets through when listed here).",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"authPaths": {
+			"description": "Path patterns authPathsMode applies to. A pattern matches whole path segments anywhere in the path, a leading / anchors it at the root, * matches anything and ? one character, case-insensitively.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"type": "array"
+		},
+		"authPathsMode": {
+			"description": "Which paths the login wall covers: all, only the authPaths, or all except them. Applied on the next deploy, which saving queues for a running service.",
+			"enum": ["all", "only", "except"],
+			"type": "string"
+		},
+		"authProviders": {
+			"description": "Sign-in methods the login wall accepts. One or more of \"password\", \"email-otp\" (emailed code), \"magic-link\" (emailed link) and \"oauth:<provider name>\"; an emailed method must be switched on under Authentication, with SMTP configured.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"authRequired": {
+			"description": "Put the service behind Homerun's login wall.",
+			"type": "boolean"
+		},
+		"autoRollback": {
+			"description": "Roll back to the previous revision when a new one turns unhealthy.",
+			"type": "boolean"
+		},
+		"blockedPaths": {
+			"description": "Path patterns Traefik answers with a 403 instead of passing to the app, same syntax as authPaths. Applied on the next deploy, which saving queues for a running service.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"type": "array"
+		},
+		"category": {
+			"description": "The service's category in the services list.",
+			"type": ["string", "null"]
+		},
+		"command": {
+			"anyOf": [
+				{
+					"items": {
+						"type": "string"
+					},
+					"maxItems": 200,
+					"type": "array"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Argv list, null keeps the image's own"
+		},
+		"containerPort": {
+			"description": "The port the app listens on inside the container, where Traefik sends its traffic.",
+			"maximum": 65535,
+			"minimum": 1,
+			"type": "integer"
+		},
+		"cpuLimit": {
+			"description": "CPU limit in cores, e.g. \"0.5\"; null for none.",
+			"type": ["string", "null"]
+		},
+		"cronEnabled": {
+			"description": "Redeploy on cronSchedule.",
+			"type": "boolean"
+		},
+		"cronSchedule": {
+			"description": "5-field cron expression the service is redeployed on.",
+			"type": ["string", "null"]
+		},
+		"defaultDomainEnabled": {
+			"description": "Also route the service at <slug>.<base domain>.",
+			"type": "boolean"
+		},
+		"dnsResolvable": {
+			"description": "Publish the service's hostnames through the instance's DNS automation.",
+			"type": "boolean"
+		},
+		"domainPorts": {
+			"additionalProperties": {
+				"maximum": 65535,
+				"minimum": 1,
+				"type": "integer"
+			},
+			"description": "Container port per domain, when it isn't containerPort.",
+			"propertyNames": {
+				"type": "string"
+			},
+			"type": "object"
+		},
+		"domains": {
+			"description": "Hostnames routed to the service.",
+			"items": {
+				"pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$",
+				"type": "string"
+			},
+			"type": "array"
+		},
+		"entrypoint": {
+			"anyOf": [
+				{
+					"items": {
+						"type": "string"
+					},
+					"maxItems": 200,
+					"type": "array"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Argv list, null keeps the image's own"
+		},
+		"envVars": {
+			"additionalProperties": {
+				"type": "string"
+			},
+			"description": "Environment variables, merged into the service's environment: a variable set elsewhere and missing here is kept. Keep secrets out of the repository; set them on the dashboard.",
+			"propertyNames": {
+				"type": "string"
+			},
+			"type": "object"
+		},
+		"gitBakeFile": {
+			"description": "The Docker Bake file for the bake method, relative to the build context.",
+			"type": ["string", "null"]
+		},
+		"gitBuildContext": {
+			"description": "The build context directory, relative to the repository root. The manifest is looked for there first, then at the root.",
+			"type": ["string", "null"]
+		},
+		"gitBuildMethod": {
+			"description": "How the repository is built: a Dockerfile, a Docker Bake target, Nixpacks, Railpack, or Heroku or Paketo buildpacks.",
+			"enum": [
+				"dockerfile",
+				"bake",
+				"nixpacks",
+				"railpack",
+				"heroku",
+				"paketo"
+			],
+			"type": "string"
+		},
+		"gitBuildTarget": {
+			"anyOf": [
+				{
+					"pattern": "^[A-Za-z0-9_][A-Za-z0-9_-]*$",
+					"type": "string"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "The Bake target, or the Dockerfile stage to build."
+		},
+		"gitDockerfilePath": {
+			"description": "The Dockerfile, relative to the build context.",
+			"type": ["string", "null"]
+		},
+		"gitIgnorePaths": {
+			"description": "Repo path globs whose changes never deploy on push, same syntax as gitWatchPaths: a push deploys when a changed file matches the watch paths and none of these.",
+			"items": {
+				"maxLength": 200,
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 50,
+			"type": "array"
+		},
+		"gitWatchPaths": {
+			"description": "Repo path globs (apps/api/**, *.md) a push has to change a file under to deploy the service or one of its environments. Empty lets every file through. A pattern without a slash matches at any depth, a folder path everything under it. Only applies when the push payload lists its files (not on Bitbucket, not when polling).",
+			"items": {
+				"maxLength": 200,
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 50,
+			"type": "array"
+		},
+		"healthcheckCommand": {
+			"anyOf": [
+				{
+					"maxLength": 1000,
+					"type": "string"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "A shell command run inside the container to check it's healthy; null for the image's own."
+		},
+		"healthcheckDisabled": {
+			"description": "Turn the health check off, the image's own included.",
+			"type": "boolean"
+		},
+		"healthcheckIntervalSeconds": {
+			"anyOf": [
+				{
+					"maximum": 3600,
+					"minimum": 1,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Seconds between health checks."
+		},
+		"healthcheckRetries": {
+			"anyOf": [
+				{
+					"maximum": 100,
+					"minimum": 1,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Failed checks in a row before the container counts as unhealthy."
+		},
+		"healthcheckStartPeriodSeconds": {
+			"anyOf": [
+				{
+					"maximum": 3600,
+					"minimum": 0,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Seconds after start during which failures don't count."
+		},
+		"healthcheckTimeoutSeconds": {
+			"anyOf": [
+				{
+					"maximum": 3600,
+					"minimum": 1,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Seconds a check may run."
+		},
+		"httpCacheTtl": {
+			"anyOf": [
+				{
+					"maximum": 86400,
+					"minimum": 1,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Cache the service's responses at the edge for this many seconds; null to turn caching off."
+		},
+		"icon": {
+			"description": "The service's icon.",
+			"type": ["string", "null"]
+		},
+		"image": {
+			"description": "The image to run, for a service that isn't built from its repository.",
+			"minLength": 1,
+			"type": "string"
+		},
+		"imageScanEnabled": {
+			"description": "Scan the image for vulnerabilities on deploy.",
+			"type": "boolean"
+		},
+		"memoryLimitMb": {
+			"anyOf": [
+				{
+					"exclusiveMinimum": 0,
+					"maximum": 9007199254740991,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Memory limit in MiB; null for none."
+		},
+		"name": {
+			"description": "The service's display name.",
+			"maxLength": 100,
+			"minLength": 1,
+			"type": "string"
+		},
+		"portProtocol": {
+			"description": "Whether containerPort speaks TCP, UDP or both.",
+			"enum": ["tcp", "udp", "both"],
+			"type": "string"
+		},
+		"previewAuthAllowedEmails": {
+			"description": "authAllowedEmails for pull request previews.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"previewAuthAllowedGroups": {
+			"description": "authAllowedGroups for pull request previews.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"previewAuthAllowedUserIds": {
+			"description": "authAllowedUserIds for pull request previews, e.g. a CI service account.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"previewAuthProviders": {
+			"description": "Sign-in methods the previews' login wall accepts. One or more of \"password\", \"email-otp\" (emailed code), \"magic-link\" (emailed link) and \"oauth:<provider name>\"; an emailed method must be switched on under Authentication, with SMTP configured.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 200,
+			"type": "array"
+		},
+		"previewAuthRequired": {
+			"description": "Put every pull request preview behind the login wall.",
+			"type": "boolean"
+		},
+		"previewBranchExclude": {
+			"description": "Glob patterns whose matching branches never get a preview, even when included.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 50,
+			"type": "array"
+		},
+		"previewBranchInclude": {
+			"description": "Glob patterns (* any run, ? one character) a pull request's head branch must match one of to get a preview. Empty lets every branch through.",
+			"items": {
+				"minLength": 1,
+				"type": "string"
+			},
+			"maxItems": 50,
+			"type": "array"
+		},
+		"previewCopyVolumes": {
+			"description": "Whether each new preview gets its own copy of this service's volumes.",
+			"type": "boolean"
+		},
+		"previewDefaultDomain": {
+			"description": "Route previews at their default hostname.",
+			"type": "boolean"
+		},
+		"previewDomainTemplate": {
+			"description": "Hostname template for previews, e.g. pr-{pr}.example.com.",
+			"type": ["string", "null"]
+		},
+		"previewEnvOverrides": {
+			"additionalProperties": {
+				"type": "string"
+			},
+			"description": "Environment variables set on every preview over what it inherited; {pr}, {branch} and {slug} are filled in.",
+			"propertyNames": {
+				"pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+				"type": "string"
+			},
+			"type": "object"
+		},
+		"previewInheritEnv": {
+			"description": "Whether pull request previews start from this service's environment variables.",
+			"type": "boolean"
+		},
+		"previewsEnabled": {
+			"description": "Deploy a preview for every pull request.",
+			"type": "boolean"
+		},
+		"primaryDomain": {
+			"description": "The hostname shown and linked as the service's address.",
+			"type": ["string", "null"]
+		},
+		"pullPolicy": {
+			"description": "When to pull image: always, only when missing, or never.",
+			"enum": ["always", "missing", "never"],
+			"type": "string"
+		},
+		"replicas": {
+			"description": "How many replicas to run under swarm; 0 scales it to zero.",
+			"maximum": 50,
+			"minimum": 0,
+			"type": "integer"
+		},
+		"restartPolicy": {
+			"description": "Docker's restart policy for the container.",
+			"enum": ["no", "always", "on-failure", "unless-stopped"],
+			"type": "string"
+		},
+		"runAsUser": {
+			"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
+			"type": ["string", "null"]
+		},
+		"tag": {
+			"description": "The image tag to run.",
+			"minLength": 1,
+			"type": "string"
+		},
+		"tracesEnabled": {
+			"description": "Collect OpenTelemetry traces from the service.",
+			"type": "boolean"
+		},
+		"uptimeEnabled": {
+			"description": "Probe the service's address for the uptime history.",
+			"type": "boolean"
+		}
+	},
+	"title": "Homerun Manifest",
+	"type": "object"
+}

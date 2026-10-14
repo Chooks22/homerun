@@ -23,7 +23,7 @@ type progress struct {
 }
 
 // line appends one line to the deployment's log, the one the Overview's
-// progress panel polls. A failed write is logged, never returned. Without a
+// progress panel polls, and records it on the job's current trace span. A failed write is logged, never returned. Without a
 // database (a test's Recorder job) the line goes to the job's own log.
 func (p progress) line(line string) {
 	pool := p.job.DB()
@@ -31,6 +31,7 @@ func (p progress) line(line string) {
 		p.job.AppendLog(line)
 		return
 	}
+	p.job.Trace(line)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if _, err := pool.Exec(ctx,

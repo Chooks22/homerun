@@ -4,11 +4,13 @@ import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
-import { applyAndRebuild } from "#lib/server/validation/instance-settings-form.js";
 import { serviceHostnames } from "#lib/service-domains.js";
 import { DeploymentService } from "#lib/services/deploy.service.js";
-import { DockerService } from "#lib/services/docker.service.js";
-import { certificateCovers, inspectCertificate } from "#lib/tls-certificate.js";
+import {
+	InstanceSettingsError,
+	InstanceSettingsService,
+} from "#lib/services/instance-settings.service.js";
+import { certificateCovers } from "#lib/tls-certificate.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
@@ -61,39 +63,24 @@ export const actions = {
 		const formData = await request.formData();
 		const cert = String(formData.get("cert") ?? "").trim();
 		const key = String(formData.get("key") ?? "").trim();
-		let info: ReturnType<typeof inspectCertificate>;
+		let names: string[];
 		try {
-			info = inspectCertificate(cert, key);
+			names = await InstanceSettingsService.installCertificate(
+				cert,
+				key,
+				userId,
+			);
 		} catch (err) {
-			return fail(400, {
-				error: err instanceof Error ? err.message : String(err),
-			});
+			if (err instanceof InstanceSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
-		try {
-			await DockerService.syncInstanceCertificate({ cert, key });
-		} catch (err) {
-			return fail(400, {
-				error: err instanceof Error ? err.message : String(err),
-			});
-		}
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateInstanceCertificate({ ...info, cert, key });
-		applyAndRebuild(settings);
-		logger.info(
-			`Instance certificate installed: names=${info.names.join(",")} user=${userId}`,
-		);
-		return { installed: info.names.join(", "), success: true };
+		return { installed: names.join(", "), success: true };
 	},
 
 	remove: async ({ locals }) => {
-		const userId = signedInUserId(locals);
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateInstanceCertificate(null);
-		applyAndRebuild(settings);
-		await DockerService.syncInstanceCertificate(null).catch((err) => {
-			logger.warn("Couldn't remove the instance certificate file", err);
-		});
-		logger.info(`Instance certificate removed: user=${userId}`);
+		await InstanceSettingsService.removeCertificate(signedInUserId(locals));
 		return { removed: true, success: true };
 	},
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { yamlConfigSchema } from "../src/lib/config";
 import { builtinTemplateFileSchema } from "../src/lib/server/db/builtin-templates";
+import { manifestJsonSchema } from "../src/lib/server/manifest";
 
 function sortKeysDeep(value: unknown): unknown {
 	if (Array.isArray(value)) {
@@ -25,6 +26,7 @@ const outputs = [
 		"templates/schema.json",
 		z.toJSONSchema(builtinTemplateFileSchema, { target: "draft-7" }),
 	],
+	["manifest.schema.json", manifestJsonSchema()],
 ] as const;
 
 for (const [path, schema] of outputs) {

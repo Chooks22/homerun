@@ -515,12 +515,14 @@ export function generateStructure(
 	return files;
 }
 
-/** How many objects of each type an inventory holds, for the page's summary. */
+/** How many objects of each type an inventory holds, for the page's summary, singletons (instance settings) left out. */
 export function inventoryCounts(
 	inventory: Inventory,
 ): { count: number; type: string }[] {
-	return IAC_RESOURCES.map((resource) => ({
-		count: inventory[resource.type]?.length ?? 0,
-		type: resource.type,
-	})).filter((entry) => entry.count > 0);
+	return IAC_RESOURCES.filter((resource) => !resource.singleton)
+		.map((resource) => ({
+			count: inventory[resource.type]?.length ?? 0,
+			type: resource.type,
+		}))
+		.filter((entry) => entry.count > 0);
 }

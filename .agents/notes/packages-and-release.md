@@ -355,6 +355,24 @@ cross-compilation is verified live regardless, unrelated to which release tool
 drives it: all eight release binaries build from one machine (run for real
 locally), see Homerun CLI in `api-and-cli.md`.
 
+## GitHub Actions (`action.yaml`, `actions/*/action.yaml`)
+
+The repository root is the generic **Homerun** composite action (install the
+CLI, put it on the `PATH`, optionally run `args`), and each dedicated action
+(deploy, rollback, preview, gate-session) is a composite action of its own,
+addressed as `orochibraru/homerun/actions/<name>@<tag>`. A composite action
+can't `uses:` a sibling at the same ref (`github.action_ref` isn't allowed in
+`uses:`), so they share two scripts instead: `actions/install-cli.sh` resolves
+the CLI version from the action's own tag (else `latest`) and installs once per
+job into `$RUNNER_TEMP/homerun-cli`, and `actions/run-cli.sh` exports
+`HOMERUN_BASE_URL`/`HOMERUN_API_KEY` only for its own process, runs the CLI and
+writes `stdout` as an output with a random heredoc delimiter, masking it for
+`gate-session`'s cookie. **Nothing writes `GITHUB_ENV`**: zizmor flags it
+(`github-env`), since an input with a newline could inject variables into every
+later step, and the API key must not leak to later steps anyway. Every input
+reaches a shell through `env:`, never `${{ }}` inside `run:`. The `action-smoke`
+job in `code_quality.yaml` runs the root action on Ubuntu and macOS runners.
+
 ## Homerun Worker's agent mode + installer (`internal/agent/`, `internal/worker`, `cmd/installer/`)
 
 Two standalone sub-projects under `cmd/`, siblings of `src/` and **not** part of

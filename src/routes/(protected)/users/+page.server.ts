@@ -6,7 +6,6 @@ import { Logger } from "#lib/logger.js";
 import {
 	asAuthRole,
 	isUserRole,
-	permissionsForRole,
 	permissionsFromForm,
 	roleLabel,
 } from "#lib/permissions.js";
@@ -44,15 +43,6 @@ export const load = async ({ parent, url }) => {
 		users: users.items,
 	};
 };
-
-/** Refuses to strip admin-ness from the only remaining admin : mirrors better-auth's own "can't remove yourself" guard on admin.removeUser, but for the case that action doesn't cover. */
-async function wouldRemoveLastAdmin(userId: string): Promise<boolean> {
-	const target = (await UserService.listUsers()).find((u) => u.id === userId);
-	if (target?.role !== "admin") {
-		return false;
-	}
-	return (await UserService.countAdmins()) <= 1;
-}
 
 export const actions = {
 	cancelInvite: async ({ request, locals }) => {
@@ -191,21 +181,10 @@ export const actions = {
 		const formData = await request.formData();
 		const userId = formData.get("userId") as string;
 
-		if (userId === locals.user.id) {
-			return fail(400, {
-				action: "removeUser",
-				error: "You can't remove your own account here : use Profile instead.",
-			});
+		const refusal = await UserService.removeUser(userId, locals.user.id);
+		if (refusal) {
+			return fail(400, { action: "removeUser", error: refusal });
 		}
-		if (await wouldRemoveLastAdmin(userId)) {
-			return fail(400, {
-				action: "removeUser",
-				error: "Can't remove the last admin.",
-			});
-		}
-
-		await UserService.cleanupUserResources(userId, locals.user.id);
-		await UserService.deleteUser(userId);
 
 		logger.info(`User removed: user=${userId} by=${locals.user.id}`);
 		return { action: "removeUser", success: true };
@@ -228,22 +207,14 @@ export const actions = {
 				error: "Enter a valid email address.",
 			});
 		}
-		const users = await UserService.listUsers();
-		const target = users.find((candidate) => candidate.id === userId);
+		const target = await UserService.getUser(userId);
 		if (!target) {
 			return fail(404, { action: "setEmail", error: "User not found." });
 		}
-		if (target.email === email) {
-			return { action: "setEmail", success: true };
+		const refusal = await UserService.changeEmail(target, email);
+		if (refusal) {
+			return fail(400, { action: "setEmail", error: refusal });
 		}
-		if (users.some((candidate) => candidate.email === email)) {
-			return fail(400, {
-				action: "setEmail",
-				error: "That email already has an account.",
-			});
-		}
-
-		await UserService.setEmail(userId, email);
 		logger.info(
 			`Email changed: user=${userId} from=${target.email} to=${email} by=${locals.user.id}`,
 		);
@@ -263,26 +234,14 @@ export const actions = {
 			return fail(400, { action: "setRole", error: "Invalid role." });
 		}
 
-		if (role !== "admin" && (await wouldRemoveLastAdmin(userId))) {
-			return fail(400, {
-				action: "setRole",
-				error: "Can't demote the last admin.",
-			});
-		}
-
-		const target = (await UserService.listUsers()).find(
-			(candidate) => candidate.id === userId,
-		);
+		const target = await UserService.getUser(userId);
 		if (!target) {
 			return fail(404, { action: "setRole", error: "User not found." });
 		}
-		await UserService.setRole(
-			userId,
-			role,
-			role === "custom"
-				? permissionsForRole(target.role, target.permissions)
-				: null,
-		);
+		const refusal = await UserService.changeRole(target, role);
+		if (refusal) {
+			return fail(400, { action: "setRole", error: refusal });
+		}
 		logger.info(
 			`Role changed: user=${userId} role=${role} by=${locals.user.id}`,
 		);
@@ -296,18 +255,15 @@ export const actions = {
 
 		const formData = await request.formData();
 		const userId = formData.get("userId") as string;
-		const target = (await UserService.listUsers()).find(
-			(candidate) => candidate.id === userId,
-		);
-		if (target?.role !== "custom") {
-			return fail(400, {
-				action: "setPermissions",
-				error: "Only a custom-role user has their own permissions.",
-			});
+		const target = await UserService.getUser(userId);
+		if (!target) {
+			return fail(404, { action: "setPermissions", error: "User not found." });
 		}
-
 		const permissions = permissionsFromForm(formData);
-		await UserService.setPermissions(userId, permissions);
+		const refusal = await UserService.changePermissions(target, permissions);
+		if (refusal) {
+			return fail(400, { action: "setPermissions", error: refusal });
+		}
 		logger.info(
 			`Permissions changed: user=${userId} permissions=${JSON.stringify(permissions)} by=${locals.user.id}`,
 		);

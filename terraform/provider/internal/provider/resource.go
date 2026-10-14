@@ -63,7 +63,12 @@ func (r *specResource) Create(ctx context.Context, req resource.CreateRequest, r
 		resp.Diagnostics.AddError("Couldn't build the request", err.Error())
 		return
 	}
-	created, err := r.client.Create(ctx, Path(r.spec.CollectionPath, PathValues(r.spec, plan)), body)
+	var created client.Object
+	if r.spec.Singleton {
+		created, err = r.client.Update(ctx, Path(r.spec.ItemPath, PathValues(r.spec, plan)), body)
+	} else {
+		created, err = r.client.Create(ctx, Path(r.spec.CollectionPath, PathValues(r.spec, plan)), body)
+	}
 	if err != nil {
 		resp.Diagnostics.AddError("Couldn't create the "+r.spec.Type, err.Error())
 		return
@@ -144,12 +149,19 @@ func (r *specResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		resp.Diagnostics.AddError("Couldn't read the state", err.Error())
 		return
 	}
+	if r.spec.Singleton {
+		return
+	}
 	if err := r.client.Delete(ctx, Path(r.spec.ItemPath, PathValues(r.spec, prior))); err != nil {
 		resp.Diagnostics.AddError("Couldn't delete the "+r.spec.Type, err.Error())
 	}
 }
 
 func (r *specResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	if r.spec.Singleton && req.ID != SingletonID {
+		resp.Diagnostics.AddError("Invalid import id", fmt.Sprintf("There's only one %s: import it as %q.", r.spec.Type, SingletonID))
+		return
+	}
 	fields, err := ImportFields(r.spec, req.ID)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid import id", err.Error())
@@ -293,13 +305,16 @@ func fromLive(spec ResourceSpec, tf string) bool {
 	}
 	for _, attribute := range spec.Attributes {
 		if attribute.TF == tf {
-			return attribute.FromAPI()
+			return attribute.Refreshed()
 		}
 	}
 	return false
 }
 
 func liveValue(spec ResourceSpec, tf string, typ tftypes.Type, live client.Object) (tftypes.Value, error) {
+	if tf == "id" && spec.Singleton {
+		return tftypes.NewValue(typ, SingletonID), nil
+	}
 	if tf == "id" {
 		return FromAPI(Attribute{Kind: "string", Name: "id"}, typ, live["id"])
 	}

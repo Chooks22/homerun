@@ -26,6 +26,16 @@ When done delete the entry, no bloat.
 - [ ] Workstation editor setup only drives code-server: support
       openvscode-server (its own extension CLI and settings path) for the
       extensions and settings.json
+- [ ] Sign in with Homerun apps can only be edited by the admin who registered
+      them: better-auth's `update-client` requires the session user to own the
+      client, so another admin's settings or environment save on an app fails
+      with UNAUTHORIZED. The same session requirement keeps OIDC apps out of the
+      REST API and Terraform, since an API key has no session
+- [ ] A banned human's API keys keep working: `applyApiKeyAuth` only refuses a
+      disabled service account's key, `verifyApiKey` never checks the owner's
+      ban
+- [ ] CLI `service-accounts` has no rename, disable or `--permissions`: only the
+      REST API, dashboard and Terraform change those
 
 ## Medium
 
@@ -48,7 +58,8 @@ When done delete the entry, no bloat.
       use, so a service can still take a workstation's or a redirect's hostname)
       that, unlike workstations, offers to take the hostname over from its
       owner, so a service can be moved to a new one without downtime
-- [ ] Workstations in the REST API, MCP, the CLI and the Terraform provider
+- [ ] Workstations and presets in MCP and the CLI (the REST API and the
+      Terraform provider have them)
 - [ ] Workstations on a raw `docker` remote host (the worker's
       `dockerapi.NewRemote`), only agent hosts can run one today
 - [ ] Workstation start never re-pulls an image it already has, so a `:latest`

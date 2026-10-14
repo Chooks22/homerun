@@ -9,6 +9,7 @@ import {
 	permissionDeniedMessage,
 	requiredPermission,
 } from "#lib/permissions.js";
+import { SERVICE_ACCOUNT_MESSAGE } from "#lib/user-types.js";
 
 type RefusedRequest = Pick<Request, "headers" | "method">;
 
@@ -124,4 +125,30 @@ export function appOnlyRejection(
 		});
 	}
 	return forbidden(request, pathname, APP_ONLY_MESSAGE);
+}
+
+/**
+ * What a service account's key may reach: `/app-auth`, where it trades the key
+ * for a login-wall grant, and only the routes owned by an area it was granted.
+ * Every route open to any signed-in user (the overview, profile, MCP,
+ * notifications…) is refused, as is anything outside the dashboard and the
+ * REST API. The level is left to `permissionRejection`.
+ *
+ * @returns Null when the request is allowed.
+ */
+export function serviceAccountRejection(
+	request: RefusedRequest,
+	pathname: string,
+	routeId: string | null,
+	permissions: Permissions,
+): Response | null {
+	if (routeId === "/app-auth") {
+		return null;
+	}
+	const required = requiredPermission(request.method, routeId);
+	const granted =
+		required === "unmapped"
+			? hasAllPermissions(permissions)
+			: required !== null && can(permissions, required.area);
+	return granted ? null : forbidden(request, pathname, SERVICE_ACCOUNT_MESSAGE);
 }

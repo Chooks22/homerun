@@ -24,7 +24,9 @@ import {
 import {
 	appOnlyRejection,
 	permissionRejection,
+	serviceAccountRejection,
 } from "#lib/server/access-gate.js";
+import { clientAddress } from "#lib/server/client-address.js";
 import { isForbiddenCrossSiteForm } from "#lib/server/csrf.js";
 import { db as appDb, getDb, resetDb } from "#lib/server/db/index.js";
 import { user as userTable } from "#lib/server/db/schema.js";
@@ -35,6 +37,7 @@ import {
 	withTokenCors,
 } from "#lib/server/oidc-client-guard.js";
 import { AdminService } from "#lib/services/admin.service.js";
+import { isBanned } from "#lib/services/app-access.service.js";
 import {
 	auth,
 	pruneUndecryptableSigningKeys,
@@ -48,8 +51,13 @@ import { IpBanService } from "#lib/services/ip-ban.service.js";
 import { OrchestrationService } from "#lib/services/orchestration.service.js";
 import { JobWorker } from "#lib/services/queue/worker.js";
 import { RedirectService } from "#lib/services/redirect.service.js";
+import { ServiceAccountService } from "#lib/services/service-account.service.js";
 import { DEFAULT_SURFACE } from "#lib/surfaces.js";
 import { isOtlpPath } from "#lib/tracing/otlp.js";
+import {
+	isServiceAccount,
+	SERVICE_ACCOUNT_DISABLED_MESSAGE,
+} from "#lib/user-types.js";
 import { building } from "$app/env";
 
 const ENDPOINT_ROUTE_IDS = new Set(
@@ -522,6 +530,18 @@ async function applyApiKeyAuth(event: RequestEvent): Promise<Response | null> {
 	if (apiKeyUser && isAppOnly(apiKeyUser.role)) {
 		return appOnlyTokenRefusal();
 	}
+	if (apiKeyUser && isServiceAccount(apiKeyUser) && isBanned(apiKeyUser)) {
+		await ServiceAccountService.recordUse(apiKeyUser, {
+			action: "api.request",
+			detail: `${event.request.method} ${event.url.pathname}: refused, account disabled`,
+			ipAddress: clientAddress(event),
+			status: 403,
+		});
+		return Response.json(
+			{ error: SERVICE_ACCOUNT_DISABLED_MESSAGE },
+			{ status: 403 },
+		);
+	}
 	if (apiKeyUser) {
 		event.locals.user = apiKeyUser;
 		const ownerPermissions = permissionsForRole(
@@ -582,6 +602,17 @@ const authHandler: Handle = async ({ event, resolve }) => {
 		? permissionsForRole(event.locals.user.role, event.locals.user.permissions)
 		: {};
 	event.locals.appOnly = isAppOnly(event.locals.user?.role);
+	if (isServiceAccount(event.locals.user)) {
+		const refused = serviceAccountRejection(
+			event.request,
+			event.url.pathname,
+			event.route.id,
+			event.locals.permissions,
+		);
+		if (refused) {
+			return refused;
+		}
+	}
 	if (event.locals.appOnly) {
 		const refused = appOnlyRejection(
 			event.request,
@@ -731,4 +762,28 @@ const csrfHandler: Handle = async ({ event, resolve }) => {
 	return await resolve(event);
 };
 
-export const handle = sequence(csrfHandler, generalHandler, authHandler);
+/**
+ * Writes every request made with a service account's API key to the audit
+ * log, with its outcome. `/app-auth` is left to the page itself, which logs
+ * the handshake with the app it was for.
+ */
+const serviceAccountAuditHandler: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+	const account = event.locals.user;
+	if (isServiceAccount(account) && event.route.id !== "/app-auth") {
+		await ServiceAccountService.recordUse(account, {
+			action: "api.request",
+			detail: `${event.request.method} ${event.url.pathname}`,
+			ipAddress: clientAddress(event),
+			status: response.status,
+		});
+	}
+	return response;
+};
+
+export const handle = sequence(
+	csrfHandler,
+	generalHandler,
+	serviceAccountAuditHandler,
+	authHandler,
+);

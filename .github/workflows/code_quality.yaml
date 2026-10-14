@@ -115,6 +115,31 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: echo "result=$JOB_STATUS" >> "$GITHUB_OUTPUT"
 
+  action-smoke:
+    name: GitHub Action (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Run the Homerun action
+        id: homerun
+        uses: ./
+        with:
+          args: --version
+
+      - name: Check the CLI is on the PATH and its output came back
+        env:
+          STDOUT: ${{ steps.homerun.outputs.stdout }}
+        run: |
+          homerun --version
+          test -n "$STDOUT"
+
   ts-test:
     name: Tests (TS)
     if: inputs.tests

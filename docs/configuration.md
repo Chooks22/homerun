@@ -45,6 +45,13 @@ colour) live on your profile, not here.
 Secrets you enter here, SMTP passwords, OAuth client secrets, DNS provider and
 Pangolin tokens, are encrypted at rest with a key derived from `AUTH_SECRET`.
 
+Every tab but Migrate can also be set from Terraform or the REST API
+(`/api/v1/instance/settings`, `/smtp`, `/tls`, `/error-pages`, `/ip-bans`), with
+the same checks and side effects as the form: `homerun_instance_settings`,
+`homerun_smtp_settings`, `homerun_tls_settings`, `homerun_error_pages` and
+`homerun_ip_ban_settings`, see
+[Infrastructure as code](infrastructure-as-code.md#resources).
+
 ### Base domain vs. Dashboard URL
 
 The one pair worth understanding before you type into it, because they look like

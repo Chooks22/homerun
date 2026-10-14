@@ -1,14 +1,10 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
-import { Logger } from "#lib/logger.js";
+import { nullableText } from "#lib/server/validation/instance-settings-form.js";
 import {
-	applyAndRebuild,
-	nullableText,
-} from "#lib/server/validation/instance-settings-form.js";
-import { DockerService } from "#lib/services/docker.service.js";
+	InstanceSettingsError,
+	InstanceSettingsService,
+} from "#lib/services/instance-settings.service.js";
 import { resolve } from "$app/paths";
-
-const logger = new Logger("InstanceSettings");
 
 export const actions = {
 	updateTraefik: async ({ request, locals }) => {
@@ -16,43 +12,26 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 		const formData = await request.formData();
-		const traefikAcmeEmail = nullableText(formData, "traefikAcmeEmail");
-
-		if (
-			traefikAcmeEmail &&
-			!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(traefikAcmeEmail)
-		) {
-			return fail(400, {
-				error: "ACME account email isn't a valid email address.",
-			});
-		}
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateTraefik({
-			traefikAcmeEmail,
-			traefikCertResolver: nullableText(formData, "traefikCertResolver"),
-			traefikDynamicConfigDir: nullableText(
-				formData,
-				"traefikDynamicConfigDir",
-			),
-			traefikEntrypoint: nullableText(formData, "traefikEntrypoint"),
-			traefikHttpCache: formData.get("traefikHttpCache") === "on",
-		});
-		applyAndRebuild(settings);
-		logger.info(`Traefik instance settings updated: user=${locals.user.id}`);
-
-		let traefikDetail: string | null = null;
 		try {
-			const acme = await DockerService.applyAcmeEmail(traefikAcmeEmail);
-			const cache = await DockerService.applyHttpCache(
-				settings.toConfigOverride().traefikHttpCache ?? false,
+			const traefikDetail = await InstanceSettingsService.saveTraefik(
+				{
+					traefikAcmeEmail: nullableText(formData, "traefikAcmeEmail"),
+					traefikCertResolver: nullableText(formData, "traefikCertResolver"),
+					traefikDynamicConfigDir: nullableText(
+						formData,
+						"traefikDynamicConfigDir",
+					),
+					traefikEntrypoint: nullableText(formData, "traefikEntrypoint"),
+					traefikHttpCache: formData.get("traefikHttpCache") === "on",
+				},
+				locals.user.id,
 			);
-			traefikDetail =
-				acme.updated || cache.updated
-					? "Traefik was recreated with the new configuration."
-					: null;
+			return { savedSection: "traefik", success: true, traefikDetail };
 		} catch (err) {
-			traefikDetail = `Saved, but Traefik wasn't reconfigured: ${err instanceof Error ? err.message : String(err)}`;
+			if (err instanceof InstanceSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
-		return { savedSection: "traefik", success: true, traefikDetail };
 	},
 };

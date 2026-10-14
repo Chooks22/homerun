@@ -33,6 +33,9 @@ import {
 	volumeMountApiBody,
 } from "#lib/server/validation/api-resources.js";
 import { volumeResponse } from "./backups";
+import { identityRoutes } from "./identity";
+import { infrastructureRoutes } from "./infrastructure";
+import { manifestRoutes } from "./manifests";
 import type { ParamDef, ResponseDef, RouteDef } from "./registry";
 import {
 	errorResponse,
@@ -40,6 +43,8 @@ import {
 	successResponse,
 	templateResponse,
 } from "./schemas";
+import { serviceAccountRoutes } from "./service-accounts";
+import { settingsRoutes } from "./settings";
 
 const timestamp = z.string().meta({ description: "ISO 8601 timestamp" });
 
@@ -409,6 +414,11 @@ const volumeRoutes = crudRoutes({
 
 export const resourceRoutes: RouteDef[] = [
 	...stackItem,
+	...infrastructureRoutes(crudRoutes),
+	...serviceAccountRoutes,
+	...identityRoutes,
+	...manifestRoutes,
+	...settingsRoutes,
 	{
 		method: "get",
 		path: "/templates/{templateId}",

@@ -45,6 +45,7 @@ interface UserRow {
 	banned: boolean | null;
 	email: string;
 	role: string | null;
+	type?: string;
 }
 
 interface AccountRow {
@@ -116,6 +117,43 @@ function keycloakAccount(groups: string[], id = "acc-1"): AccountRow {
 }
 
 describe("AppAccessService.evaluate", () => {
+	const robot: UserRow = {
+		banExpires: null,
+		banned: false,
+		email: "sa-1@service-account.homerun.invalid",
+		role: "custom",
+		type: "service-account",
+	};
+
+	test("a service account passes on its key alone, but only when listed by id", async () => {
+		tables.users = [robot];
+		expect(
+			await AppAccessService.evaluate(
+				service({
+					authAllowedEmails: ["*@example.com"],
+					authAllowedGroups: ["platform"],
+					authAllowedUserIds: ["sa-1"],
+					authProviders: ["email-otp"],
+				}),
+				"sa-1",
+			),
+		).toEqual({ allowed: true });
+		expect(await AppAccessService.evaluate(service(), "sa-1")).toEqual({
+			allowed: false,
+			reason: "user-not-allowed",
+		});
+	});
+
+	test("a disabled service account is refused even when listed", async () => {
+		tables.users = [{ ...robot, banned: true }];
+		expect(
+			await AppAccessService.evaluate(
+				service({ authAllowedUserIds: ["sa-1"] }),
+				"sa-1",
+			),
+		).toEqual({ allowed: false, reason: "user-not-allowed" });
+	});
+
 	test("nobody passes a wall with no sign-in method", async () => {
 		expect(
 			await AppAccessService.evaluate(service({ authProviders: [] }), "u1"),

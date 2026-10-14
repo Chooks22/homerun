@@ -8,6 +8,10 @@ import {
 	parseRecordForm,
 } from "#lib/server/validation/dns-forms.js";
 import { DomainDnsService } from "#lib/services/domain-dns.service.js";
+import {
+	DomainSettingsError,
+	DomainSettingsService,
+} from "#lib/services/domain-settings.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("DNS");
@@ -61,8 +65,14 @@ export const actions = {
 			return fail(400, { error: parsed.error });
 		}
 		const { name: _name, ...rest } = parsed.value;
-		await domain.update(rest);
-		logger.info(`Domain saved: ${domain.name} user=${locals.user?.id}`);
+		try {
+			await DomainSettingsService.update(domain, rest);
+		} catch (err) {
+			if (err instanceof DomainSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
+		}
 		return { saved: true };
 	},
 

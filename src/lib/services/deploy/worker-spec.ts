@@ -63,6 +63,8 @@ import { enforceStatusChecks } from "./status-check-step.ts";
 
 export interface WorkerSpecContext {
 	dep: DeploymentDTO;
+	/** The commit the repository's manifest was read at, which the build checks out unless status checks pinned another. */
+	manifestCommit?: string | null;
 	mounts: ServiceMounts;
 	noCache: boolean;
 	plan: DeployPlan;
@@ -218,7 +220,7 @@ async function buildSpec(
 		...built,
 		build: {
 			authHint: cloneFailureHint(plan.git.gitUrl, "Authentication failed"),
-			commit: commit ?? "",
+			commit: commit ?? ctx.manifestCommit ?? "",
 			credential: await resolveGitCredential(plan.git.gitUrl, ctx.userId),
 			git: plan.git,
 			noCache: ctx.noCache,

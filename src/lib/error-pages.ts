@@ -198,12 +198,12 @@ ${poweredBy}
 `;
 }
 
-/** Each page's title and message from the settings form's `<kind>Title` and `<kind>Message` fields, blank where left empty so the default shows. */
-export function errorPageTextsFromForm(
-	formData: FormData,
-): Record<ErrorPageKind, ErrorPageText> {
+/** Each page's title and message from `<kind>Title` and `<kind>Message` fields (the settings form's, or the REST API's `pageTexts`), blank where left empty so the default shows. */
+export function errorPageTextsFromForm(fields: {
+	get(name: string): unknown;
+}): Record<ErrorPageKind, ErrorPageText> {
 	const field = (name: string, max: number) =>
-		String(formData.get(name) ?? "")
+		String(fields.get(name) ?? "")
 			.trim()
 			.slice(0, max);
 	const pages = {} as Record<ErrorPageKind, ErrorPageText>;

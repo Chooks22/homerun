@@ -56,7 +56,7 @@ type option struct {
 	name        string
 }
 
-var groupAliases = map[string]string{"backup": "backups", "job": "jobs", "service": "services"}
+var groupAliases = map[string]string{"backup": "backups", "job": "jobs", "service": "services", "service-account": "service-accounts"}
 
 // Exit ends the process with a status code; tests swap it to observe a help exit.
 var Exit = os.Exit

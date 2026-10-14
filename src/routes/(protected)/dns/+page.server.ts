@@ -5,6 +5,10 @@ import { DnsManagedRecordDTO } from "#lib/dto/dns-managed-record-dto.js";
 import { DomainDTO } from "#lib/dto/domain-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseDomainForm } from "#lib/server/validation/dns-forms.js";
+import {
+	DomainSettingsError,
+	DomainSettingsService,
+} from "#lib/services/domain-settings.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("DNS");
@@ -42,23 +46,19 @@ export const actions = {
 		if (parsed.error !== null) {
 			return fail(400, { error: parsed.error });
 		}
-		if (
-			(await DomainDTO.list()).some(
-				(domain) => domain.name === parsed.value.name,
-			)
-		) {
-			return fail(400, { error: `${parsed.value.name} is already added.` });
+		let domainId: string;
+		try {
+			domainId = (await DomainSettingsService.add(parsed.value, locals.user.id))
+				.id;
+		} catch (error) {
+			if (error instanceof DomainSettingsError) {
+				return fail(400, { error: error.message });
+			}
+			throw error;
 		}
-		const domain = await DomainDTO.create({
-			...parsed.value,
-			userId: locals.user.id,
-		});
-		logger.info(
-			`Domain added: ${domain.name} connection=${parsed.value.connectionId ?? "none"} user=${locals.user.id}`,
-		);
 		throw redirect(
 			303,
-			resolve("/(protected)/dns/domains/[domainId]", { domainId: domain.id }),
+			resolve("/(protected)/dns/domains/[domainId]", { domainId }),
 		);
 	},
 

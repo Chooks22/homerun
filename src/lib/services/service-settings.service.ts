@@ -52,6 +52,8 @@ export class ServiceSettingsError extends Error {
 }
 
 export interface SettingsActor {
+	/** Set when the change is part of a deploy already under way, which picks it up itself: no redeploy is queued. */
+	deploying?: boolean;
 	hostAccess: boolean;
 	userId: string;
 }
@@ -484,6 +486,9 @@ class ServiceSettingsServiceClass {
 			}
 		}
 		invalidateGatedService(svc.id);
+		if (actor.deploying) {
+			return { filteredOut, redeploying: false };
+		}
 		const redeploying = pathFiltersChanged(before, after)
 			? await DeploymentService.redeployForRouting(svc, actor.userId)
 			: await DeploymentService.redeployIfLoginWallChanged(

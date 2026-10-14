@@ -34,6 +34,9 @@ sync by hand.
   actions, and the Settings tab (pull policy, healthcheck, save as template).
 - **[Deploy source and build methods](deploy-source-and-builds.md)**: image or
   git repo, the six build methods, build servers and the build cache registry.
+- **[Homerun Manifest](manifest.md)**: a service's configuration as
+  `.homerun.json` (or YAML) in its repository, applied on every deploy, or
+  applied to any service with the CLI; its published JSON schema.
 - **[Connecting a git provider](git-providers.md)**: GitHub, GitLab, Gitea or
   Bitbucket OAuth apps, and browsing your repos from a service's Environments &
   Deployments → Source section.

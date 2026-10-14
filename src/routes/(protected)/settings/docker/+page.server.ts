@@ -1,13 +1,12 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { isBlockSeverity } from "#lib/image-scan.js";
 import { Logger } from "#lib/logger.js";
-import { MAX_RETAINED_IMAGES, MIN_RETAINED_IMAGES } from "#lib/revisions.js";
-import {
-	applyAndRebuild,
-	nullableText,
-} from "#lib/server/validation/instance-settings-form.js";
+import { nullableText } from "#lib/server/validation/instance-settings-form.js";
 import { DockerService } from "#lib/services/docker.service.js";
+import {
+	InstanceSettingsError,
+	InstanceSettingsService,
+} from "#lib/services/instance-settings.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
@@ -22,13 +21,13 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 		const formData = await request.formData();
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateDocker({
-			dockerNetworkName: nullableText(formData, "dockerNetworkName"),
-			dockerSocketPath: nullableText(formData, "dockerSocketPath"),
-		});
-		applyAndRebuild(settings);
-		logger.info(`Docker instance settings updated: user=${locals.user.id}`);
+		await InstanceSettingsService.saveDocker(
+			{
+				dockerNetworkName: nullableText(formData, "dockerNetworkName"),
+				dockerSocketPath: nullableText(formData, "dockerSocketPath"),
+			},
+			locals.user.id,
+		);
 		return { savedSection: "docker", success: true };
 	},
 
@@ -41,19 +40,15 @@ export const actions = {
 		if (severity !== "off" && !isBlockSeverity(severity)) {
 			return fail(400, { error: "Invalid block policy." });
 		}
-		const imageScanEnabled = formData.get("imageScanEnabled") === "on";
-		const imageScanBlockFixableOnly =
-			formData.get("imageScanBlockFixableOnly") === "on";
-		const imageScanRequired = formData.get("imageScanRequired") === "on";
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateImageScan({
-			imageScanBlockFixableOnly,
-			imageScanBlockSeverity: isBlockSeverity(severity) ? severity : null,
-			imageScanEnabled,
-			imageScanRequired,
-		});
-		logger.info(
-			`Image scanning updated: enabled=${imageScanEnabled} block=${severity} fixableOnly=${imageScanBlockFixableOnly} required=${imageScanRequired} user=${locals.user.id}`,
+		await InstanceSettingsService.saveImageScan(
+			{
+				imageScanBlockFixableOnly:
+					formData.get("imageScanBlockFixableOnly") === "on",
+				imageScanBlockSeverity: isBlockSeverity(severity) ? severity : null,
+				imageScanEnabled: formData.get("imageScanEnabled") === "on",
+				imageScanRequired: formData.get("imageScanRequired") === "on",
+			},
+			locals.user.id,
 		);
 		return { savedSection: "imageScan", success: true };
 	},
@@ -63,21 +58,17 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 		const formData = await request.formData();
-		const count = Number(formData.get("retainedImagesPerService"));
-		if (
-			!Number.isInteger(count) ||
-			count < MIN_RETAINED_IMAGES ||
-			count > MAX_RETAINED_IMAGES
-		) {
-			return fail(400, {
-				error: `Keep between ${MIN_RETAINED_IMAGES} and ${MAX_RETAINED_IMAGES} images per service.`,
-			});
+		try {
+			await InstanceSettingsService.saveRetainedImages(
+				Number(formData.get("retainedImagesPerService")),
+				locals.user.id,
+			);
+		} catch (err) {
+			if (err instanceof InstanceSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateRetainedImages(count);
-		logger.info(
-			`Retained images per service updated: count=${count} user=${locals.user.id}`,
-		);
 		return { savedSection: "retainedImages", success: true };
 	},
 
@@ -91,15 +82,9 @@ export const actions = {
 			return fail(400, { error: "Invalid orchestration mode." });
 		}
 		try {
-			const steps =
-				mode === "swarm"
-					? await DockerService.enableSwarmMode()
-					: await DockerService.disableSwarmMode();
-			const settings = await InstanceSettingsDTO.get();
-			await settings.updateOrchestrationMode(mode);
-			void DockerService.syncNewt(settings.newtCredentials(), mode === "swarm");
-			logger.info(
-				`Orchestration mode updated: mode=${mode} user=${locals.user.id}`,
+			const steps = await InstanceSettingsService.setOrchestrationMode(
+				mode,
+				locals.user.id,
 			);
 			return {
 				orchestrationSteps: steps,

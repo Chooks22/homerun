@@ -64,6 +64,11 @@ Homerun only ever changes or deletes the records it created itself. A record you
 made by hand on a service's hostname is left alone and the deploy log says so;
 removing a domain from Homerun deletes nothing at the provider.
 
+Domains and their hand-made records can also be managed over the REST API
+(`/api/v1/domains` and `/api/v1/domains/:id/records`) and with the Terraform
+provider's `homerun_domain` and `homerun_dns_record`, see
+[Infrastructure as code](infrastructure-as-code.md).
+
 Buying a domain isn't something Homerun does: register it at your registrar,
 then add it here.
 

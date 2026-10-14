@@ -149,6 +149,65 @@ resource "homerun_bucket" "state" {
 	})
 }
 
+func serviceAccountConfig(fake *fakeAPI, disabled bool, servicesLevel string) string {
+	return providerBlock(fake) + fmt.Sprintf(`
+resource "homerun_service_account" "smoke" {
+  name        = "smoke-tests"
+  disabled    = %t
+  permissions = { services = %q }
+}
+`, disabled, servicesLevel)
+}
+
+func TestServiceAccountLifecycle(t *testing.T) {
+	requireTerraform(t)
+	fake := newFakeAPI(t)
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: factories(),
+		Steps: []resource.TestStep{
+			{
+				Config: serviceAccountConfig(fake, false, "read"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("homerun_service_account.smoke", "id", "id-1"),
+					resource.TestCheckResourceAttr("homerun_service_account.smoke", "permissions.services", "read"),
+					func(*terraform.State) error {
+						created := fake.calls("POST", "/service-accounts")
+						want := map[string]any{"disabled": false, "name": "smoke-tests", "permissions": map[string]any{"services": "read"}}
+						if len(created) != 1 || !reflect.DeepEqual(created[0].body, want) {
+							return fmt.Errorf("unexpected create %v", created)
+						}
+						return nil
+					},
+				),
+			},
+			{
+				Config: serviceAccountConfig(fake, true, "write"),
+				Check: func(*terraform.State) error {
+					updates := fake.calls("PATCH", "/service-accounts/id-1")
+					want := map[string]any{"disabled": true, "permissions": map[string]any{"services": "write"}}
+					if len(updates) != 1 || !reflect.DeepEqual(updates[0].body, want) {
+						return fmt.Errorf("expected one PATCH of disabled and permissions, got %v", updates)
+					}
+					return nil
+				},
+			},
+			{
+				ImportState:       true,
+				ImportStateVerify: true,
+				ResourceName:      "homerun_service_account.smoke",
+			},
+			{
+				PreConfig: func() {
+					fake.set("/service-accounts/id-1", "permissions", map[string]any{"services": "read"})
+				},
+				Config:             serviceAccountConfig(fake, true, "write"),
+				ExpectNonEmptyPlan: true,
+				PlanOnly:           true,
+			},
+		},
+	})
+}
+
 func TestDataSourcesLookUpBySlug(t *testing.T) {
 	requireTerraform(t)
 	fake := newFakeAPI(t)

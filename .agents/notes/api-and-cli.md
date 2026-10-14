@@ -366,9 +366,17 @@ Swagger UI's own documented embed pattern.
 **One mapping, three consumers.** `src/lib/iac/resources.ts` describes every
 `homerun_*` resource and data source: its REST paths, each attribute's API field
 and Terraform name, kind, and flags (`required`, `readOnly`, `writeOnly` for
-secrets, `createOnly` for `template_id`, `forceNew`, `ref`, `default`).
-`scripts/generate-iac-spec.ts` (part of `bun run gen`, so CI's codegen check
-catches a stale copy) writes it to
+secrets, `createOnly` for `template_id`, `forceNew`, `ref`, `default`,
+`returnedOnCreate` for a generated secret only the create response carries, like
+a registry token's, which every read keeps from the state). A resource flagged
+`singleton` (the instance settings in `resources-settings.ts`) is one object at
+a fixed `itemPath`: create PATCHes it, delete only forgets it, its id and only
+import id is `SINGLETON_ID` (`instance`), the drift check never lists it as
+unmanaged and generated projects never include it. Its REST side is a
+`GET`/`PATCH` pair through `SettingsApiService`, which fills what a PATCH leaves
+out from what's stored and saves through `InstanceSettingsService`, the same
+methods the Settings pages' actions call. `scripts/generate-iac-spec.ts` (part
+of `bun run gen`, so CI's codegen check catches a stale copy) writes it to
 `terraform/provider/internal/provider/spec.json`, which the provider embeds; the
 IaC page's generator (`generate.ts`) and drift check (`drift.ts`) import it
 directly. Add a field once there and the provider, the generated HCL and the

@@ -17,24 +17,31 @@ var specJSON []byte
 // Attribute is one attribute of a resource: its REST API field and its
 // Terraform name, kind and behavior.
 type Attribute struct {
-	CreateOnly  bool        `json:"createOnly"`
-	Description string      `json:"description"`
-	Fields      []Attribute `json:"fields"`
-	ForceNew    bool        `json:"forceNew"`
-	Kind        string      `json:"kind"`
-	Name        string      `json:"name"`
-	ReadOnly    bool        `json:"readOnly"`
-	Required    bool        `json:"required"`
-	Sensitive   bool        `json:"sensitive"`
-	TF          string      `json:"tf"`
-	WriteOnly   bool        `json:"writeOnly"`
-	Default     any         `json:"default"`
+	CreateOnly       bool        `json:"createOnly"`
+	Description      string      `json:"description"`
+	Fields           []Attribute `json:"fields"`
+	ForceNew         bool        `json:"forceNew"`
+	Kind             string      `json:"kind"`
+	Name             string      `json:"name"`
+	ReadOnly         bool        `json:"readOnly"`
+	Required         bool        `json:"required"`
+	ReturnedOnCreate bool        `json:"returnedOnCreate"`
+	Sensitive        bool        `json:"sensitive"`
+	TF               string      `json:"tf"`
+	WriteOnly        bool        `json:"writeOnly"`
+	Default          any         `json:"default"`
 }
 
-// FromAPI reports whether the API returns the attribute, so a read
-// refreshes it.
+// FromAPI reports whether the API returns the attribute, in the create
+// response at least.
 func (a Attribute) FromAPI() bool {
 	return !a.WriteOnly && !a.CreateOnly
+}
+
+// Refreshed reports whether a read refreshes the attribute: everything the
+// API returns, except what only the create response carries.
+func (a Attribute) Refreshed() bool {
+	return a.FromAPI() && !a.ReturnedOnCreate
 }
 
 // ResourceSpec describes one resource type and the REST paths behind it.
@@ -46,8 +53,13 @@ type ResourceSpec struct {
 	Description    string      `json:"description"`
 	ImportID       []string    `json:"importId"`
 	ItemPath       string      `json:"itemPath"`
+	Singleton      bool        `json:"singleton"`
 	Type           string      `json:"type"`
 }
+
+// SingletonID is the id, and the only import id, of a singleton resource:
+// one object at a fixed path that's never created or deleted.
+const SingletonID = "instance"
 
 // DataSourceSpec describes one data source: a resource's attributes, or
 // its own for a type that's only read.

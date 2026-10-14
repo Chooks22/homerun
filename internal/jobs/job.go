@@ -28,6 +28,7 @@ type Job struct {
 
 	pool     *pgxpool.Pool
 	recorder *recorder
+	trace    func(string)
 }
 
 type recorder struct {
@@ -67,9 +68,26 @@ func (j Job) DB() *pgxpool.Pool {
 	return j.pool
 }
 
-// AppendLog appends one line to the job row's log column. A failed write is
-// logged, never returned: losing a log line must not fail the job.
+// WithTrace returns the job with every line it logs also handed to trace,
+// which the worker points at the job's current trace span.
+func (j Job) WithTrace(trace func(string)) Job {
+	j.trace = trace
+	return j
+}
+
+// Trace records line as an event on the job's current trace span, without
+// writing it to the job's log.
+func (j Job) Trace(line string) {
+	if j.trace != nil {
+		j.trace(line)
+	}
+}
+
+// AppendLog appends one line to the job row's log column, and records it as
+// an event on the job's current trace span. A failed write is logged, never
+// returned: losing a log line must not fail the job.
 func (j Job) AppendLog(line string) {
+	j.Trace(line)
 	if j.recorder != nil {
 		j.recorder.mu.Lock()
 		j.recorder.lines = append(j.recorder.lines, line)

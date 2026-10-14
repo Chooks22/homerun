@@ -68,6 +68,10 @@ or you lift them.
 The dashboard's own address is never blocked by a ban, so a banned admin can
 still sign in and lift it.
 
+The rule and the [CrowdSec](#crowdsec) push can also be set from Terraform with
+`homerun_ip_ban_settings`, see
+[Infrastructure as code](infrastructure-as-code.md#resources).
+
 ### Mean mode and Disrespect mode
 
 Two more toggles on **Settings → IP bans**, both off by default, change what a

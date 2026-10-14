@@ -1,14 +1,13 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { config, isSmtpEnabled } from "#lib/config.js";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { Logger } from "#lib/logger.js";
 import { brandedEmail } from "#lib/server/email-layout.js";
 import {
-	applyAndRebuild,
 	checkbox,
 	nullableText,
 } from "#lib/server/validation/instance-settings-form.js";
 import { EmailService } from "#lib/services/email.service.js";
+import { InstanceSettingsService } from "#lib/services/instance-settings.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
@@ -55,19 +54,19 @@ export const actions = {
 		}
 		const formData = await request.formData();
 		const portRaw = (formData.get("smtpPort") as string | null)?.trim();
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateSmtp({
-			smtpEnabled: checkbox(formData, "smtpEnabled"),
-			smtpFrom: nullableText(formData, "smtpFrom"),
-			smtpHost: nullableText(formData, "smtpHost"),
-			smtpPassword:
-				(formData.get("smtpPassword") as string | null)?.trim() || undefined,
-			smtpPort: portRaw ? Number.parseInt(portRaw, 10) : null,
-			smtpSecure: checkbox(formData, "smtpSecure"),
-			smtpUser: nullableText(formData, "smtpUser"),
-		});
-		applyAndRebuild(settings);
-		logger.info(`SMTP instance settings updated: user=${locals.user.id}`);
+		await InstanceSettingsService.saveSmtp(
+			{
+				smtpEnabled: checkbox(formData, "smtpEnabled"),
+				smtpFrom: nullableText(formData, "smtpFrom"),
+				smtpHost: nullableText(formData, "smtpHost"),
+				smtpPassword:
+					(formData.get("smtpPassword") as string | null)?.trim() || undefined,
+				smtpPort: portRaw ? Number.parseInt(portRaw, 10) : null,
+				smtpSecure: checkbox(formData, "smtpSecure"),
+				smtpUser: nullableText(formData, "smtpUser"),
+			},
+			locals.user.id,
+		);
 		return { savedSection: "smtp", success: true };
 	},
 };

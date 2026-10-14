@@ -120,6 +120,7 @@ function extraSettings(input: CreateServiceApiInput): ServiceSettingsInput {
 		"registryPassword",
 		"stackId",
 	]);
+	created.delete("authRequired");
 	return Object.fromEntries(
 		Object.entries(input).filter(
 			([key, value]) => value !== undefined && !created.has(key),

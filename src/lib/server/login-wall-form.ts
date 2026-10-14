@@ -118,6 +118,7 @@ export async function loginWallOptions() {
 			id: u.id,
 			name: u.name,
 			role: u.role,
+			type: u.type,
 		})),
 	};
 }

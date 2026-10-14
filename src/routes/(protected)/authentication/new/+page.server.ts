@@ -1,12 +1,11 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
-import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
-import { Logger } from "#lib/logger.js";
-import { parseOauthProviderForm } from "#lib/server/oauth-provider-form.js";
-import { applyAndRebuild } from "#lib/server/validation/instance-settings-form.js";
+import { readOauthProviderForm } from "#lib/server/oauth-provider-form.js";
+import {
+	OauthProviderConfigError,
+	OauthProviderConfigService,
+} from "#lib/services/oauth-provider-config.service.js";
 import { resolve } from "$app/paths";
-
-const logger = new Logger("InstanceSettings");
 
 export const load = () => {
 	return { callbackBase: config.auth.origin ?? null };
@@ -19,25 +18,26 @@ export const actions = {
 		}
 
 		const formData = await request.formData();
-		const settings = await InstanceSettingsDTO.get();
-		const taken = settings.toJSON().oauthProviders.map((p) => p.name);
-		const parsed = await parseOauthProviderForm(formData, taken);
-		if (!parsed.input) {
-			return fail(400, {
-				error: parsed.error,
-				values: Object.fromEntries(formData),
-			});
+		let name: string;
+		try {
+			const provider = await OauthProviderConfigService.add(
+				readOauthProviderForm(formData),
+				locals.user.id,
+			);
+			name = provider.name;
+		} catch (err) {
+			if (err instanceof OauthProviderConfigError) {
+				return fail(400, {
+					error: err.message,
+					values: Object.fromEntries(formData),
+				});
+			}
+			throw err;
 		}
-
-		await settings.addOauthProvider(parsed.input);
-		applyAndRebuild(settings);
-		logger.info(
-			`OAuth provider added: name=${parsed.input.name} user=${locals.user.id}`,
-		);
 
 		throw redirect(
 			303,
-			`${resolve("authentication")}/${encodeURIComponent(parsed.input.name)}`,
+			`${resolve("authentication")}/${encodeURIComponent(name)}`,
 		);
 	},
 };

@@ -1,3 +1,11 @@
+import {
+	IAC_IDENTITY_RESOURCES,
+	loginWallAttributes,
+} from "#lib/iac/resources-identity.js";
+import { infrastructureResources } from "#lib/iac/resources-infrastructure.js";
+import { IAC_SETTINGS_RESOURCES } from "#lib/iac/resources-settings.js";
+import { PERMISSION_AREAS, PERMISSION_LEVELS } from "#lib/permissions.js";
+
 export type IacKind =
 	| "bool"
 	| "int"
@@ -21,6 +29,8 @@ export interface IacAttribute {
 	/** The resource type whose id this attribute holds, for references in generated configuration. */
 	ref?: string;
 	required?: boolean;
+	/** Read-only and only in the create response (a generated secret): every read keeps the value the create stored. */
+	returnedOnCreate?: boolean;
 	sensitive?: boolean;
 	/** The Terraform attribute name: snake_case of `name`, unless that's one Terraform reserves. */
 	tf: string;
@@ -40,6 +50,8 @@ export interface IacResource {
 	itemPath: string;
 	/** The attribute naming the object in generated configuration. */
 	label: string;
+	/** One object at a fixed `itemPath`, never created or deleted through the API: create adopts it and applies the configuration (a PATCH), delete only drops it from the state, and its id is always `SINGLETON_ID` (resources-settings.ts). */
+	singleton?: boolean;
 	type: string;
 }
 
@@ -176,10 +188,7 @@ const serviceAttributes: IacAttribute[] = [
 		...off,
 		description: "Put the login wall in front of the app.",
 	}),
-	attr("authProviders", "strings"),
-	attr("authAllowedEmails", "strings"),
-	attr("authAllowedGroups", "strings"),
-	attr("authAllowedUserIds", "strings"),
+	...loginWallAttributes("auth"),
 	attr("authPathsMode", "string", { default: "all" }),
 	attr("authPaths", "strings"),
 	attr("blockedPaths", "strings"),
@@ -194,10 +203,7 @@ const serviceAttributes: IacAttribute[] = [
 	attr("previewDefaultDomain", "bool", on),
 	attr("previewDomainTemplate", "string"),
 	attr("previewAuthRequired", "bool", off),
-	attr("previewAuthProviders", "strings"),
-	attr("previewAuthAllowedEmails", "strings"),
-	attr("previewAuthAllowedGroups", "strings"),
-	attr("previewAuthAllowedUserIds", "strings"),
+	...loginWallAttributes("previewAuth"),
 	attr("channelsEnabled", "bool", {
 		...off,
 		description: "Release channels: a canary built from channel_branch.",
@@ -580,6 +586,29 @@ export const IAC_RESOURCES: IacResource[] = [
 		label: "name",
 		type: "homerun_bucket",
 	},
+	{
+		attributes: [
+			attr("name", "string", required),
+			attr("disabled", "bool", {
+				...off,
+				description: "Refuse the account's API keys without deleting it.",
+			}),
+			attr("permissions", "stringMap", {
+				default: {},
+				description: `The areas the account may use, each set to ${PERMISSION_LEVELS.join(" or ")}. Areas: ${PERMISSION_AREAS.map((area) => area.key).join(", ")}. The API cuts them down to what the provider's own API key holds.`,
+			}),
+		],
+		collectionPath: "/service-accounts",
+		description:
+			"A service account: a non-human user with no sign-in method. Put its id in a service's auth_allowed_user_ids or preview_auth_allowed_user_ids to let its API keys through that login wall. Its keys are minted from the dashboard or the API, never here, so no secret lands in the state.",
+		importId: ["id"],
+		itemPath: "/service-accounts/{id}",
+		label: "name",
+		type: "homerun_service_account",
+	},
+	...IAC_SETTINGS_RESOURCES,
+	...infrastructureResources(attr),
+	...IAC_IDENTITY_RESOURCES,
 ];
 
 export const IAC_DATA_SOURCES: IacDataSource[] = [

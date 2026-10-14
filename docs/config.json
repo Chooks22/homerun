@@ -34,6 +34,11 @@
 					"icon": "package"
 				},
 				{
+					"slug": "manifest",
+					"title": "Homerun Manifest",
+					"icon": "file-json"
+				},
+				{
 					"slug": "git-providers",
 					"title": "Git providers",
 					"icon": "git-branch"

@@ -310,6 +310,12 @@ export const SEARCH_PAGES: SearchPage[] = [
 		section: "Administration",
 	},
 	{
+		href: "/service-accounts",
+		keywords: ["ci", "robot", "bot", "machine", "api key", "login wall"],
+		label: "Service accounts",
+		section: "Administration",
+	},
+	{
 		href: "/authentication",
 		keywords: ["oauth", "oidc", "sso", "sign-in", "login wall"],
 		label: "Authentication",

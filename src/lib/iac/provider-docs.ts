@@ -14,6 +14,7 @@ import {
 	iacResource,
 	toSnakeCase,
 } from "#lib/iac/resources.js";
+import { SINGLETON_ID } from "#lib/iac/resources-settings.js";
 
 const DOCS_URL =
 	"https://github.com/orochibraru/homerun/blob/main/docs/infrastructure-as-code.md";
@@ -22,6 +23,11 @@ const LOCAL_NAME = "example";
 
 /** A realistic configuration for every resource, attribute by attribute, used as its registry page's example. */
 export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
+	homerun_authentication_settings: [
+		["email_otp", true],
+		["magic_link", false],
+		["require_two_factor", true],
+	],
 	homerun_backup_destination: [
 		["name", "offsite"],
 		["endpoint", "https://s3.eu-central-1.amazonaws.com"],
@@ -53,6 +59,24 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["dns_provider", "cloudflare"],
 		["credentials", { apiToken: expression("var.cloudflare_token") }],
 	],
+	homerun_dns_record: [
+		["domain_id", expression("homerun_domain.example.id")],
+		["name", "mail.example.com"],
+		["type", "MX"],
+		["content", "mx.mailprovider.com"],
+		["priority", 10],
+	],
+	homerun_domain: [
+		["name", "example.com"],
+		["connection_id", expression("homerun_dns_connection.example.id")],
+		["zone_id", "023e105f4ecef8ad9ca31a8372d0c353"],
+		["target", "203.0.113.10"],
+	],
+	homerun_error_pages: [
+		["brand_name", "Acme"],
+		["accent_color", "#8b2942"],
+		["page_texts", { notFoundTitle: "Nothing to see here" }],
+	],
 	homerun_git_provider: [
 		["kind", "gitea"],
 		["name", "gitea"],
@@ -60,10 +84,30 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["client_id", expression("var.gitea_client_id")],
 		["client_secret", expression("var.gitea_client_secret")],
 	],
+	homerun_instance_settings: [
+		["base_domain", "apps.example.com"],
+		["update_channel", "stable"],
+		["traefik_acme_email", "ops@example.com"],
+	],
+	homerun_ip_ban_settings: [
+		["enabled", true],
+		["threshold", 10],
+		["duration_hours", 24],
+	],
 	homerun_notification_channel: [
 		["name", "ops"],
 		["kind", "discord"],
 		["target", expression("var.discord_webhook_url")],
+	],
+	homerun_oauth_provider: [
+		["name", "pocket-id"],
+		["label", "Pocket ID"],
+		["client_id", expression("var.pocket_id_client_id")],
+		["client_secret", expression("var.pocket_id_client_secret")],
+		[
+			"discovery_url",
+			"https://id.example.com/.well-known/openid-configuration",
+		],
 	],
 	homerun_object_store: [
 		["name", "r2"],
@@ -75,6 +119,17 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["source", "www.example.com"],
 		["destination", "https://example.com"],
 	],
+	homerun_registry_settings: [
+		["auth_enabled", true],
+		["public_host", "registry.example.com"],
+	],
+	homerun_registry_token: [["username", "ci"]],
+	homerun_remote_host: [
+		["name", "build-box"],
+		["kind", "agent"],
+		["agent_url", "http://10.0.0.5:7420"],
+		["agent_token", expression("var.build_box_agent_token")],
+	],
 	homerun_service: [
 		["name", "whoami"],
 		["slug", "whoami"],
@@ -83,6 +138,10 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["container_port", 80],
 		["env_vars", { LOG_LEVEL: "info" }],
 		["deploy_on_change", true],
+	],
+	homerun_service_account: [
+		["name", "ci-smoke-tests"],
+		["permissions", { services: "read" }],
 	],
 	homerun_service_dependency: [
 		["service_id", expression("homerun_service.app.id")],
@@ -94,6 +153,14 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["ref", "develop"],
 		["env_overrides", { LOG_LEVEL: "debug" }],
 	],
+	homerun_smtp_settings: [
+		["enabled", true],
+		["host", "smtp.example.com"],
+		["port", 587],
+		["username", "homerun@example.com"],
+		["password", expression("var.smtp_password")],
+		["from", "Homerun <homerun@example.com>"],
+	],
 	homerun_stack: [
 		["name", "Media"],
 		["slug", "media"],
@@ -103,6 +170,16 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["name", "Status"],
 		["slug", "status"],
 		["scope", "global"],
+	],
+	homerun_tls_settings: [
+		["certificate", expression('file("wildcard.example.com.pem")')],
+		["private_key", expression("var.wildcard_private_key")],
+	],
+	homerun_user: [
+		["email", "jane@example.com"],
+		["name", "Jane"],
+		["role", "custom"],
+		["permissions", { services: "write", stacks: "read" }],
 	],
 	homerun_volume: [
 		["name", "postgres-data"],
@@ -116,6 +193,20 @@ export const RESOURCE_EXAMPLES: Record<string, [string, HclValue][]> = {
 		["service_id", expression("homerun_service.example.id")],
 		["volume_id", expression("homerun_volume.example.id")],
 		["container_path", "/var/lib/postgresql/data"],
+	],
+	homerun_workstation: [
+		["name", "api"],
+		["git_url", "https://github.com/acme/api.git"],
+		["extensions", ["esbenp.prettier-vscode"]],
+		["memory_limit_mb", 4096],
+		["auto_stop_mode", "idle"],
+		["auto_stop_minutes", 60],
+	],
+	homerun_workstation_preset: [
+		["name", "node"],
+		["description", "Node 22 with Prettier."],
+		["image", "codercom/code-server:latest"],
+		["extensions", ["esbenp.prettier-vscode"]],
 	],
 };
 
@@ -247,9 +338,12 @@ function resourcePage(resource: IacResource): string {
 	const attributes = resource.deployable
 		? [...resource.attributes, DEPLOY_ON_CHANGE]
 		: resource.attributes;
-	const importId = resource.importId
-		.map((field) => `<${toSnakeCase(field)}>`)
-		.join("/");
+	const importId = resource.singleton
+		? SINGLETON_ID
+		: resource.importId.map((field) => `<${toSnakeCase(field)}>`).join("/");
+	const importLead = resource.singleton
+		? `There's only one, so its import id is always \`${SINGLETON_ID}\`. Import it with an \`import\` block:`
+		: `Import an existing object by its ${resource.importId.length > 1 ? `\`${importId}\`` : "id"}, with an \`import\` block:`;
 	return [
 		...header(`${resource.type} (Resource)`, resource.description),
 		"## Example usage",
@@ -282,7 +376,7 @@ function resourcePage(resource: IacResource): string {
 		...nestedSections(attributes),
 		"## Import",
 		"",
-		`Import an existing object by its ${resource.importId.length > 1 ? `\`${importId}\`` : "id"}, with an \`import\` block:`,
+		importLead,
 		"",
 		...terraform([
 			{

@@ -1351,6 +1351,35 @@ service deploys to (any registered Remote Host, see Build servers below);
 configured too, since publishing through that registry is the only way the built
 image reaches the deploy target.
 
+## Homerun Manifest (`src/lib/server/manifest.ts`, `ManifestService`, `deploy/manifest-step.ts`)
+
+The manifest is a strict zod object built from a hand-picked allowlist of
+`updateServiceApiBody`'s own fields (same names as the REST API and Terraform),
+each given a description for the published schema; `manifestJsonSchema()` feeds
+both `manifest.schema.json` at the repo root (`bun run gen`, via
+`generate-config-schema.ts`) and `GET /api/v1/manifest.schema.json`. Host-access
+fields, labels, `networkMode`, `publishedPorts`, registry and TLS secrets, slug,
+stack and the git source are deliberately not in the allowlist: a repository
+push must never reach root on the box. `ManifestService.apply` goes through
+`ServiceSettingsService.save` with `hostAccess: false` and merges `envVars` into
+the current environment (dashboard-set secrets survive). `manifestFields` scopes
+it: a preview or canary (`manifestScopeFor`) takes only build, image and runtime
+keys, so a pull request can't open its preview's login wall or claim a
+production hostname; a git service drops image keys.
+
+On a git deploy, `prepareWorkerDeploy` calls `applyRepoManifest` right after a
+rollback's config restore and before the config snapshot (skipped for a
+rollback). It asks the worker's `POST /v1/git/file` (`internal/workerapi/git.go`
+→ `agent.ReadRepoFile`) for the first of `manifestPaths(gitBuildContext)`: a
+shallow `--filter=blob:none --no-checkout` clone into a throwaway volume, then
+`git show HEAD:<path>` with stderr dropped (`runGit`'s stdout-only mode). A
+server that doesn't allow filters (the integration suite's `git daemon`) just
+warns and sends blobs. The returned commit goes into the spec as the build's
+pinned commit (`WorkerSpecContext.manifestCommit`) unless required status checks
+pinned another, so the build is the commit the manifest came from. The apply
+passes `deploying: true` so `ServiceSettingsService` doesn't queue a second
+deploy for a routing or login-wall change the running one already picks up.
+
 ## Git provider connections (`instance_settings.gitProviders`, `git_connection` table, `src/lib/services/git-provider.service.ts`, `/git-providers`)
 
 Separate from the git-clone-based builds above, this is what makes the Source

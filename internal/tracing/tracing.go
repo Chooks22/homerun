@@ -7,6 +7,7 @@ package tracing
 
 import (
 	"context"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/orochibraru/homerun/internal/buildinfo"
@@ -31,14 +32,69 @@ func Tracer() trace.Tracer {
 	return otel.Tracer(instrumentationName)
 }
 
-// Stage runs fn inside a child span of ctx's span named name, and records
-// fn's error on it. The error is returned unchanged.
-func Stage(ctx context.Context, name string, fn func(context.Context) error) error {
-	ctx, span := Tracer().Start(ctx, name)
+// Stage runs fn inside a child span of ctx's span named name, carrying
+// attributes, and records fn's error on it. While fn runs, the span is the one
+// ctx's Cursor sends events to. The error is returned unchanged.
+func Stage(ctx context.Context, name string, fn func(context.Context) error, attributes ...attribute.KeyValue) error {
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attributes...))
 	defer span.End()
+	if cursor := CursorFrom(ctx); cursor != nil {
+		cursor.push(span)
+		defer cursor.pop(span)
+	}
 	err := fn(ctx)
 	Record(span, err)
 	return err
+}
+
+type cursorKey struct{}
+
+// Cursor follows the innermost stage a job is in, so each line the job logs
+// lands as an event on the span it belongs to.
+type Cursor struct {
+	mu    sync.Mutex
+	spans []trace.Span
+}
+
+// WithCursor returns ctx carrying a new Cursor that starts on ctx's span.
+func WithCursor(ctx context.Context) (context.Context, *Cursor) {
+	cursor := &Cursor{spans: []trace.Span{trace.SpanFromContext(ctx)}}
+	return context.WithValue(ctx, cursorKey{}, cursor), cursor
+}
+
+// CursorFrom is ctx's Cursor, or nil when it has none.
+func CursorFrom(ctx context.Context) *Cursor {
+	cursor, _ := ctx.Value(cursorKey{}).(*Cursor)
+	return cursor
+}
+
+// Event adds line as an event on the innermost stage's span. A nil Cursor
+// does nothing.
+func (c *Cursor) Event(line string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	span := c.spans[len(c.spans)-1]
+	c.mu.Unlock()
+	span.AddEvent(line)
+}
+
+func (c *Cursor) push(span trace.Span) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.spans = append(c.spans, span)
+}
+
+func (c *Cursor) pop(span trace.Span) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for index := len(c.spans) - 1; index > 0; index-- {
+		if c.spans[index] == span {
+			c.spans = append(c.spans[:index], c.spans[index+1:]...)
+			return
+		}
+	}
 }
 
 // Record marks span failed with err, or succeeded when err is nil.

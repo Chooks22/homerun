@@ -133,6 +133,7 @@ func (w *Worker) execute(ctx, execCtx context.Context, job *ClaimedJob) {
 		span.End()
 	}()
 	tracker := activity.NewTracker()
+	spanCtx, _ = tracing.WithCursor(spanCtx)
 	runCtx, cancel := context.WithCancel(activity.With(spanCtx, tracker))
 	defer cancel()
 
@@ -279,7 +280,7 @@ func (w *Worker) dispatch(ctx context.Context, job *ClaimedJob) (result map[stri
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decrypt the job spec (is AUTH_SECRET the same as the app's?): %w", err)
 	}
-	return executor(ctx, w.NewJob(job, json.RawMessage(spec)))
+	return executor(ctx, w.NewJob(job, json.RawMessage(spec)).WithTrace(tracing.CursorFrom(ctx).Event))
 }
 
 // took renders how long a job ran, rounded to something a log line can be

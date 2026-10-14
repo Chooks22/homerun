@@ -72,6 +72,7 @@ func (s *Server) Handler() http.Handler {
 		r.Use(httpapi.BearerAuth(s.token))
 		s.mountContainers(r)
 		s.mountTerminal(r)
+		s.mountGit(r)
 		s.mountImages(r)
 		s.mountNetworks(r)
 		s.mountSystem(r)

@@ -1,0 +1,64 @@
+name: Homerun Login Wall Session
+description: Sign in through a Homerun app's login wall with a service account's API key and hand back the app's session cookie, for end-to-end tests.
+author: orochibraru
+branding:
+  icon: lock
+  color: red
+
+inputs:
+  base-url:
+    description: Your instance's URL, e.g. https://homerun.example.com. The API key is only ever sent there, never to the app.
+    required: true
+  api-key:
+    description: A service account's API key, the account being in the app's allowed users. Store it as a secret.
+    required: true
+  url:
+    description: The app's URL behind the login wall, e.g. https://pr-42.app.example.com.
+    required: true
+  playwright-file:
+    description: Also write a Playwright storageState JSON here, for `storageState` in your Playwright config.
+    required: false
+    default: ""
+  cli-version:
+    description: CLI release to install, e.g. v1.0.49. Defaults to this action's own tag when it's a release, the latest release otherwise.
+    required: false
+    default: ""
+
+outputs:
+  cookie:
+    description: The session cookie as a Cookie header value, homerun_app_session=..., masked in logs.
+    value: ${{ steps.session.outputs.stdout }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the Homerun CLI
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        ACTION_REF: ${{ github.action_ref }}
+        CLI_VERSION: ${{ inputs.cli-version }}
+      run: bash "$ACTION_PATH/../install-cli.sh"
+
+    - name: Open a session
+      id: session
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BASE_URL: ${{ inputs.base-url }}
+        API_KEY: ${{ inputs.api-key }}
+        APP_URL: ${{ inputs.url }}
+        MASK_OUTPUT: "true"
+      run: bash "$ACTION_PATH/../run-cli.sh" gate session "$APP_URL"
+
+    - name: Write the Playwright storage state
+      if: inputs.playwright-file != ''
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BASE_URL: ${{ inputs.base-url }}
+        API_KEY: ${{ inputs.api-key }}
+        APP_URL: ${{ inputs.url }}
+        PLAYWRIGHT_FILE: ${{ inputs.playwright-file }}
+        MASK_OUTPUT: "true"
+      run: bash "$ACTION_PATH/../run-cli.sh" gate session --playwright "$PLAYWRIGHT_FILE" "$APP_URL"

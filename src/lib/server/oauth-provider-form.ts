@@ -66,23 +66,36 @@ function text(formData: FormData, key: string): string {
 	return typeof value === "string" ? value.trim() : "";
 }
 
+export interface OauthProviderFields {
+	clientId: string;
+	clientSecret?: string;
+	discoveryUrl: string;
+	enabled: boolean;
+	label: string;
+	name: string;
+	pkce: boolean;
+	scopes: string[];
+	signOutOfProvider: boolean;
+	tokenAuthMethod: OauthTokenAuthMethod;
+}
+
 /**
- * Validates a submitted OAuth provider form : the id must be a lowercase slug
- * not in `takenNames`, client id and discovery URL are required, and the
- * discovery URL is fetched live to confirm it works. A blank label falls back
- * to the id, and a blank client secret is left undefined so an edit keeps the
- * stored one.
+ * Validates an OAuth provider, from the dashboard form or the REST API: the
+ * id must be a lowercase slug not in `takenNames`, client id and discovery
+ * URL are required, and the discovery URL is fetched live to confirm it
+ * works (a provider that can't be discovered locks every sign-in out). A
+ * blank label falls back to the id, and a blank client secret is left
+ * undefined so an edit keeps the stored one.
  *
  * @returns The provider input, or the first validation error.
  */
-export async function parseOauthProviderForm(
-	formData: FormData,
+export async function checkOauthProvider(
+	fields: OauthProviderFields,
 	takenNames: string[],
 ): Promise<ParsedOauthProvider> {
-	const name = text(formData, "name").toLowerCase();
-	const label = text(formData, "label");
-	const clientId = text(formData, "clientId");
-	const discoveryUrl = text(formData, "discoveryUrl");
+	const name = fields.name.trim().toLowerCase();
+	const clientId = fields.clientId.trim();
+	const discoveryUrl = fields.discoveryUrl.trim();
 
 	if (!name) {
 		return { error: "Give the provider an id.", input: null };
@@ -125,21 +138,34 @@ export async function parseOauthProviderForm(
 		error: null,
 		input: {
 			clientId,
-			clientSecret: text(formData, "clientSecret") || undefined,
+			clientSecret: fields.clientSecret?.trim() || undefined,
 			discoveredTokenAuth: discovery.tokenAuthMethods,
 			discoveryUrl,
-			enabled: formData.get("enabled") === "on",
-			label: label || name,
+			enabled: fields.enabled,
+			label: fields.label.trim() || name,
 			name,
-			pkce: formData.get("pkce") === "on",
-			scopes: text(formData, "scopes")
-				.split(",")
-				.map((scope) => scope.trim())
-				.filter(Boolean),
-			signOutOfProvider: formData.get("signOutOfProvider") === "on",
-			tokenAuthMethod: parseTokenAuthMethod(
-				formData.get("tokenAuthMethod") as string | null,
-			),
+			pkce: fields.pkce,
+			scopes: fields.scopes.map((scope) => scope.trim()).filter(Boolean),
+			signOutOfProvider: fields.signOutOfProvider,
+			tokenAuthMethod: fields.tokenAuthMethod,
 		},
+	};
+}
+
+/** The OAuth provider fields of a submitted Authentication form, for `checkOauthProvider`. */
+export function readOauthProviderForm(formData: FormData): OauthProviderFields {
+	return {
+		clientId: text(formData, "clientId"),
+		clientSecret: text(formData, "clientSecret"),
+		discoveryUrl: text(formData, "discoveryUrl"),
+		enabled: formData.get("enabled") === "on",
+		label: text(formData, "label"),
+		name: text(formData, "name"),
+		pkce: formData.get("pkce") === "on",
+		scopes: text(formData, "scopes").split(","),
+		signOutOfProvider: formData.get("signOutOfProvider") === "on",
+		tokenAuthMethod: parseTokenAuthMethod(
+			formData.get("tokenAuthMethod") as string | null,
+		),
 	};
 }

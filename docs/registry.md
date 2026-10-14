@@ -102,6 +102,13 @@ authentication off while the registry is published at a hostname, and you can't
 publish it while authentication is off. A registry reachable from the internet
 always requires a token.
 
+Terraform manages both through `homerun_registry_settings` and tokens through
+`homerun_registry_token`, whose generated secret lands in the Terraform state
+(the only copy), see
+[Infrastructure as code](infrastructure-as-code.md#resources). Unlike the
+Settings tab, a change from Terraform or the REST API waits for its job to
+finish.
+
 ## What's verified
 
 A real `registry:2` container with a Bun-generated bcrypt htpasswd was driven

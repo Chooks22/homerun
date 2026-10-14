@@ -10,7 +10,11 @@ import {
 	sql,
 } from "drizzle-orm";
 import { Logger } from "#lib/logger.js";
-import type { Permissions, Role } from "#lib/permissions.js";
+import {
+	type Permissions,
+	permissionsForRole,
+	type Role,
+} from "#lib/permissions.js";
 import { db } from "#lib/server/db/lib.js";
 import type { User } from "#lib/server/db/schema.js";
 import * as schema from "#lib/server/db/schema.js";
@@ -21,10 +25,23 @@ import {
 	searchCondition,
 	sortOrder,
 } from "#lib/server/list-query.js";
+import { SERVICE_ACCOUNT } from "#lib/user-types.js";
 import { DockerService } from "./docker.service.ts";
 import { WorkstationService } from "./workstation.service.ts";
 
 const logger = new Logger("UserCleanup");
+
+const LAST_ADMIN_DEMOTION = "Can't demote the last admin.";
+const PERMISSIONS_NEED_CUSTOM =
+	"Only a custom-role user has their own permissions.";
+const EMAIL_TAKEN = "That email already has an account.";
+
+export interface AccountChanges {
+	email?: string;
+	name?: string;
+	permissions?: Permissions;
+	role?: Role;
+}
 
 /** Read/cleanup operations for the `user` table and everything a user created. */
 class UserServiceClass {
@@ -137,7 +154,7 @@ class UserServiceClass {
 		const [row] = await db
 			.select({ id: userTable.id })
 			.from(userTable)
-			.where(ne(userTable.id, userId))
+			.where(and(ne(userTable.id, userId), ne(userTable.type, SERVICE_ACCOUNT)))
 			.orderBy(
 				sql`case when ${userTable.role} = 'admin' then 0 else 1 end`,
 				asc(userTable.createdAt),
@@ -194,7 +211,7 @@ class UserServiceClass {
 
 	/** One page of `listUsers`, searched/filtered server-side, plus the unpaged total. */
 	async listUsersPaged(query: ListQuery): Promise<PagedResult<User>> {
-		const conditions: SQL[] = [];
+		const conditions: SQL[] = [ne(userTable.type, SERVICE_ACCOUNT)];
 		const search = searchCondition(query.q, [userTable.name, userTable.email]);
 		if (search) {
 			conditions.push(search);
@@ -203,7 +220,7 @@ class UserServiceClass {
 		if (roles && roles.length > 0) {
 			conditions.push(inArray(userTable.role, roles));
 		}
-		const where = conditions.length > 0 ? and(...conditions) : undefined;
+		const where = and(...conditions);
 
 		const [rows, totals] = await Promise.all([
 			db
@@ -239,9 +256,24 @@ class UserServiceClass {
 		return await db
 			.select()
 			.from(userTable)
-			.where(searchCondition(q, [userTable.name, userTable.email]))
+			.where(
+				and(
+					ne(userTable.type, SERVICE_ACCOUNT),
+					searchCondition(q, [userTable.name, userTable.email]),
+				),
+			)
 			.orderBy(desc(userTable.createdAt))
 			.limit(limit);
+	}
+
+	/** Whether `userId` is a service account, which may never hold a session. */
+	async isServiceAccount(userId: string): Promise<boolean> {
+		const [row] = await db
+			.select({ type: userTable.type })
+			.from(userTable)
+			.where(eq(userTable.id, userId))
+			.limit(1);
+		return row?.type === SERVICE_ACCOUNT;
 	}
 
 	/** Stamps `userId`'s last sign-in time, called from better-auth's session-create hook. */
@@ -315,6 +347,170 @@ class UserServiceClass {
 			.from(userTable)
 			.where(eq(userTable.role, "admin"));
 		return row?.total ?? 0;
+	}
+
+	/** The user with this id, service accounts included, or null. */
+	async getUser(userId: string): Promise<User | null> {
+		const [row] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.id, userId))
+			.limit(1);
+		return row ?? null;
+	}
+
+	/** The account holding `email` (stored lowercase), or null. */
+	async findByEmail(email: string): Promise<User | null> {
+		const [row] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.email, email))
+			.limit(1);
+		return row ?? null;
+	}
+
+	/**
+	 * Whether taking the admin role away from `userId` would leave the
+	 * instance without any admin, which better-auth's own "can't remove
+	 * yourself" guard doesn't cover.
+	 */
+	async wouldRemoveLastAdmin(userId: string): Promise<boolean> {
+		const target = await this.getUser(userId);
+		if (target?.role !== "admin") {
+			return false;
+		}
+		return (await this.countAdmins()) <= 1;
+	}
+
+	/** Changes `userId`'s display name. */
+	async setName(userId: string, name: string): Promise<void> {
+		await db.update(userTable).set({ name }).where(eq(userTable.id, userId));
+	}
+
+	/**
+	 * Gives `target` another role, refusing to demote the last admin.
+	 * Switching to custom starts from the permissions the previous role gave.
+	 *
+	 * @returns Why it was refused, or null once saved.
+	 */
+	async changeRole(target: User, role: Role): Promise<string | null> {
+		if (role !== "admin" && (await this.wouldRemoveLastAdmin(target.id))) {
+			return LAST_ADMIN_DEMOTION;
+		}
+		await this.setRole(
+			target.id,
+			role,
+			role === "custom"
+				? permissionsForRole(target.role, target.permissions)
+				: null,
+		);
+		return null;
+	}
+
+	/**
+	 * Replaces `target`'s own permissions, which only a custom-role user has.
+	 *
+	 * @returns Why it was refused, or null once saved.
+	 */
+	async changePermissions(
+		target: User,
+		permissions: Permissions,
+	): Promise<string | null> {
+		if (target.role !== "custom") {
+			return PERMISSIONS_NEED_CUSTOM;
+		}
+		await this.setPermissions(target.id, permissions);
+		return null;
+	}
+
+	/**
+	 * Changes `target`'s email, marked verified, unless another account
+	 * already holds it.
+	 *
+	 * @returns Why it was refused, or null once saved.
+	 */
+	async changeEmail(target: User, email: string): Promise<string | null> {
+		if (target.email === email) {
+			return null;
+		}
+		if (await this.findByEmail(email)) {
+			return EMAIL_TAKEN;
+		}
+		await this.setEmail(target.id, email);
+		return null;
+	}
+
+	/**
+	 * Changes the role, permissions, email and name given, after checking
+	 * every one of them so nothing is saved when one is refused. Permissions
+	 * only go with the custom role; switching to custom without them starts
+	 * from the previous role's.
+	 *
+	 * @returns Why it was refused, or null once saved.
+	 */
+	async updateAccount(
+		target: User,
+		changes: AccountChanges,
+	): Promise<string | null> {
+		const role = changes.role ?? target.role;
+		if (changes.permissions && role !== "custom") {
+			return PERMISSIONS_NEED_CUSTOM;
+		}
+		if (
+			changes.role &&
+			changes.role !== "admin" &&
+			(await this.wouldRemoveLastAdmin(target.id))
+		) {
+			return LAST_ADMIN_DEMOTION;
+		}
+		if (
+			changes.email &&
+			changes.email !== target.email &&
+			(await this.findByEmail(changes.email))
+		) {
+			return EMAIL_TAKEN;
+		}
+		if (changes.role) {
+			await this.setRole(
+				target.id,
+				changes.role,
+				changes.role === "custom"
+					? (changes.permissions ??
+							permissionsForRole(target.role, target.permissions))
+					: null,
+			);
+		} else if (changes.permissions) {
+			await this.setPermissions(target.id, changes.permissions);
+		}
+		if (changes.email && changes.email !== target.email) {
+			await this.setEmail(target.id, changes.email);
+		}
+		if (changes.name !== undefined && changes.name !== target.name) {
+			await this.setName(target.id, changes.name);
+		}
+		return null;
+	}
+
+	/**
+	 * Removes `userId` the way an admin does: hands their shared resources
+	 * over to `actingUserId`, then deletes the row. Refuses removing yourself
+	 * (Profile does that) or the last admin.
+	 *
+	 * @returns Why it was refused, or null once removed.
+	 */
+	async removeUser(
+		userId: string,
+		actingUserId: string,
+	): Promise<string | null> {
+		if (userId === actingUserId) {
+			return "You can't remove your own account here : use Profile instead.";
+		}
+		if (await this.wouldRemoveLastAdmin(userId)) {
+			return "Can't remove the last admin.";
+		}
+		await this.cleanupUserResources(userId, actingUserId);
+		await this.deleteUser(userId);
+		return null;
 	}
 }
 

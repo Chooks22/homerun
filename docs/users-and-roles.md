@@ -96,6 +96,10 @@ admin from `/users`:
 
   ![The Add user panel on /users, creating an account directly with a role](images/users-add.webp)
 
+  The REST API (`POST /api/v1/users`) and Terraform's `homerun_user` create
+  accounts the same way, and can also give the custom role with its permissions;
+  see [Infrastructure as code](infrastructure-as-code.md#resources).
+
 - **Email invite**, only shown once SMTP is configured (see
   [Configuration](configuration.md)); sends a link to
   `/auth/accept-invite/<token>`, valid for 7 days. The pending list on `/users`
@@ -135,6 +139,20 @@ and a Role filter once you have more than a couple of accounts, plus a pager
 once you have more than a page's worth, searched/paginated server-side.
 
 ![/users with an admin, a developer, a read-only and an app-access-only account](images/users-list.webp)
+
+## Service accounts
+
+A **service account** is a non-human account for CI and scripts, managed under
+Administration → **Service accounts** (needs the Users & authentication area),
+not on `/users`, which doesn't list them. It has no sign-in method at all, so it
+can't open a dashboard session; its API keys, minted on its own page and shown
+once, are its only credential. It holds no permissions by default: its keys then
+only get through the login walls that list it (see
+[Letting CI through](login-wall.md)). Pick permission areas on its Settings tab
+to let it call the REST API too, never more than you hold yourself. Disabling it
+refuses its keys without deleting it, deleting it revokes them and hands
+anything it created over to you, and every use of its keys is recorded on its
+Activity tab. Service accounts get no bell notifications.
 
 ## Onboarding
 

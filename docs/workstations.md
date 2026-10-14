@@ -11,6 +11,11 @@ Workstations are personal: you only ever see your own, and an admin doesn't see
 the workstations of other accounts either. Creating one needs write access to
 Workstations, which the Developer role has.
 
+Workstations and presets are also in the REST API (`/api/v1/workstations`,
+`/api/v1/workstation-presets`) and the Terraform provider
+(`homerun_workstation`, `homerun_workstation_preset`), scoped to the API key's
+owner the same way, see [Infrastructure as code](infrastructure-as-code.md).
+
 ## Creating one
 
 **New Workstation** asks for:

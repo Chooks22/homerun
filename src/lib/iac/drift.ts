@@ -161,7 +161,8 @@ function label(resource: IacResource, object: LiveObject): string {
  * resources whose attributes changed outside Terraform (drifted), the ones
  * whose object is gone (missing), and the live objects no resource in the
  * state manages (unmanaged). Write-only attributes (secrets) can't be
- * compared and are left out.
+ * compared and are left out, and a singleton (instance settings) is never
+ * unmanaged: it always exists, whether a state manages it or not.
  */
 export function detectDrift(body: string, inventory: Inventory): DriftReport {
 	const report: DriftReport = {
@@ -204,7 +205,7 @@ export function detectDrift(body: string, inventory: Inventory): DriftReport {
 			report.inSync++;
 		}
 	}
-	for (const resource of IAC_RESOURCES) {
+	for (const resource of IAC_RESOURCES.filter((entry) => !entry.singleton)) {
 		for (const object of inventory[resource.type] ?? []) {
 			const id = importIdOf(resource, object);
 			if (!managed.get(resource.type)?.has(id)) {

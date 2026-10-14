@@ -11,7 +11,7 @@ var instanceChannels = []string{"stable", "canary", "nightly"}
 var deployEnvironments = []string{"canary", "stable"}
 
 // Commands is every command the CLI has, in the order the top-level usage lists them.
-var Commands = slices.Concat(baseCommands, ResourceCommands(resources), resourceExtras, redirectCommands, iacCommands, adminCommands)
+var Commands = slices.Concat(baseCommands, ResourceCommands(resources), resourceExtras, redirectCommands, serviceAccountCommands, gateCommands, manifestCommands, iacCommands, adminCommands)
 
 var baseCommands = []Command{
 	{

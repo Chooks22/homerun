@@ -22,7 +22,11 @@ export const PERMISSION_AREAS = [
 			"Your own dev workstations: browser IDE containers on this server or an agent host.",
 		key: "workstations",
 		label: "Workstations",
-		routes: ["/workstations"],
+		routes: [
+			"/workstations",
+			"/api/v1/workstations",
+			"/api/v1/workstation-presets",
+		],
 	},
 	{
 		description: "Stacks and compose imports into them.",
@@ -78,7 +82,7 @@ export const PERMISSION_AREAS = [
 		description: "The built-in image registry, its images and tokens.",
 		key: "registry",
 		label: "Docker Registry",
-		routes: ["/registry"],
+		routes: ["/registry", "/api/v1/registry"],
 	},
 	{
 		description: "Registries that cache image builds.",
@@ -105,13 +109,13 @@ export const PERMISSION_AREAS = [
 		description: "DNS provider connections and managed records.",
 		key: "dns",
 		label: "DNS",
-		routes: ["/dns", "/api/v1/dns-connections"],
+		routes: ["/dns", "/api/v1/dns-connections", "/api/v1/domains"],
 	},
 	{
 		description: "Remote build and swarm hosts, and service scheduling.",
 		key: "remote-hosts",
 		label: "Remote hosts",
-		routes: ["/remote-hosts", "/scheduling"],
+		routes: ["/remote-hosts", "/scheduling", "/api/v1/remote-hosts"],
 	},
 	{
 		description:
@@ -131,7 +135,16 @@ export const PERMISSION_AREAS = [
 			"Users, invites, sign-in providers and Homerun's OIDC apps. Write access can grant any permission, its holder's own included.",
 		key: "users",
 		label: "Users & authentication",
-		routes: ["/users", "/authentication", "/idp"],
+		routes: [
+			"/users",
+			"/service-accounts",
+			"/authentication",
+			"/idp",
+			"/api/v1/service-accounts",
+			"/api/v1/authentication",
+			"/api/v1/users",
+			"/api/v1/oauth-providers",
+		],
 	},
 	{
 		description:
@@ -160,6 +173,8 @@ const OPEN_ROUTES = [
 	"/api/v1/mcp",
 	"/api/v1/nodes",
 	"/api/v1/notifications",
+	"/api/v1/manifest.schema.json",
+	"/api/v1/manifests",
 	"/api/v1/openapi.json",
 	"/api/v1/otlp",
 	"/api/v1/ready",
@@ -274,11 +289,13 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
 			notifications: "write",
 			"object-storage": "write",
 			redirects: "write",
+			"remote-hosts": "write",
 			services: "write",
 			stacks: "write",
 			"status-pages": "write",
 			storage: "write",
 			templates: "read",
+			workstations: "write",
 		},
 	},
 ];

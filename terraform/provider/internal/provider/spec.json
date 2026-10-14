@@ -501,22 +501,26 @@
 				{
 					"kind": "strings",
 					"name": "authProviders",
-					"tf": "auth_providers"
+					"tf": "auth_providers",
+					"description": "Sign-in methods the wall offers: \"password\", \"email-otp\" (an emailed code), \"magic-link\" (an emailed link) and \"oauth:\" followed by a homerun_oauth_provider's name (oauth:pocket-id). Each must be enabled on the instance (the emailed ones in homerun_authentication_settings, with SMTP set up) or the API refuses it, and auth_required needs at least one. An emailed method proves only the mailbox, so it lets any Homerun account through unless auth_allowed_emails or auth_allowed_user_ids narrow it."
 				},
 				{
 					"kind": "strings",
 					"name": "authAllowedEmails",
-					"tf": "auth_allowed_emails"
+					"tf": "auth_allowed_emails",
+					"description": "Addresses, or *@domain patterns, an account's email must match to get in. Empty lets any address through."
 				},
 				{
 					"kind": "strings",
 					"name": "authAllowedGroups",
-					"tf": "auth_allowed_groups"
+					"tf": "auth_allowed_groups",
+					"description": "OIDC groups (from a linked provider) or Homerun roles, one of which an account must have to get in. Empty skips the check."
 				},
 				{
 					"kind": "strings",
 					"name": "authAllowedUserIds",
-					"tf": "auth_allowed_user_ids"
+					"tf": "auth_allowed_user_ids",
+					"description": "The only accounts let in, by id (a homerun_user or homerun_service_account id). Empty lets every account through the other rules; a service account only ever gets in when listed here."
 				},
 				{
 					"kind": "string",
@@ -599,22 +603,26 @@
 				{
 					"kind": "strings",
 					"name": "previewAuthProviders",
-					"tf": "preview_auth_providers"
+					"tf": "preview_auth_providers",
+					"description": "Sign-in methods the wall offers: \"password\", \"email-otp\" (an emailed code), \"magic-link\" (an emailed link) and \"oauth:\" followed by a homerun_oauth_provider's name (oauth:pocket-id). Each must be enabled on the instance (the emailed ones in homerun_authentication_settings, with SMTP set up) or the API refuses it, and preview_auth_required needs at least one. An emailed method proves only the mailbox, so it lets any Homerun account through unless preview_auth_allowed_emails or preview_auth_allowed_user_ids narrow it."
 				},
 				{
 					"kind": "strings",
 					"name": "previewAuthAllowedEmails",
-					"tf": "preview_auth_allowed_emails"
+					"tf": "preview_auth_allowed_emails",
+					"description": "Addresses, or *@domain patterns, an account's email must match to get in. Empty lets any address through."
 				},
 				{
 					"kind": "strings",
 					"name": "previewAuthAllowedGroups",
-					"tf": "preview_auth_allowed_groups"
+					"tf": "preview_auth_allowed_groups",
+					"description": "OIDC groups (from a linked provider) or Homerun roles, one of which an account must have to get in. Empty skips the check."
 				},
 				{
 					"kind": "strings",
 					"name": "previewAuthAllowedUserIds",
-					"tf": "preview_auth_allowed_user_ids"
+					"tf": "preview_auth_allowed_user_ids",
+					"description": "The only accounts let in, by id (a homerun_user or homerun_service_account id). Empty lets every account through the other rules; a service account only ever gets in when listed here."
 				},
 				{
 					"kind": "bool",
@@ -1512,6 +1520,1070 @@
 			"itemPath": "/object-stores/{storeId}/buckets/{name}",
 			"label": "name",
 			"type": "homerun_bucket"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"required": true
+				},
+				{
+					"kind": "bool",
+					"name": "disabled",
+					"tf": "disabled",
+					"default": false,
+					"description": "Refuse the account's API keys without deleting it."
+				},
+				{
+					"kind": "stringMap",
+					"name": "permissions",
+					"tf": "permissions",
+					"default": {},
+					"description": "The areas the account may use, each set to read or write. Areas: services, workstations, stacks, templates, cron-jobs, redirects, status-pages, storage, object-storage, registry, build-cache, git-providers, notifications, dns, remote-hosts, system, iac, users, settings. The API cuts them down to what the provider's own API key holds."
+				}
+			],
+			"collectionPath": "/service-accounts",
+			"description": "A service account: a non-human user with no sign-in method. Put its id in a service's auth_allowed_user_ids or preview_auth_allowed_user_ids to let its API keys through that login wall. Its keys are minted from the dashboard or the API, never here, so no secret lands in the state.",
+			"importId": ["id"],
+			"itemPath": "/service-accounts/{id}",
+			"label": "name",
+			"type": "homerun_service_account"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "baseDomain",
+					"tf": "base_domain",
+					"description": "Each service gets a subdomain of it, named after its slug. A bare hostname."
+				},
+				{
+					"kind": "string",
+					"name": "dashboardUrl",
+					"tf": "dashboard_url",
+					"description": "The dashboard's URL, an origin with no path or trailing slash. Left unset, it's derived from base_domain."
+				},
+				{
+					"kind": "string",
+					"name": "authCheckUrl",
+					"tf": "auth_check_url"
+				},
+				{
+					"kind": "bool",
+					"name": "authCrossSubdomainCookies",
+					"tf": "auth_cross_subdomain_cookies"
+				},
+				{
+					"kind": "string",
+					"name": "updateChannel",
+					"tf": "update_channel",
+					"description": "stable, canary or nightly."
+				},
+				{
+					"kind": "string",
+					"name": "defaultUiMode",
+					"tf": "default_ui_mode",
+					"description": "simple or advanced."
+				},
+				{
+					"kind": "int",
+					"name": "cpuSoftThreshold",
+					"tf": "cpu_soft_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "cpuHardThreshold",
+					"tf": "cpu_hard_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "memorySoftThreshold",
+					"tf": "memory_soft_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "memoryHardThreshold",
+					"tf": "memory_hard_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "diskSoftThreshold",
+					"tf": "disk_soft_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "diskHardThreshold",
+					"tf": "disk_hard_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "gpuSoftThreshold",
+					"tf": "gpu_soft_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "gpuHardThreshold",
+					"tf": "gpu_hard_threshold",
+					"description": "A usage percentage that alerts, 1 to 100."
+				},
+				{
+					"kind": "int",
+					"name": "resourceAlertSustainSeconds",
+					"tf": "resource_alert_sustain_seconds"
+				},
+				{
+					"kind": "int",
+					"name": "resourceAlertReminderMinutes",
+					"tf": "resource_alert_reminder_minutes"
+				},
+				{
+					"kind": "string",
+					"name": "dockerNetworkName",
+					"tf": "docker_network_name"
+				},
+				{
+					"kind": "string",
+					"name": "dockerSocketPath",
+					"tf": "docker_socket_path"
+				},
+				{
+					"kind": "string",
+					"name": "orchestrationMode",
+					"tf": "orchestration_mode",
+					"description": "standalone or swarm. Changing it prepares the host (joins or leaves swarm mode)."
+				},
+				{
+					"kind": "bool",
+					"name": "imageScanEnabled",
+					"tf": "image_scan_enabled"
+				},
+				{
+					"kind": "string",
+					"name": "imageScanBlockSeverity",
+					"tf": "image_scan_block_severity",
+					"description": "CRITICAL, HIGH, MEDIUM or LOW: refuse to deploy an image with a finding this severe or worse."
+				},
+				{
+					"kind": "bool",
+					"name": "imageScanBlockFixableOnly",
+					"tf": "image_scan_block_fixable_only"
+				},
+				{
+					"kind": "bool",
+					"name": "imageScanRequired",
+					"tf": "image_scan_required"
+				},
+				{
+					"kind": "int",
+					"name": "retainedImagesPerService",
+					"tf": "retained_images_per_service"
+				},
+				{
+					"kind": "string",
+					"name": "traefikAcmeEmail",
+					"tf": "traefik_acme_email"
+				},
+				{
+					"kind": "string",
+					"name": "traefikCertResolver",
+					"tf": "traefik_cert_resolver"
+				},
+				{
+					"kind": "string",
+					"name": "traefikDynamicConfigDir",
+					"tf": "traefik_dynamic_config_dir"
+				},
+				{
+					"kind": "string",
+					"name": "traefikEntrypoint",
+					"tf": "traefik_entrypoint"
+				},
+				{
+					"kind": "bool",
+					"name": "traefikHttpCache",
+					"tf": "traefik_http_cache"
+				}
+			],
+			"collectionPath": "/instance/settings",
+			"description": "The instance's General, Docker and Networking settings: base domain, dashboard URL, release channel, resource alerts, image scanning, orchestration mode and Traefik. There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/instance/settings",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_instance_settings"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "bool",
+					"name": "enabled",
+					"tf": "enabled"
+				},
+				{
+					"kind": "string",
+					"name": "host",
+					"tf": "host"
+				},
+				{
+					"kind": "int",
+					"name": "port",
+					"tf": "port"
+				},
+				{
+					"kind": "bool",
+					"name": "secure",
+					"tf": "secure",
+					"description": "Implicit TLS (port 465)."
+				},
+				{
+					"kind": "string",
+					"name": "username",
+					"tf": "username"
+				},
+				{
+					"kind": "string",
+					"name": "password",
+					"tf": "password",
+					"sensitive": true,
+					"writeOnly": true,
+					"description": "Left unset, the stored password stays."
+				},
+				{
+					"kind": "bool",
+					"name": "passwordSet",
+					"tf": "password_set",
+					"readOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "from",
+					"tf": "from",
+					"description": "The sender address."
+				}
+			],
+			"collectionPath": "/instance/smtp",
+			"description": "The SMTP server Homerun sends email through: sign-in codes and links, invites, notifications. There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/instance/smtp",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_smtp_settings"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "bool",
+					"name": "emailOtp",
+					"tf": "email_otp",
+					"description": "Sign in with a code sent by email."
+				},
+				{
+					"kind": "bool",
+					"name": "magicLink",
+					"tf": "magic_link",
+					"description": "Sign in with a link sent by email."
+				},
+				{
+					"kind": "strings",
+					"name": "preferredSignInMethods",
+					"tf": "preferred_sign_in_methods",
+					"description": "The methods the sign-in page features, in order: password, passkey, or oauth: followed by a provider name."
+				},
+				{
+					"kind": "bool",
+					"name": "requirePasskey",
+					"tf": "require_passkey"
+				},
+				{
+					"kind": "bool",
+					"name": "requireTwoFactor",
+					"tf": "require_two_factor"
+				},
+				{
+					"kind": "bool",
+					"name": "smtpConfigured",
+					"tf": "smtp_configured",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/authentication/settings",
+			"description": "How people sign in: the emailed code and link methods, the methods the sign-in page features, and the passkey and two-factor requirements. email_otp is what a service's login wall needs to offer \"email-otp\" in auth_providers, and both emailed methods need SMTP configured (homerun_smtp_settings). There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/authentication/settings",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_authentication_settings"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "certificate",
+					"tf": "certificate",
+					"sensitive": true,
+					"writeOnly": true,
+					"description": "The certificate PEM, chain included."
+				},
+				{
+					"kind": "string",
+					"name": "privateKey",
+					"tf": "private_key",
+					"sensitive": true,
+					"writeOnly": true,
+					"description": "The private key PEM."
+				},
+				{
+					"kind": "bool",
+					"name": "installed",
+					"tf": "installed",
+					"readOnly": true
+				},
+				{
+					"kind": "strings",
+					"name": "names",
+					"tf": "names",
+					"readOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "issuer",
+					"tf": "issuer",
+					"readOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "expiresAt",
+					"tf": "expires_at",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/instance/tls",
+			"description": "The instance certificate Traefik serves for every hostname it covers, instead of asking Let's Encrypt. Removing it is done from the dashboard. There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/instance/tls",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_tls_settings"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "brandName",
+					"tf": "brand_name"
+				},
+				{
+					"kind": "string",
+					"name": "accentColor",
+					"tf": "accent_color",
+					"description": "Like #8b2942."
+				},
+				{
+					"kind": "string",
+					"name": "logoUrl",
+					"tf": "logo_url"
+				},
+				{
+					"kind": "bool",
+					"name": "showPoweredBy",
+					"tf": "show_powered_by"
+				},
+				{
+					"kind": "stringMap",
+					"name": "pageTexts",
+					"tf": "page_texts",
+					"description": "Titles and messages by key: notReadyTitle, notReadyMessage, unavailableTitle, unavailableMessage, notFoundTitle, notFoundMessage, blockedTitle, blockedMessage. One left out shows the default."
+				}
+			],
+			"collectionPath": "/instance/error-pages",
+			"description": "The branded pages Traefik shows instead of its own errors, and the login wall's branding. There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/instance/error-pages",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_error_pages"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "bool",
+					"name": "enabled",
+					"tf": "enabled"
+				},
+				{
+					"kind": "int",
+					"name": "threshold",
+					"tf": "threshold",
+					"description": "Blocked requests before a ban, 1 to 1000."
+				},
+				{
+					"kind": "int",
+					"name": "windowMinutes",
+					"tf": "window_minutes"
+				},
+				{
+					"kind": "int",
+					"name": "durationHours",
+					"tf": "duration_hours",
+					"description": "How long a ban lasts, 0 for forever."
+				},
+				{
+					"kind": "bool",
+					"name": "meanMode",
+					"tf": "mean_mode"
+				},
+				{
+					"kind": "bool",
+					"name": "disrespectMode",
+					"tf": "disrespect_mode"
+				},
+				{
+					"kind": "string",
+					"name": "crowdsecUrl",
+					"tf": "crowdsec_url"
+				},
+				{
+					"kind": "string",
+					"name": "crowdsecMachineId",
+					"tf": "crowdsec_machine_id"
+				},
+				{
+					"kind": "string",
+					"name": "crowdsecPassword",
+					"tf": "crowdsec_password",
+					"sensitive": true,
+					"writeOnly": true,
+					"description": "Left unset, the stored password stays."
+				},
+				{
+					"kind": "bool",
+					"name": "crowdsecPasswordSet",
+					"tf": "crowdsec_password_set",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/instance/ip-bans",
+			"description": "When a client address hitting services' blocked paths gets banned, and the CrowdSec LAPI bans are pushed to. There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/instance/ip-bans",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_ip_ban_settings"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "bool",
+					"name": "authEnabled",
+					"tf": "auth_enabled",
+					"description": "Require a token to push or pull."
+				},
+				{
+					"kind": "string",
+					"name": "publicHost",
+					"tf": "public_host",
+					"description": "Publish the registry at this hostname through Traefik. Needs auth_enabled."
+				}
+			],
+			"collectionPath": "/registry/settings",
+			"description": "The built-in Docker registry's auth and public hostname. Each change recreates the registry container and waits for it. There's exactly one: creating the resource adopts it and applies the attributes set, attributes left out keep their current value, and destroying it only removes it from the Terraform state, the instance keeps its settings.",
+			"importId": ["id"],
+			"itemPath": "/registry/settings",
+			"label": "id",
+			"singleton": true,
+			"type": "homerun_registry_settings"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "username",
+					"tf": "username",
+					"description": "The docker login user: 3 to 32 lowercase letters, digits, dashes or underscores.",
+					"forceNew": true,
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "secret",
+					"tf": "secret",
+					"description": "The docker login password, only known to a token Terraform created: an imported one has none.",
+					"readOnly": true,
+					"returnedOnCreate": true,
+					"sensitive": true
+				}
+			],
+			"collectionPath": "/registry/tokens",
+			"description": "A token that can push to and pull from the built-in Docker registry, once its auth is on (homerun_registry_settings). Its secret is generated on create and kept in the state, so treat the state as a secret.",
+			"importId": ["id"],
+			"itemPath": "/registry/tokens/{id}",
+			"label": "username",
+			"type": "homerun_registry_token"
+		},
+		{
+			"adminOnly": true,
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "kind",
+					"tf": "kind",
+					"default": "docker",
+					"description": "docker (a Docker daemon at docker_host) or agent (a Homerun Agent at agent_url).",
+					"forceNew": true
+				},
+				{
+					"kind": "string",
+					"name": "dockerHost",
+					"tf": "docker_host",
+					"description": "tcp://host:2376 or ssh://user@host."
+				},
+				{
+					"kind": "string",
+					"name": "tlsCa",
+					"tf": "tls_ca",
+					"sensitive": true,
+					"writeOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "tlsCert",
+					"tf": "tls_cert",
+					"sensitive": true,
+					"writeOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "tlsKey",
+					"tf": "tls_key",
+					"sensitive": true,
+					"writeOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "agentUrl",
+					"tf": "agent_url",
+					"description": "The agent's base URL, like `http://10.0.0.5:7420`."
+				},
+				{
+					"kind": "string",
+					"name": "agentToken",
+					"tf": "agent_token",
+					"sensitive": true,
+					"writeOnly": true,
+					"description": "Checked against the agent before it's saved."
+				},
+				{
+					"kind": "bool",
+					"name": "agentTokenSet",
+					"tf": "agent_token_set",
+					"readOnly": true
+				},
+				{
+					"kind": "bool",
+					"name": "tlsCaSet",
+					"tf": "tls_ca_set",
+					"readOnly": true
+				},
+				{
+					"kind": "bool",
+					"name": "tlsCertSet",
+					"tf": "tls_cert_set",
+					"readOnly": true
+				},
+				{
+					"kind": "bool",
+					"name": "tlsKeySet",
+					"tf": "tls_key_set",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/remote-hosts",
+			"description": "A remote host git builds can run on: a Docker daemon or a Homerun Agent. Servers enrolled with the dashboard's install command can be imported.",
+			"importId": ["id"],
+			"itemPath": "/remote-hosts/{id}",
+			"label": "name",
+			"type": "homerun_remote_host"
+		},
+		{
+			"adminOnly": true,
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"forceNew": true,
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "connectionId",
+					"tf": "connection_id",
+					"description": "The DNS connection the domain's zone lives in.",
+					"ref": "homerun_dns_connection"
+				},
+				{
+					"kind": "string",
+					"name": "zoneId",
+					"tf": "zone_id",
+					"description": "The provider's zone id. Required with connection_id."
+				},
+				{
+					"kind": "string",
+					"name": "zoneName",
+					"tf": "zone_name",
+					"description": "Looked up from the connection when left out."
+				},
+				{
+					"kind": "string",
+					"name": "target",
+					"tf": "target",
+					"description": "What its services' records point at, an IP or a hostname. Unset points them at the base domain."
+				},
+				{
+					"kind": "bool",
+					"name": "autoRecords",
+					"tf": "auto_records",
+					"default": true,
+					"description": "Create and remove the records of services' hostnames under it."
+				}
+			],
+			"collectionPath": "/domains",
+			"description": "A domain Homerun manages, optionally linked to a DNS connection's zone.",
+			"importId": ["id"],
+			"itemPath": "/domains/{id}",
+			"label": "name",
+			"type": "homerun_domain"
+		},
+		{
+			"adminOnly": true,
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "domainId",
+					"tf": "domain_id",
+					"forceNew": true,
+					"required": true,
+					"ref": "homerun_domain"
+				},
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"forceNew": true,
+					"required": true,
+					"description": "The full name, like `www.example.com`, or the domain itself for its apex: what the provider answers with."
+				},
+				{
+					"kind": "string",
+					"name": "type",
+					"tf": "type",
+					"forceNew": true,
+					"required": true,
+					"description": "A, AAAA, CNAME, TXT, MX or CAA."
+				},
+				{
+					"kind": "string",
+					"name": "content",
+					"tf": "content",
+					"forceNew": true,
+					"required": true,
+					"description": "The value: an address, a hostname without the trailing dot, or unquoted text."
+				},
+				{
+					"kind": "int",
+					"name": "ttl",
+					"tf": "ttl",
+					"description": "Seconds from 60 to 86400, automatic when unset.",
+					"forceNew": true
+				},
+				{
+					"kind": "int",
+					"name": "priority",
+					"tf": "priority",
+					"description": "MX only, 10 when unset.",
+					"forceNew": true
+				},
+				{
+					"kind": "string",
+					"name": "recordId",
+					"tf": "record_id",
+					"readOnly": true
+				},
+				{
+					"kind": "bool",
+					"name": "managed",
+					"tf": "managed",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/domains/{domainId}/records",
+			"description": "A DNS record at a domain's provider. Every change replaces it, since some providers derive a record's id from its value.",
+			"importId": ["domainId", "recordId"],
+			"itemPath": "/domains/{domainId}/records/{recordId}",
+			"label": "name",
+			"type": "homerun_dns_record"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "domain",
+					"tf": "domain",
+					"description": "Defaults to `<slug>.dev.<base domain>`.",
+					"forceNew": true
+				},
+				{
+					"kind": "string",
+					"name": "remoteHostId",
+					"tf": "remote_host_id",
+					"description": "The agent host it runs on, this server when unset.",
+					"forceNew": true,
+					"ref": "homerun_remote_host"
+				},
+				{
+					"kind": "string",
+					"name": "image",
+					"tf": "image",
+					"default": "codercom/code-server:latest"
+				},
+				{
+					"kind": "string",
+					"name": "homePath",
+					"tf": "home_path",
+					"default": "/home/coder"
+				},
+				{
+					"kind": "int",
+					"name": "port",
+					"tf": "port",
+					"default": 8080,
+					"description": "The IDE's port in the container."
+				},
+				{
+					"kind": "string",
+					"name": "cpuLimit",
+					"tf": "cpu_limit",
+					"description": "Cores, like 1.5."
+				},
+				{
+					"kind": "int",
+					"name": "memoryLimitMb",
+					"tf": "memory_limit_mb"
+				},
+				{
+					"kind": "stringMap",
+					"name": "env",
+					"tf": "env",
+					"description": "Variables set in the container. PASSWORD is Homerun's.",
+					"sensitive": true
+				},
+				{
+					"kind": "strings",
+					"name": "extensions",
+					"tf": "extensions",
+					"description": "Open VSX extension ids (publisher.name) installed on every start."
+				},
+				{
+					"kind": "string",
+					"name": "gitUrl",
+					"tf": "git_url",
+					"description": "An http(s) repository cloned into the home directory."
+				},
+				{
+					"kind": "string",
+					"name": "gitBranch",
+					"tf": "git_branch"
+				},
+				{
+					"kind": "string",
+					"name": "gitProviderId",
+					"tf": "git_provider_id",
+					"description": "The git provider whose connection authenticates git and, when set, signs in to the IDE.",
+					"ref": "homerun_git_provider"
+				},
+				{
+					"kind": "string",
+					"name": "gitAuthorName",
+					"tf": "git_author_name"
+				},
+				{
+					"kind": "string",
+					"name": "gitAuthorEmail",
+					"tf": "git_author_email"
+				},
+				{
+					"kind": "string",
+					"name": "desiredState",
+					"tf": "desired_state",
+					"description": "running or stopped. A new workstation starts unless it's stopped."
+				},
+				{
+					"kind": "string",
+					"name": "autoStopMode",
+					"tf": "auto_stop_mode",
+					"description": "idle or timer, unset for never."
+				},
+				{
+					"kind": "int",
+					"name": "autoStopMinutes",
+					"tf": "auto_stop_minutes"
+				},
+				{
+					"kind": "string",
+					"name": "slug",
+					"tf": "slug",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/workstations",
+			"description": "One of the API key owner's dev workstations: a browser IDE container with a persistent home volume. Destroying it keeps the volume. The editor settings are set from the dashboard.",
+			"importId": ["id"],
+			"itemPath": "/workstations/{id}",
+			"label": "name",
+			"type": "homerun_workstation"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "description",
+					"tf": "description"
+				},
+				{
+					"kind": "string",
+					"name": "remoteHostId",
+					"tf": "remote_host_id",
+					"description": "The agent host it runs on, this server when unset.",
+					"ref": "homerun_remote_host"
+				},
+				{
+					"kind": "string",
+					"name": "image",
+					"tf": "image",
+					"default": "codercom/code-server:latest"
+				},
+				{
+					"kind": "string",
+					"name": "homePath",
+					"tf": "home_path",
+					"default": "/home/coder"
+				},
+				{
+					"kind": "int",
+					"name": "port",
+					"tf": "port",
+					"default": 8080,
+					"description": "The IDE's port in the container."
+				},
+				{
+					"kind": "string",
+					"name": "cpuLimit",
+					"tf": "cpu_limit",
+					"description": "Cores, like 1.5."
+				},
+				{
+					"kind": "int",
+					"name": "memoryLimitMb",
+					"tf": "memory_limit_mb"
+				},
+				{
+					"kind": "stringMap",
+					"name": "env",
+					"tf": "env",
+					"description": "Variables set in the container. PASSWORD is Homerun's.",
+					"sensitive": true
+				},
+				{
+					"kind": "strings",
+					"name": "extensions",
+					"tf": "extensions",
+					"description": "Open VSX extension ids (publisher.name) installed on every start."
+				},
+				{
+					"kind": "string",
+					"name": "gitUrl",
+					"tf": "git_url",
+					"description": "An http(s) repository cloned into the home directory."
+				},
+				{
+					"kind": "string",
+					"name": "gitBranch",
+					"tf": "git_branch"
+				},
+				{
+					"kind": "string",
+					"name": "gitProviderId",
+					"tf": "git_provider_id",
+					"description": "The git provider whose connection authenticates git and, when set, signs in to the IDE.",
+					"ref": "homerun_git_provider"
+				},
+				{
+					"kind": "string",
+					"name": "gitAuthorName",
+					"tf": "git_author_name"
+				},
+				{
+					"kind": "string",
+					"name": "gitAuthorEmail",
+					"tf": "git_author_email"
+				}
+			],
+			"collectionPath": "/workstation-presets",
+			"description": "One of the API key owner's workstation presets: settings a new workstation starts from.",
+			"importId": ["id"],
+			"itemPath": "/workstation-presets/{id}",
+			"label": "name",
+			"type": "homerun_workstation_preset"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "email",
+					"tf": "email",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "role",
+					"tf": "role",
+					"default": "developer",
+					"description": "One of admin, developer, viewer, app-user, custom. viewer is read-only, app-user only gets through the login walls that let them in, custom holds the permissions set here. The last admin can't be demoted."
+				},
+				{
+					"kind": "stringMap",
+					"name": "permissions",
+					"tf": "permissions",
+					"description": "Only with role custom: the areas the user may use, each set to read or write. Areas: services, workstations, stacks, templates, cron-jobs, redirects, status-pages, storage, object-storage, registry, build-cache, git-providers, notifications, dns, remote-hosts, system, iac, users, settings. Switching to custom without it starts from the previous role's permissions."
+				},
+				{
+					"kind": "bool",
+					"name": "emailVerified",
+					"tf": "email_verified",
+					"readOnly": true
+				}
+			],
+			"collectionPath": "/users",
+			"description": "A person's account. It's created without a password, like Users → Add user: its owner picks one at their first sign-in, after an emailed code when SMTP is configured (without SMTP, anyone who knows the address can claim it first). Destroying it hands what the user created over to the provider's own account; the last admin and the provider's own account can't be destroyed. Service accounts are homerun_service_account.",
+			"importId": ["id"],
+			"itemPath": "/users/{id}",
+			"label": "email",
+			"type": "homerun_user"
+		},
+		{
+			"attributes": [
+				{
+					"kind": "string",
+					"name": "name",
+					"tf": "name",
+					"description": "Lowercase letters, digits and hyphens. It ends the redirect URI to register with the provider (the dashboard URL, then /api/v1/auth/callback/ and the name) and makes the login wall method \"oauth:\" followed by the name. Changing it replaces the provider.",
+					"forceNew": true,
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "label",
+					"tf": "label",
+					"description": "Shown on the \"Continue with\" button. Defaults to name."
+				},
+				{
+					"kind": "string",
+					"name": "clientId",
+					"tf": "client_id",
+					"required": true
+				},
+				{
+					"kind": "string",
+					"name": "clientSecret",
+					"tf": "client_secret",
+					"sensitive": true,
+					"writeOnly": true
+				},
+				{
+					"kind": "bool",
+					"name": "clientSecretSet",
+					"tf": "client_secret_set",
+					"readOnly": true
+				},
+				{
+					"kind": "string",
+					"name": "discoveryUrl",
+					"tf": "discovery_url",
+					"description": "The provider's OpenID discovery document (…/.well-known/openid-configuration). Every save fetches it, and refuses one that doesn't answer with an issuer.",
+					"required": true
+				},
+				{
+					"kind": "bool",
+					"name": "enabled",
+					"tf": "enabled",
+					"default": true
+				},
+				{
+					"kind": "bool",
+					"name": "pkce",
+					"tf": "pkce",
+					"default": true
+				},
+				{
+					"kind": "strings",
+					"name": "scopes",
+					"tf": "scopes",
+					"default": ["openid", "profile", "email"]
+				},
+				{
+					"kind": "bool",
+					"name": "signOutOfProvider",
+					"tf": "sign_out_of_provider",
+					"default": false,
+					"description": "Signing out of Homerun also signs out of the provider (RP-initiated logout)."
+				},
+				{
+					"kind": "string",
+					"name": "tokenAuthMethod",
+					"tf": "token_auth_method",
+					"default": "auto",
+					"description": "How the client secret reaches the token endpoint: auto (HTTP Basic when the provider advertises it, else the request body), basic or post."
+				}
+			],
+			"collectionPath": "/oauth-providers",
+			"description": "An OAuth/OIDC provider people sign in with (Authentication → Providers). Applied as soon as it's saved. A login wall offers it as the method oauth: followed by its name.",
+			"importId": ["id"],
+			"itemPath": "/oauth-providers/{id}",
+			"label": "name",
+			"type": "homerun_oauth_provider"
 		}
 	]
 }

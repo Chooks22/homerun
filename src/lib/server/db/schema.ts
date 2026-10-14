@@ -55,6 +55,7 @@ import type {
 	StatusPageScope,
 } from "#lib/types.js";
 import type { UiMode } from "#lib/ui-mode.js";
+import type { UserType } from "#lib/user-types.js";
 
 export const user = pgTable("user", {
 	banExpires: timestamp("ban_expires", { mode: "date" }),
@@ -70,6 +71,7 @@ export const user = pgTable("user", {
 	permissions: jsonb("permissions").$type<Permissions>(),
 	role: text("role"),
 	twoFactorEnabled: boolean("two_factor_enabled").default(false),
+	type: text("type").$type<UserType>().default("human").notNull(),
 	updatedAt: timestamp("updated_at", { mode: "date" })
 		.$onUpdate(() => new Date())
 		.notNull(),
@@ -1737,6 +1739,26 @@ export const appLog = pgTable(
 	],
 );
 
+export const auditLog = pgTable(
+	"audit_log",
+	{
+		action: text("action").notNull(),
+		actorId: text("actor_id").references(() => user.id, {
+			onDelete: "set null",
+		}),
+		actorName: text("actor_name").notNull(),
+		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+		detail: text("detail").notNull(),
+		id: text("id").primaryKey(),
+		ipAddress: text("ip_address"),
+		status: integer("status"),
+	},
+	(table) => [
+		index("auditLog_createdAt_idx").on(table.createdAt),
+		index("auditLog_actorId_idx").on(table.actorId),
+	],
+);
+
 // The bell-icon feed's backing rows : one per user-facing lifecycle event
 // (new deployment, cron auto-redeploy, start/stop, deploy failure, new
 // service). Separate from appLog above : appLog is app-internal warn/error
@@ -2493,6 +2515,7 @@ export type IacProject = typeof iacProject.$inferSelect;
 export type IacStateVersion = typeof iacStateVersion.$inferSelect;
 export type IacStateLock = typeof iacStateLock.$inferSelect;
 export type AppLog = typeof appLog.$inferSelect;
+export type AuditLog = typeof auditLog.$inferSelect;
 export type Notification = typeof notification.$inferSelect;
 export type StatSample = typeof statSample.$inferSelect;
 export type UptimeCheck = typeof uptimeCheck.$inferSelect;

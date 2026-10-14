@@ -600,6 +600,22 @@ expression index `traceSpan_jobId_idx` on `attributes ->> 'homerun.job.id'`
 where `service_id` is null, and the Scheduling job page renders each one's
 waterfall, as does a cron job run's Traces tab through `cron_job_run.jobId`.
 
+**Job log lines are span events.** `worker.execute` puts a `tracing.Cursor` in
+the job's context and hands its `Event` to the job (`jobs.Job.WithTrace`);
+`tracing.Stage` pushes its span on the cursor while it runs, so every
+`AppendLog` line, and every deploy progress line (`progress.line` calls
+`job.Trace`), lands as an event on the innermost stage it was written in. The
+SDK keeps the last 128 events per span, which only a long build log reaches.
+`Stage` also takes attributes. A deploy's execute span carries the service,
+deployment, image source, workload and final image; its `deploy` stage has child
+spans for the readiness image inspect, `create container`, `start container`,
+`wait until ready`, `remove previous container` (or the swarm
+`pull on the swarm manager`, `create swarm service`, `update swarm service`,
+`wait for the rollout`), and a build has `clone and build` then
+`bring the image here`. The waterfall keeps a right-hand gutter for the duration
+labels (they used to be clipped at the end of a trace) and scrolls horizontally
+under 40rem; events render as a timestamped log.
+
 **Retention**: `TraceRetentionScheduler`, hourly, deletes spans that started
 before `traceRetentionDays` (7 by default, 1 to 90, Monitoring → Settings, which
 is admin-only) in batches of 5000.

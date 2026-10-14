@@ -242,13 +242,15 @@ class DomainDnsServiceClass {
 	 * Replaces one record's value by hand; a record Homerun created stays
 	 * tracked with the new value.
 	 *
+	 * @returns The record as the provider holds it now, its id changed on
+	 *   providers that derive it from the value.
 	 * @throws When the record is gone, or the provider refuses.
 	 */
 	async updateRecord(
 		domain: DomainDTO,
 		recordId: string,
 		input: DnsRecordInput,
-	): Promise<void> {
+	): Promise<DnsRecord> {
 		const { client, zone } = await this.#editable(domain);
 		const record = (await client.listRecords(zone)).find(
 			(candidate) => candidate.id === recordId,
@@ -261,6 +263,7 @@ class DomainDnsServiceClass {
 		if (tracked?.asRecord().id === recordId) {
 			await DnsManagedRecordDTO.track(domain.id, updated);
 		}
+		return updated;
 	}
 
 	/**

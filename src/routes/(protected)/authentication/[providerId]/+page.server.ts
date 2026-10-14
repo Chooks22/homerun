@@ -3,12 +3,12 @@ import { oauthMethod } from "#lib/auth-providers.js";
 import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
-import { Logger } from "#lib/logger.js";
-import { parseOauthProviderForm } from "#lib/server/oauth-provider-form.js";
-import { applyAndRebuild } from "#lib/server/validation/instance-settings-form.js";
+import { readOauthProviderForm } from "#lib/server/oauth-provider-form.js";
+import {
+	OauthProviderConfigError,
+	OauthProviderConfigService,
+} from "#lib/services/oauth-provider-config.service.js";
 import { resolve } from "$app/paths";
-
-const logger = new Logger("InstanceSettings");
 
 export const load = async ({ params, parent }) => {
 	await parent();
@@ -48,12 +48,7 @@ export const actions = {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
-		const settings = await InstanceSettingsDTO.get();
-		await settings.deleteOauthProvider(params.providerId);
-		applyAndRebuild(settings);
-		logger.info(
-			`OAuth provider deleted: name=${params.providerId} user=${locals.user.id}`,
-		);
+		await OauthProviderConfigService.remove(params.providerId, locals.user.id);
 
 		throw redirect(303, resolve("authentication/providers"));
 	},
@@ -62,23 +57,18 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 
-		const formData = await request.formData();
-		formData.set("name", params.providerId);
-		const settings = await InstanceSettingsDTO.get();
-		const taken = settings
-			.toJSON()
-			.oauthProviders.map((p) => p.name)
-			.filter((name) => name !== params.providerId);
-		const parsed = await parseOauthProviderForm(formData, taken);
-		if (!parsed.input) {
-			return fail(400, { error: parsed.error });
+		try {
+			await OauthProviderConfigService.update(
+				params.providerId,
+				readOauthProviderForm(await request.formData()),
+				locals.user.id,
+			);
+		} catch (err) {
+			if (err instanceof OauthProviderConfigError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
-
-		await settings.updateOauthProvider(params.providerId, parsed.input);
-		applyAndRebuild(settings);
-		logger.info(
-			`OAuth provider updated: name=${params.providerId} user=${locals.user.id}`,
-		);
 		return { success: true };
 	},
 };

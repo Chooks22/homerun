@@ -282,6 +282,14 @@ function buildAuth(directAccess: DirectAccessScheme | null) {
 			},
 			session: {
 				create: {
+					before: async (row) => {
+						if (await UserService.isServiceAccount(row.userId)) {
+							logger.warn(
+								`Refused a session for a service account: user=${row.userId}`,
+							);
+							return false;
+						}
+					},
 					after: async (row) => {
 						if (!row.impersonatedBy) {
 							await UserService.recordSignIn(row.userId, row.createdAt);
@@ -442,6 +450,12 @@ function buildAuth(directAccess: DirectAccessScheme | null) {
 		user: {
 			additionalFields: {
 				permissions: { input: false, required: false, type: "json" },
+				type: {
+					defaultValue: "human",
+					input: false,
+					required: false,
+					type: "string",
+				},
 			},
 			changeEmail: {
 				enabled: true,

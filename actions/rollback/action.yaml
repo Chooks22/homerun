@@ -1,0 +1,67 @@
+name: Homerun Rollback
+description: Roll a Homerun service back to an earlier revision's exact image and wait for it.
+author: orochibraru
+branding:
+  icon: rotate-ccw
+  color: red
+
+inputs:
+  base-url:
+    description: Your instance's URL, e.g. https://homerun.example.com
+    required: true
+  api-key:
+    description: A Homerun API key with write access to Services. Store it as a secret.
+    required: true
+  cli-version:
+    description: CLI release to install, e.g. v1.0.49. Defaults to this action's own tag when it's a release, the latest release otherwise.
+    required: false
+    default: ""
+  service:
+    description: The service to roll back, by id or slug.
+    required: true
+  revision:
+    description: The revision to roll back to (`homerun services revisions` lists them). Empty rolls back to the previous one.
+    required: false
+    default: ""
+  restore-config:
+    description: Also restore that revision's env vars, resources and networking, not only its image.
+    required: false
+    default: "false"
+
+outputs:
+  deployment-id:
+    description: The id of the deployment the rollback created.
+    value: ${{ steps.rollback.outputs.deployment-id }}
+  result:
+    description: The rollback's result as JSON.
+    value: ${{ steps.rollback.outputs.stdout }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the Homerun CLI
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        ACTION_REF: ${{ github.action_ref }}
+        CLI_VERSION: ${{ inputs.cli-version }}
+      run: bash "$ACTION_PATH/../install-cli.sh"
+
+    - name: Roll back
+      id: rollback
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BASE_URL: ${{ inputs.base-url }}
+        API_KEY: ${{ inputs.api-key }}
+        SERVICE: ${{ inputs.service }}
+        REVISION: ${{ inputs.revision }}
+        RESTORE_CONFIG: ${{ inputs.restore-config }}
+      run: |
+        set -euo pipefail
+        args=(services rollback)
+        if [ "$RESTORE_CONFIG" = "true" ]; then args+=(--restore-config); fi
+        args+=("$SERVICE")
+        if [ -n "$REVISION" ]; then args+=("$REVISION"); fi
+        bash "$ACTION_PATH/../run-cli.sh" "${args[@]}"
+        sed -n 's/.*"deploymentId": *"\([^"]*\)".*/deployment-id=\1/p' "$RUNNER_TEMP/homerun-cli/stdout" | head -n 1 >> "$GITHUB_OUTPUT"

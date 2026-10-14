@@ -9,6 +9,7 @@ import { Logger } from "#lib/logger.js";
 import { REDIRECT_TO_PARAM, safeRedirectTarget } from "#lib/redirect-target.js";
 import { withDashboardOrigin } from "#lib/server/canonical-origin.js";
 import { brandedEmail } from "#lib/server/email-layout.js";
+import { isServiceAccountEmail } from "#lib/user-types.js";
 import { EmailService } from "./email.service.ts";
 
 const logger = new Logger("EmailSignIn");
@@ -314,6 +315,9 @@ export function emailSignInPlugins() {
 			disableSignUp: true,
 			expiresIn: EMAIL_CODE_TTL_SECONDS,
 			sendVerificationOTP: async ({ email, otp }) => {
+				if (isServiceAccountEmail(email)) {
+					return;
+				}
 				await new EmailService({ ...signInCodeEmail(otp), to: email }).send();
 				logger.info(`Sign-in code emailed to ${email}`);
 			},
@@ -323,7 +327,10 @@ export function emailSignInPlugins() {
 			disableSignUp: true,
 			expiresIn: EMAIL_CODE_TTL_SECONDS,
 			sendMagicLink: async ({ email, metadata, token, url }, ctx) => {
-				if (!(await ctx?.context.internalAdapter.findUserByEmail(email))) {
+				if (
+					isServiceAccountEmail(email) ||
+					!(await ctx?.context.internalAdapter.findUserByEmail(email))
+				) {
 					return;
 				}
 				const link = magicLinkLandingUrl(url, token, metadata?.redirectTo);

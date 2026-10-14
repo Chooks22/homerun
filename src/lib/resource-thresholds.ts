@@ -11,6 +11,12 @@ export type ResourceThresholds = Record<ResourceKind, Threshold>;
 
 export const RESOURCE_KINDS: ResourceKind[] = ["cpu", "memory", "disk", "gpu"];
 
+/** Each threshold as one REST API field (`cpuSoftThreshold`, `cpuHardThreshold`, ...), for the instance settings. */
+export const RESOURCE_THRESHOLD_FIELDS = RESOURCE_KINDS.flatMap((kind) => [
+	`${kind}SoftThreshold`,
+	`${kind}HardThreshold`,
+]);
+
 export const RESOURCE_LABELS: Record<ResourceKind, string> = {
 	cpu: "CPU",
 	disk: "Disk",

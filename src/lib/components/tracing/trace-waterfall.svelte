@@ -76,10 +76,11 @@
 {/snippet}
 
 <div class="space-y-4">
-  <section class="panel overflow-hidden rounded-md">
-    <div class="border-border text-text-subtle hidden grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 border-b px-4 py-2 text-xs md:grid">
+  <section class="panel overflow-x-auto rounded-md">
+    <div class="min-w-160">
+    <div class="border-border text-text-subtle grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 border-b px-4 py-2 text-xs">
       <span>Span</span>
-      <span class="relative h-4">
+      <span class="relative mr-16 h-4">
         {#each ticks as tick (tick.share)}
           <span
             class="absolute top-0 font-mono whitespace-nowrap"
@@ -95,7 +96,7 @@
       {#each waterfall.rows as row (row.span.spanId)}
         <li class="border-border/60 border-b last:border-0">
           <button
-            class="hover:bg-surface-2 grid w-full grid-cols-1 gap-1 px-4 py-2 text-left md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-3 {selectedId ===
+            class="hover:bg-surface-2 grid w-full grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 px-4 py-2 text-left {selectedId ===
             row.span.spanId
               ? 'bg-surface-2'
               : ''}"
@@ -109,7 +110,7 @@
               <span class="text-text truncate text-sm">{row.span.name || "(unnamed span)"}</span>
               <span class="text-text-subtle hidden truncate text-xs lg:inline">{row.span.serviceName}</span>
             </span>
-            <span class="relative h-5">
+            <span class="relative mr-16 h-5">
               <span
                 class="absolute top-1 h-3 rounded-sm {barTone(row.span.statusCode)}"
                 style:left="{Math.min(row.offsetPercent, 99.5)}%"
@@ -117,8 +118,7 @@
               ></span>
               <span
                 class="text-text-muted absolute top-0 font-mono text-[0.6875rem] whitespace-nowrap"
-                style:left={row.offsetPercent > 60 ? "auto" : `calc(${row.offsetPercent + row.widthPercent}% + 0.375rem)`}
-                style:right={row.offsetPercent > 60 ? `calc(${100 - row.offsetPercent}% + 0.375rem)` : "auto"}
+                style:left="calc({Math.min(row.offsetPercent + row.widthPercent, 100)}% + 0.375rem)"
               >
                 {formatSpanDuration(row.span.durationMs)}
               </span>
@@ -127,6 +127,7 @@
         </li>
       {/each}
     </ol>
+    </div>
   </section>
 
   {#if selected}
@@ -179,18 +180,14 @@
 
         {#if selected.events.length > 0}
           <div>
-            <h4 class="eyebrow mb-1.5">Events</h4>
-            <ol class="space-y-2">
+            <h4 class="eyebrow mb-1.5">Events ({selected.events.length})</h4>
+            <ol class="border-border bg-surface-2 max-h-96 overflow-y-auto rounded-md border p-2 font-mono text-xs">
               {#each selected.events as event, eventIndex (eventIndex)}
-                <li class="border-border rounded-md border p-2">
-                  <p class="text-text text-xs font-medium">
-                    {event.name}
-                    {#if event.time}
-                      <span class="text-text-subtle font-mono">{sinceStart(event.time)}</span>
-                    {/if}
-                  </p>
+                <li class="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 py-0.5">
+                  <span class="text-text-subtle text-right">{event.time ? sinceStart(event.time) : ""}</span>
+                  <span class="text-text wrap-break-word whitespace-pre-wrap">{event.name}</span>
                   {#if Object.keys(event.attributes).length > 0}
-                    <div class="mt-1">{@render keyValues(event.attributes)}</div>
+                    <div class="col-start-2 mt-1 mb-1">{@render keyValues(event.attributes)}</div>
                   {/if}
                 </li>
               {/each}

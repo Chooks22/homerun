@@ -38,7 +38,11 @@ import {
 } from "#lib/server/api-json.js";
 import { zipFiles } from "#lib/server/zip.js";
 import { GitProviderConfigService } from "#lib/services/git-provider-config.service.js";
+import { identityInventory } from "#lib/services/identity-inventory.js";
+import { infrastructureInventory } from "#lib/services/infrastructure-inventory.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
+import { ServiceAccountService } from "#lib/services/service-account.service.js";
+import { SettingsApiService } from "#lib/services/settings-api.service.js";
 import { stackPath } from "#lib/stack-tree.js";
 
 const logger = new Logger("IaC");
@@ -53,7 +57,8 @@ class IacInventoryServiceClass {
 	 * Every object a `homerun_*` resource can manage, by resource type. A
 	 * notification channel belongs to one account, so only `userId`'s are in;
 	 * previews, canaries and the built-in object store are Homerun's own and
-	 * left out. A store whose buckets can't be listed is skipped.
+	 * left out. A store whose buckets can't be listed is skipped. The
+	 * instance-wide settings come as one object per singleton type.
 	 */
 	async inventory(userId: string): Promise<Inventory> {
 		const [services, stores] = await Promise.all([
@@ -77,6 +82,8 @@ class IacInventoryServiceClass {
 			gitProviders,
 			cacheRegistries,
 			buckets,
+			serviceAccounts,
+			settings,
 		] = await Promise.all([
 			StackDTO.list(),
 			ServiceDependencyDTO.list(),
@@ -91,8 +98,13 @@ class IacInventoryServiceClass {
 			GitProviderConfigService.list(),
 			BuildCacheRegistryDTO.list(),
 			this.#buckets(stores),
+			ServiceAccountService.list(),
+			SettingsApiService.iacInventory(),
 		]);
 		return {
+			...settings,
+			...(await infrastructureInventory(userId)),
+			...(await identityInventory()),
 			homerun_bucket: buckets,
 			homerun_build_cache_registry: cacheRegistries.map((registry) =>
 				buildCacheRegistryApiJson(registry.toJSON()),
@@ -113,6 +125,9 @@ class IacInventoryServiceClass {
 				.map((store) => ({ ...store.summary() })),
 			homerun_redirect: redirects.map((redirect) => ({ ...redirect.toJSON() })),
 			homerun_service: topLevel.map(serviceApiJson),
+			homerun_service_account: serviceAccounts.map((account) => ({
+				...account,
+			})),
 			homerun_service_dependency: dependencies
 				.map((dependency) => dependency.toJSON())
 				.filter((row) => topLevelIds.has(row.serviceId))

@@ -15,6 +15,9 @@ import (
 	"github.com/orochibraru/homerun/internal/activity"
 	"github.com/orochibraru/homerun/internal/agent"
 	"github.com/orochibraru/homerun/internal/dockerapi"
+	"github.com/orochibraru/homerun/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -40,23 +43,32 @@ func (r *run) buildImage(ctx context.Context) (resolvedImage, error) {
 		}
 		r.platform = host.Os + "/" + host.Arch
 	}
-	switch spec.Kind {
-	case "local-build":
-		err = r.dockerBuild(ctx, r.docker, r.spec.SocketPath, spec.Build.Registry)
-	case "docker-build":
-		var remote *dockerapi.Client
-		remote, err = dockerapi.NewRemote(*spec.Build.Server.Docker)
-		if err == nil {
-			err = r.dockerBuild(ctx, remote, remoteSocket, spec.Build.Registry)
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.String("homerun.build.kind", spec.Kind),
+		attribute.String("homerun.build.method", buildMethod(spec.Build)),
+	)
+	var remote *dockerapi.Client
+	err = tracing.Stage(ctx, "clone and build", func(ctx context.Context) error {
+		switch spec.Kind {
+		case "local-build":
+			return r.dockerBuild(ctx, r.docker, r.spec.SocketPath, spec.Build.Registry)
+		case "docker-build":
+			var buildErr error
+			if remote, buildErr = dockerapi.NewRemote(*spec.Build.Server.Docker); buildErr != nil {
+				return buildErr
+			}
+			return r.dockerBuild(ctx, remote, remoteSocket, spec.Build.Registry)
+		case "agent-build":
+			return r.agentBuild(ctx, built)
 		}
-		if err == nil {
-			built, err = r.transfer(ctx, built, remote)
-		}
-	case "agent-build":
-		err = r.agentBuild(ctx, built)
-		if err == nil {
-			built, err = r.transfer(ctx, built, nil)
-		}
+		return nil
+	})
+	if err == nil && spec.Kind != "local-build" {
+		err = tracing.Stage(ctx, "bring the image here", func(ctx context.Context) error {
+			var transferErr error
+			built, transferErr = r.transfer(ctx, built, remote)
+			return transferErr
+		})
 	}
 	if err == nil && host != nil {
 		err = r.checkArchitecture(ctx, built.ref(), host.Arch)
@@ -293,4 +305,13 @@ func (r *run) transfer(ctx context.Context, built resolvedImage, remote *dockera
 		return resolvedImage{}, err
 	}
 	return published, nil
+}
+
+// buildMethod is the build's method for a trace attribute, dockerfile when
+// the spec leaves it unset.
+func buildMethod(build *BuildSpec) string {
+	if build == nil || build.Git.BuildMethod == nil || *build.Git.BuildMethod == "" {
+		return "dockerfile"
+	}
+	return *build.Git.BuildMethod
 }

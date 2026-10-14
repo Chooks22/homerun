@@ -32,34 +32,60 @@ that.
 
 ## GitHub Actions
 
+Homerun's repository is a set of actions, all pinned to the same release tag as
+your CLI and instance: one that runs any `homerun` command, and dedicated ones
+for the common jobs. Each installs the CLI release matching its own tag (or
+`cli-version`), runs on Linux and macOS runners, not Windows, and fails the step
+when the command fails. Pin a release tag rather than `main`, so an upgrade of
+your instance and of your pipelines happen when you choose.
+
 ```yaml
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       # ...build and push ghcr.io/you/app:${{ github.sha }} first...
-      - uses: orochibraru/homerun@v1.0.49
+      - uses: orochibraru/homerun/actions/deploy@v1.0.59
         with:
           base-url: https://homerun.example.com
           api-key: ${{ secrets.HOMERUN_API_KEY }}
-          service: 7b1e0c2a-4f7d-4c1e-9a55-2f0d3c8e6b41
+          service: my-app
           tag: ${{ github.sha }}
 ```
 
-| Input         | Required | What it does                                                                               |
-| ------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `base-url`    | yes      | Your instance's URL.                                                                       |
-| `api-key`     | yes      | A full-access API key.                                                                     |
-| `service`     | yes      | The service's id.                                                                          |
-| `tag`         | no       | Image tag to switch to before deploying. Empty redeploys the current tag.                  |
-| `cli-version` | no       | CLI release to use, e.g. `v1.0.49`. Defaults to the action's own tag, else the latest one. |
+| Action                                     | What it does                                                                                                          | Outputs                   |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `orochibraru/homerun`                      | Installs the CLI and puts it on the `PATH`; runs `args` (e.g. `manifest apply my-app --deploy`) when given.           | `stdout`, `cli-path`      |
+| `orochibraru/homerun/actions/deploy`       | `homerun services deploy`: switches to `tag` first when given, or deploys the `environment` canary or stable channel. | `deployment-id`, `result` |
+| `orochibraru/homerun/actions/rollback`     | `homerun services rollback`: the previous revision, or `revision`; `restore-config: true` restores its settings too.  | `deployment-id`, `result` |
+| `orochibraru/homerun/actions/preview`      | `homerun previews` with `command` `deploy`, `wait`, `promote` or `delete`, for the pull request that triggered it.    | `url` (deploy, wait)      |
+| `orochibraru/homerun/actions/gate-session` | `homerun gate session`: signs a [service account](login-wall.md) through an app's login wall for end-to-end tests.    | `cookie` (masked)         |
 
-The action installs the CLI release matching its tag and runs
-`homerun services deploy`. Its `deployment-id` output is the id of the
-deployment it created, shown under the service's **Environments & Deployments →
-Revisions**. It runs on Linux and macOS runners, not Windows. Pin a release tag
-rather than `main`, so an upgrade of your instance and of your pipelines happen
-when you choose.
+Every action takes `base-url`, `api-key` (a CI secret, never exported to later
+steps) and `cli-version`. `service` is an id or a slug. The root action's `args`
+is split on whitespace; for an argument containing spaces, call it with no
+`args` and run `homerun` in the next step, with `HOMERUN_BASE_URL` and
+`HOMERUN_API_KEY` in that step's `env:`. The preview action's `pr`, `commit`,
+`branch` and `title` default to the triggering pull request's, and
+`gate-session`'s `playwright-file` also writes a Playwright `storageState` file.
+A rollback for a deploy step that failed:
+
+```yaml
+- uses: orochibraru/homerun/actions/deploy@v1.0.59
+  id: deploy
+  with:
+    base-url: ${{ vars.HOMERUN_BASE_URL }}
+    api-key: ${{ secrets.HOMERUN_API_KEY }}
+    service: my-app
+    tag: ${{ github.sha }}
+- run: ./smoke-test.sh https://app.example.com
+- if: failure() && steps.deploy.outcome == 'success'
+  uses: orochibraru/homerun/actions/rollback@v1.0.59
+  with:
+    base-url: ${{ vars.HOMERUN_BASE_URL }}
+    api-key: ${{ secrets.HOMERUN_API_KEY }}
+    service: my-app
+```
 
 ## GitLab CI and other CIs: the Docker image
 
@@ -126,12 +152,6 @@ on:
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
 
-env:
-  HOMERUN_BASE_URL: ${{ vars.HOMERUN_BASE_URL }}
-  HOMERUN_API_KEY: ${{ secrets.HOMERUN_API_KEY }}
-  SERVICE: ${{ vars.HOMERUN_SERVICE_ID }}
-  PR: ${{ github.event.pull_request.number }}
-
 jobs:
   deploy:
     if: >-
@@ -143,9 +163,8 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/you/app
+      PR: ${{ github.event.pull_request.number }}
       SHA: ${{ github.event.pull_request.head.sha }}
-      BRANCH: ${{ github.event.pull_request.head.ref }}
-      TITLE: ${{ github.event.pull_request.title }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -157,15 +176,17 @@ jobs:
           echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build -t "$IMAGE:pr-$PR-$SHA" .
           docker push "$IMAGE:pr-$PR-$SHA"
-      - name: Install the Homerun CLI
-        run: >-
-          curl -fsSL
-          https://raw.githubusercontent.com/orochibraru/homerun/main/cmd/cli/install.sh
-          | bash
       - name: Deploy the preview and wait for it
-        run: >-
-          homerun previews deploy "$SERVICE" "$PR" --tag "pr-$PR-$SHA" --commit
-          "$SHA" --branch "$BRANCH" --title "$TITLE" --timeout 20m
+        uses: orochibraru/homerun/actions/preview@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          command: deploy
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
+          tag:
+            pr-${{ github.event.pull_request.number }}-${{
+            github.event.pull_request.head.sha }}
+          timeout: 20m
 
   delete:
     if: >-
@@ -173,31 +194,31 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Install the Homerun CLI
-        run: >-
-          curl -fsSL
-          https://raw.githubusercontent.com/orochibraru/homerun/main/cmd/cli/install.sh
-          | bash
       - name: Delete the preview
-        run: homerun previews delete "$SERVICE" "$PR"
+        uses: orochibraru/homerun/actions/preview@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          command: delete
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
 ```
 
 - `IMAGE` is the service's own image: the preview runs it at the tag the job
   pushed, with the service's registry credentials.
 - The job builds the pull request's head commit (`head.sha`, not the merge
-  commit GitHub checks out by default) and passes it as `--commit`, so the
-  preview's revision records it and `homerun previews wait --commit` or
-  `homerun previews promote --commit` in a later job match it.
+  commit GitHub checks out by default), which the preview action records as the
+  preview's commit, so a later `wait` or `promote` (which default to the same
+  commit) matches it.
 - Pull requests from forks are skipped: Homerun can't tell where an image came
   from, and a fork's code would run with the service's env vars. GitHub doesn't
   hand a fork's workflow the secrets anyway.
-- The branch and title go through `env:` rather than straight into `run:`, since
-  both are typed by whoever opened the pull request.
+- The preview action reads the branch and title from the event itself and passes
+  them through its own `env:`, never into a shell line, since both are typed by
+  whoever opened the pull request.
 - A branch the service's preview branch filter leaves out fails the deploy step
   with the reason, and `previews delete` fails when the pull request never had a
   preview. Leave such branches out in both jobs' `if:` to skip them instead.
-- The installer fetches the latest CLI; end the command with
-  `| bash -s -- --version=<tag>` to pin the release matching your instance.
+- The action's tag picks the CLI release: keep it matching your instance.
   `previews deploy` needs a release that has it, on both the CLI and the
   instance.
 

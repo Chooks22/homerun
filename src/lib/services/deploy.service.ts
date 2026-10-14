@@ -19,6 +19,7 @@ import { snapshotRevisionConfig } from "#lib/revision-config.js";
 import { dependencyLayers } from "#lib/service-graph.js";
 import { isDeployed } from "#lib/service-state.js";
 import { syncAutoDns } from "./deploy/helpers.ts";
+import { applyRepoManifest } from "./deploy/manifest-step.ts";
 import {
 	type BuildServer,
 	type CacheRegistryCredentials,
@@ -397,6 +398,7 @@ class DeploymentServiceClass {
 			if (mountSwap) {
 				await swapRestoredVolume(ctx, mountSwap);
 			}
+			const manifestCommit = revision ? null : await applyRepoManifest(ctx);
 			const mounts = await ServiceVolumeDTO.listForService(svc.id);
 			await dep.update({
 				configSnapshot: {
@@ -409,7 +411,14 @@ class DeploymentServiceClass {
 			const stack = svc.stackId ? await StackDTO.get(svc.stackId) : null;
 			await syncAutoDns(svc, stack, dep);
 			await dep.appendLog(phaseLine("image"));
-			return await deployWorkerSpec({ ...ctx, mounts, noCache, plan, stack });
+			return await deployWorkerSpec({
+				...ctx,
+				manifestCommit,
+				mounts,
+				noCache,
+				plan,
+				stack,
+			});
 		} catch (err) {
 			throw new Error(await this.#recordFailure(ctx, err, trigger));
 		}

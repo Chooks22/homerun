@@ -124,7 +124,13 @@ describe("loginWallAvailability / loginWallOptions", () => {
 			{ enabled: false, label: "", name: "off" },
 		] as typeof config.auth.oauthProviders;
 		stub(UserService, "listUsers", async () => [
-			{ email: "c@x.io", id: "u1", name: "Client", role: "app-user" },
+			{
+				email: "c@x.io",
+				id: "u1",
+				name: "Client",
+				role: "app-user",
+				type: "human",
+			},
 		]);
 		try {
 			const available = await loginWallAvailability();
@@ -134,7 +140,13 @@ describe("loginWallAvailability / loginWallOptions", () => {
 				{ label: "Pocket ID", method: "oauth:pocket-id", name: "pocket-id" },
 			]);
 			expect(options.users).toEqual([
-				{ email: "c@x.io", id: "u1", name: "Client", role: "app-user" },
+				{
+					email: "c@x.io",
+					id: "u1",
+					name: "Client",
+					role: "app-user",
+					type: "human",
+				},
 			]);
 		} finally {
 			config.auth.oauthProviders = original;

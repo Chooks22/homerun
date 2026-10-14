@@ -24,6 +24,27 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/authentication/settings": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the authentication settings */
+		get: operations["get_authentication_settings"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the authentication settings
+		 * @description Changes the fields sent and keeps the rest. Same as the Authentication page's switches. A login wall offers email-otp only with emailOtp on and SMTP configured.
+		 */
+		patch: operations["patch_authentication_settings"];
+		trace?: never;
+	};
 	"/backup-destinations": {
 		parameters: {
 			query?: never;
@@ -276,6 +297,98 @@ export interface paths {
 		patch: operations["patch_dns_connections__connectionId_"];
 		trace?: never;
 	};
+	"/domains": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List domains
+		 * @description Every domain, in one response.
+		 */
+		get: operations["get_domains"];
+		put?: never;
+		/** Create a domain */
+		post: operations["post_domains"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/domains/{domainId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a domain */
+		get: operations["get_domains__domainId_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete a domain
+		 * @description Removes the domain from Homerun; its records stay.
+		 */
+		delete: operations["delete_domains__domainId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a domain
+		 * @description Changes the fields sent and keeps the rest.
+		 */
+		patch: operations["patch_domains__domainId_"];
+		trace?: never;
+	};
+	"/domains/{domainId}/records": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List DNS records of a domain
+		 * @description Every DNS record, in one response.
+		 */
+		get: operations["get_domains__domainId__records"];
+		put?: never;
+		/**
+		 * Create a DNS record
+		 * @description Creates the record at the domain's DNS provider. A record made here is the caller's: Homerun never changes or removes it on its own.
+		 */
+		post: operations["post_domains__domainId__records"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/domains/{domainId}/records/{recordId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a DNS record */
+		get: operations["get_domains__domainId__records__recordId_"];
+		put?: never;
+		post?: never;
+		/** Delete a DNS record */
+		delete: operations["delete_domains__domainId__records__recordId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a DNS record
+		 * @description Changes the fields sent and keeps the rest. The answer carries the record's id, which changes on providers that derive it from the value.
+		 */
+		patch: operations["patch_domains__domainId__records__recordId_"];
+		trace?: never;
+	};
 	"/git-providers": {
 		parameters: {
 			query?: never;
@@ -435,6 +548,111 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/instance/error-pages": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the error pages */
+		get: operations["get_instance_error_pages"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the error pages
+		 * @description Changes the fields sent and keeps the rest. pageTexts replaces every page's text: a page left out shows its default.
+		 */
+		patch: operations["patch_instance_error_pages"];
+		trace?: never;
+	};
+	"/instance/ip-bans": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the IP ban settings */
+		get: operations["get_instance_ip_bans"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the IP ban settings
+		 * @description Changes the fields sent and keeps the rest. A CrowdSec LAPI is logged in to before it's saved; a null crowdsecUrl turns the push off.
+		 */
+		patch: operations["patch_instance_ip_bans"];
+		trace?: never;
+	};
+	"/instance/settings": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the instance settings */
+		get: operations["get_instance_settings"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the instance settings
+		 * @description Changes the fields sent and keeps the rest. Same checks and side effects as Settings → General, Docker and Networking: the live config, auth and Traefik follow, and a changed orchestration mode prepares the host first.
+		 */
+		patch: operations["patch_instance_settings"];
+		trace?: never;
+	};
+	"/instance/smtp": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the SMTP settings */
+		get: operations["get_instance_smtp"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the SMTP settings
+		 * @description Changes the fields sent and keeps the rest. The password is write-only: left out, the stored one stays.
+		 */
+		patch: operations["patch_instance_smtp"];
+		trace?: never;
+	};
+	"/instance/tls": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the instance certificate */
+		get: operations["get_instance_tls"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the instance certificate
+		 * @description Changes the fields sent and keeps the rest. A certificate and key are checked, written where Traefik reads them, then saved; send one alone to pair it with the installed other half. A null certificate or key removes the installed one.
+		 */
+		patch: operations["patch_instance_tls"];
+		trace?: never;
+	};
 	"/instance/update": {
 		parameters: {
 			query?: never;
@@ -536,6 +754,46 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/manifest.schema.json": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get the manifest JSON schema
+		 * @description The Homerun Manifest's JSON schema for this instance's version, public. The same schema is published as manifest.schema.json at the root of Homerun's repository.
+		 */
+		get: operations["get_manifest.schema.json"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/manifests/validate": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Validate a manifest
+		 * @description Checks a Homerun Manifest against the schema without applying it. Send JSON, or YAML with a YAML content type.
+		 */
+		post: operations["post_manifests_validate"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/notification-channels": {
 		parameters: {
 			query?: never;
@@ -614,6 +872,55 @@ export interface paths {
 		options?: never;
 		head?: never;
 		patch?: never;
+		trace?: never;
+	};
+	"/oauth-providers": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List OAuth sign-in providers
+		 * @description The OAuth/OIDC providers people can sign in with (Authentication → Providers), without their secrets.
+		 */
+		get: operations["get_oauth_providers"];
+		put?: never;
+		/**
+		 * Create an OAuth sign-in provider
+		 * @description Adds a provider once its discovery document answers, and applies it right away.
+		 */
+		post: operations["post_oauth_providers"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/oauth-providers/{providerName}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get an OAuth sign-in provider */
+		get: operations["get_oauth_providers__providerName_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete an OAuth sign-in provider
+		 * @description Removes the provider. Login walls listing "oauth:<name>" stop offering it.
+		 */
+		delete: operations["delete_oauth_providers__providerName_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update an OAuth sign-in provider
+		 * @description Changes the fields sent and keeps the rest, checking the discovery document again. A missing clientSecret keeps the stored one.
+		 */
+		patch: operations["patch_oauth_providers__providerName_"];
 		trace?: never;
 	};
 	"/object-stores": {
@@ -775,6 +1082,225 @@ export interface paths {
 		 * @description Changes the fields sent, keeping the rest, and republishes. Send {"enabled": false} to turn one off.
 		 */
 		patch: operations["patch_redirects__redirectId_"];
+		trace?: never;
+	};
+	"/registry/settings": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get the registry settings */
+		get: operations["get_registry_settings"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update the registry settings
+		 * @description Changes the fields sent and keeps the rest. Each change is a queued job recreating the registry container, and the request waits for it: auth goes on before the registry is published, off after it's unpublished.
+		 */
+		patch: operations["patch_registry_settings"];
+		trace?: never;
+	};
+	"/registry/tokens": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List registry tokens */
+		get: operations["get_registry_tokens"];
+		put?: never;
+		/**
+		 * Create a registry token
+		 * @description Creates a push and pull token for the built-in registry. Its secret is only ever returned here.
+		 */
+		post: operations["post_registry_tokens"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/registry/tokens/{tokenId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a registry token */
+		get: operations["get_registry_tokens__tokenId_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Revoke a registry token
+		 * @description Revokes the token: the registry stops accepting it.
+		 */
+		delete: operations["delete_registry_tokens__tokenId_"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/remote-hosts": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List remote hosts
+		 * @description Paginated: the body is the page, x-total-count, x-page and x-per-page carry the rest.
+		 */
+		get: operations["get_remote_hosts"];
+		put?: never;
+		/**
+		 * Create a remote host
+		 * @description A build server: a Docker daemon (tcp:// or ssh://) or a Homerun Agent, whose token is checked against the agent before saving.
+		 */
+		post: operations["post_remote_hosts"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/remote-hosts/{hostId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a remote host */
+		get: operations["get_remote_hosts__hostId_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete a remote host
+		 * @description Deletes the host's record; services building on it fall back to this server.
+		 */
+		delete: operations["delete_remote_hosts__hostId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a remote host
+		 * @description Changes the fields sent and keeps the rest. A blank or missing token or TLS field keeps the stored one; an agent is checked again when its URL or token changes.
+		 */
+		patch: operations["patch_remote_hosts__hostId_"];
+		trace?: never;
+	};
+	"/service-accounts": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List service accounts
+		 * @description Every service account: a non-human user with no sign-in method, whose API keys get through the login walls that list it, plus the areas it was granted.
+		 */
+		get: operations["get_service_accounts"];
+		put?: never;
+		/**
+		 * Create a service account
+		 * @description Creates an enabled service account. permissions default to none and are cut down to what the caller holds.
+		 */
+		post: operations["post_service_accounts"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/service-accounts/{accountId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a service account */
+		get: operations["get_service_accounts__accountId_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete a service account
+		 * @description Deletes the account and its keys. Anything it created is handed over to the caller; its audit log entries stay.
+		 */
+		delete: operations["delete_service_accounts__accountId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a service account
+		 * @description Changes the fields sent, keeping the rest. Send {"disabled": true} to refuse its keys without deleting it.
+		 */
+		patch: operations["patch_service_accounts__accountId_"];
+		trace?: never;
+	};
+	"/service-accounts/{accountId}/activity": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List a service account's activity
+		 * @description The latest 200 uses of the account's keys, newest first: login-wall handshakes and API requests, refused ones included.
+		 */
+		get: operations["get_service_accounts__accountId__activity"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/service-accounts/{accountId}/keys": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List a service account's API keys */
+		get: operations["get_service_accounts__accountId__keys"];
+		put?: never;
+		/**
+		 * Create a service account API key
+		 * @description Mints an API key for the account. The key does whatever the account may do; the secret is in this response only.
+		 */
+		post: operations["post_service_accounts__accountId__keys"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/service-accounts/{accountId}/keys/{keyId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Revoke a service account API key */
+		delete: operations["delete_service_accounts__accountId__keys__keyId_"];
+		options?: never;
+		head?: never;
+		patch?: never;
 		trace?: never;
 	};
 	"/service-dependencies": {
@@ -1076,6 +1602,26 @@ export interface paths {
 		 */
 		get: operations["get_services__serviceId__logs"];
 		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/services/{serviceId}/manifest": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		/**
+		 * Apply a manifest to a service
+		 * @description Applies a Homerun Manifest to the service, through the same checks as the dashboard. Send JSON, or YAML with a YAML content type. Keys left out keep their value; envVars are merged into the environment. Host access (privileged, devices, capabilities, env files), labels, networking mode, published ports and registry credentials can't be set this way. Add ?deploy=true to queue a deploy afterwards. A git service re-applies the manifest in its repository on every deploy, which wins over this one for the keys it sets.
+		 */
+		put: operations["put_services__serviceId__manifest"];
 		post?: never;
 		delete?: never;
 		options?: never;
@@ -1491,6 +2037,55 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/users": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List users
+		 * @description Every human account, newest first; service accounts are under /service-accounts. Paginated: the body is the page, x-total-count, x-page and x-per-page carry the rest.
+		 */
+		get: operations["get_users"];
+		put?: never;
+		/**
+		 * Create a user
+		 * @description Creates an account with no password, like Users → Add user: its owner picks one at their first sign-in, after an emailed code when SMTP is configured. Without SMTP anyone who knows the address can claim it first.
+		 */
+		post: operations["post_users"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/users/{userId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a user */
+		get: operations["get_users__userId_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete a user
+		 * @description Hands what the user created over to the caller, then deletes the account. Refuses the caller's own account and the last admin.
+		 */
+		delete: operations["delete_users__userId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a user
+		 * @description Changes the fields sent and keeps the rest. Refuses demoting the last admin, an email another account holds, and permissions without the custom role; switching to custom without permissions starts from the previous role's.
+		 */
+		patch: operations["patch_users__userId_"];
+		trace?: never;
+	};
 	"/volume-mounts": {
 		parameters: {
 			query?: never;
@@ -1603,6 +2198,98 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/workstation-presets": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List workstation presets of the caller
+		 * @description Every workstation preset, in one response.
+		 */
+		get: operations["get_workstation_presets"];
+		put?: never;
+		/** Create a workstation preset */
+		post: operations["post_workstation_presets"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/workstation-presets/{presetId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a workstation preset */
+		get: operations["get_workstation_presets__presetId_"];
+		put?: never;
+		post?: never;
+		/** Delete a workstation preset */
+		delete: operations["delete_workstation_presets__presetId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a workstation preset
+		 * @description Changes the fields sent and keeps the rest.
+		 */
+		patch: operations["patch_workstation_presets__presetId_"];
+		trace?: never;
+	};
+	"/workstations": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List workstations of the caller
+		 * @description Paginated: the body is the page, x-total-count, x-page and x-per-page carry the rest.
+		 */
+		get: operations["get_workstations"];
+		put?: never;
+		/**
+		 * Create a workstation
+		 * @description Creates one of the caller's workstations and starts it, unless desiredState is stopped. A hostname something else already routes answers 409.
+		 */
+		post: operations["post_workstations"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/workstations/{workstationId}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get a workstation */
+		get: operations["get_workstations__workstationId_"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete a workstation
+		 * @description Removes the container and the record. ?volume=true deletes the home volume too.
+		 */
+		delete: operations["delete_workstations__workstationId_"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update a workstation
+		 * @description Changes the fields sent and keeps the rest; settings apply on the next start. desiredState starts or stops it.
+		 */
+		patch: operations["patch_workstations__workstationId_"];
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1668,6 +2355,147 @@ export interface operations {
 					"application/json": {
 						/** @example You don't have permission to change Services. */
 						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_authentication_settings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The authentication settings */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						emailOtp: boolean;
+						magicLink: boolean;
+						preferredSignInMethods: string[];
+						requirePasskey: boolean;
+						requireTwoFactor: boolean;
+						/** @description Whether SMTP is set up, which both emailed methods need */
+						smtpConfigured: boolean;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_authentication_settings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description Sign in with a code sent by email. Needs SMTP. */
+					emailOtp?: boolean;
+					/** @description Sign in with a link sent by email. Needs SMTP. */
+					magicLink?: boolean;
+					/** @description The sign-in methods the sign-in page features, in order: password, passkey or oauth:<provider>. */
+					preferredSignInMethods?: string[];
+					requirePasskey?: boolean;
+					requireTwoFactor?: boolean;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						emailOtp: boolean;
+						magicLink: boolean;
+						preferredSignInMethods: string[];
+						requirePasskey: boolean;
+						requireTwoFactor: boolean;
+						/** @description Whether SMTP is set up, which both emailed methods need */
+						smtpConfigured: boolean;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
 					};
 				};
 			};
@@ -3636,6 +4464,755 @@ export interface operations {
 			};
 		};
 	};
+	get_domains: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The domains */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoRecords: boolean;
+						connectionId: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						name: string;
+						target: string | null;
+						userId: string;
+						zoneId: string | null;
+						zoneName: string | null;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_domains: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/**
+					 * @description Create and remove the records of services' hostnames under it automatically.
+					 * @default true
+					 */
+					autoRecords: boolean;
+					/** @description The DNS connection the domain's zone lives in. */
+					connectionId?: string | null;
+					name: string;
+					/** @description What its services' records point at: an IP or a hostname. Unset points them at the base domain. */
+					target?: string | null;
+					/** @description The provider zone the domain lives in. Required with connectionId. */
+					zoneId?: string | null;
+					/** @description The zone's name, looked up from the connection when left out. */
+					zoneName?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoRecords: boolean;
+						connectionId: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						name: string;
+						target: string | null;
+						userId: string;
+						zoneId: string | null;
+						zoneName: string | null;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_domains__domainId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The domain */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoRecords: boolean;
+						connectionId: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						name: string;
+						target: string | null;
+						userId: string;
+						zoneId: string | null;
+						zoneName: string | null;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_domains__domainId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_domains__domainId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					autoRecords?: boolean;
+					/** @description The DNS connection the domain's zone lives in. */
+					connectionId?: string | null;
+					/** @description What its services' records point at: an IP or a hostname. Unset points them at the base domain. */
+					target?: string | null;
+					/** @description The provider zone the domain lives in. Required with connectionId. */
+					zoneId?: string | null;
+					/** @description The zone's name, looked up from the connection when left out. */
+					zoneName?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoRecords: boolean;
+						connectionId: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						name: string;
+						target: string | null;
+						userId: string;
+						zoneId: string | null;
+						zoneName: string | null;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_domains__domainId__records: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The DNS records of a domain */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						content: string;
+						domainId: string;
+						/** @description <domainId>/<recordId> */
+						id: string;
+						/** @description Whether Homerun created it for a service's hostname, and keeps it in step */
+						managed: boolean;
+						/** @description The full name */
+						name: string;
+						priority: number | null;
+						/** @description The provider's id. Providers that derive it from the value (Hetzner, Google, Azure, GoDaddy and the like) change it when the record changes */
+						recordId: string;
+						ttl: number | null;
+						type: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_domains__domainId__records: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The value: an address, a hostname or text. */
+					content: string;
+					/** @description @ for the domain itself, a label under it, or a full name. Answered as the full name. */
+					name: string;
+					/** @description MX only, 10 when left out. */
+					priority?: number | null;
+					/** @description Seconds, automatic when left out. */
+					ttl?: number | null;
+					/** @enum {string} */
+					type: "A" | "AAAA" | "CNAME" | "TXT" | "MX" | "CAA";
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						content: string;
+						domainId: string;
+						/** @description <domainId>/<recordId> */
+						id: string;
+						/** @description Whether Homerun created it for a service's hostname, and keeps it in step */
+						managed: boolean;
+						/** @description The full name */
+						name: string;
+						priority: number | null;
+						/** @description The provider's id. Providers that derive it from the value (Hetzner, Google, Azure, GoDaddy and the like) change it when the record changes */
+						recordId: string;
+						ttl: number | null;
+						type: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_domains__domainId__records__recordId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+				/** @description The provider's record id */
+				recordId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The DNS record */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						content: string;
+						domainId: string;
+						/** @description <domainId>/<recordId> */
+						id: string;
+						/** @description Whether Homerun created it for a service's hostname, and keeps it in step */
+						managed: boolean;
+						/** @description The full name */
+						name: string;
+						priority: number | null;
+						/** @description The provider's id. Providers that derive it from the value (Hetzner, Google, Azure, GoDaddy and the like) change it when the record changes */
+						recordId: string;
+						ttl: number | null;
+						type: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_domains__domainId__records__recordId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+				/** @description The provider's record id */
+				recordId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_domains__domainId__records__recordId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Domain id */
+				domainId: string;
+				/** @description The provider's record id */
+				recordId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The value: an address, a hostname or text. */
+					content?: string;
+					/** @description @ for the domain itself, a label under it, or a full name. Answered as the full name. */
+					name?: string;
+					/** @description MX only, 10 when left out. */
+					priority?: number | null;
+					/** @description Seconds, automatic when left out. */
+					ttl?: number | null;
+					/** @enum {string} */
+					type?: "A" | "AAAA" | "CNAME" | "TXT" | "MX" | "CAA";
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						content: string;
+						domainId: string;
+						/** @description <domainId>/<recordId> */
+						id: string;
+						/** @description Whether Homerun created it for a service's hostname, and keeps it in step */
+						managed: boolean;
+						/** @description The full name */
+						name: string;
+						priority: number | null;
+						/** @description The provider's id. Providers that derive it from the value (Hetzner, Google, Azure, GoDaddy and the like) change it when the record changes */
+						recordId: string;
+						ttl: number | null;
+						type: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
 	get_git_providers: {
 		parameters: {
 			query?: never;
@@ -4727,6 +6304,814 @@ export interface operations {
 			};
 		};
 	};
+	get_instance_error_pages: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The error pages */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						accentColor: string | null;
+						brandName: string;
+						logoUrl: string | null;
+						/** @description The titles and messages set; one left out shows the default */
+						pageTexts: {
+							[key: string]: string;
+						};
+						showPoweredBy: boolean;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_instance_error_pages: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description Like #8b2942. */
+					accentColor?: string | null;
+					brandName?: string;
+					logoUrl?: string | null;
+					/** @description Each page's title and message (notReadyTitle, notReadyMessage, unavailable..., notFound..., blocked...). One left out or blank shows the default. */
+					pageTexts?: {
+						[key: string]: string;
+					};
+					showPoweredBy?: boolean;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						accentColor: string | null;
+						brandName: string;
+						logoUrl: string | null;
+						/** @description The titles and messages set; one left out shows the default */
+						pageTexts: {
+							[key: string]: string;
+						};
+						showPoweredBy: boolean;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_instance_ip_bans: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The IP ban settings */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						crowdsecMachineId: string | null;
+						crowdsecPasswordSet: boolean;
+						crowdsecUrl: string | null;
+						disrespectMode: boolean;
+						durationHours: number;
+						enabled: boolean;
+						meanMode: boolean;
+						threshold: number;
+						windowMinutes: number;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_instance_ip_bans: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					crowdsecMachineId?: string | null;
+					/** @description The CrowdSec machine password. Left out, the stored one stays. Write-only. */
+					crowdsecPassword?: string;
+					/** @description The CrowdSec LAPI bans are pushed to. Null turns the push off. */
+					crowdsecUrl?: string | null;
+					disrespectMode?: boolean;
+					/** @description How long a ban lasts, 0 (forever) to 8760. */
+					durationHours?: number;
+					enabled?: boolean;
+					meanMode?: boolean;
+					/** @description Blocked requests before a ban, 1 to 1000. */
+					threshold?: number;
+					/** @description The window the blocked requests are counted over. */
+					windowMinutes?: number;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						crowdsecMachineId: string | null;
+						crowdsecPasswordSet: boolean;
+						crowdsecUrl: string | null;
+						disrespectMode: boolean;
+						durationHours: number;
+						enabled: boolean;
+						meanMode: boolean;
+						threshold: number;
+						windowMinutes: number;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_instance_settings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The instance settings */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						authCheckUrl: string | null;
+						authCrossSubdomainCookies: boolean | null;
+						baseDomain: string | null;
+						cpuHardThreshold: number;
+						cpuSoftThreshold: number;
+						dashboardUrl: string | null;
+						/** @enum {string} */
+						defaultUiMode: "simple" | "advanced";
+						diskHardThreshold: number;
+						diskSoftThreshold: number;
+						dockerNetworkName: string | null;
+						dockerSocketPath: string | null;
+						gpuHardThreshold: number;
+						gpuSoftThreshold: number;
+						imageScanBlockFixableOnly: boolean;
+						imageScanBlockSeverity:
+							| ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW")
+							| null;
+						imageScanEnabled: boolean;
+						imageScanRequired: boolean;
+						memoryHardThreshold: number;
+						memorySoftThreshold: number;
+						/** @enum {string} */
+						orchestrationMode: "standalone" | "swarm";
+						resourceAlertReminderMinutes: number;
+						resourceAlertSustainSeconds: number;
+						retainedImagesPerService: number;
+						traefikAcmeEmail: string | null;
+						traefikCertResolver: string | null;
+						traefikDynamicConfigDir: string | null;
+						traefikEntrypoint: string | null;
+						traefikHttpCache: boolean;
+						/** @enum {string} */
+						updateChannel: "stable" | "canary" | "nightly";
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_instance_settings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The URL the login wall checks sessions against. Null uses the default. */
+					authCheckUrl?: string | null;
+					/** @description Share the session cookie with every subdomain of the base domain. */
+					authCrossSubdomainCookies?: boolean | null;
+					/** @description Services get <slug>.<baseDomain>. A bare hostname. */
+					baseDomain?: string | null;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					cpuHardThreshold?: number;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					cpuSoftThreshold?: number;
+					/** @description The dashboard's URL. Null derives it from the base domain, over https unless it was http before. */
+					dashboardUrl?: string | null;
+					/** @enum {string} */
+					defaultUiMode?: "simple" | "advanced";
+					/** @description A usage percentage that alerts, 1 to 100. */
+					diskHardThreshold?: number;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					diskSoftThreshold?: number;
+					dockerNetworkName?: string | null;
+					dockerSocketPath?: string | null;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					gpuHardThreshold?: number;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					gpuSoftThreshold?: number;
+					imageScanBlockFixableOnly?: boolean;
+					/** @description Refuse to deploy an image with a finding this severe or worse. Null blocks nothing. */
+					imageScanBlockSeverity?:
+						| ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW")
+						| null;
+					imageScanEnabled?: boolean;
+					imageScanRequired?: boolean;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					memoryHardThreshold?: number;
+					/** @description A usage percentage that alerts, 1 to 100. */
+					memorySoftThreshold?: number;
+					/**
+					 * @description Changing it prepares the host (joins or leaves swarm mode) before saving.
+					 * @enum {string}
+					 */
+					orchestrationMode?: "standalone" | "swarm";
+					/** @description Minutes between reminders while a resource stays past a limit, 0 to 1440, 0 for none. */
+					resourceAlertReminderMinutes?: number;
+					/** @description Seconds a resource has to stay past a limit before it alerts, 0 to 3600. */
+					resourceAlertSustainSeconds?: number;
+					retainedImagesPerService?: number;
+					traefikAcmeEmail?: string | null;
+					traefikCertResolver?: string | null;
+					traefikDynamicConfigDir?: string | null;
+					traefikEntrypoint?: string | null;
+					traefikHttpCache?: boolean;
+					/** @enum {string} */
+					updateChannel?: "stable" | "canary" | "nightly";
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						authCheckUrl: string | null;
+						authCrossSubdomainCookies: boolean | null;
+						baseDomain: string | null;
+						cpuHardThreshold: number;
+						cpuSoftThreshold: number;
+						dashboardUrl: string | null;
+						/** @enum {string} */
+						defaultUiMode: "simple" | "advanced";
+						diskHardThreshold: number;
+						diskSoftThreshold: number;
+						dockerNetworkName: string | null;
+						dockerSocketPath: string | null;
+						gpuHardThreshold: number;
+						gpuSoftThreshold: number;
+						imageScanBlockFixableOnly: boolean;
+						imageScanBlockSeverity:
+							| ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW")
+							| null;
+						imageScanEnabled: boolean;
+						imageScanRequired: boolean;
+						memoryHardThreshold: number;
+						memorySoftThreshold: number;
+						/** @enum {string} */
+						orchestrationMode: "standalone" | "swarm";
+						resourceAlertReminderMinutes: number;
+						resourceAlertSustainSeconds: number;
+						retainedImagesPerService: number;
+						traefikAcmeEmail: string | null;
+						traefikCertResolver: string | null;
+						traefikDynamicConfigDir: string | null;
+						traefikEntrypoint: string | null;
+						traefikHttpCache: boolean;
+						/** @enum {string} */
+						updateChannel: "stable" | "canary" | "nightly";
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_instance_smtp: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The SMTP settings */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						enabled: boolean | null;
+						from: string | null;
+						host: string | null;
+						passwordSet: boolean;
+						port: number | null;
+						secure: boolean | null;
+						username: string | null;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_instance_smtp: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					enabled?: boolean | null;
+					/** @description The sender address. */
+					from?: string | null;
+					host?: string | null;
+					/** @description The SMTP password. Left out, the stored one stays. Write-only. */
+					password?: string;
+					port?: number | null;
+					/** @description Implicit TLS (port 465). */
+					secure?: boolean | null;
+					username?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						enabled: boolean | null;
+						from: string | null;
+						host: string | null;
+						passwordSet: boolean;
+						port: number | null;
+						secure: boolean | null;
+						username: string | null;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_instance_tls: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The instance certificate */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						expiresAt: string | null;
+						installed: boolean;
+						issuer: string | null;
+						names: string[];
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_instance_tls: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The certificate PEM, chain included. Null, or a null privateKey, removes the installed certificate. Write-only. */
+					certificate?: string | null;
+					/** @description The private key PEM. Write-only. */
+					privateKey?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						expiresAt: string | null;
+						installed: boolean;
+						issuer: string | null;
+						names: string[];
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
 	get_instance_update: {
 		parameters: {
 			query?: never;
@@ -5202,6 +7587,241 @@ export interface operations {
 					"application/json": {
 						error: string;
 						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	"get_manifest.schema.json": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The JSON schema */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_manifests_validate: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The JSON schema this file follows, for editor support */
+					$schema?: string;
+					/** @description Addresses let through the login wall, exact or *@example.com for a whole domain. With an emailed sign-in method, leaving this and authAllowedUserIds empty lets any Homerun account through. */
+					authAllowedEmails?: string[];
+					/** @description Group or role claims from the OAuth provider's id token, or Homerun roles (admin, developer, viewer, custom, app-user), let through the login wall. */
+					authAllowedGroups?: string[];
+					/** @description Homerun account ids let through the login wall, service accounts included (a service account only gets through when listed here). */
+					authAllowedUserIds?: string[];
+					/** @description Path patterns authPathsMode applies to. A pattern matches whole path segments anywhere in the path, a leading / anchors it at the root, * matches anything and ? one character, case-insensitively. */
+					authPaths?: string[];
+					/**
+					 * @description Which paths the login wall covers: all, only the authPaths, or all except them. Applied on the next deploy, which saving queues for a running service.
+					 * @enum {string}
+					 */
+					authPathsMode?: "all" | "only" | "except";
+					/** @description Sign-in methods the login wall accepts. One or more of "password", "email-otp" (emailed code), "magic-link" (emailed link) and "oauth:<provider name>"; an emailed method must be switched on under Authentication, with SMTP configured. */
+					authProviders?: string[];
+					/** @description Put the service behind Homerun's login wall. */
+					authRequired?: boolean;
+					/** @description Roll back to the previous revision when a new one turns unhealthy. */
+					autoRollback?: boolean;
+					/** @description Path patterns Traefik answers with a 403 instead of passing to the app, same syntax as authPaths. Applied on the next deploy, which saving queues for a running service. */
+					blockedPaths?: string[];
+					/** @description The service's category in the services list. */
+					category?: string | null;
+					/** @description Argv list, null keeps the image's own */
+					command?: string[] | null;
+					/** @description The port the app listens on inside the container, where Traefik sends its traffic. */
+					containerPort?: number;
+					/** @description CPU limit in cores, e.g. "0.5"; null for none. */
+					cpuLimit?: string | null;
+					/** @description Redeploy on cronSchedule. */
+					cronEnabled?: boolean;
+					/** @description 5-field cron expression the service is redeployed on. */
+					cronSchedule?: string | null;
+					/** @description Also route the service at <slug>.<base domain>. */
+					defaultDomainEnabled?: boolean;
+					/** @description Publish the service's hostnames through the instance's DNS automation. */
+					dnsResolvable?: boolean;
+					/** @description Container port per domain, when it isn't containerPort. */
+					domainPorts?: {
+						[key: string]: number;
+					};
+					/** @description Hostnames routed to the service. */
+					domains?: string[];
+					/** @description Argv list, null keeps the image's own */
+					entrypoint?: string[] | null;
+					/** @description Environment variables, merged into the service's environment: a variable set elsewhere and missing here is kept. Keep secrets out of the repository; set them on the dashboard. */
+					envVars?: {
+						[key: string]: string;
+					};
+					/** @description The Docker Bake file for the bake method, relative to the build context. */
+					gitBakeFile?: string | null;
+					/** @description The build context directory, relative to the repository root. The manifest is looked for there first, then at the root. */
+					gitBuildContext?: string | null;
+					/**
+					 * @description How the repository is built: a Dockerfile, a Docker Bake target, Nixpacks, Railpack, or Heroku or Paketo buildpacks.
+					 * @enum {string}
+					 */
+					gitBuildMethod?:
+						| "dockerfile"
+						| "bake"
+						| "nixpacks"
+						| "railpack"
+						| "heroku"
+						| "paketo";
+					/** @description The Bake target, or the Dockerfile stage to build. */
+					gitBuildTarget?: string | null;
+					/** @description The Dockerfile, relative to the build context. */
+					gitDockerfilePath?: string | null;
+					/** @description Repo path globs whose changes never deploy on push, same syntax as gitWatchPaths: a push deploys when a changed file matches the watch paths and none of these. */
+					gitIgnorePaths?: string[];
+					/** @description Repo path globs (apps/api/**, *.md) a push has to change a file under to deploy the service or one of its environments. Empty lets every file through. A pattern without a slash matches at any depth, a folder path everything under it. Only applies when the push payload lists its files (not on Bitbucket, not when polling). */
+					gitWatchPaths?: string[];
+					/** @description A shell command run inside the container to check it's healthy; null for the image's own. */
+					healthcheckCommand?: string | null;
+					/** @description Turn the health check off, the image's own included. */
+					healthcheckDisabled?: boolean;
+					/** @description Seconds between health checks. */
+					healthcheckIntervalSeconds?: number | null;
+					/** @description Failed checks in a row before the container counts as unhealthy. */
+					healthcheckRetries?: number | null;
+					/** @description Seconds after start during which failures don't count. */
+					healthcheckStartPeriodSeconds?: number | null;
+					/** @description Seconds a check may run. */
+					healthcheckTimeoutSeconds?: number | null;
+					/** @description Cache the service's responses at the edge for this many seconds; null to turn caching off. */
+					httpCacheTtl?: number | null;
+					/** @description The service's icon. */
+					icon?: string | null;
+					/** @description The image to run, for a service that isn't built from its repository. */
+					image?: string;
+					/** @description Scan the image for vulnerabilities on deploy. */
+					imageScanEnabled?: boolean;
+					/** @description Memory limit in MiB; null for none. */
+					memoryLimitMb?: number | null;
+					/** @description The service's display name. */
+					name?: string;
+					/**
+					 * @description Whether containerPort speaks TCP, UDP or both.
+					 * @enum {string}
+					 */
+					portProtocol?: "tcp" | "udp" | "both";
+					/** @description authAllowedEmails for pull request previews. */
+					previewAuthAllowedEmails?: string[];
+					/** @description authAllowedGroups for pull request previews. */
+					previewAuthAllowedGroups?: string[];
+					/** @description authAllowedUserIds for pull request previews, e.g. a CI service account. */
+					previewAuthAllowedUserIds?: string[];
+					/** @description Sign-in methods the previews' login wall accepts. One or more of "password", "email-otp" (emailed code), "magic-link" (emailed link) and "oauth:<provider name>"; an emailed method must be switched on under Authentication, with SMTP configured. */
+					previewAuthProviders?: string[];
+					/** @description Put every pull request preview behind the login wall. */
+					previewAuthRequired?: boolean;
+					/** @description Glob patterns whose matching branches never get a preview, even when included. */
+					previewBranchExclude?: string[];
+					/** @description Glob patterns (* any run, ? one character) a pull request's head branch must match one of to get a preview. Empty lets every branch through. */
+					previewBranchInclude?: string[];
+					/** @description Whether each new preview gets its own copy of this service's volumes. */
+					previewCopyVolumes?: boolean;
+					/** @description Route previews at their default hostname. */
+					previewDefaultDomain?: boolean;
+					/** @description Hostname template for previews, e.g. pr-{pr}.example.com. */
+					previewDomainTemplate?: string | null;
+					/** @description Environment variables set on every preview over what it inherited; {pr}, {branch} and {slug} are filled in. */
+					previewEnvOverrides?: {
+						[key: string]: string;
+					};
+					/** @description Whether pull request previews start from this service's environment variables. */
+					previewInheritEnv?: boolean;
+					/** @description Deploy a preview for every pull request. */
+					previewsEnabled?: boolean;
+					/** @description The hostname shown and linked as the service's address. */
+					primaryDomain?: string | null;
+					/**
+					 * @description When to pull image: always, only when missing, or never.
+					 * @enum {string}
+					 */
+					pullPolicy?: "always" | "missing" | "never";
+					/** @description How many replicas to run under swarm; 0 scales it to zero. */
+					replicas?: number;
+					/**
+					 * @description Docker's restart policy for the container.
+					 * @enum {string}
+					 */
+					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
+					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
+					runAsUser?: string | null;
+					/** @description The image tag to run. */
+					tag?: string;
+					/** @description Collect OpenTelemetry traces from the service. */
+					tracesEnabled?: boolean;
+					/** @description Probe the service's address for the uptime history. */
+					uptimeEnabled?: boolean;
+				};
+			};
+		};
+		responses: {
+			/** @description The verdict */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						errors: string[];
+						valid: boolean;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
 					};
 				};
 			};
@@ -5743,6 +8363,405 @@ export interface operations {
 					"application/json": {
 						/** @example You don't have permission to change Services. */
 						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_oauth_providers: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The providers */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						clientId: string;
+						clientSecretSet: boolean;
+						discoveryUrl: string;
+						enabled: boolean;
+						/** @description The provider's name */
+						id: string;
+						label: string;
+						name: string;
+						pkce: boolean;
+						scopes: string[];
+						signOutOfProvider: boolean;
+						/** @enum {string} */
+						tokenAuthMethod: "auto" | "basic" | "post";
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_oauth_providers: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					clientId: string;
+					/** @description The OAuth client secret. Write-only. */
+					clientSecret?: string;
+					/** @description The provider's OpenID discovery document, fetched on save to check it. */
+					discoveryUrl: string;
+					/** @default true */
+					enabled: boolean;
+					/** @description Shown on the "Continue with" button. Defaults to the name. */
+					label?: string;
+					/** @description Lowercase letters, digits and hyphens. Part of the redirect URI (<dashboard>/api/v1/auth/callback/<name>) and of the login wall method "oauth:<name>", so it can't change. */
+					name: string;
+					/** @default true */
+					pkce: boolean;
+					/**
+					 * @default [
+					 *       "openid",
+					 *       "profile",
+					 *       "email"
+					 *     ]
+					 */
+					scopes: string[];
+					/**
+					 * @description Signing out of Homerun also signs out of the provider (RP-initiated logout).
+					 * @default false
+					 */
+					signOutOfProvider: boolean;
+					/**
+					 * @description How the client secret reaches the token endpoint: auto (HTTP Basic when the provider advertises it, else the request body), basic or post.
+					 * @default auto
+					 * @enum {string}
+					 */
+					tokenAuthMethod: "auto" | "basic" | "post";
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						clientId: string;
+						clientSecretSet: boolean;
+						discoveryUrl: string;
+						enabled: boolean;
+						/** @description The provider's name */
+						id: string;
+						label: string;
+						name: string;
+						pkce: boolean;
+						scopes: string[];
+						signOutOfProvider: boolean;
+						/** @enum {string} */
+						tokenAuthMethod: "auto" | "basic" | "post";
+					};
+				};
+			};
+			/** @description Invalid body, or a change the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_oauth_providers__providerName_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider name */
+				providerName: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The provider */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						clientId: string;
+						clientSecretSet: boolean;
+						discoveryUrl: string;
+						enabled: boolean;
+						/** @description The provider's name */
+						id: string;
+						label: string;
+						name: string;
+						pkce: boolean;
+						scopes: string[];
+						signOutOfProvider: boolean;
+						/** @enum {string} */
+						tokenAuthMethod: "auto" | "basic" | "post";
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_oauth_providers__providerName_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider name */
+				providerName: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_oauth_providers__providerName_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider name */
+				providerName: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					clientId?: string;
+					/** @description A new client secret. Omitted keeps the stored one. */
+					clientSecret?: string;
+					discoveryUrl?: string;
+					enabled?: boolean;
+					label?: string;
+					pkce?: boolean;
+					scopes?: string[];
+					signOutOfProvider?: boolean;
+					/**
+					 * @description How the client secret reaches the token endpoint: auto (HTTP Basic when the provider advertises it, else the request body), basic or post.
+					 * @enum {string}
+					 */
+					tokenAuthMethod?: "auto" | "basic" | "post";
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						clientId: string;
+						clientSecretSet: boolean;
+						discoveryUrl: string;
+						enabled: boolean;
+						/** @description The provider's name */
+						id: string;
+						label: string;
+						name: string;
+						pkce: boolean;
+						scopes: string[];
+						signOutOfProvider: boolean;
+						/** @enum {string} */
+						tokenAuthMethod: "auto" | "basic" | "post";
+					};
+				};
+			};
+			/** @description Invalid body, or a change the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
 					};
 				};
 			};
@@ -6872,6 +9891,1423 @@ export interface operations {
 			};
 		};
 	};
+	get_registry_settings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The registry settings */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						authEnabled: boolean;
+						publicHost: string | null;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	patch_registry_settings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description Require a token to push or pull. */
+					authEnabled?: boolean;
+					/** @description Publish the registry at this hostname through Traefik. Needs authEnabled. Null unpublishes it. */
+					publicHost?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						authEnabled: boolean;
+						publicHost: string | null;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Saved up to the step that failed, with the reason */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_registry_tokens: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The tokens, newest first */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						lastUsedAt: string | null;
+						username: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_registry_tokens: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description 3 to 32 lowercase letters, digits, dashes or underscores. */
+					username: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						lastUsedAt: string | null;
+						/** @description The docker login password. It's only ever returned here, store it now. */
+						secret: string;
+						username: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_registry_tokens__tokenId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Registry token id */
+				tokenId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The token */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						id: string;
+						lastUsedAt: string | null;
+						username: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_registry_tokens__tokenId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Registry token id */
+				tokenId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Revoked */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_remote_hosts: {
+		parameters: {
+			query?: {
+				/** @description 1-based page number (default 1) */
+				page?: string;
+				/** @description Items per page (default 100, max 200) */
+				perPage?: string;
+				/** @description Case-insensitive search term */
+				q?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The remote hosts */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						agentTokenSet: boolean;
+						agentUrl: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						dockerHost: string | null;
+						id: string;
+						/** @enum {string} */
+						kind: "docker" | "agent";
+						name: string;
+						tlsCaSet: boolean;
+						tlsCertSet: boolean;
+						tlsKeySet: boolean;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_remote_hosts: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The agent's bearer token (kind agent), checked against the agent before saving. Write-only. */
+					agentToken?: string;
+					/** @description The agent's base URL (kind agent), e.g. http://10.0.0.5:7420. */
+					agentUrl?: string;
+					/** @description The Docker daemon (kind docker): tcp://host:2376 or ssh://user@host. */
+					dockerHost?: string;
+					/**
+					 * @default docker
+					 * @enum {string}
+					 */
+					kind: "docker" | "agent";
+					name: string;
+					/** @description TLS CA certificate (PEM) for a tcp:// daemon. Write-only. */
+					tlsCa?: string;
+					/** @description TLS client certificate (PEM) for a tcp:// daemon. Write-only. */
+					tlsCert?: string;
+					/** @description TLS client key (PEM) for a tcp:// daemon. Write-only. */
+					tlsKey?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						agentTokenSet: boolean;
+						agentUrl: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						dockerHost: string | null;
+						id: string;
+						/** @enum {string} */
+						kind: "docker" | "agent";
+						name: string;
+						tlsCaSet: boolean;
+						tlsCertSet: boolean;
+						tlsKeySet: boolean;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_remote_hosts__hostId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Remote host id */
+				hostId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The remote host */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						agentTokenSet: boolean;
+						agentUrl: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						dockerHost: string | null;
+						id: string;
+						/** @enum {string} */
+						kind: "docker" | "agent";
+						name: string;
+						tlsCaSet: boolean;
+						tlsCertSet: boolean;
+						tlsKeySet: boolean;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_remote_hosts__hostId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Remote host id */
+				hostId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_remote_hosts__hostId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Remote host id */
+				hostId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The agent's bearer token (kind agent), checked against the agent before saving. Write-only. */
+					agentToken?: string;
+					/** @description The agent's base URL (kind agent), e.g. http://10.0.0.5:7420. */
+					agentUrl?: string;
+					/** @description The Docker daemon (kind docker): tcp://host:2376 or ssh://user@host. */
+					dockerHost?: string;
+					name?: string;
+					/** @description TLS CA certificate (PEM) for a tcp:// daemon. Write-only. */
+					tlsCa?: string;
+					/** @description TLS client certificate (PEM) for a tcp:// daemon. Write-only. */
+					tlsCert?: string;
+					/** @description TLS client key (PEM) for a tcp:// daemon. Write-only. */
+					tlsKey?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						agentTokenSet: boolean;
+						agentUrl: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						dockerHost: string | null;
+						id: string;
+						/** @enum {string} */
+						kind: "docker" | "agent";
+						name: string;
+						tlsCaSet: boolean;
+						tlsCertSet: boolean;
+						tlsKeySet: boolean;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_service_accounts: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The service accounts */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						disabled: boolean;
+						/** @description The id to put in a login wall's allowed users (authAllowedUserIds, previewAuthAllowedUserIds) */
+						id: string;
+						name: string;
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_service_accounts: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					name: string;
+					/** @description Dashboard and API areas the account may use, each "read" or "write". None by default: the account's keys then only get through login walls that list it. */
+					permissions?: {
+						[key: string]: "read" | "write";
+					};
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						disabled: boolean;
+						/** @description The id to put in a login wall's allowed users (authAllowedUserIds, previewAuthAllowedUserIds) */
+						id: string;
+						name: string;
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					};
+				};
+			};
+			/** @description Invalid body */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_service_accounts__accountId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The service account */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						disabled: boolean;
+						/** @description The id to put in a login wall's allowed users (authAllowedUserIds, previewAuthAllowedUserIds) */
+						id: string;
+						name: string;
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_service_accounts__accountId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						success: boolean;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_service_accounts__accountId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description A disabled account's keys are refused, and the login-wall cookies it already holds stop working within five minutes */
+					disabled?: boolean;
+					name?: string;
+					/** @description Dashboard and API areas the account may use, each "read" or "write". None by default: the account's keys then only get through login walls that list it. */
+					permissions?: {
+						[key: string]: "read" | "write";
+					};
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						disabled: boolean;
+						/** @description The id to put in a login wall's allowed users (authAllowedUserIds, previewAuthAllowedUserIds) */
+						id: string;
+						name: string;
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					};
+				};
+			};
+			/** @description Invalid body */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_service_accounts__accountId__activity: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The account's audit log */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description "gate.handshake" for a login-wall sign-in, "api.request" for anything else */
+						action: string;
+						actorId: string | null;
+						actorName: string;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						detail: string;
+						id: string;
+						ipAddress: string | null;
+						status: number | null;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_service_accounts__accountId__keys: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The account's keys, newest first, without their secrets */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						expiresAt: string | null;
+						id: string;
+						lastRequest: string | null;
+						name: string | null;
+						prefix: string | null;
+						/** @description The first characters of the key, to tell keys apart */
+						start: string | null;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	post_service_accounts__accountId__keys: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: {
+			content: {
+				"application/json": {
+					/** @description Days until the key expires; null never expires. Default 90 */
+					expiresInDays?: number | null;
+					name?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						expiresAt: string | null;
+						id: string;
+						/** @description The secret. It's only ever returned here, store it now. */
+						key: string;
+						name: string | null;
+					};
+				};
+			};
+			/** @description Invalid body */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_service_accounts__accountId__keys__keyId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Service account id */
+				accountId: string;
+				/** @description API key id */
+				keyId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Revoked */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						success: boolean;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
 	get_service_dependencies: {
 		parameters: {
 			query?: never;
@@ -7729,7 +12165,7 @@ export interface operations {
 							 * @enum {string}
 							 */
 							authPathsMode?: "all" | "only" | "except";
-							/** @description Sign-in methods the login wall offers, e.g. email, passkey. */
+							/** @description Sign-in methods the login wall offers: "password", "email-otp", "magic-link" or "oauth:<provider name>", each enabled on the instance. An emailed method lets any account through unless authAllowedEmails or authAllowedUserIds narrow it. */
 							authProviders?: string[];
 							/** @default false */
 							authRequired: boolean;
@@ -7906,7 +12342,7 @@ export interface operations {
 							 * @enum {string}
 							 */
 							authPathsMode?: "all" | "only" | "except";
-							/** @description Sign-in methods the login wall offers, e.g. email, passkey. */
+							/** @description Sign-in methods the login wall offers: "password", "email-otp", "magic-link" or "oauth:<provider name>", each enabled on the instance. An emailed method lets any account through unless authAllowedEmails or authAllowedUserIds narrow it. */
 							authProviders?: string[];
 							authRequired?: boolean;
 							autoDeployOnPush?: boolean;
@@ -8613,7 +13049,7 @@ export interface operations {
 					 * @enum {string}
 					 */
 					authPathsMode?: "all" | "only" | "except";
-					/** @description Sign-in methods the login wall offers, e.g. email, passkey. */
+					/** @description Sign-in methods the login wall offers: "password", "email-otp", "magic-link" or "oauth:<provider name>", each enabled on the instance. An emailed method lets any account through unless authAllowedEmails or authAllowedUserIds narrow it. */
 					authProviders?: string[];
 					authRequired?: boolean;
 					autoDeployOnPush?: boolean;
@@ -10163,6 +14599,261 @@ export interface operations {
 				};
 			};
 			/** @description Not deployed yet, or an invalid tail */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	put_services__serviceId__manifest: {
+		parameters: {
+			query?: {
+				/** @description "true" to queue a deploy once applied */
+				deploy?: string;
+			};
+			header?: never;
+			path: {
+				/** @description Service id */
+				serviceId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description The JSON schema this file follows, for editor support */
+					$schema?: string;
+					/** @description Addresses let through the login wall, exact or *@example.com for a whole domain. With an emailed sign-in method, leaving this and authAllowedUserIds empty lets any Homerun account through. */
+					authAllowedEmails?: string[];
+					/** @description Group or role claims from the OAuth provider's id token, or Homerun roles (admin, developer, viewer, custom, app-user), let through the login wall. */
+					authAllowedGroups?: string[];
+					/** @description Homerun account ids let through the login wall, service accounts included (a service account only gets through when listed here). */
+					authAllowedUserIds?: string[];
+					/** @description Path patterns authPathsMode applies to. A pattern matches whole path segments anywhere in the path, a leading / anchors it at the root, * matches anything and ? one character, case-insensitively. */
+					authPaths?: string[];
+					/**
+					 * @description Which paths the login wall covers: all, only the authPaths, or all except them. Applied on the next deploy, which saving queues for a running service.
+					 * @enum {string}
+					 */
+					authPathsMode?: "all" | "only" | "except";
+					/** @description Sign-in methods the login wall accepts. One or more of "password", "email-otp" (emailed code), "magic-link" (emailed link) and "oauth:<provider name>"; an emailed method must be switched on under Authentication, with SMTP configured. */
+					authProviders?: string[];
+					/** @description Put the service behind Homerun's login wall. */
+					authRequired?: boolean;
+					/** @description Roll back to the previous revision when a new one turns unhealthy. */
+					autoRollback?: boolean;
+					/** @description Path patterns Traefik answers with a 403 instead of passing to the app, same syntax as authPaths. Applied on the next deploy, which saving queues for a running service. */
+					blockedPaths?: string[];
+					/** @description The service's category in the services list. */
+					category?: string | null;
+					/** @description Argv list, null keeps the image's own */
+					command?: string[] | null;
+					/** @description The port the app listens on inside the container, where Traefik sends its traffic. */
+					containerPort?: number;
+					/** @description CPU limit in cores, e.g. "0.5"; null for none. */
+					cpuLimit?: string | null;
+					/** @description Redeploy on cronSchedule. */
+					cronEnabled?: boolean;
+					/** @description 5-field cron expression the service is redeployed on. */
+					cronSchedule?: string | null;
+					/** @description Also route the service at <slug>.<base domain>. */
+					defaultDomainEnabled?: boolean;
+					/** @description Publish the service's hostnames through the instance's DNS automation. */
+					dnsResolvable?: boolean;
+					/** @description Container port per domain, when it isn't containerPort. */
+					domainPorts?: {
+						[key: string]: number;
+					};
+					/** @description Hostnames routed to the service. */
+					domains?: string[];
+					/** @description Argv list, null keeps the image's own */
+					entrypoint?: string[] | null;
+					/** @description Environment variables, merged into the service's environment: a variable set elsewhere and missing here is kept. Keep secrets out of the repository; set them on the dashboard. */
+					envVars?: {
+						[key: string]: string;
+					};
+					/** @description The Docker Bake file for the bake method, relative to the build context. */
+					gitBakeFile?: string | null;
+					/** @description The build context directory, relative to the repository root. The manifest is looked for there first, then at the root. */
+					gitBuildContext?: string | null;
+					/**
+					 * @description How the repository is built: a Dockerfile, a Docker Bake target, Nixpacks, Railpack, or Heroku or Paketo buildpacks.
+					 * @enum {string}
+					 */
+					gitBuildMethod?:
+						| "dockerfile"
+						| "bake"
+						| "nixpacks"
+						| "railpack"
+						| "heroku"
+						| "paketo";
+					/** @description The Bake target, or the Dockerfile stage to build. */
+					gitBuildTarget?: string | null;
+					/** @description The Dockerfile, relative to the build context. */
+					gitDockerfilePath?: string | null;
+					/** @description Repo path globs whose changes never deploy on push, same syntax as gitWatchPaths: a push deploys when a changed file matches the watch paths and none of these. */
+					gitIgnorePaths?: string[];
+					/** @description Repo path globs (apps/api/**, *.md) a push has to change a file under to deploy the service or one of its environments. Empty lets every file through. A pattern without a slash matches at any depth, a folder path everything under it. Only applies when the push payload lists its files (not on Bitbucket, not when polling). */
+					gitWatchPaths?: string[];
+					/** @description A shell command run inside the container to check it's healthy; null for the image's own. */
+					healthcheckCommand?: string | null;
+					/** @description Turn the health check off, the image's own included. */
+					healthcheckDisabled?: boolean;
+					/** @description Seconds between health checks. */
+					healthcheckIntervalSeconds?: number | null;
+					/** @description Failed checks in a row before the container counts as unhealthy. */
+					healthcheckRetries?: number | null;
+					/** @description Seconds after start during which failures don't count. */
+					healthcheckStartPeriodSeconds?: number | null;
+					/** @description Seconds a check may run. */
+					healthcheckTimeoutSeconds?: number | null;
+					/** @description Cache the service's responses at the edge for this many seconds; null to turn caching off. */
+					httpCacheTtl?: number | null;
+					/** @description The service's icon. */
+					icon?: string | null;
+					/** @description The image to run, for a service that isn't built from its repository. */
+					image?: string;
+					/** @description Scan the image for vulnerabilities on deploy. */
+					imageScanEnabled?: boolean;
+					/** @description Memory limit in MiB; null for none. */
+					memoryLimitMb?: number | null;
+					/** @description The service's display name. */
+					name?: string;
+					/**
+					 * @description Whether containerPort speaks TCP, UDP or both.
+					 * @enum {string}
+					 */
+					portProtocol?: "tcp" | "udp" | "both";
+					/** @description authAllowedEmails for pull request previews. */
+					previewAuthAllowedEmails?: string[];
+					/** @description authAllowedGroups for pull request previews. */
+					previewAuthAllowedGroups?: string[];
+					/** @description authAllowedUserIds for pull request previews, e.g. a CI service account. */
+					previewAuthAllowedUserIds?: string[];
+					/** @description Sign-in methods the previews' login wall accepts. One or more of "password", "email-otp" (emailed code), "magic-link" (emailed link) and "oauth:<provider name>"; an emailed method must be switched on under Authentication, with SMTP configured. */
+					previewAuthProviders?: string[];
+					/** @description Put every pull request preview behind the login wall. */
+					previewAuthRequired?: boolean;
+					/** @description Glob patterns whose matching branches never get a preview, even when included. */
+					previewBranchExclude?: string[];
+					/** @description Glob patterns (* any run, ? one character) a pull request's head branch must match one of to get a preview. Empty lets every branch through. */
+					previewBranchInclude?: string[];
+					/** @description Whether each new preview gets its own copy of this service's volumes. */
+					previewCopyVolumes?: boolean;
+					/** @description Route previews at their default hostname. */
+					previewDefaultDomain?: boolean;
+					/** @description Hostname template for previews, e.g. pr-{pr}.example.com. */
+					previewDomainTemplate?: string | null;
+					/** @description Environment variables set on every preview over what it inherited; {pr}, {branch} and {slug} are filled in. */
+					previewEnvOverrides?: {
+						[key: string]: string;
+					};
+					/** @description Whether pull request previews start from this service's environment variables. */
+					previewInheritEnv?: boolean;
+					/** @description Deploy a preview for every pull request. */
+					previewsEnabled?: boolean;
+					/** @description The hostname shown and linked as the service's address. */
+					primaryDomain?: string | null;
+					/**
+					 * @description When to pull image: always, only when missing, or never.
+					 * @enum {string}
+					 */
+					pullPolicy?: "always" | "missing" | "never";
+					/** @description How many replicas to run under swarm; 0 scales it to zero. */
+					replicas?: number;
+					/**
+					 * @description Docker's restart policy for the container.
+					 * @enum {string}
+					 */
+					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
+					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
+					runAsUser?: string | null;
+					/** @description The image tag to run. */
+					tag?: string;
+					/** @description Collect OpenTelemetry traces from the service. */
+					tracesEnabled?: boolean;
+					/** @description Probe the service's address for the uptime history. */
+					uptimeEnabled?: boolean;
+				};
+			};
+		};
+		responses: {
+			/** @description Applied */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description The keys applied */
+						applied: string[];
+						/** @description The deploy queued, with ?deploy=true */
+						deploymentId?: string;
+						/** @description Keys this service doesn't take: a preview or canary only takes build and runtime keys, a git service ignores image, tag and pullPolicy */
+						ignored: string[];
+					};
+				};
+			};
+			/** @description Applied and a deploy queued */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description The keys applied */
+						applied: string[];
+						/** @description The deploy queued, with ?deploy=true */
+						deploymentId?: string;
+						/** @description Keys this service doesn't take: a preview or canary only takes build and runtime keys, a git service ignores image, tag and pullPolicy */
+						ignored: string[];
+					};
+				};
+			};
+			/** @description Invalid manifest, or a value the service's checks refuse */
 			400: {
 				headers: {
 					[name: string]: unknown;
@@ -13003,6 +17694,411 @@ export interface operations {
 			};
 		};
 	};
+	get_users: {
+		parameters: {
+			query?: {
+				/** @description 1-based page number (default 1) */
+				page?: string;
+				/** @description Items per page (default 100, max 200) */
+				perPage?: string;
+				/** @description Searches names and emails */
+				q?: string;
+				/** @description Only users with this role */
+				role?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The users */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						email: string;
+						emailVerified: boolean;
+						id: string;
+						lastSignInAt: string | null;
+						name: string;
+						/** @description The user's own permissions with the custom role, {} with any other (the role decides) */
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @enum {string} */
+						role: "admin" | "developer" | "viewer" | "app-user" | "custom";
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_users: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					email: string;
+					name: string;
+					/** @description Dashboard and API areas a custom-role user may use, each "read" or "write". Only taken with the custom role. */
+					permissions?: {
+						[key: string]: "read" | "write";
+					};
+					/**
+					 * @description admin, developer, viewer (read-only), app-user (only gets through the login walls that let them in) or custom (the permissions given).
+					 * @default developer
+					 * @enum {string}
+					 */
+					role: "admin" | "developer" | "viewer" | "app-user" | "custom";
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						email: string;
+						emailVerified: boolean;
+						id: string;
+						lastSignInAt: string | null;
+						name: string;
+						/** @description The user's own permissions with the custom role, {} with any other (the role decides) */
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @enum {string} */
+						role: "admin" | "developer" | "viewer" | "app-user" | "custom";
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a change the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_users__userId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User id */
+				userId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The user */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						email: string;
+						emailVerified: boolean;
+						id: string;
+						lastSignInAt: string | null;
+						name: string;
+						/** @description The user's own permissions with the custom role, {} with any other (the role decides) */
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @enum {string} */
+						role: "admin" | "developer" | "viewer" | "app-user" | "custom";
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_users__userId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User id */
+				userId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid body, or a change the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_users__userId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User id */
+				userId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					email?: string;
+					name?: string;
+					/** @description Dashboard and API areas a custom-role user may use, each "read" or "write". Only taken with the custom role. */
+					permissions?: {
+						[key: string]: "read" | "write";
+					};
+					/**
+					 * @description admin, developer, viewer (read-only), app-user (only gets through the login walls that let them in) or custom (the permissions given).
+					 * @enum {string}
+					 */
+					role?: "admin" | "developer" | "viewer" | "app-user" | "custom";
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						email: string;
+						emailVerified: boolean;
+						id: string;
+						lastSignInAt: string | null;
+						name: string;
+						/** @description The user's own permissions with the custom role, {} with any other (the role decides) */
+						permissions: {
+							[key: string]: "read" | "write";
+						};
+						/** @enum {string} */
+						role: "admin" | "developer" | "viewer" | "app-user" | "custom";
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a change the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
 	get_volume_mounts: {
 		parameters: {
 			query?: never;
@@ -13795,6 +18891,989 @@ export interface operations {
 				};
 			};
 			/** @description The volume has no backup destination */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_workstation_presets: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The workstation presets of the caller */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						description: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_workstation_presets: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description Cores, like 1.5. Answered as a string. */
+					cpuLimit?: (number | string) | null;
+					description?: string | null;
+					/** @description code-server settings.json, as an object. */
+					editorSettings?: {
+						[key: string]: unknown;
+					};
+					/** @description Variables set in the container. PASSWORD is Homerun's and is dropped. */
+					env?: {
+						[key: string]: string;
+					};
+					/** @description Open VSX extension ids installed on every start. */
+					extensions?: string[];
+					gitAuthorEmail?: string | null;
+					gitAuthorName?: string | null;
+					gitBranch?: string | null;
+					/** @description The git provider whose connection signs in and authenticates git. */
+					gitProviderId?: string | null;
+					/** @description Cloned into the home directory on the first start. */
+					gitUrl?: string | null;
+					/** @description Defaults to /home/coder. */
+					homePath?: string;
+					/** @description Defaults to codercom/code-server:latest. */
+					image?: string;
+					memoryLimitMb?: number | null;
+					name: string;
+					/** @description The IDE's port in the container, 8080 by default. */
+					port?: number;
+					/** @description The agent host it runs on, this server when unset. */
+					remoteHostId?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						description: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_workstation_presets__presetId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Preset id */
+				presetId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The workstation preset */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						description: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_workstation_presets__presetId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Preset id */
+				presetId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_workstation_presets__presetId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Preset id */
+				presetId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					/** @description Cores, like 1.5. Answered as a string. */
+					cpuLimit?: (number | string) | null;
+					description?: string | null;
+					/** @description code-server settings.json, as an object. */
+					editorSettings?: {
+						[key: string]: unknown;
+					};
+					/** @description Variables set in the container. PASSWORD is Homerun's and is dropped. */
+					env?: {
+						[key: string]: string;
+					};
+					/** @description Open VSX extension ids installed on every start. */
+					extensions?: string[];
+					gitAuthorEmail?: string | null;
+					gitAuthorName?: string | null;
+					gitBranch?: string | null;
+					/** @description The git provider whose connection signs in and authenticates git. */
+					gitProviderId?: string | null;
+					/** @description Cloned into the home directory on the first start. */
+					gitUrl?: string | null;
+					/** @description Defaults to /home/coder. */
+					homePath?: string;
+					/** @description Defaults to codercom/code-server:latest. */
+					image?: string;
+					memoryLimitMb?: number | null;
+					name?: string;
+					/** @description The IDE's port in the container, 8080 by default. */
+					port?: number;
+					/** @description The agent host it runs on, this server when unset. */
+					remoteHostId?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						description: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	get_workstations: {
+		parameters: {
+			query?: {
+				/** @description 1-based page number (default 1) */
+				page?: string;
+				/** @description Items per page (default 100, max 200) */
+				perPage?: string;
+				/** @description Case-insensitive search term */
+				q?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The workstations of the caller */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoStopAt: string | null;
+						autoStopMinutes: number | null;
+						autoStopMode: ("idle" | "timer") | null;
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						/** @enum {string} */
+						desiredState: "running" | "stopped";
+						domain: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						lastError: string | null;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						signInWithGit: boolean;
+						slug: string;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					}[];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	post_workstations: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					autoStopMinutes?: number | null;
+					/** @description idle or timer, unset for never. Needs autoStopMinutes. */
+					autoStopMode?: ("idle" | "timer") | null;
+					/** @description Cores, like 1.5. Answered as a string. */
+					cpuLimit?: (number | string) | null;
+					/**
+					 * @description running starts it, stopped stops it. A new one starts unless stopped.
+					 * @enum {string}
+					 */
+					desiredState?: "running" | "stopped";
+					/** @description Defaults to <slug>.dev.<base domain>. Can't change later. */
+					domain?: string | null;
+					/** @description code-server settings.json, as an object. */
+					editorSettings?: {
+						[key: string]: unknown;
+					};
+					/** @description Variables set in the container. PASSWORD is Homerun's and is dropped. */
+					env?: {
+						[key: string]: string;
+					};
+					/** @description Open VSX extension ids installed on every start. */
+					extensions?: string[];
+					gitAuthorEmail?: string | null;
+					gitAuthorName?: string | null;
+					gitBranch?: string | null;
+					/** @description The git provider whose connection signs in and authenticates git. */
+					gitProviderId?: string | null;
+					/** @description Cloned into the home directory on the first start. */
+					gitUrl?: string | null;
+					/** @description Defaults to /home/coder. */
+					homePath?: string;
+					/** @description Defaults to codercom/code-server:latest. */
+					image?: string;
+					memoryLimitMb?: number | null;
+					name: string;
+					/** @description The IDE's port in the container, 8080 by default. */
+					port?: number;
+					/** @description The agent host it runs on, this server when unset. */
+					remoteHostId?: string | null;
+				};
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoStopAt: string | null;
+						autoStopMinutes: number | null;
+						autoStopMode: ("idle" | "timer") | null;
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						/** @enum {string} */
+						desiredState: "running" | "stopped";
+						domain: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						lastError: string | null;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						signInWithGit: boolean;
+						slug: string;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+		};
+	};
+	get_workstations__workstationId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Workstation id */
+				workstationId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The workstation */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoStopAt: string | null;
+						autoStopMinutes: number | null;
+						autoStopMode: ("idle" | "timer") | null;
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						/** @enum {string} */
+						desiredState: "running" | "stopped";
+						domain: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						lastError: string | null;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						signInWithGit: boolean;
+						slug: string;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	delete_workstations__workstationId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Workstation id */
+				workstationId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+			/** @description The caller's permissions, narrowed by the API key's when one is used, don't cover this area: reads need read access, writes need write access. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						/** @example You don't have permission to change Services. */
+						error: string;
+					};
+				};
+			};
+			/** @description Not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						error: string;
+						issues?: unknown;
+					};
+				};
+			};
+		};
+	};
+	patch_workstations__workstationId_: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Workstation id */
+				workstationId: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": {
+					autoStopMinutes?: number | null;
+					/** @description idle or timer, unset for never. Needs autoStopMinutes. */
+					autoStopMode?: ("idle" | "timer") | null;
+					/** @description Cores, like 1.5. Answered as a string. */
+					cpuLimit?: (number | string) | null;
+					/**
+					 * @description running starts it, stopped stops it. A new one starts unless stopped.
+					 * @enum {string}
+					 */
+					desiredState?: "running" | "stopped";
+					/** @description code-server settings.json, as an object. */
+					editorSettings?: {
+						[key: string]: unknown;
+					};
+					/** @description Variables set in the container. PASSWORD is Homerun's and is dropped. */
+					env?: {
+						[key: string]: string;
+					};
+					/** @description Open VSX extension ids installed on every start. */
+					extensions?: string[];
+					gitAuthorEmail?: string | null;
+					gitAuthorName?: string | null;
+					gitBranch?: string | null;
+					/** @description The git provider whose connection signs in and authenticates git. */
+					gitProviderId?: string | null;
+					/** @description Cloned into the home directory on the first start. */
+					gitUrl?: string | null;
+					/** @description Defaults to /home/coder. */
+					homePath?: string;
+					/** @description Defaults to codercom/code-server:latest. */
+					image?: string;
+					memoryLimitMb?: number | null;
+					name?: string;
+					/** @description The IDE's port in the container, 8080 by default. */
+					port?: number;
+				};
+			};
+		};
+		responses: {
+			/** @description Updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": {
+						autoStopAt: string | null;
+						autoStopMinutes: number | null;
+						autoStopMode: ("idle" | "timer") | null;
+						cpuLimit: string | null;
+						/** @description ISO 8601 timestamp */
+						createdAt: string;
+						/** @enum {string} */
+						desiredState: "running" | "stopped";
+						domain: string | null;
+						editorSettings: {
+							[key: string]: unknown;
+						};
+						env: {
+							[key: string]: string;
+						};
+						extensions: string[];
+						gitAuthorEmail: string | null;
+						gitAuthorName: string | null;
+						gitBranch: string | null;
+						gitProviderId: string | null;
+						gitUrl: string | null;
+						homePath: string;
+						id: string;
+						image: string;
+						lastError: string | null;
+						memoryLimitMb: number | null;
+						name: string;
+						port: number;
+						remoteHostId: string | null;
+						signInWithGit: boolean;
+						slug: string;
+						/** @description ISO 8601 timestamp */
+						updatedAt: string;
+						userId: string;
+					};
+				};
+			};
+			/** @description Invalid body, or a value the instance refuses */
 			400: {
 				headers: {
 					[name: string]: unknown;

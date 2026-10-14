@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/orochibraru/homerun/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"maps"
 	"strings"
@@ -34,7 +36,9 @@ func (r *run) startSwarm(ctx context.Context, image resolvedImage) (string, erro
 	if err != nil {
 		return "", err
 	}
-	if err := r.pull(ctx, image.ref(), r.spec.Image.Auth); err != nil {
+	if err := tracing.Stage(ctx, "pull on the swarm manager", func(ctx context.Context) error {
+		return r.pull(ctx, image.ref(), r.spec.Image.Auth)
+	}, attribute.String("homerun.deploy.image", image.ref())); err != nil {
 		log.Printf("[homerun-worker] pull before service create failed for %s: %s", image.ref(), err)
 	}
 	if workload.Privileged {
@@ -73,8 +77,11 @@ func (r *run) startSwarm(ctx context.Context, image resolvedImage) (string, erro
 		return r.rollOutSwarm(ctx, existing[0].ID, spec, "stop-first")
 	}
 	r.progress.line("Creating swarm service...")
-	id, err := r.docker.CreateSwarmService(ctx, spec)
-	if err != nil {
+	var id string
+	if err := tracing.Stage(ctx, "create swarm service", func(ctx context.Context) error {
+		id, err = r.docker.CreateSwarmService(ctx, spec)
+		return err
+	}); err != nil {
 		return "", err
 	}
 	log.Printf("[homerun-worker] swarm service created: id=%s service=%s", id, r.spec.ServiceID)
@@ -167,10 +174,14 @@ func (r *run) rollOutSwarm(ctx context.Context, id string, spec map[string]any, 
 	if inspected.UpdateStatus != nil {
 		previousStartedAt = inspected.UpdateStatus.StartedAt
 	}
-	if err := r.docker.UpdateSwarmService(ctx, id, inspected.Version.Index, update); err != nil {
+	if err := tracing.Stage(ctx, "update swarm service", func(ctx context.Context) error {
+		return r.docker.UpdateSwarmService(ctx, id, inspected.Version.Index, update)
+	}, attribute.String("homerun.swarm.service_id", id), attribute.String("homerun.swarm.update_order", order)); err != nil {
 		return "", err
 	}
-	if err := r.awaitSwarmUpdate(ctx, id, previousStartedAt); err != nil {
+	if err := tracing.Stage(ctx, "wait for the rollout", func(ctx context.Context) error {
+		return r.awaitSwarmUpdate(ctx, id, previousStartedAt)
+	}, attribute.String("homerun.swarm.service_id", id)); err != nil {
 		return "", err
 	}
 	r.progress.line("Swarm finished rolling out the new tasks; Traefik picks them up on its next swarm poll, within 2 seconds.")

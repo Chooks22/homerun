@@ -18,6 +18,8 @@ import (
 	"github.com/orochibraru/homerun/internal/jobs"
 	"github.com/orochibraru/homerun/internal/jobs/imagescan"
 	"github.com/orochibraru/homerun/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Spec is what the app's prepare step resolves for one deploy.
@@ -222,6 +224,12 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 			return imagescan.Scan(ctx, docker, job.DockerSocket, spec.Network, target)
 		},
 	}
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.String("homerun.service.id", spec.ServiceID),
+		attribute.String("homerun.deployment.id", spec.DeploymentID),
+		attribute.String("homerun.deploy.image_source", spec.Image.Kind),
+		attribute.String("homerun.deploy.workload", spec.Workload.Kind),
+	)
 	err := r.deploy(ctx)
 	var kinded *kindError
 	if errors.As(err, &kinded) {
@@ -242,6 +250,7 @@ func (r *run) deploy(ctx context.Context) error {
 		return err
 	}
 	r.result.Image, r.result.Tag, r.result.Digest = resolved.image, resolved.tag, resolved.digest
+	trace.SpanFromContext(ctx).SetAttributes(attribute.String("homerun.deploy.image", resolved.ref()))
 	if len(r.spec.Seeds) > 0 {
 		if err := tracing.Stage(ctx, "seed volumes", r.seedVolumes); err != nil {
 			return err
@@ -250,7 +259,10 @@ func (r *run) deploy(ctx context.Context) error {
 	r.progress.serviceStatus(ctx, "starting")
 
 	r.progress.line(PhaseContainer)
-	if err := tracing.Stage(ctx, "deploy", r.startWorkload(resolved)); err != nil {
+	if err := tracing.Stage(ctx, "deploy", r.startWorkload(resolved),
+		attribute.String("homerun.deploy.workload", r.spec.Workload.Kind),
+		attribute.String("homerun.deploy.image", resolved.ref()),
+	); err != nil {
 		return err
 	}
 

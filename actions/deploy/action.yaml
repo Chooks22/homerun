@@ -1,0 +1,66 @@
+name: Homerun Deploy
+description: Deploy a Homerun service and wait for it, optionally switching it to the image tag this workflow just pushed or deploying a release channel.
+author: orochibraru
+branding:
+  icon: upload-cloud
+  color: red
+
+inputs:
+  base-url:
+    description: Your instance's URL, e.g. https://homerun.example.com
+    required: true
+  api-key:
+    description: A Homerun API key with write access to Services. Store it as a secret.
+    required: true
+  cli-version:
+    description: CLI release to install, e.g. v1.0.49. Defaults to this action's own tag when it's a release, the latest release otherwise.
+    required: false
+    default: ""
+  service:
+    description: The service to deploy, by id or slug.
+    required: true
+  tag:
+    description: Image tag to switch an image-based service to first. Saved on the service, so later deploys keep it. Empty redeploys the current tag.
+    required: false
+    default: ""
+  environment:
+    description: With release channels on, deploy the canary or stable one instead. Can't be combined with tag.
+    required: false
+    default: ""
+
+outputs:
+  deployment-id:
+    description: The id of the deployment this run created.
+    value: ${{ steps.deploy.outputs.deployment-id }}
+  result:
+    description: The deploy's result as JSON.
+    value: ${{ steps.deploy.outputs.stdout }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the Homerun CLI
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        ACTION_REF: ${{ github.action_ref }}
+        CLI_VERSION: ${{ inputs.cli-version }}
+      run: bash "$ACTION_PATH/../install-cli.sh"
+
+    - name: Deploy
+      id: deploy
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BASE_URL: ${{ inputs.base-url }}
+        API_KEY: ${{ inputs.api-key }}
+        SERVICE: ${{ inputs.service }}
+        TAG: ${{ inputs.tag }}
+        ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        set -euo pipefail
+        args=(services deploy "$SERVICE")
+        if [ -n "$TAG" ]; then args+=(--tag "$TAG"); fi
+        if [ -n "$ENVIRONMENT" ]; then args+=(--environment "$ENVIRONMENT"); fi
+        bash "$ACTION_PATH/../run-cli.sh" "${args[@]}"
+        sed -n 's/.*"deploymentId": *"\([^"]*\)".*/deployment-id=\1/p' "$RUNNER_TEMP/homerun-cli/stdout" | head -n 1 >> "$GITHUB_OUTPUT"

@@ -12,6 +12,7 @@
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import { roleLabel } from "#lib/permissions.js";
 	import { enhanceToast } from "#lib/toast.js";
+	import { isServiceAccount } from "#lib/user-types.js";
 	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 
@@ -32,7 +33,13 @@
 		};
 		subject?: "app" | "previews";
 		title?: string;
-		users: { email: string; id: string; name: string; role: string | null }[];
+		users: {
+			email: string;
+			id: string;
+			name: string;
+			role: string | null;
+			type: string;
+		}[];
 	}
 
 	const {
@@ -225,7 +232,7 @@
             Leave all three empty to let any signed-in user through, as long
             as they used one of the methods above. Filling any of them
             narrows access to whoever matches at least one entry in that
-            list.
+            list. A service account only gets through when it's ticked here.
           </p>
 
           <div class="space-y-3">
@@ -235,7 +242,9 @@
                 {#each users as u (u.id)}
                   <CheckBox
                     checked={allowedUserIds.includes(u.id)}
-                    helperText="{u.email} · {roleLabel(u.role)}"
+                    helperText={isServiceAccount(u)
+                      ? "Service account · gets through with its API key"
+                      : `${u.email} · ${roleLabel(u.role)}`}
                     id="user-{u.id}"
                     label={u.name}
                     name="user-{u.id}"

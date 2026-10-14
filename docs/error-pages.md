@@ -38,6 +38,10 @@ sign-in stays Homerun's.
 
 ![Settings → Error pages, with the branding and each page's text](images/error-pages-settings.webp)
 
+From Terraform, `homerun_error_pages` sets the same fields, the page texts as a
+`page_texts` map (`notFoundTitle`, `notFoundMessage` and so on), see
+[Infrastructure as code](infrastructure-as-code.md#resources).
+
 ## How it works
 
 Homerun writes `homerun-error-pages.yml` into Traefik's dynamic config directory

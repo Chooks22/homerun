@@ -27,6 +27,11 @@ function text(formData: FormFields, key: string): string {
 	return String(formData.get(key) ?? "").trim();
 }
 
+/** Whether `name` is a domain name a domain can be added under, like example.com. */
+export function isDomainName(name: string): boolean {
+	return HOSTNAME.test(normalizeName(name));
+}
+
 /** Whether `value` is a hostname or an IP address a record can point at. */
 export function isTarget(value: string): boolean {
 	return (
@@ -84,7 +89,7 @@ export function parseDomainForm(
 	withName: boolean,
 ): Parsed<DomainInput> {
 	const name = normalizeName(text(formData, "name"));
-	if (withName && !HOSTNAME.test(name)) {
+	if (withName && !isDomainName(name)) {
 		return { error: "Enter a domain name, like example.com.", value: null };
 	}
 	const connectionId = text(formData, "connectionId") || null;

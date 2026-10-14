@@ -1,15 +1,12 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
+import { DEFAULT_ERROR_PAGES } from "#lib/error-pages.js";
 import {
-	DEFAULT_ERROR_PAGES,
-	errorPageTextsFromForm,
-	isHexColor,
-} from "#lib/error-pages.js";
-import { Logger } from "#lib/logger.js";
+	InstanceSettingsError,
+	InstanceSettingsService,
+} from "#lib/services/instance-settings.service.js";
 import { resolve } from "$app/paths";
-
-const logger = new Logger("InstanceSettings");
 
 export const load = async () => {
 	const settings = await InstanceSettingsDTO.get();
@@ -31,24 +28,22 @@ export const actions = {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
 		const formData = await request.formData();
-		const accentColor = text(formData, "accentColor", 7);
-		const logoUrl = text(formData, "logoUrl", 2000);
-		if (accentColor && !isHexColor(accentColor)) {
-			return fail(400, { error: "The accent colour must look like #8b2942." });
+		try {
+			await InstanceSettingsService.saveErrorPageBranding(
+				{
+					accentColor: text(formData, "accentColor", 7),
+					brandName: text(formData, "brandName", 60),
+					logoUrl: text(formData, "logoUrl", 2000),
+					showPoweredBy: formData.get("showPoweredBy") === "on",
+				},
+				locals.user.id,
+			);
+		} catch (err) {
+			if (err instanceof InstanceSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
 		}
-		if (logoUrl && !/^https?:\/\//i.test(logoUrl)) {
-			return fail(400, {
-				error: "The logo URL must start with http:// or https://.",
-			});
-		}
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateErrorPages({
-			accentColor,
-			brandName: text(formData, "brandName", 60) ?? undefined,
-			logoUrl,
-			showPoweredBy: formData.get("showPoweredBy") === "on",
-		});
-		logger.info(`Error page branding updated: user=${locals.user.id}`);
 		return { success: true };
 	},
 
@@ -56,11 +51,10 @@ export const actions = {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
-		const settings = await InstanceSettingsDTO.get();
-		await settings.updateErrorPages({
-			pages: errorPageTextsFromForm(await request.formData()),
-		});
-		logger.info(`Error page text updated: user=${locals.user.id}`);
+		await InstanceSettingsService.saveErrorPageTexts(
+			await request.formData(),
+			locals.user.id,
+		);
 		return { success: true };
 	},
 };

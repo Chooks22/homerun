@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/orochibraru/homerun/internal/dockerapi"
+	"github.com/orochibraru/homerun/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const shellProbeTimeout = 2 * time.Minute
@@ -137,7 +139,10 @@ func (r *run) planReadiness(ctx context.Context, imageRef, workload string) Read
 	in := r.spec.Readiness
 	var facts *ImageFacts
 	if in.NeedsImage() {
-		facts = r.imageReadinessFacts(ctx, imageRef)
+		_ = tracing.Stage(ctx, "inspect image for readiness", func(ctx context.Context) error {
+			facts = r.imageReadinessFacts(ctx, imageRef)
+			return nil
+		}, attribute.String("homerun.deploy.image", imageRef))
 	}
 	check := ReadinessCheck(in, facts)
 	r.progress.line(ReadinessDescription(check, in.ContainerPort, workload))

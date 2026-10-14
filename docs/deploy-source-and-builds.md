@@ -17,6 +17,11 @@ Every service is either:
   the build produces a fresh local image tag
   (`homerun-build-<slug>:<timestamp>`) every deploy.
 
+A repository can also carry its service's settings as a
+[Homerun Manifest](manifest.md) (`.homerun.json`, `.homerun.yaml` or
+`.homerun.yml`), applied on every deploy before the build: build method, port,
+environment, resources, health check, domains, login wall and previews.
+
 ## Version pinning and update checks
 
 An image-built service's **Environments & Deployments → Source** tab has a

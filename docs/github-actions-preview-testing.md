@@ -42,8 +42,9 @@ image.
   General is reachable from GitHub. Polling doesn't cover pull requests.
 - Anything your suite needs from the preview (env vars, a login wall) is set on
   the service: previews copy its build settings, env vars, resources,
-  healthcheck and login wall. A login wall in front of the preview also stops
-  your tests, so either leave it off or have the suite sign in.
+  healthcheck and login wall. A login wall in front of the preview stops your
+  tests too: see
+  [Previews behind the login wall](#previews-behind-the-login-wall).
 - An API key with write access to **Services** from your profile's
   [API keys](your-profile.md#api-keys). Promote and delete write; a key that
   only reads gets a `403`. Mind its expiry, or the workflow starts failing the
@@ -68,16 +69,17 @@ image.
 Pull requests from forks are never previewed, and their workflows don't get your
 secrets anyway, so all three workflows skip them.
 
-The CLI is installed with its install script at a pinned release: use the same
-version as your instance, and one that has `homerun previews`.
+The workflows use Homerun's [GitHub Actions](ci-cd.md#github-actions), pinned to
+a release tag: use the same version as your instance. The preview action's pull
+request number and commit default to the pull request that triggered the run.
 
 ## Preview E2E
 
-`homerun previews wait` blocks until the preview exists, runs the pull request's
-head commit and its health check passed, then prints the preview's URL alone on
-stdout (progress goes to stderr). It exits non-zero when the deploy fails, the
-revision is judged unhealthy, or the timeout passes. A new push cancels the run
-for the older one.
+The preview action's `wait` (`homerun previews wait`) blocks until the preview
+exists, runs the pull request's head commit and its health check passed, then
+hands back the preview's URL as its `url` output. It exits non-zero when the
+deploy fails, the revision is judged unhealthy, or the timeout passes. A new
+push cancels the run for the older one.
 
 ```yaml
 name: Preview E2E
@@ -95,28 +97,21 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      HOMERUN_BASE_URL: ${{ vars.HOMERUN_BASE_URL }}
-      HOMERUN_API_KEY: ${{ secrets.HOMERUN_API_KEY }}
-      SERVICE: ${{ vars.HOMERUN_SERVICE_ID }}
-      PR: ${{ github.event.pull_request.number }}
-      SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
           cache: npm
-      - name: Install the Homerun CLI
-        run: >-
-          curl -fsSL
-          https://raw.githubusercontent.com/orochibraru/homerun/main/cmd/cli/install.sh
-          | bash -s -- --version=v1.0.49
       - name: Wait for the preview of this commit
         id: preview
-        run: |
-          url=$(homerun previews wait "$SERVICE" "$PR" --commit "$SHA" --timeout 20m)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+        uses: orochibraru/homerun/actions/preview@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          command: wait
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
+          timeout: 20m
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Run the E2E suite against the preview
@@ -140,6 +135,37 @@ export default defineConfig({
   use: { baseURL: process.env.BASE_URL, trace: "retain-on-failure" },
 });
 ```
+
+## Previews behind the login wall
+
+Keep the previews' login wall on and let the suite through with a
+[service account](login-wall.md): create one under Administration → Service
+accounts, mint it a key, store the key as the secret `HOMERUN_E2E_KEY`, and tick
+the account under **Users** in the service's preview access policy. Then add a
+step between waiting for the preview and running the suite:
+
+```yaml
+- name: Sign the suite in through the login wall
+  uses: orochibraru/homerun/actions/gate-session@v1.0.59
+  with:
+    base-url: ${{ vars.HOMERUN_BASE_URL }}
+    api-key: ${{ secrets.HOMERUN_E2E_KEY }}
+    url: ${{ steps.preview.outputs.url }}
+    playwright-file: playwright/.auth/state.json
+```
+
+and point Playwright at the file:
+
+```ts
+use: {
+  baseURL: process.env.BASE_URL,
+  storageState: "playwright/.auth/state.json",
+},
+```
+
+The service account's key only gets through walls that list it, nothing else,
+and it's only ever sent to your Homerun instance, never to the preview. Its
+cookie lasts eight hours, longer than any suite.
 
 ## Ship
 
@@ -175,17 +201,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      HOMERUN_BASE_URL: ${{ vars.HOMERUN_BASE_URL }}
-      HOMERUN_API_KEY: ${{ secrets.HOMERUN_API_KEY }}
-      SERVICE: ${{ vars.HOMERUN_SERVICE_ID }}
       PR: ${{ github.event.pull_request.number }}
       SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - name: Install the Homerun CLI
-        run: >-
-          curl -fsSL
-          https://raw.githubusercontent.com/orochibraru/homerun/main/cmd/cli/install.sh
-          | bash -s -- --version=v1.0.49
       - name: Check the pull request can merge at the tested commit
         run: |
           for _ in 1 2 3 4 5; do
@@ -201,18 +219,30 @@ jobs:
           exit 1
       - name: Promote the tested preview
         id: promote
-        run: homerun previews promote "$SERVICE" "$PR" --commit "$SHA" --wait
+        uses: orochibraru/homerun/actions/preview@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          command: promote
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
       - name: Merge
         run: gh pr merge "$PR" --squash --match-head-commit "$SHA"
       - name: Roll production back when the merge failed
         if: failure() && steps.promote.outcome == 'success'
-        run: homerun services rollback "$SERVICE"
-      - name: Delete the preview
+        uses: orochibraru/homerun/actions/rollback@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
+      - name: Delete the preview, unless Homerun already did
         if: success()
-        run: |
-          if homerun previews get "$SERVICE" "$PR" > /dev/null 2>&1; then
-            homerun previews delete "$SERVICE" "$PR"
-          fi
+        continue-on-error: true
+        uses: orochibraru/homerun/actions/preview@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          command: delete
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
 ```
 
 `UNSTABLE` is accepted because ship itself is a running, non-required check on
@@ -240,24 +270,16 @@ jobs:
   cleanup:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    env:
-      HOMERUN_BASE_URL: ${{ vars.HOMERUN_BASE_URL }}
-      HOMERUN_API_KEY: ${{ secrets.HOMERUN_API_KEY }}
-      SERVICE: ${{ vars.HOMERUN_SERVICE_ID }}
-      PR: ${{ github.event.pull_request.number }}
     steps:
-      - name: Install the Homerun CLI
-        run: >-
-          curl -fsSL
-          https://raw.githubusercontent.com/orochibraru/homerun/main/cmd/cli/install.sh
-          | bash -s -- --version=v1.0.49
-      - name: Delete the preview if Homerun hasn't already
-        run: |
-          if homerun previews get "$SERVICE" "$PR" > /dev/null 2>&1; then
-            homerun previews delete "$SERVICE" "$PR"
-          else
-            echo "No preview left for #$PR, Homerun deleted it on the close webhook."
-          fi
+      - name:
+          Delete the preview, unless Homerun already did on the close webhook
+        continue-on-error: true
+        uses: orochibraru/homerun/actions/preview@v1.0.59
+        with:
+          base-url: ${{ vars.HOMERUN_BASE_URL }}
+          api-key: ${{ secrets.HOMERUN_API_KEY }}
+          command: delete
+          service: ${{ vars.HOMERUN_SERVICE_ID }}
 ```
 
 ## How promote picks the image

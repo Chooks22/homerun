@@ -1,0 +1,110 @@
+name: Homerun Preview
+description: Deploy, wait for, promote or delete a Homerun pull request preview.
+author: orochibraru
+branding:
+  icon: git-pull-request
+  color: red
+
+inputs:
+  base-url:
+    description: Your instance's URL, e.g. https://homerun.example.com
+    required: true
+  api-key:
+    description: A Homerun API key with write access to Services. Store it as a secret.
+    required: true
+  cli-version:
+    description: CLI release to install, e.g. v1.0.49. Defaults to this action's own tag when it's a release, the latest release otherwise.
+    required: false
+    default: ""
+  command:
+    description: deploy (create or update an image-based service's preview at tag and wait until it's healthy), wait (until a git service's preview runs commit and is healthy), promote (deploy the preview's exact image to the service) or delete.
+    required: true
+  service:
+    description: The service the preview belongs to, by id or slug.
+    required: true
+  pr:
+    description: The pull request number. Defaults to the pull request that triggered the workflow.
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  commit:
+    description: The commit the preview must run. deploy records and waits for it, wait waits for it, promote refuses any other. Defaults to the pull request's head commit.
+    required: false
+    default: ${{ github.event.pull_request.head.sha }}
+  tag:
+    description: For deploy, the image tag CI pushed for the pull request.
+    required: false
+    default: ""
+  branch:
+    description: For deploy, the pull request's head branch, checked against the preview branch filter.
+    required: false
+    default: ${{ github.event.pull_request.head.ref }}
+  title:
+    description: For deploy, the pull request's title.
+    required: false
+    default: ${{ github.event.pull_request.title }}
+  timeout:
+    description: How long deploy, wait or promote may take, e.g. 20m. Empty keeps the CLI's default.
+    required: false
+    default: ""
+
+outputs:
+  url:
+    description: The preview's URL, after deploy or wait.
+    value: ${{ steps.preview.outputs.stdout }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the Homerun CLI
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        ACTION_REF: ${{ github.action_ref }}
+        CLI_VERSION: ${{ inputs.cli-version }}
+      run: bash "$ACTION_PATH/../install-cli.sh"
+
+    - name: Preview
+      id: preview
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BASE_URL: ${{ inputs.base-url }}
+        API_KEY: ${{ inputs.api-key }}
+        COMMAND: ${{ inputs.command }}
+        SERVICE: ${{ inputs.service }}
+        PR: ${{ inputs.pr }}
+        COMMIT: ${{ inputs.commit }}
+        TAG: ${{ inputs.tag }}
+        BRANCH: ${{ inputs.branch }}
+        TITLE: ${{ inputs.title }}
+        TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        set -euo pipefail
+        if [ -z "$PR" ]; then
+          echo "::error::No pull request number: set the pr input outside a pull_request workflow."
+          exit 1
+        fi
+        args=(previews "$COMMAND")
+        case "$COMMAND" in
+          deploy)
+            args+=(--tag "$TAG")
+            if [ -n "$COMMIT" ]; then args+=(--commit "$COMMIT"); fi
+            if [ -n "$BRANCH" ]; then args+=(--branch "$BRANCH"); fi
+            if [ -n "$TITLE" ]; then args+=(--title "$TITLE"); fi
+            ;;
+          wait)
+            if [ -n "$COMMIT" ]; then args+=(--commit "$COMMIT"); fi
+            ;;
+          promote)
+            args+=(--wait)
+            if [ -n "$COMMIT" ]; then args+=(--commit "$COMMIT"); fi
+            ;;
+          delete) ;;
+          *)
+            echo "::error::command must be deploy, wait, promote or delete, not $COMMAND."
+            exit 1
+            ;;
+        esac
+        if [ -n "$TIMEOUT" ] && [ "$COMMAND" != "delete" ]; then args+=(--timeout "$TIMEOUT"); fi
+        args+=("$SERVICE" "$PR")
+        bash "$ACTION_PATH/../run-cli.sh" "${args[@]}"

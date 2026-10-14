@@ -266,6 +266,39 @@ props) and `src/lib/server/login-wall-form.ts` (`parseLoginWallForm`,
 service's own wall into its preview policy so previews that were gated through
 the old mirroring stay gated.
 
+## Service accounts (`user.type`, `ServiceAccountService`, `audit_log`)
+
+A service account is a `user` row with `type = 'service-account'` (migration
+0130, default `'human'`; `#lib/user-types.ts`), role `custom` and
+`user.permissions` `{}` unless an admin grants areas. Its email is a
+placeholder, `<id>@service-account.homerun.invalid`, because the column is
+unique and not null. **The one thing that keeps it from signing in is auth.ts's
+`databaseHooks.session.create.before`**, which returns `false` for it, so
+better-auth refuses every path that ends in a session (password, emailed code or
+link, passkey, OAuth, admin impersonation) with `FAILED_TO_CREATE_SESSION`. The
+integration suite proves it by having an admin set the account a password and
+watching sign-in fail. `email-sign-in.ts` also never mails a code or link to a
+placeholder address.
+
+`hooks.server.ts`: `applyApiKeyAuth` refuses a disabled (banned) service
+account's key with a 403 before setting `locals.user`; `authHandler` then runs
+`serviceAccountRejection` (`access-gate.ts`), which lets it reach `/app-auth`
+and only the routes owned by an area it was granted, so `OPEN_ROUTES` (overview,
+profile, MCP, notifications…) are closed to it; `permissionRejection` still does
+the level. `serviceAccountAuditHandler`, sequenced before `authHandler`, writes
+every request its key makes to `audit_log` (`AuditLogDTO`, amortized prune at
+20000 rows, `actorId` set null on delete, `actorName` kept); `/app-auth` writes
+its own `gate.handshake` entry naming the app instead.
+`AppAccessService.evaluate` lets a service account through only when the wall
+lists its id, skipping the email, provider and group rules (its key is the
+method), and `/app-auth` skips the "no usable method" screen for it.
+`UserService.listUsersPaged`, `searchUsers`, `#successorFor` and
+`NotificationDTO.broadcast` leave service accounts out; `listUsers` keeps them
+so login-wall pickers offer them. API keys have no FK to `user`, so
+`ServiceAccountService.delete` deletes the account's keys itself. The CLI's
+`homerun gate session` never follows redirects and only sends the key once the
+challenge points at its own configured server.
+
 ## Base domain vs. Dashboard URL, and why they're two things
 
 `instance_settings.baseDomain` and `auth.origin` answer different questions, and
@@ -365,14 +398,17 @@ their IdP's logout page without anyone having configured it. The provider config
 now always passes `disableProviderLogout: !signOutOfProvider`, so the default is
 a local sign-out and the redirect only happens when an admin ticks the box.
 
-- **Presets.**- **Presets.** `OAUTH_PRESETS` (`src/lib/auth-providers.ts`, a
-  pure module, also home to the method-id encoding and the email matcher)
-  carries a discovery-URL template, default scopes and PKCE default for Pocket
-  ID, Keycloak, Authelia, Logto, Authentik, Zitadel and Kanidm. Clicking one
-  appends a prefilled provider row with `{host}`/`{realm}`/`{slug}`/`{clientId}`
-  placeholders left in for the admin to replace; "Blank" is still there for
-  anything else. The templates are the products' own documented discovery paths,
-  which differ more than you'd guess (Logto nests under `/oidc`, Authentik under
+- **One save path.** `OauthProviderConfigService` (add/update/remove) runs
+  `checkOauthProvider` (the discovery fetch included) then `applyAndRebuild`,
+  for both the Authentication pages and `/api/v1/oauth-providers`.
+- **Presets.** `OAUTH_PRESETS` (`src/lib/auth-providers.ts`, a pure module, also
+  home to the method-id encoding and the email matcher) carries a discovery-URL
+  template, default scopes and PKCE default for Pocket ID, Keycloak, Authelia,
+  Logto, Authentik, Zitadel and Kanidm. Clicking one appends a prefilled
+  provider row with `{host}`/`{realm}`/`{slug}`/`{clientId}` placeholders left
+  in for the admin to replace; "Blank" is still there for anything else. The
+  templates are the products' own documented discovery paths, which differ more
+  than you'd guess (Logto nests under `/oidc`, Authentik under
   `/application/o/<slug>`, Kanidm under `/oauth2/openid/<client id>`).
 - The page prints the exact redirect URI to register with the provider
   (`<origin>/api/v1/auth/callback/<provider id>`), and says so explicitly when
@@ -776,6 +812,12 @@ sidebar nav is filtered with `mayVisit`.
   `/users`' own actions, by contrast, always pass `headers: request.headers` so
   better-auth's own permission check double-enforces admin-only on top of the
   route's own permission check.
+- The guards and changes live on `UserService` (`changeRole`, `changeEmail`,
+  `changePermissions`, `removeUser`, and `updateAccount` for the REST API's
+  `PATCH /users/:id`, which checks every field before saving any), so `/users`
+  and `/api/v1/users` refuse the same things with the same messages.
+  `POST /api/v1/users` goes through `createPendingUser` like direct-create, and
+  can also give the custom role with permissions.
 - `App.Locals.permissions` replaced the old `locals.isAdmin`: a route that needs
   an area checks `can(locals.permissions, area, level)`, and "admin" is just
   `hasAllPermissions`.

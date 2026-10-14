@@ -11,15 +11,19 @@ import {
 	verifyGateToken,
 } from "#lib/server/app-gate.js";
 import { offCanonicalOrigin } from "#lib/server/canonical-origin.js";
+import { clientAddress } from "#lib/server/client-address.js";
 import { gatedService } from "#lib/server/gated-service-cache.js";
 import {
 	ACCESS_DENIAL_MESSAGES,
 	AppAccessService,
 } from "#lib/services/app-access.service.js";
 import { emailSignInAvailability } from "#lib/services/email-sign-in.js";
+import { ServiceAccountService } from "#lib/services/service-account.service.js";
+import { isServiceAccount } from "#lib/user-types.js";
 import { resolve } from "$app/paths";
 
-export const load = async ({ request: incoming, url, locals }) => {
+export const load = async (event) => {
+	const { request: incoming, url, locals } = event;
 	const canonicalOrigin = offCanonicalOrigin(incoming, url);
 	if (canonicalOrigin) {
 		redirect(302, `${canonicalOrigin}${url.pathname}${url.search}`, {
@@ -47,9 +51,12 @@ export const load = async ({ request: incoming, url, locals }) => {
 			config.auth.oauthProviders.filter((p) => p.enabled).map((p) => p.name),
 		),
 	};
-	const hasUsableMethod = svc.authProviders.some((method) =>
-		signInMethodAvailable(method, available),
-	);
+	const serviceAccount = isServiceAccount(locals.user);
+	const hasUsableMethod =
+		serviceAccount ||
+		svc.authProviders.some((method) =>
+			signInMethodAvailable(method, available),
+		);
 
 	const base = {
 		appName: svc.name,
@@ -69,6 +76,14 @@ export const load = async ({ request: incoming, url, locals }) => {
 	}
 
 	const decision = await AppAccessService.evaluate(svc, locals.user.id);
+	if (serviceAccount) {
+		await ServiceAccountService.recordUse(locals.user, {
+			action: "gate.handshake",
+			detail: `${svc.name} (${request.host}): ${decision.allowed ? "granted" : `refused, ${decision.reason}`}`,
+			ipAddress: clientAddress(event),
+			status: decision.allowed ? 302 : 403,
+		});
+	}
 	if (!decision.allowed) {
 		return {
 			...base,

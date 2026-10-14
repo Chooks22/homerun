@@ -61,6 +61,7 @@ export interface RegistryStatus {
 
 /** A newly created token: the only time its secret is ever readable. */
 export interface CreatedToken {
+	id: string;
 	secret: string;
 	username: string;
 }
@@ -224,7 +225,7 @@ class RegistryServiceClass {
 	 * Creates a push/pull token and, when auth is on, re-syncs the registry's
 	 * htpasswd file, deleting the token again if that sync fails.
 	 *
-	 * @returns The username and the generated secret, which is readable this once and never again.
+	 * @returns The token's id, its username and the generated secret, which is readable this once and never again.
 	 * @throws When the username is invalid or already taken, or the sync fails.
 	 */
 	async createToken(username: string, userId: string): Promise<CreatedToken> {
@@ -248,7 +249,7 @@ class RegistryServiceClass {
 			});
 		}
 		logger.info(`Registry token created: ${username}`);
-		return { secret, username };
+		return { id: token.toJSON().id, secret, username };
 	}
 
 	/** Deletes a token and, when auth is on, re-syncs the htpasswd file, which is what actually revokes it. */

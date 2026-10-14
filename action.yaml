@@ -1,5 +1,5 @@
-name: Homerun Deploy
-description: Deploy a Homerun service and wait for it, optionally switching it to the image tag this workflow just pushed.
+name: Homerun
+description: Install the Homerun CLI and run any homerun command with it, or just put it on the PATH for the steps after.
 author: orochibraru
 branding:
   icon: upload-cloud
@@ -7,16 +7,15 @@ branding:
 
 inputs:
   base-url:
-    description: Your instance's URL, e.g. https://homerun.example.com
-    required: true
+    description: Your instance's URL, e.g. https://homerun.example.com, used for `args`. Steps after this one read HOMERUN_BASE_URL from their own env.
+    required: false
+    default: ""
   api-key:
-    description: A Homerun API key, from Profile → API keys. Store it as a secret.
-    required: true
-  service:
-    description: The id of the service to deploy (`homerun services list` prints it).
-    required: true
-  tag:
-    description: Image tag to deploy. Saved on the service first, so later deploys keep it. Empty redeploys the current tag.
+    description: A Homerun API key, used for `args` only and never exported. Store it as a secret.
+    required: false
+    default: ""
+  args:
+    description: A homerun command to run, e.g. `services deploy my-app --tag abc123`, split on whitespace. Empty only installs the CLI.
     required: false
     default: ""
   cli-version:
@@ -25,47 +24,34 @@ inputs:
     default: ""
 
 outputs:
-  deployment-id:
-    description: The id of the deployment this run created.
-    value: ${{ steps.deploy.outputs.deployment-id }}
+  stdout:
+    description: What the command printed on stdout.
+    value: ${{ steps.run.outputs.stdout }}
+  cli-path:
+    description: The installed CLI binary.
+    value: ${{ steps.install.outputs.path }}
 
 runs:
   using: composite
   steps:
     - name: Install the Homerun CLI
+      id: install
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
         ACTION_REF: ${{ github.action_ref }}
         CLI_VERSION: ${{ inputs.cli-version }}
-      run: |
-        set -euo pipefail
-        version="$CLI_VERSION"
-        if [ -z "$version" ]; then
-          if [[ "$ACTION_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            version="$ACTION_REF"
-          else
-            version="latest"
-          fi
-        fi
-        export HOMERUN_INSTALL_DIR="$RUNNER_TEMP/homerun-cli"
-        bash "$ACTION_PATH/cmd/cli/install.sh" "--version=$version"
+      run: bash "$ACTION_PATH/actions/install-cli.sh"
 
-    - name: Deploy
-      id: deploy
+    - name: Run homerun
+      id: run
+      if: inputs.args != ''
       shell: bash
       env:
-        HOMERUN_BASE_URL: ${{ inputs.base-url }}
-        HOMERUN_API_KEY: ${{ inputs.api-key }}
-        SERVICE: ${{ inputs.service }}
-        TAG: ${{ inputs.tag }}
+        ACTION_PATH: ${{ github.action_path }}
+        BASE_URL: ${{ inputs.base-url }}
+        API_KEY: ${{ inputs.api-key }}
+        ARGS: ${{ inputs.args }}
       run: |
-        set -euo pipefail
-        args=(services deploy "$SERVICE")
-        if [ -n "$TAG" ]; then
-          args+=(--tag "$TAG")
-        fi
-        result="$("$RUNNER_TEMP/homerun-cli/homerun" "${args[@]}")"
-        echo "$result"
-        deployment_id="$(printf '%s' "$result" | sed -n 's/.*"deploymentId": *"\([^"]*\)".*/\1/p' | head -n 1)"
-        echo "deployment-id=$deployment_id" >> "$GITHUB_OUTPUT"
+        read -ra words <<< "$ARGS"
+        bash "$ACTION_PATH/actions/run-cli.sh" "${words[@]}"

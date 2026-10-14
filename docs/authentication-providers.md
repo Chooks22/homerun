@@ -53,6 +53,11 @@ The same page has three instance-wide switches:
 
 ![Authentication → Sign-in, with emailed sign-in, preferred methods and sign-in requirements](images/auth-sign-in.webp)
 
+Terraform sets these three with `homerun_authentication_settings`: turn
+`email_otp` on there, with SMTP configured through `homerun_smtp_settings`, for
+a service's login wall to offer `email-otp`, see
+[Infrastructure as code](infrastructure-as-code.md#resources).
+
 ## OAuth / OIDC login
 
 Configured per-provider from the Authentication page, not env vars: any
@@ -62,6 +67,11 @@ saving specifically because a broken one used to be able to lock the whole
 instance out (see [Configuration](configuration.md#a-note-on-lockout)).
 
 ![A provider's page: display name, provider id, client credentials and discovery URL](images/auth-provider.webp)
+
+The REST API (`/api/v1/oauth-providers`) and Terraform's
+`homerun_oauth_provider` add and edit providers through the same checks, the
+discovery URL fetch included; the client secret is write-only and never read
+back.
 
 **Client authentication** on each provider controls how the client id and secret
 are sent when exchanging the login for a token. _Automatic_ reads your

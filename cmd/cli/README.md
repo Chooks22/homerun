@@ -146,6 +146,15 @@ homerun redirects create <source> <destination> [--enabled=false] [--keep-path=f
 homerun redirects update <id> [--source <host[/path]>] [--destination <url>] [--enabled=<bool>] [--keep-path=<bool>] [--permanent=<bool>]
 homerun redirects enable|disable <id>
 homerun redirects delete <id>
+homerun service-accounts list [--json]
+homerun service-accounts create <name>
+homerun service-accounts delete <id>
+homerun service-accounts keys list <accountId> [--json]
+homerun service-accounts keys create <accountId> [--name <label>] [--expires-in-days <n> | --never-expires]
+homerun service-accounts keys revoke <accountId> <keyId>
+homerun gate session <url> [--playwright <file>]
+homerun manifest apply <id|slug> [--file <path>] [--deploy]
+homerun manifest validate [--file <path>]
 homerun jobs list [--status queued,running,succeeded,failed,cancelled] [--json]
 homerun jobs get <id> [--json]
 homerun instance status [--json]
@@ -165,6 +174,29 @@ its id, and so does every `stacks` command: an argument that isn't a UUID is
 looked up through the list's search and replaced by the id of the item with
 exactly that slug. One that matches no slug is passed through as it is, so the
 API answers for it (a `404` for a typo).
+
+`homerun service-accounts keys create` prints the new key's JSON, the only time
+its `key` secret is returned (a reminder goes to stderr, so stdout stays
+machine-readable). Keys expire after 90 days unless `--expires-in-days` or
+`--never-expires` says otherwise.
+
+`homerun manifest apply` applies a Homerun Manifest (`.homerun.json`,
+`.homerun.yaml` or `.homerun.yml` in the current directory unless `--file` names
+another) to a service and prints the keys applied and left out; `--deploy`
+queues a deploy afterwards. `homerun manifest validate` checks one against the
+instance's schema and exits non-zero with every problem found. See
+[docs/manifest.md](../../docs/manifest.md).
+
+`homerun gate session <url>` signs in through an app's
+[login wall](login-wall.md) without a browser, for CI and end-to-end tests. It
+requests the app's URL, follows the wall's redirect to your Homerun server
+(aborting before sending anything if that redirect points anywhere else),
+presents your saved API key there, and exchanges the result at the app for its
+session cookie. The key only ever goes to your Homerun server, never to the app.
+It prints `homerun_app_session=<value>`, ready for a `Cookie` header, or with
+`--playwright <file>` writes a Playwright `storageState` file (mode `0600`)
+instead. It fails when the app has no login wall, when the key is invalid or
+disabled, or when the key's owner isn't allowed on the app.
 
 ### Resource commands
 

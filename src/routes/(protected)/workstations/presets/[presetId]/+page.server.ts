@@ -4,7 +4,10 @@ import { WorkstationPresetDTO } from "#lib/dto/workstation-preset-dto.js";
 import { Logger } from "#lib/logger.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { parseWorkstationPreset } from "#lib/server/workstation-form.js";
-import { agentHostProblem } from "#lib/server/workstation-presets.js";
+import {
+	WorkstationSettingsError,
+	WorkstationSettingsService,
+} from "#lib/services/workstation/settings.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("WorkstationPreset");
@@ -60,12 +63,14 @@ export const actions = {
 		if ("error" in result) {
 			return fail(400, { error: result.error });
 		}
-		const hostProblem = await agentHostProblem(result.parsed.remoteHostId);
-		if (hostProblem) {
-			return fail(400, { error: hostProblem });
+		try {
+			await WorkstationSettingsService.updatePreset(preset, result.parsed);
+		} catch (err) {
+			if (err instanceof WorkstationSettingsError) {
+				return fail(err.status, { error: err.message });
+			}
+			throw err;
 		}
-		await preset.update(result.parsed);
-		logger.info(`Workstation preset saved: preset=${preset.id}`);
 		return { ok: true };
 	},
 };

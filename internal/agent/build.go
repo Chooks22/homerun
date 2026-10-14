@@ -267,6 +267,13 @@ func (b *Builder) runSteps(ctx context.Context, steps [][]string, volume string)
 // RunGit runs one git command in a throwaway container with the volume mounted
 // at the workspace, bounded by the clone timeout, and always removes it.
 func (b *Builder) RunGit(ctx context.Context, cmd []string, volume string) (string, int, error) {
+	return b.runGit(ctx, cmd, volume, false)
+}
+
+// runGit runs one git command in an alpine/git container against volume. With
+// stdoutOnly, stderr is dropped from the output, for a command whose output is
+// data rather than a message.
+func (b *Builder) runGit(ctx context.Context, cmd []string, volume string, stdoutOnly bool) (string, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, cloneTimeout)
 	defer cancel()
 	id, err := b.docker.CreateContainer(ctx, dockerapi.ContainerConfig{
@@ -297,7 +304,12 @@ func (b *Builder) RunGit(ctx context.Context, cmd []string, volume string) (stri
 	}
 	defer func() { _ = logs.Close() }()
 	var output strings.Builder
-	if err := dockerapi.Demux(logs, &output); err != nil {
+	if stdoutOnly {
+		err = dockerapi.DemuxSplit(logs, &output, io.Discard)
+	} else {
+		err = dockerapi.Demux(logs, &output)
+	}
+	if err != nil {
 		return "", code, err
 	}
 	return output.String(), code, nil
