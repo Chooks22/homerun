@@ -45,8 +45,10 @@ zone it lives in, and:
 
 - **Every service hostname under it gets its record.** A deploy creates it, a
   change of target fixes it, deleting the service or dropping the domain from it
-  removes it. Turn **Manage service records** off to keep the domain listed
-  without that.
+  removes it. The dashboard's hostname, the registry and object storage's public
+  hosts and status page domains are never removed that way, even when a service,
+  workstation or redirect held one too. Turn **Manage service records** off to
+  keep the domain listed without that.
 - **Records point where you say.** **Records point at** takes this server's IP
   (an A or AAAA record) or a hostname that already reaches it (a CNAME). Blank
   uses the base domain, the way Homerun always did.

@@ -185,6 +185,33 @@ ones it dropped. Real bug it fixed: with Pangolin connected, a newly added
 domain got no resource until someone redeployed. Traefik still needs the
 redeploy to route it, which is what the save toast says.
 
+**A moved services domain releases the old default hostnames on each service's
+next successful deploy**, not when the setting is saved: until that deploy,
+Traefik still routes the old `<slug>.<serviceDomain>` and the new one has no DNS
+yet, so deleting right away would take every service offline.
+`InstanceSettingsService.saveCore` reads `serviceDomain()` before saving and
+hands it to `markStaleServiceDns`, which appends each routed service's old
+default hostname to `service.staleDnsHosts` (text[], kept out of the REST output
+by `serviceApiJson`), dropping one the change brings back. A service whose
+default hostname is off or that isn't `dnsResolvable` is skipped.
+`finalizeWorkerDeploy` then fires `releaseStaleServiceDns`, which deletes every
+listed host `hostnameOwner` says nothing routes any more (not a core host, a
+workstation, a redirect, this service or another), and empties the list whatever
+the providers answer. Covers a base domain change too, since `serviceDomain()`
+moves with it.
+
+**`deleteDns` never deletes a core host.** It drops every hostname in
+`coreHosts()` (`server/hostname-owner.ts`: the dashboard's host from
+`config.auth.origin`, `registryPublicHost`, `garagePublicHost`, every status
+page domain) before fanning out, and logs a warning instead. Real bug it fixed:
+a service given the dashboard's domain, then changed or deleted, deleted the
+dashboard's Pangolin resource and locked the user out until a restart re-ran
+`syncDashboardDns`. The same hosts are refused at save time (services through
+`serviceDomainConflicts`, redirects in `parseRedirectInput`, workstations
+through `hostnameOwner`). A core host's own move still deletes the old record:
+`syncCoreHostDns` runs after the setting is saved, so the old host is no longer
+in `coreHosts()` by then.
+
 **The dashboard's own hostname is synced too.** `dns.service.ts`'s
 `syncDashboardDns` runs on boot and after every settings save
 (`applyAndRebuild`), next to `syncDashboardRouter`, for the Dashboard URL's host

@@ -1,6 +1,12 @@
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
+import { ServiceDTO } from "#lib/dto/service-dto.js";
+import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
-import { serviceRoutedHosts } from "#lib/server/hostname-owner.js";
+import {
+	coreHosts,
+	hostnameOwner,
+	serviceRoutedHosts,
+} from "#lib/server/hostname-owner.js";
 import { defaultHostname, domainHosts } from "#lib/service-domains.js";
 import type { DnsSyncResult } from "./dns-result.ts";
 import { dashboardHostFrom } from "./docker/dashboard.ts";
@@ -35,7 +41,7 @@ export function serviceHostname(
 	slug: string,
 	stackSlug: string | null | undefined,
 ): string {
-	return defaultHostname(slug, stackSlug, config.baseDomain);
+	return defaultHostname(slug, stackSlug, serviceDomain());
 }
 
 /**
@@ -82,9 +88,30 @@ export function syncDns(
 	return fanOut("sync", hostnames, opts);
 }
 
-/** Deletes a DNS/routing record for each hostname across every configured provider (see `fanOut`). */
-export function deleteDns(hostnames: string[]): Promise<DnsSyncResult[]> {
-	return fanOut("delete", hostnames);
+/**
+ * Deletes a DNS/routing record for each hostname across every configured
+ * provider (see `fanOut`), except Homerun's own hosts (`coreHosts`: the
+ * dashboard, the registry and object storage public hosts, status page
+ * domains), which are logged and kept: a service, workstation or redirect
+ * that held one going away must not take the dashboard's Pangolin resource
+ * with it. A core host that changes is no longer one by the time its old
+ * record is deleted, since the setting is saved first.
+ */
+export async function deleteDns(hostnames: string[]): Promise<DnsSyncResult[]> {
+	if (hostnames.length === 0) {
+		return [];
+	}
+	const core = await coreHosts();
+	const kept = hostnames.filter((hostname) => core.has(hostname.toLowerCase()));
+	for (const hostname of kept) {
+		logger.warn(
+			`Kept the DNS record of ${hostname}: it belongs to ${core.get(hostname.toLowerCase())}`,
+		);
+	}
+	return fanOut(
+		"delete",
+		hostnames.filter((hostname) => !kept.includes(hostname)),
+	);
 }
 
 /**
@@ -181,6 +208,79 @@ export async function syncServiceDomainsDns(
 		} else {
 			logger.warn(
 				`Service domain sync failed (${result.provider}): ${result.detail}`,
+			);
+		}
+	}
+}
+
+/**
+ * Once the services domain changed (the Services subdomain or the base
+ * domain) from `previousServiceDomain`, records on every publicly routed
+ * service that keeps its default hostname the one it had before, in
+ * `staleDnsHosts`, for its next successful deploy to delete
+ * (`releaseStaleServiceDns`): the old hostname keeps its Traefik route, and
+ * so needs its record, until that deploy moves it. A hostname the change
+ * brings back is taken off the list.
+ */
+export async function markStaleServiceDns(
+	previousServiceDomain: string,
+): Promise<void> {
+	const current = serviceDomain();
+	if (previousServiceDomain === current) {
+		return;
+	}
+	const [services, stacks] = await Promise.all([
+		ServiceDTO.list(),
+		StackDTO.list(),
+	]);
+	const stackSlugs = new Map(
+		stacks.map((stack) => [stack.id, stack.toJSON().slug]),
+	);
+	await Promise.all(
+		services.map(async (svc) => {
+			const row = svc.toJSON();
+			if (!(svc.dnsResolvable && row.defaultDomainEnabled)) {
+				return;
+			}
+			const stackSlug = row.stackId ? stackSlugs.get(row.stackId) : null;
+			const next = defaultHostname(row.slug, stackSlug, current);
+			const stale = [
+				...new Set([
+					...row.staleDnsHosts,
+					defaultHostname(row.slug, stackSlug, previousServiceDomain),
+				]),
+			].filter((host) => host !== next);
+			await svc.update({ staleDnsHosts: stale });
+		}),
+	);
+	logger.info(
+		`Services domain changed from ${previousServiceDomain} to ${current}: old default hostnames' DNS records go on each service's next deploy`,
+	);
+}
+
+/**
+ * Deletes the DNS records of the hosts `markStaleServiceDns` left on `svc`,
+ * after a deploy moved its route off them, except a host something still
+ * routes (`hostnameOwner`: Homerun itself, a workstation, a redirect, this or
+ * another service). Empties the list either way, a failed deletion is logged
+ * rather than retried.
+ */
+export async function releaseStaleServiceDns(svc: ServiceDTO): Promise<void> {
+	const stale = svc.toJSON().staleDnsHosts;
+	if (stale.length === 0) {
+		return;
+	}
+	const owners = await Promise.all(stale.map((host) => hostnameOwner(host)));
+	const free = stale.filter((_, index) => owners[index] === null);
+	await svc.update({ staleDnsHosts: [] });
+	for (const result of await deleteDns(free)) {
+		if (result.ok) {
+			logger.info(
+				`Old service hostname (${result.provider}): ${result.detail}`,
+			);
+		} else {
+			logger.warn(
+				`Old service hostname deletion failed (${result.provider}): ${result.detail}`,
 			);
 		}
 	}
