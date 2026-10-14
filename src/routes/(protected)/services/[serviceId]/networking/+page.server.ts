@@ -9,6 +9,7 @@ import {
 } from "#lib/server/validation/service.js";
 import { normalizeDomain } from "#lib/service-domains.js";
 import {
+	DomainConflictError,
 	ServiceSettingsError,
 	ServiceSettingsService,
 } from "#lib/services/service-settings.service.js";
@@ -84,19 +85,30 @@ export const actions = {
 				domains: rawDomains,
 				primaryDomain: String(formData.get("primaryDomain") ?? ""),
 				stripPathDomains,
+				takeOverDomains: formData.get("takeOverDomains") === "on",
 			},
 			{
 				hostAccess: can(locals.permissions, "system", "write"),
 				userId: locals.user.id,
 			},
 		);
+		if (saved instanceof DomainConflictError) {
+			return fail(saved.status, {
+				canTakeOver: saved.canTakeOver,
+				conflicts: saved.conflicts.map((conflict) => ({
+					entry: conflict.entry,
+					owner: conflict.owner.label,
+				})),
+				error: saved.message,
+			});
+		}
 		if (saved instanceof ServiceSettingsError) {
 			return fail(saved.status, { error: saved.message });
 		}
 		logger.info(
 			`Domains updated: service=${svc.id} domains=${svc.toJSON().domains.join(",")} defaultDomain=${svc.toJSON().defaultDomainEnabled} user=${locals.user.id}`,
 		);
-		return { success: true };
+		return { success: true, takenOver: saved.takenOver };
 	},
 
 	updateSsl: async ({ request, params, locals }) => {

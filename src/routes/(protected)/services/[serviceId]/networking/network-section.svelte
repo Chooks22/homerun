@@ -18,9 +18,9 @@
 	import { enhance } from "$app/forms";
 
 	interface Props {
-		baseDomain: string;
 		collapseNetworkMode: boolean;
 		errors?: Record<string, string[]>;
+		serviceDomain: string;
 		submittedValues?: Record<string, string>;
 		svc: {
 			command: string[] | null;
@@ -38,9 +38,9 @@
 	}
 
 	const {
-		baseDomain,
 		collapseNetworkMode,
 		errors: portsErrors,
+		serviceDomain,
 		submittedValues,
 		svc,
 	}: Props = $props();
@@ -209,7 +209,7 @@
     {#if networkMode === "bridge"}
       <CheckBox
         checked={portsValues.dnsResolvable === "on"}
-        helperText="Get a public {svc.slug}.{baseDomain} route. Turn off to keep this service reachable only from other services on the same network."
+        helperText="Get a public {svc.slug}.{serviceDomain} route. Turn off to keep this service reachable only from other services on the same network."
         id="dnsResolvable"
         label="DNS-resolvable"
         name="dnsResolvable"

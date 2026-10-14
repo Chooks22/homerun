@@ -16,6 +16,7 @@
 
 	interface Props {
 		baseDomain: string;
+		serviceDomain: string;
 		stackSlug: string | null;
 		submitting: boolean;
 		svc: ServiceDomainFields & {
@@ -29,17 +30,18 @@
 
 	let {
 		baseDomain,
+		serviceDomain,
 		stackSlug,
 		submitting = $bindable(),
 		svc,
 	}: Props = $props();
 
 	const fallbackHost = $derived(
-		defaultHostname(svc.slug, stackSlug, baseDomain),
+		defaultHostname(svc.slug, stackSlug, serviceDomain),
 	);
-	const mainHost = $derived(primaryHostname(svc, stackSlug, baseDomain));
+	const mainHost = $derived(primaryHostname(svc, stackSlug, serviceDomain));
 	const routedCount = $derived(
-		serviceHostnames(svc, stackSlug, baseDomain).length,
+		serviceHostnames(svc, stackSlug, serviceDomain).length,
 	);
 
 	let domains = $derived([...svc.domains]);
@@ -51,6 +53,7 @@
 	);
 	let defaultEnabled = $derived(svc.defaultDomainEnabled);
 	let primary = $derived(mainHost ?? "");
+	let conflicts = $state<{ entry: string; owner: string }[]>([]);
 
 	function renameDomain(index: number, value: string) {
 		const previous = domains[index];
@@ -123,13 +126,26 @@
       use:enhance={enhanceToast({
         error: "Check the domains and try again.",
         loading: "Saving the domains",
+        onFailure: (data) => {
+          conflicts = data?.canTakeOver
+            ? (data.conflicts as { entry: string; owner: string }[])
+            : [];
+        },
         onSettled: () => {
           submitting = false;
         },
         onStart: () => {
           submitting = true;
         },
-        success: "Saved. Redeploy for it to take effect.",
+        onSuccess: () => {
+          conflicts = [];
+        },
+        success: (data) => {
+          const takenOver = (data?.takenOver as string[] | undefined) ?? [];
+          return takenOver.length > 0
+            ? `Taken over from ${takenOver.join(", ")}. This service is redeploying; ${takenOver.join(", ")} keeps serving it until its own next deploy.`
+            : "Saved. Redeploy for it to take effect.";
+        },
       })}
     >
       <input name="primaryDomain" type="hidden" value={primary}>
@@ -240,6 +256,30 @@
         {baseDomain}.
       </p>
       <p class="text-text-subtle text-xs">Redeploy for changes to take effect.</p>
+      {#if conflicts.length > 0}
+        <div class="border-border space-y-2 rounded-lg border p-3 text-xs">
+          <p class="text-text-muted">
+            {#each conflicts as conflict (conflict.entry)}
+              <span class="block">{conflict.entry} is already routed to {conflict.owner}.</span>
+            {/each}
+          </p>
+          <p class="text-text-subtle">
+            Taking it over removes it from there and redeploys this service. A
+            service it's taken from keeps serving it until its own next deploy,
+            so the move has no downtime; a redirect stops right away.
+          </p>
+          <Button
+            name="takeOverDomains"
+            disabled={submitting}
+            size="sm"
+            type="submit"
+            value="on"
+            variant="outline"
+          >
+            Take over and save
+          </Button>
+        </div>
+      {/if}
     </form>
   {/if}
 </section>

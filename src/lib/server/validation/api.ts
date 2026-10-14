@@ -254,6 +254,12 @@ export const updateServiceApiBody = z.object({
 		.describe(
 			"Glob patterns (* any run, ? one character) a pull request's head branch must match one of to get a preview. Empty lets every branch through.",
 		),
+	previewUptimeEnabled: z
+		.boolean()
+		.optional()
+		.describe(
+			"Probe each pull request preview's uptime. Applied when a preview is created or redeployed.",
+		),
 	previewInheritEnv: z
 		.boolean()
 		.optional()
@@ -298,6 +304,24 @@ export const updateServiceApiBody = z.object({
 		.enum(["no", "always", "on-failure", "unless-stopped"])
 		.optional(),
 	tag: z.string().min(1).optional(),
+	updateCheckEnabled: z
+		.boolean()
+		.optional()
+		.describe(
+			"Image services: watch the registry for a newer release of the tag, or a new image behind a floating tag. Turning it off forgets the last check.",
+		),
+	updateTrialEnabled: z
+		.boolean()
+		.optional()
+		.describe(
+			"Image services: try each update in a throwaway container before notifying it.",
+		),
+	takeOverDomains: z
+		.boolean()
+		.optional()
+		.describe(
+			"When a domain this change adds (or the default hostname a slug or stack change moves) is already routed by another service or a redirect, take it from there instead of answering 409: the other service loses it and keeps serving it until its own next deploy, the redirect is disabled, and this service is redeployed. The dashboard, core services, status pages and workstations are never taken over.",
+		),
 	uptimeEnabled: z.boolean().optional(),
 	...serviceSettingsFields,
 });

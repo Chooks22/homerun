@@ -17,26 +17,43 @@ DNS-resolvability. The per-app login wall lives on the
   automatically in host mode (there's no per-container IP for Traefik's Docker
   provider to route to).
 - **Domains**, a list of extra hostnames on top of the automatic
-  `<slug>.<baseDomain>` one (which has its own "Routed" toggle, so it can be
-  dropped once a real domain replaces it). Each extra domain can target its own
-  container port (blank means the container port above), so one container can
-  serve its web UI and its API on two hostnames. A domain can carry a path,
-  `example.com/api`: it then routes only `/api` and what's under it, even while
-  another service serves `example.com` itself (the longer rule wins), so a
-  frontend and its API can share one origin without CORS. Its **Strip path** box
-  removes the prefix before the request reaches the container (`/api/v2` arrives
-  as `/v2`); leave it off for an app configured to serve under that path itself.
-  Two services can't claim the same domain and path. In the
-  [REST API](api-and-cli.md), a [Homerun Manifest](manifest.md) and
-  [Terraform](infrastructure-as-code.md), the path goes in `domains` as is and
-  the stripped ones are listed in `stripPathDomains` (`strip_path_domains`). DNS
-  automation manages the host once, and deleting a path domain never deletes a
-  record another service still routes. The [login wall](login-wall.md) works on
-  a path domain too, with its sign-in scoped to that path, so two gated services
-  on one host each keep their own session. Pick one as the main domain: it's the
-  link shown under the service's name and the one used for deploy notifications,
-  the uptime probe and search. At least one hostname has to stay routed,
-  otherwise turn public routing off in the Network section below instead.
+  `<slug>.<baseDomain>` one (`<slug>.<subdomain>.<baseDomain>` with a
+  [Services subdomain](configuration.md#base-domain-vs-dashboard-url) set; it
+  has its own "Routed" toggle, so it can be dropped once a real domain replaces
+  it). Each extra domain can target its own container port (blank means the
+  container port above), so one container can serve its web UI and its API on
+  two hostnames. A domain can carry a path, `example.com/api`: it then routes
+  only `/api` and what's under it, even while another service serves
+  `example.com` itself (the longer rule wins), so a frontend and its API can
+  share one origin without CORS. Its **Strip path** box removes the prefix
+  before the request reaches the container (`/api/v2` arrives as `/v2`); leave
+  it off for an app configured to serve under that path itself. A domain
+  something else already routes is refused when it's saved, the same check a
+  slug or stack change runs on the default hostname: the dashboard, the registry
+  or object storage's public host, a status page and a workstation on the same
+  host for good, an enabled redirect on the same host, or another service on the
+  same domain and path (`example.com/api` beside another service's `example.com`
+  is fine). From a service or a redirect, the refusal offers **Take over and
+  save**: the domain leaves its owner (a service drops it, turning its default
+  hostname or public routing off when that was the one, a redirect is disabled)
+  and this service is redeployed right away. A service it was taken from keeps
+  serving it until its own next deploy, so moving a domain to a new service has
+  no downtime; redeploy the old one once the new one is up. The
+  [REST API](api-and-cli.md) takes the same choice as `"takeOverDomains": true`
+  in the service's PATCH body, and answers 409 without it, with a `conflicts`
+  list (each `domain` with its `owner`, `ownerKind`, `ownerId` and whether it
+  `canTakeOver`) so a client can offer the takeover; the CLI then suggests
+  `--set takeOverDomains=true`. In the [REST API](api-and-cli.md), a
+  [Homerun Manifest](manifest.md) and [Terraform](infrastructure-as-code.md),
+  the path goes in `domains` as is and the stripped ones are listed in
+  `stripPathDomains` (`strip_path_domains`). DNS automation manages the host
+  once, and deleting a path domain never deletes a record another service still
+  routes. The [login wall](login-wall.md) works on a path domain too, with its
+  sign-in scoped to that path, so two gated services on one host each keep their
+  own session. Pick one as the main domain: it's the link shown under the
+  service's name and the one used for deploy notifications, the uptime probe and
+  search. At least one hostname has to stay routed, otherwise turn public
+  routing off in the Network section below instead.
 
 ![A service's Networking tab, with its automatic hostname and domains](images/networking.webp)
 

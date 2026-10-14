@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
@@ -10,12 +10,16 @@ import { authPathsProblem, pathFiltersChanged } from "#lib/path-patterns.js";
 import { publishedPortsProblem } from "#lib/published-ports.js";
 import { normalizeEnvironmentName } from "#lib/release-channels.js";
 import { invalidateGatedService } from "#lib/server/gated-service-cache.js";
+import {
+	type DomainConflict,
+	serviceDomainConflicts,
+} from "#lib/server/hostname-owner.js";
 import { listIconLibrary } from "#lib/server/icon-library.js";
 import {
 	type LoginWallPolicy,
-	loginWallAvailability,
 	loginWallPolicyProblem,
 } from "#lib/server/login-wall-form.js";
+import { loginWallAvailability } from "#lib/server/login-wall-options.js";
 import type { ServiceSettingsInput } from "#lib/server/validation/api.js";
 import {
 	previewDomainTemplateProblem,
@@ -30,6 +34,7 @@ import {
 import { DeploymentService } from "#lib/services/deploy.service.js";
 import { syncServiceDomainsDns } from "#lib/services/dns.service.js";
 import { DockerService } from "#lib/services/docker.service.js";
+import { takeOverDomains } from "#lib/services/domain-takeover.js";
 import { GitWebhookService } from "#lib/services/git-webhook.service.js";
 import { PreviewService } from "#lib/services/preview.service.js";
 import {
@@ -49,6 +54,48 @@ export class ServiceSettingsError extends Error {
 	) {
 		super(message);
 	}
+
+	/** The JSON body a REST route answers this refusal with. */
+	body(): Record<string, unknown> {
+		return { error: this.message };
+	}
+}
+
+/** Whether every conflict's owner is one a service can take a hostname from: another service or a redirect. */
+function canTakeOver(conflicts: DomainConflict[]): boolean {
+	return conflicts.every(
+		(conflict) =>
+			conflict.owner.kind === "service" || conflict.owner.kind === "redirect",
+	);
+}
+
+/** A routing change refused because something else already routes a domain it adds; `canTakeOver` says whether `takeOverDomains` would move them here. */
+export class DomainConflictError extends ServiceSettingsError {
+	readonly canTakeOver: boolean;
+
+	constructor(readonly conflicts: DomainConflict[]) {
+		const takeable = canTakeOver(conflicts);
+		super(
+			`${conflicts.map((conflict) => `${conflict.entry} is already routed to ${conflict.owner.label}.`).join(" ")}${takeable ? " Take it over to move it to this service." : ""}`,
+			409,
+		);
+		this.canTakeOver = takeable;
+	}
+
+	/** The message plus each conflicting entry with its owner, so a REST client can offer the takeover `takeOverDomains` does. */
+	override body(): Record<string, unknown> {
+		return {
+			canTakeOver: this.canTakeOver,
+			conflicts: this.conflicts.map(({ entry, owner }) => ({
+				canTakeOver: canTakeOver([{ entry, owner }]),
+				domain: entry,
+				owner: owner.label,
+				ownerId: "id" in owner ? owner.id : null,
+				ownerKind: owner.kind,
+			})),
+			error: this.message,
+		};
+	}
 }
 
 export interface SettingsActor {
@@ -63,6 +110,8 @@ export interface SettingsResult {
 	filteredOut: number;
 	/** Whether a routing or login-wall change queued a redeploy. */
 	redeploying: boolean;
+	/** The owners domains were taken over from, which keep serving them until their own next deploy. */
+	takenOver: string[];
 }
 
 type Row = ReturnType<ServiceDTO["toJSON"]>;
@@ -107,6 +156,9 @@ function derivedColumns(
 	if (fields.buildCacheBuiltin) {
 		columns.buildCacheRegistryId = null;
 	}
+	if (fields.updateCheckEnabled === false) {
+		columns.updateCheck = null;
+	}
 	if (input.registryPassword) {
 		columns.registryPasswordEnc = encryptSecret(input.registryPassword);
 	}
@@ -142,20 +194,27 @@ class ServiceSettingsServiceClass {
 		actor: SettingsActor,
 	): Promise<SettingsResult> {
 		const before = { ...svc.toJSON() };
-		const patch = await this.#patch(svc, input, actor);
+		const { columns: patch, takeovers } = await this.#patch(svc, input, actor);
 		const previous = serviceHostnames(
 			before,
 			await this.#stackSlug(before.stackId),
-			config.baseDomain,
+			serviceDomain(),
 		);
+		const takenOver =
+			takeovers.length > 0
+				? await takeOverDomains(takeovers, svc.id, actor.userId)
+				: [];
 		if (Object.keys(patch).length > 0) {
 			await svc.update(patch);
 		}
-		const result = await this.#resync(svc, before, actor);
+		const result = {
+			...(await this.#resync(svc, before, actor, takenOver.length > 0)),
+			takenOver,
+		};
 		const next = serviceHostnames(
 			svc.toJSON(),
 			await this.#stackSlug(svc.stackId),
-			config.baseDomain,
+			serviceDomain(),
 		);
 		if (svc.dnsResolvable && previous.join() !== next.join()) {
 			void syncServiceDomainsDns(previous, next, svc.id);
@@ -189,12 +248,12 @@ class ServiceSettingsServiceClass {
 		}
 	}
 
-	/** The columns `input` sets, checked and with secrets encrypted. */
+	/** The columns `input` sets, checked and with secrets encrypted, and the domains to take over from their owners first. */
 	async #patch(
 		svc: ServiceDTO,
 		input: ServiceSettingsInput,
 		actor: SettingsActor,
-	): Promise<ServiceUpdateInput> {
+	): Promise<{ columns: ServiceUpdateInput; takeovers: DomainConflict[] }> {
 		const {
 			channelBranch: _branch,
 			channelCanaryDomain: _canaryDomain,
@@ -203,6 +262,7 @@ class ServiceSettingsServiceClass {
 			customSslCert: _cert,
 			customSslKey: _key,
 			registryPassword: _password,
+			takeOverDomains,
 			...fields
 		} = input;
 		const row = svc.toJSON();
@@ -213,8 +273,15 @@ class ServiceSettingsServiceClass {
 		await this.#checkSource(row, fields);
 		this.#checkAccess(row, fields, await loginWallAvailability());
 		await this.#checkNetwork(svc, fields);
-		const routing = await this.#routing(svc, fields);
-		return { ...fields, ...routing, ...derivedColumns(fields, input) };
+		const routing = await this.#routing(svc, fields, takeOverDomains === true);
+		return {
+			columns: {
+				...fields,
+				...routing.columns,
+				...derivedColumns(fields, input),
+			},
+			takeovers: routing.takeovers,
+		};
 	}
 
 	/** Slug, stack, category and icon. */
@@ -391,12 +458,25 @@ class ServiceSettingsServiceClass {
 		}
 	}
 
-	/** The routing columns the update sets, with its domains checked free. */
+	/**
+	 * The routing columns the update sets, and the domain entries it adds
+	 * (a new domain, or the default hostname a slug or stack change moves)
+	 * that something else already routes: refused unless `takeOver` is set
+	 * and every owner is a service or a redirect, in which case they're
+	 * returned to be taken over.
+	 */
 	async #routing(
 		svc: ServiceDTO,
 		input: ServiceSettingsInput,
-	): Promise<Partial<ServiceUpdateInput>> {
+		takeOver: boolean,
+	): Promise<{
+		columns: Partial<ServiceUpdateInput>;
+		takeovers: DomainConflict[];
+	}> {
 		const row = svc.toJSON();
+		const stackSlug = await this.#stackSlug(
+			input.stackId === undefined ? row.stackId : input.stackId,
+		);
 		const routing = routingPatch(
 			row,
 			{
@@ -408,32 +488,44 @@ class ServiceSettingsServiceClass {
 				slug: input.slug,
 				stripPathDomains: input.stripPathDomains,
 			},
-			{
-				baseDomain: config.baseDomain,
-				stackSlug: await this.#stackSlug(
-					input.stackId === undefined ? row.stackId : input.stackId,
-				),
-			},
+			{ baseDomain: serviceDomain(), stackSlug },
 		);
-		if (!routing) {
-			return {};
-		}
-		if ("error" in routing) {
+		if (routing && "error" in routing) {
 			fail(routing.error);
 		}
-		const taken = await ServiceDTO.domainTaken(routing.patch.domains, svc.id);
-		if (taken) {
-			fail(`${taken} is already routed to another service.`, 409);
+		const previous = serviceHostnames(
+			row,
+			await this.#stackSlug(row.stackId),
+			serviceDomain(),
+		);
+		const next =
+			routing?.hostnames ??
+			serviceHostnames(
+				{ ...row, slug: input.slug ?? row.slug },
+				stackSlug,
+				serviceDomain(),
+			);
+		const conflicts = await serviceDomainConflicts(
+			next.filter((entry) => !previous.includes(entry)),
+			svc.id,
+		);
+		if (conflicts.length > 0 && !(takeOver && canTakeOver(conflicts))) {
+			throw new DomainConflictError(
+				takeOver
+					? conflicts.filter((conflict) => !canTakeOver([conflict]))
+					: conflicts,
+			);
 		}
-		return routing.patch;
+		return { columns: routing?.patch ?? {}, takeovers: conflicts };
 	}
 
-	/** Webhooks, previews, the login wall cache and redeploys after the row changed. */
+	/** Webhooks, previews, the login wall cache and redeploys after the row changed; a domain taken over queues a redeploy so it routes here as soon as possible. */
 	async #resync(
 		svc: ServiceDTO,
 		before: Row,
 		actor: SettingsActor,
-	): Promise<SettingsResult> {
+		tookOver: boolean,
+	): Promise<Omit<SettingsResult, "takenOver">> {
 		const after = svc.toJSON();
 		if (
 			changed(before, after, [
@@ -490,13 +582,14 @@ class ServiceSettingsServiceClass {
 		if (actor.deploying) {
 			return { filteredOut, redeploying: false };
 		}
-		const redeploying = pathFiltersChanged(before, after)
-			? await DeploymentService.redeployForRouting(svc, actor.userId)
-			: await DeploymentService.redeployIfLoginWallChanged(
-					svc,
-					before.authRequired,
-					actor.userId,
-				);
+		const redeploying =
+			tookOver || pathFiltersChanged(before, after)
+				? await DeploymentService.redeployForRouting(svc, actor.userId)
+				: await DeploymentService.redeployIfLoginWallChanged(
+						svc,
+						before.authRequired,
+						actor.userId,
+					);
 		return { filteredOut, redeploying };
 	}
 

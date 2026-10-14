@@ -19,6 +19,7 @@
 <div class="space-y-6">
   <DomainsSection
     baseDomain={data.baseDomain}
+    serviceDomain={data.serviceDomain}
     stackSlug={data.stackSlug}
     {svc}
     bind:submitting
@@ -31,10 +32,10 @@
     bind:submitting
   />
   <NetworkSection
-    baseDomain={data.baseDomain}
     collapseNetworkMode={!visibleIn(data.uiMode, "service/networking#network-mode") &&
     svc.networkMode === "bridge"}
     errors={form?.errors as Record<string, string[]> | undefined}
+    serviceDomain={data.serviceDomain}
     submittedValues={form?.portsValues as Record<string, string> | undefined}
     {svc}
   />
