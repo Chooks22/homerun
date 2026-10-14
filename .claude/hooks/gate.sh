@@ -2,6 +2,23 @@
 set -uo pipefail
 
 cd "$CLAUDE_PROJECT_DIR"
+
+if [ -z "$(git status --porcelain)" ]; then
+  exit 0
+fi
+
+stamp="$(git rev-parse --git-path claude-gate-passed)"
+fingerprint() {
+  {
+    git rev-parse HEAD
+    git diff HEAD --binary
+    git ls-files --others --exclude-standard -z | xargs -0 shasum 2>/dev/null
+  } | shasum | cut -d' ' -f1
+}
+if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$(fingerprint)" ]; then
+  exit 0
+fi
+
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 
@@ -24,3 +41,5 @@ gate() {
 gate "Type check" bun run check
 gate "prek" prek run
 gate "Unit tests (coverage threshold included)" bun run test
+
+fingerprint >"$stamp"
