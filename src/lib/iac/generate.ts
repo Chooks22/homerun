@@ -1,3 +1,4 @@
+import { SECRET_MASK } from "#lib/formatting.js";
 import {
 	expression,
 	type HclBlock,
@@ -215,8 +216,6 @@ function variable(context: RenderContext, input: SecretVariable) {
 	return expression(`var.${input.name}`);
 }
 
-const MASK = "••••••••";
-
 /**
  * A tfvars file: each secret's value, or for one Homerun can't read back
  * (or `mask`ed ones, for showing on a page) a placeholder. A placeholder is
@@ -237,7 +236,7 @@ function tfvars(
 			if (variable.value === null) {
 				return `# ${variable.name} = ${empty(variable)} # Homerun never returns it: fill it in`;
 			}
-			return `${variable.name} = ${quote(mode === "masked" ? MASK : variable.value)}`;
+			return `${variable.name} = ${quote(mode === "masked" ? SECRET_MASK : variable.value)}`;
 		})
 		.join("\n")}\n`;
 }

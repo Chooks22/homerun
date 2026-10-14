@@ -266,6 +266,16 @@ A user-defined scheduled task that isn't tied to a service, unlike
   the source becoming the first config file (`/homerun/main.<ext>`) and the
   command the runtime's interpreter on it, working dir `/homerun`.
 
+**Secret env vars** (`cron_job.secretEnvKeys`, every kind): the same lock as a
+service's env editor, through the same shared `env-vars-editor.svelte` and the
+same `parseEnvVars`/`parseSecretEnvKeys` (`validation/service.ts`), so an
+untouched secret posts no value and keeps the stored one (`envKeep`). The REST
+body, the OpenAPI response, `homerun_cron_job.secret_env_keys` and the MCP
+redaction all reuse the service's path: `redactSecrets` reads `secretEnvKeys`
+off any object, and `update_cron_job` hands it to `mergeEnvChanges`.
+`parseCronJobInput` drops a mark whose var is gone. Cron jobs aren't in the
+Manifest.
+
 **Config files** (`cron_job.files`, `{ path, content }[]`, image and script
 kinds, dropped for exec) are written into the container before its process
 starts by `internal/dockerapi`'s `WithFiles`, applied inside `RunOneOff`: it
@@ -372,10 +382,10 @@ on the Scheduling page next to cron redeploys and backups.
 `internal/jobs/cronjob`). `CronJobService.prepareRun` creates the run row and
 resolves the spec (image ref or the `nsenter` helper, parsed command, env,
 labels, registry auth, and for an image job on a `"docker"` build server its
-`tcp://` connection; `ssh://` hosts are rejected by the worker, agent hosts by
-prepare). Go runs it through `dockerapi.RunOneOff`, appends output to
-`cron_job_run.output` at most once a second (`cronjob.go`'s own `flusher`, the
-Go port of the old in-process `OutputFlusher`), and returns
+`tcp://` or `ssh://` connection, from `RemoteHostDTO.toDockerConnection`; agent
+hosts are rejected by prepare). Go runs it through `dockerapi.RunOneOff`,
+appends output to `cron_job_run.output` at most once a second (`cronjob.go`'s
+own `flusher`, the Go port of the old in-process `OutputFlusher`), and returns
 `{exitCode, output, timedOut}`; `CronJobService.finishRun` maps that onto the
 outcome (same messages as before) and finishes the run. The old in-process
 `CronJobService.runJob`/`#runImage`/`#runExec` and its `OutputFlusher` are gone

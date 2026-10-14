@@ -139,6 +139,12 @@ export const cronJobApiBody = z.object({
 		.optional()
 		.describe("The runtime a script job's source runs on."),
 	schedule,
+	secretEnvKeys: z
+		.array(z.string())
+		.default([])
+		.describe(
+			"envVars keys marked secret: masked in the dashboard and always redacted for AI agents.",
+		),
 	source: z
 		.string()
 		.nullable()
@@ -156,6 +162,7 @@ export const updateCronJobApiBody = cronJobApiBody
 		envVars: z.record(z.string(), z.string()),
 		files: z.array(cronJobFile),
 		mounts: z.array(cronJobMount),
+		secretEnvKeys: z.array(z.string()),
 	})
 	.partial();
 

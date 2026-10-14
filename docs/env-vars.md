@@ -72,15 +72,21 @@ a dependency-only link has no variables and is gone at once.
 
 ## Marking a variable secret
 
-The lock icon next to a row in the Environment Variables section marks that
-variable secret, independent of its name: useful for something that doesn't look
-secret, like `TMDB_API`. A secret value is a password field here, and is always
-redacted for an AI agent through the [MCP server](mcp.md), whatever it's called.
-A variable a template fills with a generated password starts out marked. Only
-the dashboard can set or clear the mark, the REST API's `PATCH` ignores it if
-sent.
+The lock icon next to a row in the Environment Variables section (a service's,
+or a [cron job's](scheduling.md)) marks that variable secret, independent of its
+name: useful for something that doesn't look secret, like `TMDB_API`. A variable
+a template fills with a generated password starts out marked.
 
-![Two variables marked secret: their values are password fields and their locks are closed](images/env-vars-secret.webp)
+A secret's stored value is never put back in the page: its field is empty and
+shows the same fixed row of dots whatever the value's length. Leave it untouched
+and saving keeps the stored value; type in it and the new value replaces it.
+Unlocking a variable you haven't retyped shows its stored value again.
+
+A secret is always redacted for an AI agent through the [MCP server](mcp.md),
+whatever it's called. The REST API, the CLI and Terraform read and set the marks
+as `secretEnvKeys` (`secret_env_keys` in Terraform), next to `envVars`.
+
+![Two variables marked secret: their values are hidden behind a fixed mask and their locks are closed](images/env-vars-secret.webp)
 
 ## Env files
 

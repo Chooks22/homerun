@@ -1,8 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
+	envEditorRows,
+	envRowKeep,
 	mergeEnvRows,
 	type ParsedEnvVar,
 	parseDotEnv,
+	plainEnvRow,
+	toggleEnvRowSecret,
 } from "../../../src/lib/env-parse";
 
 describe("parseDotEnv", () => {
@@ -95,5 +99,48 @@ describe("mergeEnvRows", () => {
 		const merged = mergeEnvRows([{ id: 1, key: "", value: "" }], [], makeRow);
 		expect(merged).toHaveLength(1);
 		expect(merged[0]).toMatchObject({ key: "", value: "" });
+	});
+});
+
+describe("the env editor's rows", () => {
+	const envVars = { API_TOKEN: "t0k3n", TZ: "UTC" };
+
+	test("a secret starts with no value, keeping the stored one under its name", () => {
+		expect(envEditorRows(envVars, ["API_TOKEN"])).toEqual([
+			{ keep: "API_TOKEN", key: "API_TOKEN", secret: true, value: "" },
+			{ keep: null, key: "TZ", secret: false, value: "UTC" },
+		]);
+		expect(envEditorRows({}, [])).toEqual([plainEnvRow()]);
+	});
+
+	test("a row only keeps the stored value while it has no new one", () => {
+		const [secret] = envEditorRows(envVars, ["API_TOKEN"]);
+		if (!secret) {
+			throw new Error("no row");
+		}
+		expect(envRowKeep(secret)).toBe("API_TOKEN");
+		expect(envRowKeep({ ...secret, value: "typed" })).toBe("");
+		expect(envRowKeep(plainEnvRow({ key: "A", value: "" }))).toBe("");
+	});
+
+	test("unmarking an untouched secret shows its stored value again", () => {
+		const [secret, plain] = envEditorRows(envVars, ["API_TOKEN"]);
+		if (!secret || !plain) {
+			throw new Error("no rows");
+		}
+		toggleEnvRowSecret(secret, envVars);
+		expect(secret).toEqual({
+			keep: null,
+			key: "API_TOKEN",
+			secret: false,
+			value: "t0k3n",
+		});
+		toggleEnvRowSecret(plain, envVars);
+		expect(plain).toEqual({
+			keep: null,
+			key: "TZ",
+			secret: true,
+			value: "UTC",
+		});
 	});
 });

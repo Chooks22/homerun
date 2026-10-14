@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	createServiceSchema,
 	parseEnvVars,
+	parseSecretEnvKeys,
 	updateRuntimeSchema,
 } from "../../../src/lib/server/validation/service";
 
@@ -64,5 +65,31 @@ describe("parseEnvVars", () => {
 			form.append("envValue", value as string);
 		}
 		expect(parseEnvVars(form)).toEqual({ A: "1", B: "2" });
+	});
+
+	test("an untouched secret keeps its stored value, a typed one replaces it", () => {
+		const form = new FormData();
+		for (const [key, value, keep] of [
+			["API_TOKEN", "", "TOKEN"],
+			["DB_PASSWORD", "new-one", "DB_PASSWORD"],
+			["GONE", "", "MISSING"],
+			["TZ", "UTC", ""],
+		]) {
+			form.append("envKey", key as string);
+			form.append("envValue", value as string);
+			form.append("envKeep", keep as string);
+		}
+		form.append("envSecret", "API_TOKEN");
+		form.append("envSecret", "API_TOKEN");
+		form.append("envSecret", "DROPPED");
+		const stored = { DB_PASSWORD: "old", TOKEN: "t0k3n" };
+		const envVars = parseEnvVars(form, stored);
+		expect(envVars).toEqual({
+			API_TOKEN: "t0k3n",
+			DB_PASSWORD: "new-one",
+			GONE: "",
+			TZ: "UTC",
+		});
+		expect(parseSecretEnvKeys(form, envVars)).toEqual(["API_TOKEN"]);
 	});
 });

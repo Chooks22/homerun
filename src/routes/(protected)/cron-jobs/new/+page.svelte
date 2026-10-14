@@ -75,6 +75,7 @@
         remoteHostId: null,
         runAsUser: null,
         runtime: null,
+        secretEnvKeys: [],
         source: null,
         tag: "latest",
       }}

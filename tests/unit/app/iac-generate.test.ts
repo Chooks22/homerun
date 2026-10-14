@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { SECRET_MASK } from "../../../src/lib/formatting";
 import {
 	type GeneratedFile,
 	generateStructure,
@@ -243,7 +244,7 @@ describe("generateStructure", () => {
 
 	test("masks the values in the preview a page shows", () => {
 		const tfvars = files.find((entry) => entry.path === "terraform.tfvars");
-		expect(tfvars?.preview).toContain('web_api_key = "••••••••"');
+		expect(tfvars?.preview).toContain(`web_api_key = "${SECRET_MASK}"`);
 		expect(tfvars?.preview).not.toContain('"secret"');
 		expect(files.filter((entry) => entry.preview).length).toBe(1);
 	});
@@ -270,6 +271,36 @@ describe("generateStructure", () => {
 			},
 		).find((entry) => entry.path === "terraform.tfvars")?.content;
 		expect(escaped).toBe('api_token = "a\\"b$${c}"\n');
+	});
+
+	test("a cron job's secret env vars become variables like a service's", () => {
+		const generated = generateStructure(
+			{
+				homerun_cron_job: [
+					{
+						envVars: { TOKEN: "t0k3n", TZ: "UTC" },
+						id: "c1",
+						image: "alpine",
+						kind: "image",
+						name: "Nightly",
+						schedule: "0 3 * * *",
+						secretEnvKeys: ["TOKEN"],
+					},
+				],
+			},
+			{
+				backendAddress: null,
+				endpoint: "http://x",
+				generatedAt: new Date(0),
+				name: "Nightly",
+			},
+		);
+		const all = generated.map((entry) => entry.content).join("\n");
+		expect(all).toContain("TOKEN = var.nightly_token");
+		expect(all).toContain('secret_env_keys = ["TOKEN"]');
+		expect(
+			generated.find((entry) => entry.path === "terraform.tfvars")?.content,
+		).toBe('nightly_token = "t0k3n"\n');
 	});
 
 	test("is stable and works without a backend or secrets", () => {

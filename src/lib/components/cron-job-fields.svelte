@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Plus, Trash2 } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
 	import CodeEditor from "#lib/components/code-editor.svelte";
 	import CronJobFiles from "#lib/components/cron-job-files.svelte";
 	import CronJobMounts from "#lib/components/cron-job-mounts.svelte";
-	import EnvPasteButton from "#lib/components/env-paste-button.svelte";
+	import EnvVarsEditor from "#lib/components/env-vars-editor.svelte";
 	import { inputClass, labelClass } from "#lib/components/form-styles.js";
+	import PanelHeader from "#lib/components/panel-header.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
@@ -19,7 +19,6 @@
 		type ScriptRuntime,
 		scriptPath,
 	} from "#lib/cron-job-script.js";
-	import { mergeEnvRows, type ParsedEnvVar } from "#lib/env-parse.js";
 	import { languageFor } from "#lib/highlight.js";
 
 	interface Option {
@@ -40,6 +39,7 @@
 		remoteHostId: string | null;
 		runAsUser: string | null;
 		runtime: ScriptRuntime | null;
+		secretEnvKeys: string[];
 		source: string | null;
 		tag: string | null;
 	}
@@ -55,14 +55,6 @@
 		values: CronJobValues;
 		volumes?: Option[];
 	} = $props();
-
-	function initialEnvRows(): ParsedEnvVar[] {
-		const rows = Object.entries(values.envVars).map(([key, value]) => ({
-			key,
-			value,
-		}));
-		return rows.length > 0 ? rows : [{ key: "", value: "" }];
-	}
 
 	const KINDS: { hint: string; label: string; value: CronJobKind }[] = [
 		{
@@ -87,22 +79,6 @@
 	let source = $state(untrack(() => values.source ?? ""));
 	let remoteHostId = $state(untrack(() => values.remoteHostId ?? ""));
 	let showRegistry = $state(untrack(() => !!values.registryUsername));
-	let envRows = $state<ParsedEnvVar[]>(untrack(initialEnvRows));
-
-	function addEnvRow() {
-		envRows.push({ key: "", value: "" });
-	}
-
-	function removeEnvRow(i: number) {
-		envRows.splice(i, 1);
-		if (envRows.length === 0) {
-			envRows.push({ key: "", value: "" });
-		}
-	}
-
-	function importEnvRows(imported: ParsedEnvVar[]) {
-		envRows = mergeEnvRows(envRows, imported, (row) => row);
-	}
 
 	function kindClass(value: CronJobKind): string {
 		return value === kind
@@ -267,44 +243,12 @@
 </section>
 
 <section class="panel rounded-md">
-  <div class="border-border border-b px-5 py-4">
-    <h2 class="eyebrow">Environment variables</h2>
-  </div>
+  <PanelHeader
+    description="The lock marks a value secret: it's hidden here and always redacted for AI agents, whatever its name."
+    title="Environment variables"
+  />
   <div class="space-y-2.5 p-5">
-    {#each envRows as row, i (i)}
-      <div class="flex items-center gap-2">
-        <Input
-          class=""
-          name="envKey"
-          placeholder="KEY"
-          type="text"
-          bind:value={row.key}
-        />
-        <Input
-          class=""
-          name="envValue"
-          placeholder="value"
-          type="text"
-          bind:value={row.value}
-        />
-        <Button
-          aria-label="Remove"
-          class="shrink-0 text-red-500 hover:bg-red-500/10 hover:text-red-500"
-          onclick={() => removeEnvRow(i)}
-          size="icon-sm"
-          variant="ghost"
-        >
-          <Trash2 class="size-4" />
-        </Button>
-      </div>
-    {/each}
-    <div class="mt-1 flex items-center gap-4">
-      <Button class="h-auto p-0" onclick={addEnvRow} variant="link">
-        <Plus class="size-3.5" />
-        Add variable
-      </Button>
-      <EnvPasteButton onImport={importEnvRows} />
-    </div>
+    <EnvVarsEditor envVars={values.envVars} secretEnvKeys={values.secretEnvKeys} />
   </div>
 </section>
 

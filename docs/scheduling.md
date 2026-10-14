@@ -43,6 +43,12 @@ three ways:
 
 ![A cron job's page: its schedule, image, command, timeout and Run now](images/scheduling-cron-job.webp)
 
+Every kind takes env vars, and the lock next to one marks it secret like a
+service's (see
+[Marking a variable secret](env-vars.md#marking-a-variable-secret)): its value
+is hidden behind a fixed mask on the job's page, kept as stored until you type a
+new one, and always redacted for an AI agent.
+
 Container and source code jobs also take **config files**: any number of text
 files, each an absolute path and its content, written into the container before
 its process starts, so an image that reads a config file gets one without

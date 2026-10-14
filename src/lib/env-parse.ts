@@ -82,3 +82,60 @@ export function mergeEnvRows<T extends ParsedEnvVar>(
 	}
 	return rows.length > 0 ? rows : [makeRow({ key: "", value: "" })];
 }
+
+/**
+ * A row of the dashboard's env editor. `keep` is the name a secret var was
+ * stored under while the user hasn't typed a new value: the row then posts
+ * no value and the server keeps the stored one, so the page never shows a
+ * secret, nor how long it is.
+ */
+export interface EnvEditorRow extends ParsedEnvVar {
+	keep: string | null;
+	secret: boolean;
+}
+
+/** A plain (not secret) env editor row, blank unless given a key and value. */
+export function plainEnvRow(
+	row: ParsedEnvVar = { key: "", value: "" },
+): EnvEditorRow {
+	return { ...row, keep: null, secret: false };
+}
+
+/**
+ * The rows an env editor starts from: a var marked secret starts with no
+ * value, keeping its stored one until the user types a new one, every other
+ * var as stored, and one blank row when there are none.
+ */
+export function envEditorRows(
+	envVars: Record<string, string>,
+	secretKeys: readonly string[],
+): EnvEditorRow[] {
+	const secret = new Set(secretKeys);
+	const rows = Object.entries(envVars).map(([key, value]) =>
+		secret.has(key)
+			? { keep: key, key, secret: true, value: "" }
+			: plainEnvRow({ key, value }),
+	);
+	return rows.length > 0 ? rows : [plainEnvRow()];
+}
+
+/**
+ * Flips a row's secret flag. Unmarking a stored secret the user hasn't
+ * retyped shows its stored value from `envVars` again, since it's no longer
+ * hidden.
+ */
+export function toggleEnvRowSecret(
+	row: EnvEditorRow,
+	envVars: Record<string, string>,
+): void {
+	if (row.secret && row.keep !== null) {
+		row.value = envVars[row.keep] ?? "";
+		row.keep = null;
+	}
+	row.secret = !row.secret;
+}
+
+/** What a row posts as `envKeep`: the stored name it keeps the value of while it has no new value, empty otherwise. */
+export function envRowKeep(row: EnvEditorRow): string {
+	return row.value === "" ? (row.keep ?? "") : "";
+}

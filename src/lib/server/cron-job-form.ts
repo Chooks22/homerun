@@ -17,7 +17,10 @@ import {
 	cronJobSchema,
 	DEFAULT_CRON_JOB_TIMEOUT_SECONDS,
 } from "#lib/server/validation/cron-job.js";
-import { parseEnvVars } from "#lib/server/validation/service.js";
+import {
+	parseEnvVars,
+	parseSecretEnvKeys,
+} from "#lib/server/validation/service.js";
 import { parseCronSchedule } from "#lib/services/cron/cron-expression.js";
 import { encryptSecret } from "#lib/services/secrets.js";
 
@@ -39,6 +42,7 @@ export interface ParsedCronJobForm {
 	runAsUser: string | null;
 	runtime: ScriptRuntime | null;
 	schedule: string;
+	secretEnvKeys: string[];
 	source: string | null;
 	tag: string;
 	timeoutSeconds: number;
@@ -48,6 +52,7 @@ export interface CronJobLists {
 	envVars: Record<string, string>;
 	files: CronJobFile[];
 	mounts: CronJobMount[];
+	secretEnvKeys: string[];
 }
 
 export type CronJobFormResult =
@@ -179,9 +184,10 @@ function kindColumns(
  * Validates a cron job's fields and normalises them into DTO-ready columns :
  * trims text, drops fields that don't apply to the job's kind, encrypts the
  * registry password and defaults the tag and timeout. `raw` is the form's
- * fields or a JSON body; `lists` carries its env vars, the config files
- * written into its container and the storage volumes mounted into it (both
- * dropped for a host command).
+ * fields or a JSON body; `lists` carries its env vars and the names among
+ * them marked secret (names with no var dropped), the config files written
+ * into its container and the storage volumes mounted into it (both dropped
+ * for a host command).
  *
  * @param options.hostAccess Whether the caller may create host command (exec) jobs or give a job the Docker socket, both needing write access to System.
  * @returns The parsed fields, or the first validation error message.
@@ -191,7 +197,7 @@ export function parseCronJobInput(
 	lists: CronJobLists,
 	options: { hostAccess: boolean },
 ): CronJobFormResult {
-	const { envVars, files, mounts } = lists;
+	const { envVars, files, mounts, secretEnvKeys } = lists;
 	const result = cronJobSchema.safeParse(raw);
 	if (!result.success) {
 		const first = result.error.issues[0];
@@ -227,6 +233,9 @@ export function parseCronJobInput(
 			registryUrl: input.registryUrl?.trim() || null,
 			registryUsername: input.registryUsername?.trim() || null,
 			schedule: input.schedule.trim(),
+			secretEnvKeys: [...new Set(secretEnvKeys)].filter(
+				(key) => key in envVars,
+			),
 			tag: input.tag?.trim() || "latest",
 			timeoutSeconds: input.timeoutSeconds ?? DEFAULT_CRON_JOB_TIMEOUT_SECONDS,
 		},
@@ -240,17 +249,22 @@ export function parseCronJobForm(
 ): CronJobFormResult {
 	return parseCronJobInput(
 		Object.fromEntries(formData),
-		listsFrom(formData),
+		listsFrom(formData, {}),
 		options,
 	);
 }
 
-/** The env vars, config files and volume rows a form submitted. */
-function listsFrom(formData: FormData): CronJobLists {
+/** The env vars (an untouched secret keeping its value from `storedEnv`), the names marked secret, config files and volume rows a form submitted. */
+function listsFrom(
+	formData: FormData,
+	storedEnv: Record<string, string>,
+): CronJobLists {
+	const envVars = parseEnvVars(formData, storedEnv);
 	return {
-		envVars: parseEnvVars(formData),
+		envVars,
 		files: parseFiles(formData),
 		mounts: parseMounts(formData),
+		secretEnvKeys: parseSecretEnvKeys(formData, envVars),
 	};
 }
 
@@ -320,6 +334,7 @@ export function parseCronJobSection(
 		files,
 		mounts,
 		registryPasswordEnc: _password,
+		secretEnvKeys,
 		...row
 	} = job;
 	const kept = Object.fromEntries(
@@ -331,8 +346,8 @@ export function parseCronJobSection(
 	return parseCronJobInput(
 		raw,
 		section === "configuration"
-			? listsFrom(formData)
-			: { envVars: envVars ?? {}, files, mounts },
+			? listsFrom(formData, envVars ?? {})
+			: { envVars: envVars ?? {}, files, mounts, secretEnvKeys },
 		options,
 	);
 }

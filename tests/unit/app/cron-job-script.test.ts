@@ -202,7 +202,7 @@ describe("parseCronJobForm", () => {
 		expect(
 			parseCronJobInput(
 				fields,
-				{ envVars: {}, files: many, mounts: [] },
+				{ envVars: {}, files: many, mounts: [], secretEnvKeys: [] },
 				{ hostAccess: false },
 			),
 		).toEqual({
@@ -213,6 +213,7 @@ describe("parseCronJobForm", () => {
 				fields,
 				{
 					envVars: {},
+					secretEnvKeys: [],
 					files: [{ content: "a\0b", path: "/tmp/x" }],
 					mounts: [],
 				},
@@ -257,6 +258,7 @@ describe("parseCronJobForm", () => {
 			{ ...base, image: "alpine", kind: "image" },
 			{
 				envVars: {},
+				secretEnvKeys: [],
 				files: [{ content: "x".repeat(64_001), path: "/tmp/big" }],
 				mounts: [],
 			},
@@ -268,7 +270,12 @@ describe("parseCronJobForm", () => {
 	test("drops config files from a host command", () => {
 		const result = parseCronJobInput(
 			{ ...base, command: "df -h", kind: "exec" },
-			{ envVars: {}, files: [{ content: "x", path: "/tmp/x" }], mounts: [] },
+			{
+				envVars: {},
+				files: [{ content: "x", path: "/tmp/x" }],
+				mounts: [],
+				secretEnvKeys: [],
+			},
 			{ hostAccess: true },
 		);
 		expect(result).toMatchObject({ parsed: { files: [], kind: "exec" } });
@@ -305,7 +312,7 @@ describe("container options", () => {
 		expect(
 			parseCronJobInput(
 				{ ...fields, dockerSocket: true },
-				{ envVars: {}, files: [], mounts: [] },
+				{ envVars: {}, files: [], mounts: [], secretEnvKeys: [] },
 				{
 					hostAccess: false,
 				},
@@ -316,7 +323,7 @@ describe("container options", () => {
 		expect(
 			parseCronJobInput(
 				{ ...fields, runAsUser: "root; rm" },
-				{ envVars: {}, files: [], mounts: [] },
+				{ envVars: {}, files: [], mounts: [], secretEnvKeys: [] },
 				{
 					hostAccess: false,
 				},
@@ -327,6 +334,7 @@ describe("container options", () => {
 				fields,
 				{
 					envVars: {},
+					secretEnvKeys: [],
 					files: [{ content: "", mode: "999", path: "/a" }],
 					mounts: [],
 				},
@@ -340,6 +348,7 @@ describe("container options", () => {
 				fields,
 				{
 					envVars: {},
+					secretEnvKeys: [],
 					files: [],
 					mounts: [{ containerPath: "/cache", readOnly: false, volumeId: "" }],
 				},
@@ -360,6 +369,7 @@ describe("container options", () => {
 				},
 				{
 					envVars: {},
+					secretEnvKeys: [],
 					files: [],
 					mounts: [
 						{ containerPath: "/cache", readOnly: false, volumeId: "v1" },
@@ -395,6 +405,7 @@ describe("parseCronJobSection", () => {
 		runAsUser: "12021",
 		runtime: null,
 		schedule: "0 3 * * *",
+		secretEnvKeys: ["TOKEN"],
 		source: null,
 		tag: "latest",
 		timeoutSeconds: 900,
@@ -418,6 +429,7 @@ describe("parseCronJobSection", () => {
 				name: "renovate nightly",
 				runAsUser: "12021",
 				schedule: "0 4 * * *",
+				secretEnvKeys: ["TOKEN"],
 			},
 		});
 	});
@@ -437,6 +449,28 @@ describe("parseCronJobSection", () => {
 				mounts: [],
 				name: "renovate",
 				runAsUser: null,
+				secretEnvKeys: [],
+			},
+		});
+	});
+
+	test("configuration keeps an untouched secret's stored value and its mark", () => {
+		const data = new FormData();
+		data.set("kind", "image");
+		data.set("image", "alpine");
+		data.append("envKey", "API_TOKEN");
+		data.append("envValue", "");
+		data.append("envKeep", "TOKEN");
+		data.append("envSecret", "API_TOKEN");
+		data.append("envKey", "TZ");
+		data.append("envValue", "UTC");
+		data.append("envKeep", "");
+		expect(
+			parseCronJobSection(stored, data, "configuration", { hostAccess: false }),
+		).toMatchObject({
+			parsed: {
+				envVars: { API_TOKEN: "x", TZ: "UTC" },
+				secretEnvKeys: ["API_TOKEN"],
 			},
 		});
 	});

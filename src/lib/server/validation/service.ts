@@ -213,18 +213,43 @@ export const updateSourceSchema = baseServiceSchema
 	.superRefine(requireImageOrGitUrl);
 export type UpdateSourceInput = z.infer<typeof updateSourceSchema>;
 
-/** Zips parallel envKey[]/envValue[] form fields into a record, dropping blank keys. */
-export function parseEnvVars(formData: FormData): Record<string, string> {
+/**
+ * Zips parallel envKey[]/envValue[]/envKeep[] form fields into a record,
+ * dropping blank keys. A row posted with no value and the name a secret was
+ * stored under in `envKeep` (a secret the user left untouched, which the env
+ * editor never puts in the page) keeps that var's value from `stored`.
+ */
+export function parseEnvVars(
+	formData: FormData,
+	stored: Record<string, string> = {},
+): Record<string, string> {
 	const keys = formData.getAll("envKey").map(String);
 	const values = formData.getAll("envValue").map(String);
+	const keeps = formData.getAll("envKeep").map(String);
 	const env: Record<string, string> = {};
 	keys.forEach((key, i) => {
 		const trimmed = key.trim();
-		if (trimmed) {
-			env[trimmed] = values[i] ?? "";
+		if (!trimmed) {
+			return;
 		}
+		const value = values[i] ?? "";
+		const keep = keeps[i];
+		env[trimmed] =
+			value === "" && keep && Object.hasOwn(stored, keep)
+				? (stored[keep] ?? "")
+				: value;
 	});
 	return env;
+}
+
+/** The env var names an env editor marked secret (its `envSecret` fields), deduplicated and limited to the vars it saved. */
+export function parseSecretEnvKeys(
+	formData: FormData,
+	envVars: Record<string, string>,
+): string[] {
+	return [...new Set(formData.getAll("envSecret").map(String))].filter(
+		(key) => key in envVars,
+	);
 }
 
 /** Splits a textarea into its trimmed, non-blank lines. */

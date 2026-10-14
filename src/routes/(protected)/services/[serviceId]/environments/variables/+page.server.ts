@@ -5,6 +5,7 @@ import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import {
 	parseEnvVars,
+	parseSecretEnvKeys,
 	updateEnvFilesSchema,
 } from "#lib/server/validation/service.js";
 import { resolve } from "$app/paths";
@@ -26,10 +27,8 @@ export const actions = {
 		}
 
 		const formData = await request.formData();
-		const envVars = parseEnvVars(formData);
-		const secretEnvKeys = [
-			...new Set(formData.getAll("envSecret").map(String)),
-		].filter((key) => key in envVars);
+		const envVars = parseEnvVars(formData, svc.envVars);
+		const secretEnvKeys = parseSecretEnvKeys(formData, envVars);
 
 		await svc.update({ envVars, secretEnvKeys });
 		logger.info(`Env vars updated: service=${svc.id} user=${locals.user.id}`);

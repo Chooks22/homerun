@@ -50,6 +50,7 @@
       remoteHostId: job.remoteHostId,
       runAsUser: job.runAsUser,
       runtime: job.runtime,
+      secretEnvKeys: job.secretEnvKeys,
       source: job.source,
       tag: job.tag,
     }}
