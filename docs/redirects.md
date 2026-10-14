@@ -19,9 +19,10 @@ Each redirect has:
   redirects, so start temporary while testing.
 - **Enabled**: off keeps the redirect around without serving it.
 
-Each source can only have one redirect. A redirect on a hostname or path a
-service also routes wins over that service, its blocked paths and login wall
-included.
+Each source can only have one redirect. The dashboard's own hostname, the
+registry and object storage's public hosts and status page domains can't be
+redirected. A redirect on a hostname or path a service also routes wins over
+that service, its blocked paths and login wall included.
 
 ![Editing a redirect: its source, destination and three switches](images/redirects-edit.webp)
 
