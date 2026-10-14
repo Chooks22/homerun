@@ -1,5 +1,5 @@
 import { stripAnsi } from "#lib/ansi.js";
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { type ProbeResult, UptimeCheckDTO } from "#lib/dto/uptime-check-dto.js";
 import {
@@ -17,6 +17,8 @@ import {
 import { uptimeProbesQuiet } from "./quiet.ts";
 
 const TIMEOUT_MS = 5000;
+
+const RETRY_DELAY_MS = 2000;
 
 /** One in this many ticks also prunes, same amortized shape as the stats sampler. */
 const PRUNE_EVERY_TICKS = 60;
@@ -48,7 +50,7 @@ export function externalHostFor(
 	if (!svc.dnsResolvable) {
 		return null;
 	}
-	return primaryHostname(svc, null, config.baseDomain);
+	return primaryHostname(svc, null, serviceDomain());
 }
 
 export type InternalProbeMethod = "healthcheck" | "http" | "tcp";
@@ -320,14 +322,31 @@ export class UptimeProbe extends BaseScheduler {
 		return await this.#probe(svc.id, "external", `${scheme}://${host}/`);
 	}
 
-	/** Issues the underlying HTTP request for a probe, without following redirects, optionally skipping TLS verification. */
-	#request(target: string, verifyTls: boolean): Promise<Response> {
-		return fetch(target, {
-			// A redirect is an answer, not a failure.
-			redirect: "manual",
-			signal: AbortSignal.timeout(TIMEOUT_MS),
-			tls: { rejectUnauthorized: verifyTls },
-		});
+	/**
+	 * Issues the underlying HTTP request for a probe, without following
+	 * redirects, optionally skipping TLS verification. Each attempt opens its
+	 * own connection: a pooled one left idle since the last tick may have been
+	 * dropped by Traefik or the edge, and reusing it fails with a reset that
+	 * says nothing about the service. A transport failure other than a
+	 * certificate error is retried once after `RETRY_DELAY_MS`.
+	 */
+	async #request(target: string, verifyTls: boolean): Promise<Response> {
+		const attempt = () =>
+			fetch(target, {
+				keepalive: false,
+				redirect: "manual",
+				signal: AbortSignal.timeout(TIMEOUT_MS),
+				tls: { rejectUnauthorized: verifyTls },
+			});
+		try {
+			return await attempt();
+		} catch (err) {
+			if (isCertificateError(err)) {
+				throw err;
+			}
+			await Bun.sleep(RETRY_DELAY_MS);
+			return await attempt();
+		}
 	}
 
 	/**

@@ -79,15 +79,18 @@ and the reason for the latest failure plus hints for fixing it:
 ![The Uptime panel on the Events section, with a heartbeat strip per probe](images/observability-uptime.webp)
 
 Over HTTP any response under 500 counts as up, a 401 or 404 included, and a 5xx
-counts as down. Probing pauses while Homerun disrupts routing on purpose, during
-its own boot, a Traefik restart and a self-update, so those don't show up as
-outages.
+counts as down. Each probe opens a fresh connection and retries a failed
+connection once after two seconds, so a dropped or reset connection on one
+request isn't counted against the service. Probing pauses while Homerun disrupts
+routing on purpose, during its own boot, a Traefik restart and a self-update, so
+those don't show up as outages.
 
-A probe that goes down fires the **Service down** event on any
-[notification channel](notifications.md) subscribed to it, and **Service
-recovered** once it has stayed up for 15 minutes. A service that keeps falling
-over and coming back alerts once, not on every cycle. Results are kept for a
-week; **Clear heartbeats** empties the history. Uptime also feeds
+A probe that fails three checks in a row (about three minutes) fires the
+**Service down** event on any [notification channel](notifications.md)
+subscribed to it, and **Service recovered** once it has stayed up for 15
+minutes. A failure that clears before then sends nothing. A service that keeps
+falling over and coming back alerts once, not on every cycle. Results are kept
+for a week; **Clear heartbeats** empties the history. Uptime also feeds
 [status pages](status-pages.md).
 
 Probing is on by default for every service except databases and caches

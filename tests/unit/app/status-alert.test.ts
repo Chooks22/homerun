@@ -9,6 +9,7 @@ mock.module("$app/env", () => ({
 
 const {
 	AlertDamper,
+	DOWN_CONFIRM_FAILURES,
 	detectTransitions,
 	RECOVERY_STABLE_MS,
 	StatusAlertService,
@@ -30,36 +31,59 @@ describe("AlertDamper", () => {
 		ok,
 		serviceId: "umami",
 	});
-	const flip = (ok: boolean) => ({ ...probe(ok) });
+	const minute = 60_000;
+
+	test("one failed check that recovers on the next one sends nothing", () => {
+		const damper = new AlertDamper();
+		expect(damper.alerts([probe(false)], [probe(false)], 0)).toEqual([]);
+		expect(damper.alerts([probe(true)], [probe(true)], minute)).toEqual([]);
+		expect(
+			damper.alerts([], [probe(true)], minute + RECOVERY_STABLE_MS),
+		).toEqual([]);
+	});
+
+	test("a probe alerts down once it has failed enough checks in a row", () => {
+		const damper = new AlertDamper();
+		const ticks = Array.from({ length: DOWN_CONFIRM_FAILURES }, (_, tick) =>
+			damper.alerts(
+				tick === 0 ? [probe(false)] : [],
+				[probe(false)],
+				tick * minute,
+			),
+		);
+		expect(ticks.slice(0, -1).flat()).toEqual([]);
+		expect(ticks.at(-1)).toEqual([probe(false)]);
+		expect(
+			damper.alerts([], [probe(false)], DOWN_CONFIRM_FAILURES * minute),
+		).toEqual([]);
+	});
 
 	test("a flapping service alerts down once, and recovered only after staying up", () => {
 		const damper = new AlertDamper();
-		const minute = 60_000;
-
-		expect(damper.alerts([flip(false)], [probe(false)], 0)).toEqual([
-			flip(false),
+		damper.alerts([probe(false)], [probe(false)], 0);
+		damper.alerts([], [probe(false)], minute);
+		expect(damper.alerts([], [probe(false)], 2 * minute)).toEqual([
+			probe(false),
 		]);
-		expect(damper.alerts([flip(true)], [probe(true)], 5 * minute)).toEqual([]);
-		expect(damper.alerts([flip(false)], [probe(false)], 12 * minute)).toEqual(
+
+		expect(damper.alerts([probe(true)], [probe(true)], 5 * minute)).toEqual([]);
+		expect(damper.alerts([probe(false)], [probe(false)], 12 * minute)).toEqual(
 			[],
 		);
-		expect(damper.alerts([flip(true)], [probe(true)], 20 * minute)).toEqual([]);
+		expect(damper.alerts([probe(true)], [probe(true)], 20 * minute)).toEqual(
+			[],
+		);
 		expect(damper.alerts([], [probe(true)], 30 * minute)).toEqual([]);
 		expect(
 			damper.alerts([], [probe(true)], 20 * minute + RECOVERY_STABLE_MS),
-		).toEqual([flip(true)]);
-
-		expect(damper.alerts([], [probe(true)], 60 * minute)).toEqual([]);
-		expect(damper.alerts([flip(false)], [probe(false)], 61 * minute)).toEqual([
-			flip(false),
-		]);
+		).toEqual([probe(true)]);
 	});
 
 	test("a recovery seen with no down on record still waits to be stable", () => {
 		const damper = new AlertDamper();
-		expect(damper.alerts([flip(true)], [probe(true)], 0)).toEqual([]);
+		expect(damper.alerts([probe(true)], [probe(true)], 0)).toEqual([]);
 		expect(damper.alerts([], [probe(true)], RECOVERY_STABLE_MS)).toEqual([
-			flip(true),
+			probe(true),
 		]);
 	});
 });

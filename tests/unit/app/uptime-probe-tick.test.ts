@@ -16,7 +16,7 @@ const { UptimeCheckDTO } = await import(
 const { DockerService } = await import(
 	"../../../src/lib/services/docker.service"
 );
-const { StatusAlertService } = await import(
+const { DOWN_CONFIRM_FAILURES, StatusAlertService } = await import(
 	"../../../src/lib/services/status-alert.service"
 );
 const { config } = await import("../../../src/lib/config");
@@ -397,7 +397,7 @@ describe("UptimeProbe tick", () => {
 		}
 	});
 
-	test("a down flip is dispatched at once with the public host, a recovery waits to be stable", async () => {
+	test("a down flip is dispatched with the public host once it has failed enough checks in a row", async () => {
 		config.baseDomain = "example.com";
 		const h = harness(
 			[svc({ dnsResolvable: true })],
@@ -407,11 +407,20 @@ describe("UptimeProbe tick", () => {
 			]),
 		);
 		stubDocker({ output: null, status: "healthy" }, null);
+		let attempts = 0;
 		globalThis.fetch = (async () => {
+			attempts += 1;
 			throw new Error("ConnectionRefused");
 		}) as unknown as typeof fetch;
+		const sleep = spyOn(Bun, "sleep").mockResolvedValue(undefined);
 
-		await new TestProbe().run();
+		const probe = new TestProbe();
+		for (let tick = 1; tick < DOWN_CONFIRM_FAILURES; tick++) {
+			await probe.run();
+		}
+		expect(h.dispatched).toHaveLength(0);
+		expect(attempts).toBe(2 * (DOWN_CONFIRM_FAILURES - 1));
+		await probe.run();
 
 		expect(h.dispatched).toHaveLength(1);
 		const [transitions, byId] = h.dispatched[0] as [
@@ -422,6 +431,7 @@ describe("UptimeProbe tick", () => {
 			["external", false],
 		]);
 		expect(byId.get("svc")?.host).toBe("svc.example.com");
+		sleep.mockRestore();
 	});
 
 	test("old checks are pruned once every sixty ticks", async () => {

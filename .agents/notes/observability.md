@@ -209,10 +209,11 @@ incoming-webhook attachment, `"telegram"` Bot API `sendMessage`, `"email"`, or
 `"browser"` Web Push, see Browser push above) plus a `target` and an `events`
 jsonb column (`NotificationEvent[]`, DB default and DTO default
 `["build.failed","build.checks_failed","update.failed","deploy.unhealthy","deploy.rolled_back"]`),
-managed on `/notifications/settings/channels` (create/test/delete) with the
-events matrix and the per-channel `groupMessages` opt-in edited on
-`/notifications/settings`. Channels sit under the open `/notifications`, so
-`requiredPermission` matches permission areas before `OPEN_ROUTES`.
+listed on `/notifications/settings/channels` (test/edit/delete, created on its
+`channels/new` route) with the events matrix and the per-channel `groupMessages`
+opt-in edited on `/notifications/settings`. Channels sit under the open
+`/notifications`, so `requiredPermission` matches permission areas before
+`OPEN_ROUTES`.
 
 `NotificationEvent` (`src/lib/types.ts`) and its catalog
 (`src/lib/notification-events.ts`, `NOTIFICATION_EVENTS`,
@@ -427,13 +428,18 @@ deliberately not a transition, or the first tick after a deploy (or after
 its healthcheck for ten minutes, gets replaced, fails again, forever) used to
 send a down and a recovered alert every cycle. Now a probe already alerted down
 stays silent until it has been up for `RECOVERY_STABLE_MS` (15 minutes), and
-only then sends one recovered. The state is in memory, so a restart costs at
-most one extra alert. Each remaining transition is handed to
-`NotificationChannelService.dispatch` (`service.down`/ `service.up`), which fans
-it out to every channel account-wide subscribed to that event, see Outbound
-notification channels above, no longer scoped to a status page. A channel that
-throws is caught, logged and written to its own `lastError`, never allowed to
-abort the tick.
+only then sends one recovered. Going down needs `DOWN_CONFIRM_FAILURES` (3)
+failed checks in a row before it alerts, and a probe that recovers before that
+sends nothing: single-tick false "down" alerts (`ECONNRESET`, one slow answer)
+were piling up. Their main source was Bun's `fetch` reusing a pooled keep-alive
+socket a minute old that Traefik or the edge had already closed, so probes now
+use `keepalive: false` and retry a non-certificate transport error once after
+two seconds. The state is in memory, so a restart costs at most one extra alert.
+Each remaining transition is handed to `NotificationChannelService.dispatch`
+(`service.down`/ `service.up`), which fans it out to every channel account-wide
+subscribed to that event, see Outbound notification channels above, no longer
+scoped to a status page. A channel that throws is caught, logged and written to
+its own `lastError`, never allowed to abort the tick.
 
 ## Error tracking (`error_project`/`error_issue`/`error_event`, `src/lib/error-tracking/`, `ErrorTrackingService`)
 

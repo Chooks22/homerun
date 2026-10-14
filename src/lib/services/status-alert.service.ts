@@ -38,17 +38,27 @@ export function detectTransitions(
 
 export const RECOVERY_STABLE_MS = 15 * 60_000;
 
+export const DOWN_CONFIRM_FAILURES = 3;
+
+interface ProbeAlertState {
+	alerted: boolean;
+	failures: number;
+	upSince: number | null;
+}
+
 /**
- * Turns raw probe transitions into the alerts worth sending, so a service that
- * flaps (a swarm task that passes its healthcheck for a while, then fails it
- * again, forever) alerts once instead of on every cycle. A probe that goes
- * down alerts only if it wasn't already down; its recovery alerts only once
- * it has stayed up for `RECOVERY_STABLE_MS`, and a failure before then is
- * silent, since the down alert still stands. State lives in memory: a restart
- * forgets it, which at worst sends one extra alert.
+ * Turns raw probe transitions into the alerts worth sending. A probe that
+ * goes down alerts only once it has failed `DOWN_CONFIRM_FAILURES` checks in
+ * a row, so a dropped connection or a slow answer on one tick is never an
+ * outage, and a blip that recovers before then sends nothing at all. A
+ * service that flaps alerts down once: its recovery alerts only after it
+ * stays up for `RECOVERY_STABLE_MS`, and failing again before then is silent,
+ * since the down alert still stands. A recovery with no down on record (the
+ * process restarted after alerting) also waits to be stable. State lives in
+ * memory: a restart forgets it, which at worst sends one extra alert.
  */
 export class AlertDamper {
-	readonly #upSince = new Map<string, number | null>();
+	readonly #states = new Map<string, ProbeAlertState>();
 
 	/** The alerts to dispatch for this tick's `transitions`, given every result of the tick and the current time. */
 	alerts(
@@ -56,37 +66,49 @@ export class AlertDamper {
 		results: ProbeResult[],
 		now: number,
 	): ProbeTransition[] {
+		const flips = new Map(
+			transitions.map((transition) => [
+				`${transition.serviceId}:${transition.kind}`,
+				transition,
+			]),
+		);
 		const alerts: ProbeTransition[] = [];
-		for (const transition of transitions) {
-			const key = `${transition.serviceId}:${transition.kind}`;
-			if (!(transition.ok || this.#upSince.has(key))) {
-				alerts.push(transition);
-			}
-			if (!this.#upSince.has(key) || !transition.ok) {
-				this.#upSince.set(key, null);
-			}
-		}
 		for (const result of results) {
 			const key = `${result.serviceId}:${result.kind}`;
-			if (!this.#upSince.has(key)) {
+			const flip = flips.get(key);
+			let state = this.#states.get(key);
+			if (flip && !state) {
+				state = { alerted: flip.ok, failures: 0, upSince: null };
+				this.#states.set(key, state);
+			}
+			if (!state) {
 				continue;
 			}
-			if (!result.ok) {
-				this.#upSince.set(key, null);
-				continue;
-			}
-			const since = this.#upSince.get(key) ?? now;
-			if (now - since < RECOVERY_STABLE_MS) {
-				this.#upSince.set(key, since);
-				continue;
-			}
-			this.#upSince.delete(key);
-			alerts.push({
+			const alert = {
 				detail: result.detail ?? null,
 				kind: result.kind,
-				ok: true,
+				ok: result.ok,
 				serviceId: result.serviceId,
-			});
+			};
+			if (!result.ok) {
+				state.failures += 1;
+				state.upSince = null;
+				if (!state.alerted && state.failures >= DOWN_CONFIRM_FAILURES) {
+					state.alerted = true;
+					alerts.push(alert);
+				}
+				continue;
+			}
+			if (!state.alerted) {
+				this.#states.delete(key);
+				continue;
+			}
+			state.failures = 0;
+			state.upSince ??= now;
+			if (now - state.upSince >= RECOVERY_STABLE_MS) {
+				this.#states.delete(key);
+				alerts.push(alert);
+			}
 		}
 		return alerts;
 	}
