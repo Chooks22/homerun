@@ -82,6 +82,20 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
+      - name: Pull Docker Hub images through Google's mirror
+        run: |
+          daemon_config=/etc/docker/daemon.json
+          current="$(sudo cat "$daemon_config" 2>/dev/null || true)"
+          [ -n "$current" ] || current='{}'
+          echo "$current" | jq '."registry-mirrors" = ["https://mirror.gcr.io"]' | sudo tee "$daemon_config" >/dev/null
+          sudo systemctl reload docker
+          for _ in $(seq 20); do
+            docker info --format '{{json .RegistryConfig.Mirrors}}' | grep -q mirror.gcr.io && exit 0
+            sleep 1
+          done
+          echo "::error::The Docker daemon never picked up the registry mirror."
+          exit 1
+
       - name: Login to Container registry
         if: inputs.pulled
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
