@@ -1,7 +1,7 @@
-import { oauthMethod, signInMethodAvailable } from "#lib/auth-providers.js";
-import { config } from "#lib/config.js";
-import { emailSignInAvailability } from "#lib/services/email-sign-in.js";
-import { UserService } from "#lib/services/user.service.js";
+import {
+	type EmailSignIn,
+	signInMethodAvailable,
+} from "#lib/auth-providers.js";
 
 const EMAIL_PATTERN_RE = /^(\*|[^\s@]+)@[^\s@]+\.[^\s@]+$/;
 
@@ -14,7 +14,7 @@ export interface LoginWallPolicy {
 }
 
 export interface LoginWallAvailability {
-	email: Awaited<ReturnType<typeof emailSignInAvailability>>;
+	email: EmailSignIn;
 	oauthProviders: Set<string>;
 }
 
@@ -61,16 +61,11 @@ export function loginWallPolicyProblem(
 }
 
 /**
- * Reads a login-wall form (the checkbox, sign-in methods, allowed users,
- * emails and groups) into a policy, or the reason it can't be saved (see
- * `loginWallPolicyProblem`).
+ * Reads a login-wall form's fields (the checkbox, sign-in methods, allowed
+ * users, emails and groups) into a policy, without checking it.
  */
-export function parseLoginWallForm(
-	formData: FormData,
-	available: LoginWallAvailability,
-	dashboardOrigin: string | null | undefined,
-): { error: string } | { policy: LoginWallPolicy } {
-	const policy: LoginWallPolicy = {
+export function loginWallFromForm(formData: FormData): LoginWallPolicy {
+	return {
 		authAllowedEmails: splitList(
 			formData.get("authAllowedEmails") as string | null,
 		),
@@ -83,42 +78,18 @@ export function parseLoginWallForm(
 		authProviders: [...new Set(formData.getAll("authProvider").map(String))],
 		authRequired: formData.get("authRequired") === "on",
 	};
+}
+
+/**
+ * Reads a login-wall form into a policy, or the reason it can't be saved
+ * (see `loginWallPolicyProblem`).
+ */
+export function parseLoginWallForm(
+	formData: FormData,
+	available: LoginWallAvailability,
+	dashboardOrigin: string | null | undefined,
+): { error: string } | { policy: LoginWallPolicy } {
+	const policy = loginWallFromForm(formData);
 	const error = loginWallPolicyProblem(policy, available, dashboardOrigin);
 	return error ? { error } : { policy };
-}
-
-/** Which sign-in methods a login wall may use on this instance right now. */
-export async function loginWallAvailability(): Promise<LoginWallAvailability> {
-	return {
-		email: await emailSignInAvailability(),
-		oauthProviders: new Set(
-			config.auth.oauthProviders.filter((p) => p.enabled).map((p) => p.name),
-		),
-	};
-}
-
-/** Everything the login-wall section renders besides the policy itself: the dashboard URL, the available methods and the accounts to pick from. */
-export async function loginWallOptions() {
-	const [users, emailSignIn] = await Promise.all([
-		UserService.listUsers(),
-		emailSignInAvailability(),
-	]);
-	return {
-		dashboardOrigin: config.auth.origin ?? null,
-		emailSignIn,
-		oauthProviders: config.auth.oauthProviders
-			.filter((p) => p.enabled)
-			.map((p) => ({
-				label: p.label || p.name,
-				method: oauthMethod(p.name),
-				name: p.name,
-			})),
-		users: users.map((u) => ({
-			email: u.email,
-			id: u.id,
-			name: u.name,
-			role: u.role,
-			type: u.type,
-		})),
-	};
 }

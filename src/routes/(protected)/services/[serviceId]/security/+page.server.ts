@@ -10,11 +10,11 @@ import {
 	pathPatternsProblem,
 } from "#lib/path-patterns.js";
 import { can } from "#lib/permissions.js";
+import { parseLoginWallForm } from "#lib/server/login-wall-form.js";
 import {
 	loginWallAvailability,
 	loginWallOptions,
-	parseLoginWallForm,
-} from "#lib/server/login-wall-form.js";
+} from "#lib/server/login-wall-options.js";
 import { errorPagesPublished } from "#lib/services/docker/error-pages.js";
 import { ImageScanService } from "#lib/services/image-scan.service.js";
 import {

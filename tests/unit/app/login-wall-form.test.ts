@@ -13,12 +13,12 @@ const { UserService } = await import("../../../src/lib/services/user.service");
 const { gatedService, invalidateGatedService } = await import(
 	"../../../src/lib/server/gated-service-cache"
 );
-const {
-	loginWallAvailability,
-	loginWallOptions,
-	parseLoginWallForm,
-	splitList,
-} = await import("../../../src/lib/server/login-wall-form");
+const { parseLoginWallForm, splitList } = await import(
+	"../../../src/lib/server/login-wall-form"
+);
+const { loginWallAvailability, loginWallOptions } = await import(
+	"../../../src/lib/server/login-wall-options"
+);
 
 afterEach(() => restoreStubs());
 
@@ -148,6 +148,7 @@ describe("loginWallAvailability / loginWallOptions", () => {
 					type: "human",
 				},
 			]);
+			expect((await loginWallOptions(false)).users).toEqual([]);
 		} finally {
 			config.auth.oauthProviders = original;
 		}

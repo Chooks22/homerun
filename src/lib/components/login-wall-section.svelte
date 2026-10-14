@@ -21,6 +21,7 @@
 		authError?: string;
 		dashboardOrigin: string | null;
 		emailSignIn: EmailSignIn;
+		embedded?: boolean;
 		oauthProviders: { label: string; method: string; name: string }[];
 		svc: {
 			authAllowedEmails: string[];
@@ -31,7 +32,7 @@
 			dnsResolvable: boolean;
 			id: string;
 		};
-		subject?: "app" | "previews";
+		subject?: "app" | "previews" | "workstation";
 		title?: string;
 		users: {
 			email: string;
@@ -47,6 +48,7 @@
 		authError,
 		dashboardOrigin,
 		emailSignIn,
+		embedded = false,
 		oauthProviders,
 		subject = "app",
 		svc,
@@ -101,6 +103,14 @@
         {:else}
           Previews are open to anyone who can reach them.
         {/if}
+      {:else if subject === "workstation"}
+        {#if svc.authRequired}
+          Visitors are sent to this instance's sign-in page before they reach
+          the IDE, instead of its password or git sign-in. You always get in;
+          the people allowed below do too.
+        {:else}
+          The IDE's own password, or its git sign-in, guards it.
+        {/if}
       {:else if svc.authRequired}
         Visitors are sent to this instance's sign-in page before they reach
         this app.
@@ -109,7 +119,7 @@
       {/if}
     {/snippet}
     {#snippet trailing()}
-      {#if svc.dnsResolvable}
+      {#if svc.dnsResolvable && !embedded}
         <SaveButton form="login-wall-{subject}" pending={submittingAuth} />
       {/if}
     {/snippet}
@@ -127,6 +137,10 @@
       >Networking</a>
       tab first.
     </p>
+  {:else if embedded}
+    <div class="space-y-4 p-5">
+      {@render fields()}
+    </div>
   {:else}
     <form
       id="login-wall-{subject}"
@@ -142,166 +156,176 @@
         onStart: () => {
           submittingAuth = true;
         },
-        success: (data) =>
-          (data as { redeploying?: boolean } | undefined)?.redeploying
-            ? "Access rules saved. Redeploying so the login wall change reaches Traefik."
-            : "Access rules saved.",
+        success: (data) => {
+          if (!(data as { redeploying?: boolean } | undefined)?.redeploying) {
+            return "Access rules saved.";
+          }
+          return subject === "workstation"
+            ? "Access rules saved. Restarting the workstation so the login wall change reaches Traefik."
+            : "Access rules saved. Redeploying so the login wall change reaches Traefik.";
+        },
       })}
     >
-      {#if authError}
-        <p class="text-xs text-red-500">{authError}</p>
-      {/if}
-
-      <CheckBox
-        helperText="Send anonymous visitors to Homerun's sign-in page instead of letting them through"
-        id="authRequired"
-        label={subject === "previews"
-          ? "Require login to open previews"
-          : "Require login to access this app"}
-        name="authRequired"
-        bind:checked={authRequired}
-      />
-
-      {#if authRequired}
-        {#if !dashboardOrigin}
-          <p class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-600">
-            Set the Dashboard URL under Settings → General first. The login wall
-            redirects visitors to this instance's own sign-in page, so
-            Homerun has to know its own public URL to send them there.
-          </p>
-        {/if}
-
-        <div class="border-border border-t pt-4">
-          <p class={label}>Sign-in methods</p>
-          <p class="text-text-subtle mb-2 text-xs">
-            Nothing is enabled by default. Pick every method someone may use
-            to get into this app.
-          </p>
-          <div class="space-y-2">
-            <CheckBox
-              checked={methods.includes("password")}
-              helperText="Homerun's own email and password accounts"
-              id="method-password"
-              label="Built-in Homerun login"
-              name="method-password"
-              onCheckedChange={(v) => toggleMethod("password", v)}
-            />
-            {#each emailMethods as entry (entry.method)}
-              <CheckBox
-                checked={methods.includes(entry.method)}
-                helperText={entry.available
-                  ? entry.helperText
-                  : "Unavailable: turned off under Authentication, or SMTP isn't configured. Nobody gets in this way until it's back."}
-                id="method-{entry.method}"
-                label={entry.label}
-                name="method-{entry.method}"
-                onCheckedChange={(v) => toggleMethod(entry.method, v)}
-              />
-            {/each}
-            {#each oauthProviders as provider (provider.method)}
-              <CheckBox
-                checked={methods.includes(provider.method)}
-                helperText="OAuth / OIDC provider configured under Authentication"
-                id="method-{provider.name}"
-                label={provider.label}
-                name="method-{provider.name}"
-                onCheckedChange={(v) => toggleMethod(provider.method, v)}
-              />
-            {/each}
-            {#if oauthProviders.length === 0}
-              <p class="text-text-subtle text-xs">
-                No OAuth provider is enabled yet. Add one on the
-
-                <a
-                  class="text-accent"
-                  href={resolve('authentication/providers')}
-                >Authentication</a>
-
-                page to offer it here.
-              </p>
-            {/if}
-          </div>
-          {#each methods as method (method)}
-            <input name="authProvider" type="hidden" value={method} />
-          {/each}
-        </div>
-
-        <div class="border-border border-t pt-4">
-          <p class={label}>Who's allowed</p>
-          <p class="text-text-subtle mb-3 text-xs">
-            Leave all three empty to let any signed-in user through, as long
-            as they used one of the methods above. Filling any of them
-            narrows access to whoever matches at least one entry in that
-            list. A service account only gets through when it's ticked here.
-          </p>
-
-          <div class="space-y-3">
-            <div>
-              <p class="text-text mb-1.5 text-xs font-medium">Users</p>
-              <div class="max-h-40 space-y-1.5 overflow-y-auto">
-                {#each users as u (u.id)}
-                  <CheckBox
-                    checked={allowedUserIds.includes(u.id)}
-                    helperText={isServiceAccount(u)
-                      ? "Service account · gets through with its API key"
-                      : `${u.email} · ${roleLabel(u.role)}`}
-                    id="user-{u.id}"
-                    label={u.name}
-                    name="user-{u.id}"
-                    onCheckedChange={(v) => toggleUser(u.id, v)}
-                  />
-                {/each}
-              </div>
-              {#each allowedUserIds as userId (userId)}
-                <input
-                  name="authAllowedUserId"
-                  type="hidden"
-                  value={userId}
-                />
-              {/each}
-            </div>
-
-            <div>
-              <label class={label} for="authAllowedEmails">Emails</label>
-              <Textarea
-                class=""
-                id="authAllowedEmails"
-                name="authAllowedEmails"
-                placeholder={"ada@example.com\n*@example.com"}
-                rows={3}
-                value={svc.authAllowedEmails.join("\n")}
-              />
-              <p class="text-text-subtle mt-1.5 text-xs">
-                One per line. A
-                <span class="">*@domain.com</span>
-                entry matches every address at that domain.
-              </p>
-            </div>
-
-            <div>
-              <label class={label} for="authAllowedGroups">
-                Groups / roles
-              </label>
-              <Textarea
-                class=""
-                id="authAllowedGroups"
-                name="authAllowedGroups"
-                placeholder={"platform-team\nadmins"}
-                rows={3}
-                value={svc.authAllowedGroups.join("\n")}
-              />
-              <p class="text-text-subtle mt-1.5 text-xs">
-                One per line, matched against the group and role claims in
-                the id token your OAuth provider issued
-                (<span class="">groups</span>,
-                <span class="">roles</span>, and Keycloak's realm and
-                resource roles). Make sure the provider's scopes actually
-                request them.
-              </p>
-            </div>
-          </div>
-        </div>
-      {/if}
+      {@render fields()}
     </form>
   {/if}
 </section>
+
+{#snippet fields()}
+  {#if authError}
+    <p class="text-xs text-red-500">{authError}</p>
+  {/if}
+
+  <CheckBox
+    helperText="Send anonymous visitors to Homerun's sign-in page instead of letting them through"
+    id="authRequired"
+    label={subject === "previews"
+      ? "Require login to open previews"
+      : subject === "workstation"
+        ? "Require login to open this workstation"
+        : "Require login to access this app"}
+    name="authRequired"
+    bind:checked={authRequired}
+  />
+
+  {#if authRequired}
+    {#if !dashboardOrigin}
+      <p class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-600">
+        Set the Dashboard URL under Settings → General first. The login wall
+        redirects visitors to this instance's own sign-in page, so
+        Homerun has to know its own public URL to send them there.
+      </p>
+    {/if}
+
+    <div class="border-border border-t pt-4">
+      <p class={label}>Sign-in methods</p>
+      <p class="text-text-subtle mb-2 text-xs">
+        Nothing is enabled by default. Pick every method someone may use
+        to get into this app.
+      </p>
+      <div class="space-y-2">
+        <CheckBox
+          checked={methods.includes("password")}
+          helperText="Homerun's own email and password accounts"
+          id="method-password"
+          label="Built-in Homerun login"
+          name="method-password"
+          onCheckedChange={(v) => toggleMethod("password", v)}
+        />
+        {#each emailMethods as entry (entry.method)}
+          <CheckBox
+            checked={methods.includes(entry.method)}
+            helperText={entry.available
+              ? entry.helperText
+              : "Unavailable: turned off under Authentication, or SMTP isn't configured. Nobody gets in this way until it's back."}
+            id="method-{entry.method}"
+            label={entry.label}
+            name="method-{entry.method}"
+            onCheckedChange={(v) => toggleMethod(entry.method, v)}
+          />
+        {/each}
+        {#each oauthProviders as provider (provider.method)}
+          <CheckBox
+            checked={methods.includes(provider.method)}
+            helperText="OAuth / OIDC provider configured under Authentication"
+            id="method-{provider.name}"
+            label={provider.label}
+            name="method-{provider.name}"
+            onCheckedChange={(v) => toggleMethod(provider.method, v)}
+          />
+        {/each}
+        {#if oauthProviders.length === 0}
+          <p class="text-text-subtle text-xs">
+            No OAuth provider is enabled yet. Add one on the
+
+            <a
+              class="text-accent"
+              href={resolve('authentication/providers')}
+            >Authentication</a>
+
+            page to offer it here.
+          </p>
+        {/if}
+      </div>
+      {#each methods as method (method)}
+        <input name="authProvider" type="hidden" value={method} />
+      {/each}
+    </div>
+
+    <div class="border-border border-t pt-4">
+      <p class={label}>Who's allowed</p>
+      <p class="text-text-subtle mb-3 text-xs">
+        Leave all three empty to let any signed-in user through, as long
+        as they used one of the methods above. Filling any of them
+        narrows access to whoever matches at least one entry in that
+        list. A service account only gets through when it's ticked here.
+      </p>
+
+      <div class="space-y-3">
+        <div>
+          <p class="text-text mb-1.5 text-xs font-medium">Users</p>
+          <div class="max-h-40 space-y-1.5 overflow-y-auto">
+            {#each users as u (u.id)}
+              <CheckBox
+                checked={allowedUserIds.includes(u.id)}
+                helperText={isServiceAccount(u)
+                  ? "Service account · gets through with its API key"
+                  : `${u.email} · ${roleLabel(u.role)}`}
+                id="user-{u.id}"
+                label={u.name}
+                name="user-{u.id}"
+                onCheckedChange={(v) => toggleUser(u.id, v)}
+              />
+            {/each}
+          </div>
+          {#each allowedUserIds as userId (userId)}
+            <input
+              name="authAllowedUserId"
+              type="hidden"
+              value={userId}
+            />
+          {/each}
+        </div>
+
+        <div>
+          <label class={label} for="authAllowedEmails">Emails</label>
+          <Textarea
+            class=""
+            id="authAllowedEmails"
+            name="authAllowedEmails"
+            placeholder={"ada@example.com\n*@example.com"}
+            rows={3}
+            value={svc.authAllowedEmails.join("\n")}
+          />
+          <p class="text-text-subtle mt-1.5 text-xs">
+            One per line. A
+            <span class="">*@domain.com</span>
+            entry matches every address at that domain.
+          </p>
+        </div>
+
+        <div>
+          <label class={label} for="authAllowedGroups">
+            Groups / roles
+          </label>
+          <Textarea
+            class=""
+            id="authAllowedGroups"
+            name="authAllowedGroups"
+            placeholder={"platform-team\nadmins"}
+            rows={3}
+            value={svc.authAllowedGroups.join("\n")}
+          />
+          <p class="text-text-subtle mt-1.5 text-xs">
+            One per line, matched against the group and role claims in
+            the id token your OAuth provider issued
+            (<span class="">groups</span>,
+            <span class="">roles</span>, and Keycloak's realm and
+            resource roles). Make sure the provider's scopes actually
+            request them.
+          </p>
+        </div>
+      </div>
+    </div>
+  {/if}
+{/snippet}
