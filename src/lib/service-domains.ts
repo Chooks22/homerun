@@ -4,6 +4,13 @@ export const DOMAIN_RE =
 
 const DOMAIN_PATH_RE = /^(?:\/[a-z0-9._~%!$&'()*+,;=:@-]+)+$/;
 
+const DNS_LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/** Whether `label` is one lowercase DNS label: letters, digits and inner dashes, 63 characters at most, no dots. */
+export function isDnsLabel(label: string): boolean {
+	return DNS_LABEL_RE.test(label);
+}
+
 /** Splits a domain entry (`app.example.com` or `example.com/api`) into its host and its path prefix (empty, or starting with `/`). */
 export function splitDomain(entry: string): { host: string; path: string } {
 	const slash = entry.indexOf("/");

@@ -23,7 +23,7 @@ const { ServiceDTO } = await import("../../../src/lib/dto/service-dto");
 const { StackDTO } = await import("../../../src/lib/dto/stack-dto");
 const { StatusPageDTO } = await import("../../../src/lib/dto/status-page-dto");
 const { WorkstationDTO } = await import("../../../src/lib/dto/workstation-dto");
-const { hostnameOwner } = await import(
+const { coreHosts, hostnameOwner, serviceDomainConflicts } = await import(
 	"../../../src/lib/server/hostname-owner"
 );
 
@@ -32,13 +32,17 @@ type Service = Awaited<ReturnType<typeof ServiceDTO.list>>[number];
 type Stack = Awaited<ReturnType<typeof StackDTO.list>>[number];
 type Redirect = Awaited<ReturnType<typeof RedirectDTO.list>>[number];
 type Ws = Awaited<ReturnType<typeof WorkstationDTO.listAll>>[number];
+type Page = Awaited<ReturnType<typeof StatusPageDTO.list>>[number];
 
 const restorers: { mockRestore: () => void }[] = [];
 const originalOrigin = config.auth.origin;
 const originalBase = config.baseDomain;
+const originalSubdomain = config.serviceSubdomain;
 
 function svc(row: Record<string, unknown>): Service {
 	return {
+		dnsResolvable: true,
+		id: row.slug,
 		name: row.name,
 		toJSON: () => ({
 			defaultDomainEnabled: true,
@@ -64,7 +68,7 @@ beforeEach(() => {
 			svc({ name: "Blog", slug: "blog", stackId: "s1" }),
 			svc({
 				defaultDomainEnabled: false,
-				domains: ["shop.example.org"],
+				domains: ["shop.example.org", "api.example.org/v1"],
 				name: "Shop",
 				slug: "shop",
 			}),
@@ -74,14 +78,19 @@ beforeEach(() => {
 		]),
 		spyOn(RedirectDTO, "list").mockResolvedValue([
 			{
-				toJSON: () => ({ source: "old.example.com/path" }),
+				toJSON: () => ({
+					enabled: true,
+					id: "r1",
+					source: "old.example.com/path",
+				}),
+			} as unknown as Redirect,
+			{
+				toJSON: () => ({ enabled: false, id: "r2", source: "off.example.com" }),
 			} as unknown as Redirect,
 		]),
-		spyOn(StatusPageDTO, "domainOwner").mockImplementation(async (domains) =>
-			domains.includes("status.example.com")
-				? { domain: "status.example.com", name: "Status" }
-				: null,
-		),
+		spyOn(StatusPageDTO, "list").mockResolvedValue([
+			{ domains: ["status.example.com"], name: "Status" } as unknown as Page,
+		]),
 		spyOn(WorkstationDTO, "listAll").mockResolvedValue([
 			{
 				id: "w1",
@@ -101,6 +110,99 @@ afterEach(() => {
 	}
 	config.auth.origin = originalOrigin;
 	config.baseDomain = originalBase;
+	config.serviceSubdomain = originalSubdomain;
+});
+
+describe("coreHosts", () => {
+	test("names the dashboard, the core services' public hosts and every status page domain", async () => {
+		expect(Object.fromEntries(await coreHosts())).toEqual({
+			"homerun.example.com": "the Homerun dashboard",
+			"registry.example.com": "the Docker registry",
+			"s3.example.com": "object storage",
+			"status.example.com": 'the status page "Status"',
+		});
+	});
+});
+
+describe("serviceDomainConflicts", () => {
+	test("Homerun's own hosts and workstations are taken on the host, whatever the path", async () => {
+		expect(
+			await serviceDomainConflicts([
+				"homerun.example.com/app",
+				"status.example.com",
+				"alice.dev.example.com",
+			]),
+		).toEqual([
+			{
+				entry: "homerun.example.com/app",
+				owner: { kind: "core", label: "the Homerun dashboard" },
+			},
+			{
+				entry: "status.example.com",
+				owner: { kind: "core", label: 'the status page "Status"' },
+			},
+			{
+				entry: "alice.dev.example.com",
+				owner: { kind: "workstation", label: "a workstation" },
+			},
+		]);
+	});
+
+	test("an enabled redirect is taken on its host, a disabled one isn't", async () => {
+		expect(await serviceDomainConflicts(["old.example.com"])).toEqual([
+			{
+				entry: "old.example.com",
+				owner: {
+					id: "r1",
+					kind: "redirect",
+					label: "the redirect from old.example.com/path",
+				},
+			},
+		]);
+		expect(await serviceDomainConflicts(["off.example.com"])).toEqual([]);
+	});
+
+	test("another service is only taken on the very same entry", async () => {
+		expect(
+			await serviceDomainConflicts([
+				"api.example.org/v1",
+				"api.example.org",
+				"shop.example.org/api",
+				"PENOMBRE.example.com",
+			]),
+		).toEqual([
+			{
+				entry: "api.example.org/v1",
+				owner: { id: "shop", kind: "service", label: 'the service "Shop"' },
+			},
+			{
+				entry: "penombre.example.com",
+				owner: {
+					id: "penombre",
+					kind: "service",
+					label: 'the service "Penombre"',
+				},
+			},
+		]);
+	});
+
+	test("the service being saved doesn't conflict with itself", async () => {
+		expect(await serviceDomainConflicts(["shop.example.org"], "shop")).toEqual(
+			[],
+		);
+	});
+
+	test("default hostnames follow the services subdomain", async () => {
+		config.serviceSubdomain = "apps";
+		expect(await serviceDomainConflicts(["penombre.example.com"])).toEqual([]);
+		expect(
+			(await serviceDomainConflicts(["penombre.apps.example.com"]))[0]?.owner,
+		).toEqual({
+			id: "penombre",
+			kind: "service",
+			label: 'the service "Penombre"',
+		});
+	});
 });
 
 describe("hostnameOwner", () => {

@@ -3,6 +3,7 @@ import {
 	branchLabel,
 	defaultHostname,
 	domainHosts,
+	isDnsLabel,
 	isDomainEntry,
 	isUnderDomain,
 	normalizeDomains,
@@ -166,5 +167,25 @@ describe("domains with a path", () => {
 		expect(
 			domainHosts(["example.com", "example.com/api", "api.example.com"]),
 		).toEqual(["example.com", "api.example.com"]);
+	});
+});
+
+describe("isDnsLabel", () => {
+	test("takes one label of letters, digits and inner dashes", () => {
+		for (const label of ["apps", "a", "eu-1", "x".repeat(63)]) {
+			expect(isDnsLabel(label)).toBe(true);
+		}
+		for (const label of [
+			"apps.eu",
+			"-apps",
+			"apps-",
+			"apps_1",
+			"a b",
+			"",
+			"x".repeat(64),
+			"Apps",
+		]) {
+			expect(isDnsLabel(label)).toBe(false);
+		}
 	});
 });
