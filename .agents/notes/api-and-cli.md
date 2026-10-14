@@ -50,6 +50,29 @@ automatically, so a new write route documents it without a registry entry.
 - `jobs/[jobId]/`, `GET`, a trimmed job row (no `payload`) for polling a queued
   job, any account's job (resources are shared), 404 for an unknown id. Exists
   for `homerun services scan --wait`, generic on purpose.
+- `services/[serviceId]/version/` (`GET`, `PATCH` the watch switches),
+  `version/pin/` (`GET` candidates, `POST` pin, `DELETE` unpin),
+  `version/check/` and `version/update/` (`POST`): the Source tab's Version
+  panel, all over `ImageVersionService` (`describe` is the flat shape the
+  `homerun_service_version` Terraform data source maps 1:1, `setWatch` the
+  toggle the Source tab's `updateWatch` action calls too), refused with a 400 by
+  `versionedService` (`src/lib/server/service-version-api.ts`) for a git service
+  or a preview/environment/canary, like the panel is hidden there. The watch
+  switches are also plain `PATCH /services/{id}` fields (Terraform's
+  `update_check_enabled`/`update_trial_enabled`); `derivedColumns` clears
+  `updateCheck` when the watch goes off. `homerun services version ...`
+  (`internal/cli/versions.go`) is the CLI over them.
+- `monitoring/`, `services/[serviceId]/monitoring/` (`GET`, totals without the
+  chart series, plus the latest uptime beats for a service) and `system/`
+  (`logs/`, `containers/`, `containers/[containerId]/logs/` non-following,
+  `docker-cleanup/` `GET` preview and `POST` queue): the System pages' data,
+  exposed so the MCP tools have a REST route to go through.
+- `registry/repositories/` and `registry/repositories/[...repository]/tags/`
+  (`GET`): the Registry page's Images listing, read only, over
+  `RegistryService.catalogPage`/`repository` (the only rest-param route under
+  `api/v1`, repository names carry slashes; the MCP tool and the CLI escape each
+  segment). OpenAPI entries in `src/lib/openapi/settings.ts` beside the token
+  routes; `internal/cli/registryimages.go` is the CLI.
 - `services/[serviceId]/previews/` (`GET`), `previews/[prNumber]/` (`GET`,
   `PUT`, `DELETE`) and `previews/[prNumber]/promote/` (`POST`, 202
   `{deploymentId, jobId, ...}`), backed by `PreviewApiService`
@@ -243,9 +266,13 @@ Plain REST collections don't get hand-written commands: `resources.go` has a
 slugs or not, which of list/get/create/update/delete exist), and
 `ResourceCommands` turns each entry into ordinary `Commands` entries, so help,
 dispatch, arg checks and `help_test.go` cover them like everything else. A new
-collection is one table entry. `create`/`update` build the body from `--file`
-(`-` is stdin, numbers decoded with `UseNumber` so big ints survive) plus
-repeatable `--set key=value` on top (JSON when `json.Valid`, else a string;
+collection is one table entry. `workstations.go` keeps its own
+`workstationResources` table (workstations, paginated with slugs, and their
+presets) next to the `workstations start|stop|recreate|delete` commands the
+generic verbs can't express (`desiredState` PATCHes, `POST .../recreate`, and
+`delete --volume` for `?volume=true`). `create`/`update` build the body from
+`--file` (`-` is stdin, numbers decoded with `UseNumber` so big ints survive)
+plus repeatable `--set key=value` on top (JSON when `json.Valid`, else a string;
 dotted keys nest). **Real, live-tested finding:** the API's `PATCH` replaces an
 object field whole, so the first cut of
 `services update api --set envVars.MODE=prod` silently dropped every other env
