@@ -4,7 +4,7 @@ import {
 	accountProviderIdFor,
 	emailMatchesPattern,
 } from "#lib/auth-providers.js";
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
@@ -159,10 +159,25 @@ export function groupsAcross(
 	return groups;
 }
 
-function emailAllowed(svc: ServiceDTO, email: string): boolean {
+/**
+ * What a login wall decides on: its sign-in methods and allowlists, the same
+ * columns on a service and a workstation, plus the owner a workstation's wall
+ * always lets in.
+ */
+export interface AccessPolicy {
+	authAllowedEmails: string[];
+	authAllowedGroups: string[];
+	authAllowedUserIds: string[];
+	authProviders: string[];
+	ownerId?: string | null;
+}
+
+function emailAllowed(policy: AccessPolicy, email: string): boolean {
 	return (
-		svc.authAllowedEmails.length === 0 ||
-		svc.authAllowedEmails.some((pattern) => emailMatchesPattern(email, pattern))
+		policy.authAllowedEmails.length === 0 ||
+		policy.authAllowedEmails.some((pattern) =>
+			emailMatchesPattern(email, pattern),
+		)
 	);
 }
 
@@ -228,52 +243,62 @@ class AppAccessServiceClass {
 	readonly #lastProviderRefresh = new Map<string, number>();
 
 	/**
-	 * Decides whether `userId` may access `svc`'s per-app login wall,
-	 * checking, in order: a sign-in method is configured at all, an explicit
-	 * allowed-user-id list, that the user still exists and isn't banned, their
-	 * email against `authAllowedEmails`, that they have actually linked one of
-	 * `svc.authProviders` (an emailed code or link, while available, counts as
-	 * linked for every account: it signs in on the email address alone), and
-	 * (if set) that their linked accounts' OIDC groups
-	 * or their Homerun role intersect `authAllowedGroups`.
+	 * Decides whether `userId` may pass `policy`'s login wall, checking, in
+	 * order: the wall's owner (a workstation's), let in whatever the rules
+	 * say unless deleted or banned; a sign-in method is configured at all; an
+	 * explicit allowed-user-id list; that the user still exists and isn't
+	 * banned; their email against `authAllowedEmails`; that they have actually
+	 * linked one of `authProviders` (an emailed code or link, while available,
+	 * counts as linked for every account: it signs in on the email address
+	 * alone); and (if set) that their linked accounts' OIDC groups or their
+	 * Homerun role intersect `authAllowedGroups`.
 	 *
 	 * A service account never signs in interactively, so its API key stands
 	 * in for the sign-in method: it's let through only when the wall lists it
 	 * by id and it isn't disabled, whatever the email, method and group rules
 	 * say.
 	 */
-	async evaluate(svc: ServiceDTO, userId: string): Promise<AccessDecision> {
-		if (svc.authProviders.length === 0) {
+	async evaluate(
+		policy: AccessPolicy,
+		userId: string,
+	): Promise<AccessDecision> {
+		if (policy.ownerId && policy.ownerId === userId) {
+			const owner = await this.#userFor(userId);
+			return owner && !isBanned(owner)
+				? { allowed: true }
+				: { allowed: false, reason: "user-not-allowed" };
+		}
+		if (policy.authProviders.length === 0) {
 			return { allowed: false, reason: "no-method-configured" };
 		}
 		if (
-			svc.authAllowedUserIds.length > 0 &&
-			!svc.authAllowedUserIds.includes(userId)
+			policy.authAllowedUserIds.length > 0 &&
+			!policy.authAllowedUserIds.includes(userId)
 		) {
 			return { allowed: false, reason: "user-not-allowed" };
 		}
 
 		const [account, linked] = await Promise.all([
 			this.#userFor(userId),
-			this.#linkedAccounts(svc, userId),
+			this.#linkedAccounts(policy, userId),
 		]);
 		if (!account || isBanned(account)) {
 			return { allowed: false, reason: "user-not-allowed" };
 		}
 		if (isServiceAccount(account)) {
-			return svc.authAllowedUserIds.includes(userId)
+			return policy.authAllowedUserIds.includes(userId)
 				? { allowed: true }
 				: { allowed: false, reason: "user-not-allowed" };
 		}
-		if (!emailAllowed(svc, account.email)) {
+		if (!emailAllowed(policy, account.email)) {
 			return { allowed: false, reason: "email-not-allowed" };
 		}
-		if (linked.length === 0 && !(await this.#acceptsEmail(svc))) {
+		if (linked.length === 0 && !(await this.#acceptsEmail(policy))) {
 			return { allowed: false, reason: "method-not-linked" };
 		}
-		if (svc.authAllowedGroups.length > 0) {
+		if (policy.authAllowedGroups.length > 0) {
 			const groups = groupsAcross(linked, account.role);
-			if (!svc.authAllowedGroups.some((group) => groups.has(group))) {
+			if (!policy.authAllowedGroups.some((group) => groups.has(group))) {
 				return { allowed: false, reason: "group-not-allowed" };
 			}
 		}
@@ -305,33 +330,36 @@ class AppAccessServiceClass {
 					stackSlug: row.stackId ? (stackSlugs.get(row.stackId) ?? null) : null,
 				};
 			}),
-			config.baseDomain,
+			serviceDomain(),
 		);
 	}
 
 	/**
 	 * Re-evaluates a login-wall cookie holder's access for auth-check's periodic
-	 * re-check. When the service filters on groups, first asks the user's OAuth
+	 * re-check. When the wall filters on groups, first asks the user's OAuth
 	 * providers for fresh tokens (at most once every five minutes per user) so a
 	 * group removed at the provider is seen well before the cookie expires. A
 	 * failed refresh is logged and the stored id token is used instead.
 	 */
-	async recheck(svc: ServiceDTO, userId: string): Promise<boolean> {
-		if (svc.authAllowedGroups.length > 0) {
-			await this.#refreshProviderTokens(svc, userId);
+	async recheck(policy: AccessPolicy, userId: string): Promise<boolean> {
+		if (policy.authAllowedGroups.length > 0) {
+			await this.#refreshProviderTokens(policy, userId);
 		}
-		return (await this.evaluate(svc, userId)).allowed;
+		return (await this.evaluate(policy, userId)).allowed;
 	}
 
 	/** Refreshes the user's allowed OAuth accounts' tokens through better-auth, throttled per user; never throws. */
-	async #refreshProviderTokens(svc: ServiceDTO, userId: string): Promise<void> {
+	async #refreshProviderTokens(
+		policy: AccessPolicy,
+		userId: string,
+	): Promise<void> {
 		const now = Date.now();
 		const last = this.#lastProviderRefresh.get(userId);
 		if (last !== undefined && now - last < PROVIDER_REFRESH_MS) {
 			return;
 		}
 		this.#lastProviderRefresh.set(userId, now);
-		const accounts = (await this.#linkedAccounts(svc, userId)).filter(
+		const accounts = (await this.#linkedAccounts(policy, userId)).filter(
 			(entry) => entry.refreshToken && entry.providerId !== "credential",
 		);
 		if (accounts.length === 0) {
@@ -354,9 +382,9 @@ class AppAccessServiceClass {
 	}
 
 	/** Whether the wall allows an emailed code or link that's available right now; skips the settings read when it allows neither. */
-	async #acceptsEmail(svc: ServiceDTO): Promise<boolean> {
+	async #acceptsEmail(policy: AccessPolicy): Promise<boolean> {
 		if (
-			!acceptsEmailSignIn(svc.authProviders, {
+			!acceptsEmailSignIn(policy.authProviders, {
 				emailOtp: true,
 				magicLink: true,
 			})
@@ -364,7 +392,7 @@ class AppAccessServiceClass {
 			return false;
 		}
 		return acceptsEmailSignIn(
-			svc.authProviders,
+			policy.authProviders,
 			await emailSignInAvailability(),
 		);
 	}
@@ -385,12 +413,12 @@ class AppAccessServiceClass {
 		return row ?? null;
 	}
 
-	/** The user's linked accounts whose provider maps to one of `svc.authProviders`, each with its id token for group extraction. */
+	/** The user's linked accounts whose provider maps to one of the wall's `authProviders`, each with its id token for group extraction. */
 	async #linkedAccounts(
-		svc: ServiceDTO,
+		policy: AccessPolicy,
 		userId: string,
 	): Promise<LinkedAccount[]> {
-		const allowed = new Set(svc.authProviders.map(accountProviderIdFor));
+		const allowed = new Set(policy.authProviders.map(accountProviderIdFor));
 		const accounts = await db
 			.select({
 				id: accountTable.id,

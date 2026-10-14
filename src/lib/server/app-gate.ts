@@ -29,6 +29,19 @@ export interface GatePolicy {
 }
 
 /**
+ * One thing behind the login wall, a service or a workstation, as auth-check
+ * and `/app-auth` see it: its policy, the domains it's routed at, its name,
+ * the `serviceId` its gate tokens carry (`workstation:<id>` for a
+ * workstation), and the owner a workstation's wall always lets in.
+ */
+export interface GateTarget extends GatePolicy {
+	domains: string[];
+	key: string;
+	name: string;
+	ownerId: string | null;
+}
+
+/**
  * A short fingerprint of a service's login-wall policy, embedded in gate tokens
  * so that changing who may access the service invalidates sessions issued under
  * the old policy.

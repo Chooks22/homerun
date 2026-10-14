@@ -1,22 +1,24 @@
 import { verifyGateToken } from "#lib/server/app-gate.js";
-import { gatedService } from "#lib/server/gated-service-cache.js";
+import { gateTarget } from "#lib/server/gate-target.js";
 
 export const APP_AUTH_PATH = "/app-auth";
 
 /**
- * The gated app's name and allowed sign-in methods when `target` is a
- * login-wall return path (`/app-auth?rd=<signed token>`) for a service that's
- * still gated, so the sign-in page can say which app the visitor is signing in
- * to and offer only the methods its wall accepts. Null for any other target,
- * or an invalid or expired token.
+ * The gated app's name and allowed sign-in methods when `returnPath` is a
+ * login-wall return path (`/app-auth?rd=<signed token>`) for a service or
+ * workstation that's still gated, so the sign-in page can say which app the
+ * visitor is signing in to and offer only the methods its wall accepts. A
+ * workstation's methods are null, every method: its owner always gets in,
+ * whichever one they use. Null for any other path, or an invalid or expired
+ * token.
  */
 export async function gatedAppFor(
-	target: string | null,
-): Promise<{ methods: string[]; name: string } | null> {
-	if (!target) {
+	returnPath: string | null,
+): Promise<{ methods: string[] | null; name: string } | null> {
+	if (!returnPath) {
 		return null;
 	}
-	const parsed = new URL(target, "http://homerun.invalid");
+	const parsed = new URL(returnPath, "http://homerun.invalid");
 	if (parsed.pathname !== APP_AUTH_PATH) {
 		return null;
 	}
@@ -25,8 +27,12 @@ export async function gatedAppFor(
 	if (!request) {
 		return null;
 	}
-	const svc = await gatedService(request.serviceId);
-	return svc?.authRequired
-		? { methods: svc.authProviders, name: svc.name }
-		: null;
+	const gated = await gateTarget(request.serviceId);
+	if (!gated?.authRequired) {
+		return null;
+	}
+	return {
+		methods: gated.ownerId ? null : gated.authProviders,
+		name: gated.name,
+	};
 }

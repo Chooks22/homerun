@@ -295,6 +295,42 @@ describe("AppAccessService.evaluate", () => {
 	});
 });
 
+describe("AppAccessService.evaluate with an owner", () => {
+	test("a workstation's owner gets in whatever the rules say", async () => {
+		tables.users = [ada];
+		expect(
+			await AppAccessService.evaluate(
+				{
+					...service({
+						authAllowedEmails: ["*@elsewhere.com"],
+						authAllowedUserIds: ["someone-else"],
+						authProviders: [],
+					}),
+					ownerId: "u1",
+				},
+				"u1",
+			),
+		).toEqual({ allowed: true });
+	});
+
+	test("a banned or deleted owner doesn't, and anyone else follows the rules", async () => {
+		tables.users = [{ ...ada, banned: true }];
+		expect(
+			await AppAccessService.evaluate({ ...service(), ownerId: "u1" }, "u1"),
+		).toEqual({ allowed: false, reason: "user-not-allowed" });
+		tables.users = [];
+		expect(
+			await AppAccessService.evaluate({ ...service(), ownerId: "u1" }, "u1"),
+		).toEqual({ allowed: false, reason: "user-not-allowed" });
+		expect(
+			await AppAccessService.evaluate(
+				{ ...service({ authAllowedUserIds: ["u1"] }), ownerId: "u1" },
+				"u2",
+			),
+		).toEqual({ allowed: false, reason: "user-not-allowed" });
+	});
+});
+
 describe("AppAccessService.recheck", () => {
 	test("without a group filter it never asks the provider for fresh tokens", async () => {
 		tables.users = [ada];
@@ -483,7 +519,9 @@ describe("AppAccessService.sharedApps", () => {
 			stackId: null,
 			...overrides,
 		};
-		return { ...row, toJSON: () => row } as unknown as Service;
+		return { ...row, toJSON: () => row } as unknown as Awaited<
+			ReturnType<typeof ServiceDTO.list>
+		>[number];
 	}
 
 	test("lists only the gated apps whose wall lets the user through", async () => {

@@ -237,9 +237,11 @@ with `APP_ONLY_MESSAGE`. Belt and braces: the `(protected)` layout load
 redirects to `/my-apps`, `requireUser()` throws 403, and
 `applyApiKeyAuth`/`applyMcpTokenAuth` refuse a key or MCP token owned by an
 app-only user outright (so a key minted under an earlier role dies with the role
-change). Homerun as an OIDC provider stays open to them
-(`/api/v1/auth/oauth2/*`, `/auth/consent`): that's an app login, the point of
-the role; its client-management endpoints are admin-checked by better-auth.
+change); a banned user's key or token is refused too (`isBanned`, which respects
+`banExpires`) until the ban is lifted or runs out. Homerun as an OIDC provider
+stays open to app-only users (`/api/v1/auth/oauth2/*`, `/auth/consent`): that's
+an app login, the point of the role; its client-management endpoints are
+admin-checked by better-auth.
 
 `/my-apps` is a top-level `AuthShell` page (outside `(protected)`): the apps
 from `AppAccessService.sharedApps(userId)` (every `authRequired` service whose
@@ -281,18 +283,19 @@ watching sign-in fail. `email-sign-in.ts` also never mails a code or link to a
 placeholder address.
 
 `hooks.server.ts`: `applyApiKeyAuth` refuses a disabled (banned) service
-account's key with a 403 before setting `locals.user`; `authHandler` then runs
-`serviceAccountRejection` (`access-gate.ts`), which lets it reach `/app-auth`
-and only the routes owned by an area it was granted, so `OPEN_ROUTES` (overview,
-profile, MCP, notifications…) are closed to it; `permissionRejection` still does
-the level. `serviceAccountAuditHandler`, sequenced before `authHandler`, writes
-every request its key makes to `audit_log` (`AuditLogDTO`, amortized prune at
-20000 rows, `actorId` set null on delete, `actorName` kept); `/app-auth` writes
-its own `gate.handshake` entry naming the app instead.
-`AppAccessService.evaluate` lets a service account through only when the wall
-lists its id, skipping the email, provider and group rules (its key is the
-method), and `/app-auth` skips the "no usable method" screen for it.
-`UserService.listUsersPaged`, `searchUsers`, `#successorFor` and
+account's key with a 403 before setting `locals.user` (a banned human's key too,
+with its own message; a service account's refusal is also audited);
+`authHandler` then runs `serviceAccountRejection` (`access-gate.ts`), which lets
+it reach `/app-auth` and only the routes owned by an area it was granted, so
+`OPEN_ROUTES` (overview, profile, MCP, notifications…) are closed to it;
+`permissionRejection` still does the level. `serviceAccountAuditHandler`,
+sequenced before `authHandler`, writes every request its key makes to
+`audit_log` (`AuditLogDTO`, amortized prune at 20000 rows, `actorId` set null on
+delete, `actorName` kept); `/app-auth` writes its own `gate.handshake` entry
+naming the app instead. `AppAccessService.evaluate` lets a service account
+through only when the wall lists its id, skipping the email, provider and group
+rules (its key is the method), and `/app-auth` skips the "no usable method"
+screen for it. `UserService.listUsersPaged`, `searchUsers`, `#successorFor` and
 `NotificationDTO.broadcast` leave service accounts out; `listUsers` keeps them
 so login-wall pickers offer them. API keys have no FK to `user`, so
 `ServiceAccountService.delete` deletes the account's keys itself. The CLI's
@@ -705,6 +708,32 @@ has one live answerer: Go's dialer tries every address the alias resolves to, so
 a container that's stopping or not yet listening is skipped. The first update
 onto this version still runs the old updater script, so that one still has the
 gap.
+
+**Workstations share the wall, through `GateTarget`** (`app-gate.ts`). The
+wall's flow (challenge, callback, cookie, re-check) runs on a `GateTarget`, not
+a `ServiceDTO`: the policy columns, the domains `gatePrefix` reads, a name, the
+token's `serviceId` (`key`) and an `ownerId`. `serviceGateTarget` builds one
+from `gatedService`; `workstationWall` (`workstation/sign-in.ts`) from a
+workstation row, keyed `workstation:<id>` like the git sign-in, cached next to
+its git gate in `WorkstationSignInService` (`wall(id)`, dropped by `forget`).
+`gateTarget(key)` (`src/lib/server/gate-target.ts`) dispatches a signed token's
+`serviceId` to either, which is all `/app-auth` and `gatedAppFor` needed;
+auth-check picks by its query (`?service=` or `?workstation=`), and a
+workstation with `authRequired` on takes the wall branch before the git one.
+`AppAccessService.evaluate`/`recheck` take an `AccessPolicy` (the policy plus
+`ownerId`), and an owner is let in whatever the rules say unless deleted or
+banned, so a workstation's owner can't lock themselves out; the sign-in page
+offers every method for a workstation for the same reason (`methods: null`). The
+workstation columns are the service's names (`auth_required`, `auth_providers`,
+`auth_allowed_*`), so `policyVersion` and `loginWallPolicyProblem` apply
+unchanged. `WorkstationSettingsService.update` validates them, forgets the
+cached gate, and restarts a running workstation when `authRequired` flips, since
+its labels (or agent route file) and `--auth none` follow the wall like a
+service's redeploy; a policy change alone applies live. The Settings tab reuses
+`LoginWallSection` with `subject="workstation"`, its user picker filled only for
+a caller who can read Services (`loginWallOptions(withUsers)`); New Workstation
+and the preset pages embed the same section in their own form (`embedded`), and
+a preset's wall is handed to the workstations created from it.
 
 **Path-scoped walls**: `authPathsMode`/`authPaths` split the gated router in
 `buildContainerLabels` rather than teaching auth-check about paths, so an
@@ -1151,39 +1180,95 @@ Tools are grouped per dashboard area, each group a
 `register<Area>Tools(server, api)` in its own
 `src/lib/server/mcp-<area>-tools.ts` (stacks, templates, environments and
 release channels, previews, scans, volumes, cron jobs, status pages,
-notifications, redirects, object storage), with the service tools still in
-`mcp-server.ts`; `mcp-tool-kit.ts` holds the shared `asResult`/`errorResult` and
-annotations. A tool whose input matches a REST body reuses that route's zod
-schema (`cronJobApiBody`, `updateStatusPageApiBody.extend({ statusPageId })`…)
-instead of restating it, so the two can't drift. A list tool over rows that are
-big (services, cron jobs, templates) returns a summary and leaves the full row
-to its `get_` tool. A tool needing data no REST route serves gets a thin route
-first, never a DTO call: cron job runs (`GET /cron-jobs/{id}/runs` without
-output, `GET /cron-jobs/{id}/runs/{runId}` with it) and the caller's in-app feed
+notifications, redirects, object storage, workstations and their presets,
+versions, system (monitoring, system log, instance containers, Docker cleanup)
+and admin (DNS, registry, remote hosts, users, git providers)), with the service
+tools still in `mcp-server.ts`; `mcp-tool-kit.ts` holds the shared
+`asResult`/`errorResult` and annotations. A tool whose input matches a REST body
+reuses that route's zod schema (`cronJobApiBody`,
+`updateStatusPageApiBody.extend({ statusPageId })`…) instead of restating it, so
+the two can't drift. A list tool over rows that are big (services, cron jobs,
+templates) returns a summary and leaves the full row to its `get_` tool. A tool
+needing data no REST route serves gets a thin route first, never a DTO call:
+cron job runs (`GET /cron-jobs/{id}/runs` without output,
+`GET /cron-jobs/{id}/runs/{runId}` with it) and the caller's in-app feed
 (`GET /notifications`, `POST /notifications/read`, open like the dashboard's
-`/notifications`) were added that way. `INSTRUCTIONS` in `mcp-server.ts` names
-every tool by area, and `docs/mcp.md` has the same table: a new tool goes in
-both. Deleting a service, a stack or an environment stays out on purpose.
+`/notifications`) were added that way, and so were a service's version pin and
+update checks (`/services/{id}/version`, `/version/pin`, `/version/check`,
+`/version/update`, over `ImageVersionService`, which the Source tab calls too),
+monitoring (`GET /monitoring`, `GET /services/{id}/monitoring`, totals without
+the chart series) and System's log, containers and Docker cleanup
+(`/system/logs`, `/system/containers`, `/system/containers/{id}/logs`,
+`/system/docker-cleanup`; `/api/v1/system` is in System's `routes`,
+`/api/v1/monitoring` in Services'). `preview_docker_cleanup` sums each category
+up instead of listing every image, and `run_docker_cleanup` leaves
+`pruneVolumes` out of its enum: irreversible data loss stays a dashboard click.
+
+**Credential-holding admin config stays off MCP's write side, decided.** DNS
+connections, git providers, object stores, remote hosts, registry tokens, users
+and sign-in get read tools at most, over REST responses that already drop every
+secret (`*Set` booleans instead), and no create/update/delete tool. Two reasons:
+connecting one means the secret transits the agent's context and its provider's
+logs, and an agent that can repoint DNS credentials, mint a registry token or
+change a role can widen its own reach, which a prompt injection in a log line it
+reads could ask for. DNS records are the exception (no secret, and needed to put
+a service online). Revisit only with a reason stronger than "the REST API has
+it": `docs/mcp.md` documents the decision for operators. `INSTRUCTIONS` in
+`mcp-server.ts` names every tool by area, and `docs/mcp.md` has the same table:
+a new tool goes in both. Deleting a service, a stack or an environment stays out
+on purpose. The workstation tools mask `env` themselves
+(`mcp-workstation-tools.ts`'s `envRedacted`), since `redactSecrets` only treats
+`envVars`/`vars` as env maps, and
+`update_workstation`/`update_workstation_preset` merge env changes through
+`mergeEnvChanges` like `update_cron_job`. `delete_workstation` is in, unlike a
+service's delete: it keeps the home volume unless `deleteVolume` is set.
 `tests/unit/app/mcp-tools.test.ts` drives the real server through
 `createMcpHandler` with a recording fake `ApiCall` (no `initialize` needed): one
 row per tool asserting the REST method, path and body it sends, plus the
 summaries, filters and the redacted round-trips.
 
 Every value an agent reads goes through `mcp-redact.ts`'s `redactSecrets` first:
-`redactEnvValue` fully masks a secret-looking name (`PASSWORD`, `TOKEN`…) and,
-now, any name in that service's own `secretEnvKeys` (the lock toggle in
-Environments & Deployments → Environment Variables, `service.secretEnvKeys`, see
-Data model in `data-and-config.md`) — a name marked secret is caught whatever
-it's called, e.g. `TMDB_API`. `update_service`'s env merge (`mergeEnvChanges` in
-`mcp-server.ts`'s `updateService`) is handed that same set, so a value it reads
-back unchanged from a marked var is still recognised as "unchanged" rather than
-rejected as a bad placeholder. A string under `command`, `log` or `output` (a
-cron job's shell command, a deploy or job log, a cron run's output) gets
-`maskInlineSecrets`, so URL passwords and `--password` arguments don't leak
-through JSON the way they never did through `service_logs`' plain text.
-`update_cron_job` merges env like `update_service` (the REST PATCH replaces the
-whole map) and `restoreMaskedText` puts back a command sent unchanged with its
-masked password.
+`redactEnvValue` fully masks any name in the object's own `secretEnvKeys` (the
+lock toggle on a service's Environment Variables and a cron job's Configuration,
+`service.secretEnvKeys`/`cron_job.secretEnvKeys`, see Data model in
+`data-and-config.md`), the primary mechanism, whatever the name or value. It
+also masks a secret-looking name (`PASSWORD`, `TOKEN`, `AUTH`, `COOKIE`,
+`SIGNING`…) unless its last part only configures one (`*_AUTH_URL`,
+`*_AUTH_ENABLED`, `*_KEY_FILE`, `NON_SECRET_LAST_PARTS`) or the value is a plain
+boolean or number (a real false positive was
+`GITEA__service__ENABLE_PASSWORD_SIGNIN_FORM=false`), and any value
+`looksLikeCredential` whatever its name: `user:<16+ letters and digits>` or a
+24+ character token mixing cases and digits that isn't a URL, path, image,
+hostname or version (a real leak was `STREMTHRU_AUTH=<user>:<64-char token>`
+before `AUTH` joined the name list). `update_service`'s and `update_cron_job`'s
+env merge (`mergeEnvChanges`) is handed that same set and compares through the
+same `redactEnvValue`, so a value it reads back unchanged is still recognised as
+"unchanged" rather than rejected as a bad placeholder. A string under `command`,
+`log`, `output`, `url` or `data` (a cron job's shell command, a deploy or job
+log, a cron run's output, an error event's request URL or breadcrumb data) gets
+`maskInlineSecrets`: URL passwords (with or without a scheme), `--password`
+arguments, `Bearer`/`Basic` credentials, sensitive query parameters (`code`,
+`state`, `token`, `X-Amz-Signature`…, only after `?`/`&` so `exit code=1`
+survives) and bare `token=`/`password=` assignments. Plain-text bodies
+(`service_logs`) get it through `redactText`'s fallback. `message`, `metadata`
+and `trialMessage` (a system log entry, a breadcrumb, an update trial's failure)
+get the same. An error event's `headers` (object or `[name, value]` pairs) lose
+every credential-carrying one, `cookies` is replaced whole, `query_string` is
+masked like a URL's, and a field literally named `token`, `password`, `secret`,
+`authorization`… is masked anywhere. A `data:` URL `icon` becomes `"uploaded"`
+(it was tens of KB of base64 in `get_service`), and `update_service` drops an
+`icon: "uploaded"` sent back so it doesn't overwrite the real one. Every
+placeholder is the fixed `[redacted]`, never sized to the value. A script's
+`source` and each of a cron job's `files[].content` go through `maskFileText`: a
+line assigning to a secret-looking name (`API_TOKEN=`, `export DB_PASSWORD=`,
+`password:`, `const apiKey =`) has its value masked like an env var, every other
+line only its inline secrets; a volume's `source` path or a redirect's `source`
+hostname passes through untouched. `update_cron_job` merges env like
+`update_service` (the REST PATCH replaces the whole map), and
+`restoreMaskedText` (with `maskFileText` for `source`) and `restoreFiles` (by
+path) put back a command, source or file sent unchanged with its masked parts;
+it only reads the job first when something it sends still carries the
+placeholder or env changes.
 
 Auth: `hooks.server.ts` treats a Bearer credential shaped like a JWT as an MCP
 access token (`verifyMcpAccessToken` in `auth.ts`: `jose` against the `jwks`
@@ -1257,17 +1342,34 @@ with `provider: "sqlite"`, which makes better-auth JSON-encode arrays itself.
 `OauthClientDTO` reads them back with a tolerant JSON parse. Token and consent
 rows cascade from the client's `client_id`.
 
-**Client management goes through better-auth, reads don't.** Create, update and
-rotate call `auth.api.adminCreateOAuthClient` / `adminUpdateOAuthClient` /
-`rotateClientSecret` via `OauthAppService`, so secrets get generated and hashed
-the way the token endpoint expects. Real, tested finding: the "admin",
-server-only create endpoint still loads the session and runs `clientPrivileges`
-(`user.role === "admin"`), and answers a bare 401 with no body without request
-`headers`. Its `APIError`s carry an empty `message` too, the text lives in
-`body.error_description`; `authErrorMessage()` digs it out. Redirect URIs must
-be `https` and not loopback for web clients (the plugin rejects
-`http://localhost`), `parseOauthAppForm` refuses non-https up front with a
-readable message.
+**Client rows are written by Homerun, not through better-auth's client
+endpoints.** `OauthAppService` (register, create, update, environments, secrets)
+writes `oauth_client` through `OauthClientDTO`, the way the provider's own
+registration does (list columns as JSON text, a 32-letter client id, no
+`user_id`). Real, reported bug behind it: `adminCreateOAuthClient` /
+`adminUpdateOAuthClient` load the session even as "server-only" admin endpoints,
+run `clientPrivileges`, and `update-client` also requires the session user to
+**own** the client (`client.userId === session.user.id`), so a second admin's
+Settings or Environments save on an app failed with a bare `UNAUTHORIZED`, and
+an API key (no session) could never manage an app at all. Two things the
+provider did at registration are reproduced by hand: `registeredCallbacks` (test
+callback, `native` when a callback is loopback) and, when `mcp()` is active
+(`mcpAllowed(origin)`), linking the client to the MCP resource in
+`oauth_client_resource` (`OauthClientDTO.linkResource`, seeding the
+`oauth_resource` row like `seedResources` when the provider hasn't yet): the
+provider's `enforcePerClientResources` defaults to true, so an unlinked client
+asking for the MCP `resource` (a claude.ai connector) gets `invalid_target`;
+`tests/integration/mcp.test.ts` covers it. Field validation the provider did is
+Homerun's: `environmentProblem` (`oidc-provider.ts`, https callbacks, loopback
+only with allow-localhost, origins) for the dashboard form and the REST body
+alike. Apps created before this still carry the creating admin's `user_id`,
+harmless now (deleting that user hands them over, `UserService`). REST:
+`/api/v1/oidc-apps` (+ `/environments`, `/secrets`), Users & authentication
+area; an app is created with no environment, and the API lets the last
+environment go (the dashboard doesn't) so a Terraform destroy, which removes
+environments before the app, goes through. Terraform: `homerun_oidc_app`,
+`homerun_oidc_app_environment`, `homerun_oidc_app_secret` (`secret`
+`returnedOnCreate`), in `resources-identity.ts`.
 
 **Environments and secrets are Homerun's, not the provider's.**
 `oauth_client_environment` (name, callbacks, authorized origins, allow

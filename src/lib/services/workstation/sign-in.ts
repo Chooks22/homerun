@@ -8,6 +8,7 @@ import {
 	GATE_GRANT_TTL_MS,
 	GATE_REDIRECT_TTL_MS,
 	GATE_SESSION_TTL_MS,
+	type GateTarget,
 	signGateToken,
 	verifyGateToken,
 } from "#lib/server/app-gate.js";
@@ -39,6 +40,40 @@ export function workstationGateKey(workstationId: string): string {
 	return `workstation:${workstationId}`;
 }
 
+/** The workstation id a gate token's `serviceId` names, null when it names a service. */
+export function workstationIdOf(gateKey: string): string | null {
+	const prefix = workstationGateKey("");
+	return gateKey.startsWith(prefix) ? gateKey.slice(prefix.length) : null;
+}
+
+/**
+ * Workstation `row`'s own login wall as auth-check and `/app-auth` see it:
+ * the same policy columns a service has, its one hostname, and its owner,
+ * who always gets in.
+ */
+export function workstationWall(
+	row: Omit<Workstation, "passwordEnc">,
+): GateTarget {
+	return {
+		authAllowedEmails: row.authAllowedEmails,
+		authAllowedGroups: row.authAllowedGroups,
+		authAllowedUserIds: row.authAllowedUserIds,
+		authProviders: row.authProviders,
+		authRequired: row.authRequired,
+		domains: [workstationHostname(row, config.baseDomain)],
+		key: workstationGateKey(row.id),
+		name: row.name,
+		ownerId: row.userId,
+	};
+}
+
+/** What forwardAuth needs to know about one workstation: its git sign-in, if any, and its login wall. */
+interface GateEntry {
+	fetchedAt: number;
+	gate: WorkstationGate | null;
+	wall: GateTarget | null;
+}
+
 /** Whether `image` is code-server, whose own password Homerun can turn off with `--auth none`. */
 export function isCodeServerImage(image: string): boolean {
 	return /(^|\/)code-server(:|@|$)/.test(image);
@@ -54,10 +89,7 @@ export function isCodeServerImage(image: string): boolean {
  * wall's session cookie is set.
  */
 class WorkstationSignInServiceClass {
-	readonly #cache = new Map<
-		string,
-		{ fetchedAt: number; gate: WorkstationGate | null }
-	>();
+	readonly #cache = new Map<string, GateEntry>();
 
 	/**
 	 * Whether `ws` signs in through git: it has a git provider picked, the
@@ -93,21 +125,38 @@ class WorkstationSignInServiceClass {
 	}
 
 	/**
-	 * The gate of workstation `id`, cached for ten seconds (a miss included),
-	 * since forwardAuth asks on every request to the IDE.
+	 * The git sign-in gate of workstation `id`, cached for ten seconds (a miss
+	 * included), since forwardAuth asks on every request to the IDE.
 	 */
 	async gate(id: string): Promise<WorkstationGate | null> {
-		const hit = this.#cache.get(id);
-		if (hit && Date.now() - hit.fetchedAt < CACHE_TTL_MS) {
-			return hit.gate;
-		}
-		const ws = await WorkstationDTO.getForGate(id);
-		const gate = ws ? await this.gateFor(ws.toPublic()) : null;
-		this.#cache.set(id, { fetchedAt: Date.now(), gate });
-		return gate;
+		return (await this.#entry(id)).gate;
 	}
 
-	/** Drops workstation `id`'s cached gate, so a settings change applies at once. */
+	/**
+	 * The login wall of workstation `id` (on or off), null when it's gone,
+	 * cached alongside its git sign-in gate.
+	 */
+	async wall(id: string): Promise<GateTarget | null> {
+		return (await this.#entry(id)).wall;
+	}
+
+	/** Workstation `id`'s cached gate and wall, read again once ten seconds old. */
+	async #entry(id: string): Promise<GateEntry> {
+		const hit = this.#cache.get(id);
+		if (hit && Date.now() - hit.fetchedAt < CACHE_TTL_MS) {
+			return hit;
+		}
+		const row = (await WorkstationDTO.getForGate(id))?.toPublic();
+		const entry: GateEntry = {
+			fetchedAt: Date.now(),
+			gate: row ? await this.gateFor(row) : null,
+			wall: row ? workstationWall(row) : null,
+		};
+		this.#cache.set(id, entry);
+		return entry;
+	}
+
+	/** Drops workstation `id`'s cached gate and wall, so a settings change applies at once. */
 	forget(id: string): void {
 		this.#cache.delete(id);
 	}
@@ -168,11 +217,10 @@ class WorkstationSignInServiceClass {
 		state: string,
 	): Promise<string> {
 		const payload = verifyGateToken(state.slice(STATE_PREFIX.length));
-		const prefix = workstationGateKey("");
-		if (!payload?.serviceId.startsWith(prefix)) {
+		const id = payload ? workstationIdOf(payload.serviceId) : null;
+		if (!(payload && id)) {
 			throw new Error("This sign-in link expired. Open the workstation again.");
 		}
-		const id = payload.serviceId.slice(prefix.length);
 		this.forget(id);
 		const gate = await this.gate(id);
 		if (

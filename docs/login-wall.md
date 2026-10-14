@@ -158,3 +158,16 @@ cookie lifetime runs out.
 
 **Limits worth knowing.** The wall covers services Traefik routes publicly; a
 service that isn't publicly routed has no router to gate.
+
+**Workstations.** A [workstation](workstations.md#signing-in) can sit behind the
+same wall: Settings → **Login wall** on the workstation, with the same sign-in
+methods and Users, Emails and Groups / roles lists. Its owner always gets in,
+whichever method they sign in with; anyone else has to match the rules. The wall
+replaces the workstation's git sign-in and, for code-server on this server, its
+IDE password. Turning it on or off restarts a running workstation instead of
+redeploying a service, and policy changes apply at once as above. The wall can
+also be set on **New Workstation** and saved in a
+[preset](workstations.md#presets), which hands it to every workstation created
+from it. Walled workstations aren't listed under Protected apps, and Pangolin
+owning the login doesn't change them: a workstation's hostname is always
+published with Pangolin's own sign-in off.

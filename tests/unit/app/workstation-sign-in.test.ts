@@ -26,7 +26,7 @@ const { RemoteHostDTO } = await import("../../../src/lib/dto/remote-host-dto");
 const { signGateToken, verifyGateToken, GATE_CALLBACK_PATH } = await import(
 	"../../../src/lib/server/app-gate"
 );
-const { agentHostProblem } = await import(
+const { workstationHostProblem, workstationHosts } = await import(
 	"../../../src/lib/server/workstation-presets"
 );
 const { WorkstationSignInService, workstationGateKey } = await import(
@@ -244,17 +244,44 @@ describe("the sign-in round trip", () => {
 	});
 });
 
-describe("agentHostProblem", () => {
-	test("this server and agent hosts are fine, anything else isn't", async () => {
-		expect(await agentHostProblem(null)).toBeNull();
+describe("workstationHostProblem", () => {
+	test("this server, agent hosts and tcp:// or ssh:// Docker hosts are fine, anything else isn't", async () => {
+		expect(await workstationHostProblem(null)).toBeNull();
 		restorers.push(
 			spyOn(RemoteHostDTO, "get")
 				.mockResolvedValueOnce({ kind: "agent" } as unknown as Host)
-				.mockResolvedValueOnce({ kind: "docker" } as unknown as Host)
+				.mockResolvedValueOnce({
+					dockerHost: "tcp://10.0.0.6:2376",
+					kind: "docker",
+				} as unknown as Host)
+				.mockResolvedValueOnce({
+					dockerHost: "ssh://root@10.0.0.6",
+					kind: "docker",
+				} as unknown as Host)
+				.mockResolvedValueOnce({
+					dockerHost: null,
+					kind: "docker",
+				} as unknown as Host)
 				.mockResolvedValueOnce(null),
 		);
-		expect(await agentHostProblem("a")).toBeNull();
-		expect(await agentHostProblem("b")).toContain("agent host");
-		expect(await agentHostProblem("c")).toContain("agent host");
+		expect(await workstationHostProblem("a")).toBeNull();
+		expect(await workstationHostProblem("b")).toBeNull();
+		expect(await workstationHostProblem("c")).toBeNull();
+		expect(await workstationHostProblem("d")).toContain("a Docker host");
+		expect(await workstationHostProblem("e")).toContain("agent host");
+	});
+
+	test("Runs on offers agent hosts and every Docker host, ssh:// included", async () => {
+		restorers.push(
+			spyOn(RemoteHostDTO, "list").mockResolvedValue([
+				{ id: "a", kind: "agent", name: "Agent" },
+				{ dockerHost: "ssh://root@h", id: "s", kind: "docker", name: "SSH" },
+				{ dockerHost: null, id: "n", kind: "docker", name: "None" },
+			] as unknown as Awaited<ReturnType<typeof RemoteHostDTO.list>>),
+		);
+		expect(await workstationHosts()).toEqual([
+			{ id: "a", name: "Agent" },
+			{ id: "s", name: "SSH" },
+		]);
 	});
 });

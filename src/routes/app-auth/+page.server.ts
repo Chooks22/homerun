@@ -13,7 +13,7 @@ import {
 } from "#lib/server/app-gate.js";
 import { offCanonicalOrigin } from "#lib/server/canonical-origin.js";
 import { clientAddress } from "#lib/server/client-address.js";
-import { gatedService } from "#lib/server/gated-service-cache.js";
+import { gateTarget } from "#lib/server/gate-target.js";
 import {
 	ACCESS_DENIAL_MESSAGES,
 	AppAccessService,
@@ -41,8 +41,8 @@ export const load = async (event) => {
 		);
 	}
 
-	const svc = await gatedService(request.serviceId);
-	if (!svc?.authRequired) {
+	const target = await gateTarget(request.serviceId);
+	if (!target?.authRequired) {
 		error(404, "That app isn't gated behind Homerun's login.");
 	}
 
@@ -55,12 +55,13 @@ export const load = async (event) => {
 	const serviceAccount = isServiceAccount(locals.user);
 	const hasUsableMethod =
 		serviceAccount ||
-		svc.authProviders.some((method) =>
+		target.ownerId !== null ||
+		target.authProviders.some((method) =>
 			signInMethodAvailable(method, available),
 		);
 
 	const base = {
-		appName: svc.name,
+		appName: target.name,
 		appUrl: request.target,
 		branding: authBranding((await InstanceSettingsDTO.get()).errorPages),
 	};
@@ -76,11 +77,11 @@ export const load = async (event) => {
 		);
 	}
 
-	const decision = await AppAccessService.evaluate(svc, locals.user.id);
+	const decision = await AppAccessService.evaluate(target, locals.user.id);
 	if (serviceAccount) {
 		await ServiceAccountService.recordUse(locals.user, {
 			action: "gate.handshake",
-			detail: `${svc.name} (${request.host}): ${decision.allowed ? "granted" : `refused, ${decision.reason}`}`,
+			detail: `${target.name} (${request.host}): ${decision.allowed ? "granted" : `refused, ${decision.reason}`}`,
 			ipAddress: clientAddress(event),
 			status: decision.allowed ? 302 : 403,
 		});
@@ -101,15 +102,15 @@ export const load = async (event) => {
 			email: locals.user.email,
 			host: request.host,
 			name: locals.user.name,
-			serviceId: svc.id,
+			serviceId: target.key,
 			target: request.target,
 			userId: locals.user.id,
 		},
 		GATE_GRANT_TTL_MS,
 	);
-	const target = new URL(request.target);
-	const prefix = gatePrefix(svc.domains, target.host, target.pathname);
-	const callback = new URL(`${prefix}${GATE_CALLBACK_PATH}`, target.origin);
+	const appUrl = new URL(request.target);
+	const prefix = gatePrefix(target.domains, appUrl.host, appUrl.pathname);
+	const callback = new URL(`${prefix}${GATE_CALLBACK_PATH}`, appUrl.origin);
 	callback.searchParams.set("token", grant);
 	redirect(302, callback.toString(), { external: true });
 };
