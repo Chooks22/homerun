@@ -34,6 +34,15 @@ image, deleting one deletes the other too. A service that's already running a
 deleted image keeps running; it just can't be pulled again until it's
 re-mirrored or pushed back.
 
+The same listing is readable outside the dashboard, with read access to the
+Registry permission: `GET /api/v1/registry/repositories` (paged, `q` narrows by
+name) and `GET /api/v1/registry/repositories/<repository>/tags` over the
+[REST API](api-and-cli.md#everything-the-dashboard-manages),
+`homerun registry repositories` and `homerun registry tags <repository>` from
+the [CLI](api-and-cli.md#commands), and `list_registry_repositories` and
+`list_registry_tags` for an [AI agent](mcp.md). Deleting a tag or a repository
+stays on this page.
+
 ![The Images tab, with the repository list and the Collect garbage button](images/registry-images.webp)
 
 ## Tokens
