@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.59](https://github.com/orochibraru/homerun/compare/v1.0.58...v1.0.59) (2026-10-14)
+
+### ⚠ BREAKING CHANGES
+
+- service accounts, Homerun Manifest, Terraform and REST API coverage for every
+  setting, split GitHub Actions and richer worker traces
+  ([3ae8bf1](https://github.com/orochibraru/homerun/commit/3ae8bf18fe3c42dffcf7704275bbeccc1e095e3b))
+
+### Features
+
+- service accounts, Homerun Manifest, Terraform and REST API coverage for every
+  setting, split GitHub Actions and richer worker traces
+  ([3ae8bf1](https://github.com/orochibraru/homerun/commit/3ae8bf18fe3c42dffcf7704275bbeccc1e095e3b))
+
+### Bug Fixes
+
+- stop Souin's broken 304 from resetting HTTP/2 streams and serve HTTP/3 by
+  default
+  ([1818028](https://github.com/orochibraru/homerun/commit/1818028f9ec248eb2ec2c228e2af5ec471acb5b6))
+
+### Documentation
+
+- log deleteDns wiping the dashboard's own Pangolin resource in TODO
+  ([0301d46](https://github.com/orochibraru/homerun/commit/0301d46e8f72d076b54afdfb27d68df5cb354c26))
+
 ## [1.0.58](https://github.com/orochibraru/homerun/compare/v1.0.57...v1.0.58) (2026-10-13)
 
 ### Features
