@@ -132,10 +132,10 @@
         <p class="text-text-subtle mt-1 text-xs">
           {#if svc.dnsResolvable && svc.networkMode !== "host" && svc.defaultDomainEnabled}
             Routed at
-            <span class="text-accent">{defaultHostname(values.slug, data.stackSlug, data.baseDomain)}</span>
+            <span class="text-accent">{defaultHostname(values.slug, data.stackSlug, data.serviceDomain)}</span>
             : redeploy to apply a change.
           {:else if svc.dnsResolvable && svc.networkMode !== "host"}
-            Its own domains are routed, not {defaultHostname(values.slug, data.stackSlug, data.baseDomain)}.
+            Its own domains are routed, not {defaultHostname(values.slug, data.stackSlug, data.serviceDomain)}.
             Other services reach it at
             <span class="text-accent">{values.slug}</span>
             : redeploy to apply a change.
@@ -237,5 +237,5 @@
   <AutoRollbackSection {svc} />
   <ImageScanSection {svc} />
   <AutoRedeploySection cronError={form?.cronError} {svc} />
-  <DangerZoneSection name={svc.name} />
+  <DangerZoneSection activeJobs={data.activeJobs} name={svc.name} />
 </div>

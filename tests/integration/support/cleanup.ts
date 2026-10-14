@@ -28,7 +28,7 @@ export class ServiceCleanup {
 			ids.map(async (id) => {
 				await this.#client
 					.DELETE("/services/{serviceId}", {
-						params: { path: { serviceId: id } },
+						params: { path: { serviceId: id }, query: { force: "true" } },
 					})
 					.catch(() => {
 						// Best-effort : a test that already deleted its own service, or

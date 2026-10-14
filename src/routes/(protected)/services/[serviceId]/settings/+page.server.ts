@@ -9,7 +9,10 @@ import { listIconLibrary } from "#lib/server/icon-library.js";
 import { updateGeneralSchema } from "#lib/server/validation/service.js";
 import { runtimeOptionsFrom } from "#lib/service-runtime.js";
 import { WorkloadDetachError } from "#lib/services/docker/workload-removal.js";
-import { ServiceLifecycleService } from "#lib/services/service-lifecycle.service.js";
+import {
+	ServiceBusyError,
+	ServiceLifecycleService,
+} from "#lib/services/service-lifecycle.service.js";
 import {
 	ServiceSettingsError,
 	ServiceSettingsService,
@@ -18,14 +21,16 @@ import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
-export const load = async ({ parent }) => {
+export const load = async ({ params, parent }) => {
 	await parent();
-	const [stacks, icons] = await Promise.all([
+	const svc = await ServiceDTO.get(params.serviceId);
+	const [stacks, icons, activeJobs] = await Promise.all([
 		StackDTO.list(),
 		listIconLibrary(),
+		svc ? ServiceLifecycleService.activeJobs(svc) : [],
 	]);
 
-	return { icons, stacks: stacks.map((p) => p.toJSON()) };
+	return { activeJobs, icons, stacks: stacks.map((p) => p.toJSON()) };
 };
 
 export const actions = {
@@ -47,7 +52,10 @@ export const actions = {
 				force,
 			});
 		} catch (error) {
-			if (error instanceof WorkloadDetachError) {
+			if (
+				error instanceof WorkloadDetachError ||
+				error instanceof ServiceBusyError
+			) {
 				return fail(409, { detachFailed: true, error: error.message });
 			}
 			throw error;

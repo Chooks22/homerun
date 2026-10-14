@@ -34,7 +34,11 @@ the container or swarm service first: one that's already gone is fine, but if
 Docker fails to remove it, the service is kept and the error says why. The
 Settings tab's delete then offers **Delete anyway**, which removes only
 Homerun's record (the REST API's equivalent is
-`DELETE /api/v1/services/:id?force=true`).
+`DELETE /api/v1/services/:id?force=true`). A service with a deploy (or any other
+job) still queued or running, for itself or one of its previews, environments or
+canary, isn't deleted either: the Settings tab's delete dialog lists those jobs
+and its button becomes **Force delete**, which cancels them first. Deleting a
+preview or an environment on its own cancels its jobs without asking.
 
 The list groups services by stack, ordered as a tree (a substack's group is
 indented under its parent's), with services outside any stack last. A

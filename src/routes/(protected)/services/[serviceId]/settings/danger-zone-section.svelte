@@ -1,18 +1,21 @@
 <script lang="ts">
-	import { Trash2Icon, TriangleAlertIcon } from "@lucide/svelte";
+	import { AlertTriangle, Trash2Icon, TriangleAlertIcon } from "@lucide/svelte";
 	import { tick } from "svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import DeleteVolumesOption from "#lib/components/delete-volumes-option.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import Spinner from "#lib/components/ui/spinner/spinner.svelte";
+	import type { ActiveJob } from "#lib/services/service-lifecycle.service.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
 
 	interface Props {
+		activeJobs: ActiveJob[];
 		name: string;
 	}
 
-	const { name }: Props = $props();
+	const { activeJobs, name }: Props = $props();
+	const busy = $derived(activeJobs.length > 0);
 
 	let deleteDialogOpen = $state(false);
 	let deleteForm = $state<HTMLFormElement | null>(null);
@@ -91,19 +94,40 @@
 
 <ConfirmDialog
   bind:open={deleteDialogOpen}
-  confirmLabel="Delete service"
+  confirmLabel={busy ? "Force delete" : "Delete service"}
   confirmPhrase={name}
   description={`Deleting "${name}" stops and removes its container and erases its deployment history. This can't be undone.`}
-  onConfirm={() => deleteForm?.requestSubmit()}
+  onConfirm={async () => {
+    forceDelete = busy;
+    await tick();
+    deleteForm?.requestSubmit();
+  }}
   title="Delete service"
 >
+  {#if busy}
+    <div class="flex gap-2 rounded-md border border-amber-300/60 bg-amber-500/10 p-3 text-sm text-amber-700 dark:border-amber-900/50 dark:text-amber-400">
+      <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+      <div>
+        <p class="font-medium">Still running for this service</p>
+        <ul class="mt-1 list-disc pl-4 text-xs">
+          {#each activeJobs as entry (entry.id)}
+            <li>{entry.title}</li>
+          {/each}
+        </ul>
+        <p class="mt-1 text-xs">
+          Force deleting cancels them first. Anything they already started on
+          the host may need removing by hand.
+        </p>
+      </div>
+    </div>
+  {/if}
   <DeleteVolumesOption bind:checked={deleteVolumes} />
 </ConfirmDialog>
 
 <ConfirmDialog
   bind:open={forceDeleteDialogOpen}
   confirmLabel="Delete anyway"
-  description={`${detachError} Deleting anyway removes only Homerun's record of "${name}" : if its workload still exists on the host, remove it yourself.`}
+  description={`${detachError} Deleting anyway cancels any job still running for it and removes Homerun's record of "${name}" : if its workload still exists on the host, remove it yourself.`}
   onConfirm={async () => {
     forceDelete = true;
     await tick();

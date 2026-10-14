@@ -57,6 +57,10 @@ const { config } = await import("../../../src/lib/config");
 const { Logger } = await import("../../../src/lib/logger");
 const { ServiceDTO } = await import("../../../src/lib/dto/service-dto");
 const { StackDTO } = await import("../../../src/lib/dto/stack-dto");
+const { InstanceSettingsDTO } = await import(
+	"../../../src/lib/dto/instance-settings-dto"
+);
+const { StatusPageDTO } = await import("../../../src/lib/dto/status-page-dto");
 const { DomainDnsService } = await import(
 	"../../../src/lib/services/domain-dns.service"
 );
@@ -77,9 +81,8 @@ const { StorageVolumeDTO } = await import(
 const { ServiceDependencyDTO } = await import(
 	"../../../src/lib/dto/service-dependency-dto"
 );
-const { ServiceLifecycleService, StackBusyError } = await import(
-	"../../../src/lib/services/service-lifecycle.service"
-);
+const { ServiceBusyError, ServiceLifecycleService, StackBusyError } =
+	await import("../../../src/lib/services/service-lifecycle.service");
 const { removalFailure, tryRemoveWorkload, WorkloadDetachError } = await import(
 	"../../../src/lib/services/docker/workload-removal"
 );
@@ -150,6 +153,8 @@ beforeEach(() => {
 		return null;
 	});
 	stub(PangolinService, "deleteDnsRecord", async () => null);
+	stub(InstanceSettingsDTO, "get", async () => ({ toJSON: () => ({}) }));
+	stub(StatusPageDTO, "list", async () => []);
 	otherServices = [];
 	stub(ServiceDTO, "list", async () => otherServices);
 	stub(StackDTO, "list", async () => []);
@@ -248,6 +253,71 @@ describe("ServiceLifecycleService.deleteService", () => {
 		expect(removed).toEqual(["c2", "c1"]);
 		expect(preview.state.deleted).toBe(true);
 		expect(state.deleted).toBe(true);
+	});
+
+	test("a running job refuses the delete without touching anything", async () => {
+		activeJobs = [{ id: "j1", title: "Deploy web" }];
+		const { state, svc } = fakeService();
+		const attempt = ServiceLifecycleService.deleteService(svc);
+		await expect(attempt).rejects.toBeInstanceOf(ServiceBusyError);
+		await expect(attempt).rejects.toThrow(/"Deploy web" is still queued/);
+		expect(state.deleted).toBe(false);
+		expect(removed).toEqual([]);
+		expect(cancelledJobs).toEqual([]);
+	});
+
+	test("a preview's running job refuses the parent's delete too", async () => {
+		const preview = fakeService({ containerId: "c2", id: "s2" });
+		previewsByParent.set("s1", [preview.svc]);
+		const asked: string[][] = [];
+		stub(JobDTO, "listActiveForServices", async (ids: string[]) => {
+			asked.push(ids);
+			return ids.includes("s2") ? [{ id: "j2", title: "Deploy pr-1" }] : [];
+		});
+		const { state, svc } = fakeService();
+		await expect(
+			ServiceLifecycleService.deleteService(svc),
+		).rejects.toBeInstanceOf(ServiceBusyError);
+		expect(asked[0]).toEqual(["s1", "s2"]);
+		expect(preview.state.deleted).toBe(false);
+		expect(state.deleted).toBe(false);
+	});
+
+	test("force cancels the running jobs before removing the workload", async () => {
+		activeJobs = [{ id: "j1", title: "Deploy web" }];
+		stub(DockerService, "removeContainer", async (id: string) => {
+			expect(cancelledJobs).toEqual(["j1"]);
+			removed.push(id);
+		});
+		const { state, svc } = fakeService();
+		await ServiceLifecycleService.deleteService(svc, { force: true });
+		expect(removed).toEqual(["c1"]);
+		expect(state.deleted).toBe(true);
+	});
+
+	test("cancelJobs cancels without forcing past a failed removal", async () => {
+		activeJobs = [{ id: "j1", title: "Deploy web" }];
+		removeError = dockerError(500, "daemon unreachable");
+		const { state, svc } = fakeService();
+		await expect(
+			ServiceLifecycleService.deleteService(svc, { cancelJobs: true }),
+		).rejects.toBeInstanceOf(WorkloadDetachError);
+		expect(cancelledJobs).toEqual(["j1"]);
+		expect(state.deleted).toBe(false);
+	});
+
+	test("activeJobs covers the service and its children", async () => {
+		previewsByParent.set("s1", [fakeService({ id: "s2" }).svc]);
+		let asked: string[] = [];
+		stub(JobDTO, "listActiveForServices", async (ids: string[]) => {
+			asked = ids;
+			return [{ id: "j1", serviceId: "s2", title: "Deploy pr-1" }];
+		});
+		const { svc } = fakeService();
+		expect(await ServiceLifecycleService.activeJobs(svc)).toEqual([
+			{ id: "j1", serviceId: "s2", title: "Deploy pr-1" },
+		]);
+		expect(asked).toEqual(["s1", "s2"]);
 	});
 
 	test("removes the release channel canary before the service", async () => {

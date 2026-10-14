@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { JobDTO } from "#lib/dto/job-dto.js";
 import { ServiceDependencyDTO } from "#lib/dto/service-dependency-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
@@ -20,8 +20,22 @@ const logger = new Logger("ServiceLifecycle");
 
 export class StackBusyError extends Error {}
 
+export class ServiceBusyError extends Error {}
+
+export interface ActiveJob {
+	id: string;
+	serviceId: string | null;
+	title: string;
+}
+
+/** The refusal shown when a delete would cut jobs off mid-flight. */
+function busyMessage(busy: ActiveJob[]): string {
+	const pronoun = busy.length === 1 ? "it" : "them";
+	return `${busy.map((entry) => `"${entry.title}"`).join(", ")} ${busy.length === 1 ? "is" : "are"} still queued or running. Wait for ${pronoun} to finish, or force the delete to cancel ${pronoun}.`;
+}
+
 export interface StackDeleteOverview {
-	jobs: Array<{ id: string; serviceId: string | null; title: string }>;
+	jobs: ActiveJob[];
 	services: Array<{ id: string; name: string }>;
 	substacks: Array<{ id: string; name: string }>;
 	volumes: Array<{ id: string; kind: string; name: string }>;
@@ -190,25 +204,66 @@ class ServiceLifecycleServiceClass {
 	}
 
 	/**
+	 * The queued or running jobs tied to a service or to one of its pull
+	 * request previews, environments or release channel canary: what
+	 * `deleteService` refuses over.
+	 */
+	async activeJobs(svc: ServiceDTO): Promise<ActiveJob[]> {
+		const children = await ServiceGitDTO.listChildren(svc.id);
+		return JobDTO.listActiveForServices([
+			svc.id,
+			...children.map((child) => child.id),
+		]);
+	}
+
+	/**
 	 * Deletes a service: removes its pull request previews and release
 	 * channel canary first, then its swarm service or container, its git
 	 * webhook and its row. A workload Docker reports as already gone counts as
 	 * removed.
 	 *
-	 * @param options.force Deletes the row even when the workload couldn't be
-	 * removed, for a daemon that will never answer for it again.
+	 * @param options.force Cancels the queued and running jobs of the service
+	 * and its children (a deploy mid-flight) instead of refusing, and deletes
+	 * the row even when the workload couldn't be removed, for a daemon that
+	 * will never answer for it again.
+	 * @param options.cancelJobs Cancels those jobs instead of refusing, without
+	 * `force`'s leniency on the workload: for deletes Homerun makes on its own
+	 * (a closed pull request's preview) or of a disposable copy.
 	 * @param options.deleteVolumes Also deletes the volumes only this service
 	 * mounts (see `#deleteVolumes`).
+	 * @throws {ServiceBusyError} When the service or one of its children has a
+	 * queued or running job and neither `force` nor `cancelJobs` is set;
+	 * nothing is deleted then.
 	 * @throws {WorkloadDetachError} When the workload couldn't be removed and
 	 * `force` isn't set; nothing is deleted then.
 	 */
 	async deleteService(
 		svc: ServiceDTO,
-		options: { deleteVolumes?: boolean; force?: boolean } = {},
+		options: {
+			cancelJobs?: boolean;
+			deleteVolumes?: boolean;
+			force?: boolean;
+		} = {},
 	): Promise<void> {
-		for (const preview of await ServiceGitDTO.listChildren(svc.id)) {
+		const children = await ServiceGitDTO.listChildren(svc.id);
+		const busy = await JobDTO.listActiveForServices([
+			svc.id,
+			...children.map((child) => child.id),
+		]);
+		if (busy.length > 0 && !options.force && !options.cancelJobs) {
+			throw new ServiceBusyError(busyMessage(busy));
+		}
+		await Promise.all(
+			busy.map((entry) =>
+				JobDTO.cancel(entry.id, `Service "${svc.name}" was deleted.`),
+			),
+		);
+		for (const preview of children) {
 			// oxlint-disable-next-line no-await-in-loop -- each preview's workload removal can fail the whole delete
-			await this.deleteService(preview, { force: options.force });
+			await this.deleteService(preview, {
+				cancelJobs: true,
+				force: options.force,
+			});
 		}
 		const volumes = options.deleteVolumes
 			? await StorageVolumeDTO.listExclusiveTo([svc.id])
@@ -305,9 +360,7 @@ class ServiceLifecycleServiceClass {
 		const memberIds = members.map((svc) => svc.id);
 		const busy = await JobDTO.listActiveForServices(memberIds);
 		if (busy.length > 0 && !options.force) {
-			throw new StackBusyError(
-				`${busy.map((entry) => `"${entry.title}"`).join(", ")} ${busy.length === 1 ? "is" : "are"} still queued or running. Wait for ${busy.length === 1 ? "it" : "them"} to finish, or force the delete to cancel ${busy.length === 1 ? "it" : "them"}.`,
-			);
+			throw new StackBusyError(busyMessage(busy));
 		}
 		await Promise.all(
 			busy.map((entry) =>
@@ -357,7 +410,7 @@ class ServiceLifecycleServiceClass {
 		}
 		await deleteDns(
 			await releasedHosts(
-				serviceHostnames(svc.toJSON(), stackSlug, config.baseDomain),
+				serviceHostnames(svc.toJSON(), stackSlug, serviceDomain()),
 				[],
 				svc.id,
 			),
