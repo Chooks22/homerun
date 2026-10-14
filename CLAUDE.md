@@ -70,14 +70,16 @@ a plan in chat, don't keep a task list somewhere else, don't hand back a
 
 ## What this is
 
-Homerun, a self-hosted, single-user PaaS for deploying Docker containers with a
+Homerun, a self-hosted, multi-user PaaS for deploying Docker containers with a
 click-config form (a minimal Dokploy/Cloud-Run alternative). Point at an image
 (or a git repo, see `.agents/notes/services-and-templates.md`), fill in env
 vars/port/resources, deploy, Traefik auto-routes it to `<slug>.<baseDomain>`
-with TLS. Single host, local Docker socket only; no multi-node orchestration. A
-service is either "bring-your-own-image" (the original/default) or "build from a
-git repo" (clones + builds a Dockerfile locally, no registry involved), see
-Git-based builds below.
+with TLS. Deploys go to the manager's Docker daemon, spread across nodes by
+Docker Swarm (standalone containers on a single box otherwise); remote hosts
+build images and run workstations, see `.agents/notes/docker.md`. A service is
+either "bring-your-own-image" (the original/default) or "build from a git repo"
+(clones + builds a Dockerfile locally, no registry involved), see Git-based
+builds below.
 
 Stack: SvelteKit 3 (Svelte 5 runes, `@sveltejs/adapter-bun`) + Bun runtime,
 better-auth, Drizzle ORM over Postgres (via Bun's built-in `SQL` client,

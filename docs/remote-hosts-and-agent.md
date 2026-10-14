@@ -66,9 +66,10 @@ From `/remote-hosts` → **Register by hand**: a name, plus a connection type:
 Either kind builds: a Docker-connection host runs the build directly against
 that daemon's Docker API, an agent host through its own `POST /v1/build`. Both
 kinds, `tcp://` and `ssh://` alike, can also run
-[dev workstations](workstations.md#on-a-remote-host). Deleting a host removes
-the workstations on it, their containers on that host included (their home
-volumes stay).
+[dev workstations](workstations.md#on-a-remote-host), and a Docker-connection
+host runs [cron jobs](scheduling.md#running-on-another-host) too. Deleting a
+host removes the workstations on it, their containers on that host included
+(their home volumes stay).
 
 ### Direct Docker connection over SSH
 

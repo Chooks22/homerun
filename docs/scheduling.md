@@ -79,6 +79,34 @@ They also take what the container itself runs with:
   root on the host, so it **needs write access to System**, both to set it and
   to manage or run a job that has it.
 
+### Running on another host
+
+Container and source code jobs have a **Run on** picker, shown once at least one
+[remote host](remote-hosts-and-agent.md) with a direct Docker connection is
+registered: **This host** (the default) or one of those hosts, reached over
+`tcp://` or, with nothing but sshd and a Docker user on the other end,
+[`ssh://`](remote-hosts-and-agent.md#direct-docker-connection-over-ssh). The run
+works the same as a local one, pulled, run, its output streamed back and the
+container removed, only against that daemon. The first run on an `ssh://` host
+records its SSH host key, and every run after that refuses a different one.
+
+What changes on another host:
+
+- **Host command** jobs always run on this host, so they have no picker.
+- **Homerun Agent** hosts aren't offered: an agent builds images but has no
+  endpoint for one-off runs.
+- **Volumes** can't be mounted, since they live on this server: a job with
+  volumes and a remote host fails its run with "Volumes live on this host".
+- **Docker socket** mounts the remote host's `/var/run/docker.sock`, not this
+  server's, and without adding its group, so the container has to run as a user
+  that can already open it there (root, or a member of that host's `docker`
+  group).
+
+The same field is `remoteHostId` on the [REST API](api-and-cli.md)'s cron job
+routes, and its errors are the remote host's own: see
+[Direct Docker connection over SSH](remote-hosts-and-agent.md#direct-docker-connection-over-ssh)
+for what "refused Homerun's key" and the socket errors mean.
+
 A job's page has three tabs: **Runs**, **Configuration** (what runs and how:
 everything above) and **Settings** (name, schedule, timeout, the schedule
 toggle, and deleting the job). **Runs** leads with the latest run: press **Run

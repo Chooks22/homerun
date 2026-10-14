@@ -1,13 +1,15 @@
 # Homerun
 
-**A self-hosted, single-user PaaS for deploying Docker containers with a
-click-config form**: a minimal Dokploy / Cloud Run alternative for your own
-hardware.
+**A self-hosted PaaS for deploying Docker containers with a click-config form**:
+a Dokploy / Cloud Run alternative for your own hardware, from one homelab box to
+a Docker Swarm of several machines, for you alone or a whole team.
 
 [![Homerun | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/homerun/about/?utm_source=badge&utm_medium=referral)
 
 Point at an image (or a git repo), fill in env vars / port / resources, hit
 deploy: Traefik routes it to `<slug>.yourdomain.com` with TLS, automatically.
+Then drive the same instance from a REST API, a CLI, an MCP agent, GitHub
+Actions, a manifest in your repo or Terraform, whichever fits.
 
 > **Status:** Actively developed, running on real hardware, but still finding
 > its shape: see [`docs/faq-and-limitations.md`](docs/faq-and-limitations.md)
@@ -22,11 +24,14 @@ generated from a real instance.
 
 ## Why Homerun
 
-Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
+Dokploy, Coolify, and friends are great, but a few things I can't get around:
 
 - Coolify has many bugs and a lot of tech debt
-- Dokploy has started paywalling features that homelab enthusiasts could use at
-  the benefit of enterprise.
+- Dokploy has started paywalling features that homelab enthusiasts could use,
+  for the benefit of enterprise.
+
+Homerun keeps everything in the open, MIT licensed: multi-node swarm, teams and
+roles, previews, IaC and the API are all just features, not a paid tier.
 
 ## Features
 
@@ -67,6 +72,19 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
   through a local registry mirror before it starts, so the container runs
   exactly what was scanned, with an admin policy that blocks deploys at or above
   a chosen severity (optionally fixable findings only)
+- **[Environments](docs/environments.md)**: copies of a service running another
+  branch or tag (`staging`, `qa`), each one a real service of its own with its
+  own hostname, listed with its previews and canary on one tab
+- **[Release channels](docs/release-channels.md)**: "a branch is canary, a tag
+  is stable" in one switch, a managed `<slug>-canary` service deployed on every
+  push and the service itself on every matching tag
+- **[Version pinning & update checks](docs/deploy-source-and-builds.md#version-pinning-and-update-checks)**:
+  swap `:latest` for the exact tag that's running, watch the registry for a
+  newer release on the same track, trial-run it before you're notified, and
+  update in one click
+- **[Homerun Manifest](docs/manifest.md)**: keep a service's whole config in a
+  `.homerun.json` / `.homerun.yaml` in the repo, applied before every build, or
+  push it at any service from the CLI or API
 - **[Compose import](docs/compose-import.md)**: paste a `docker-compose.yaml`
   and get its services, volumes, runtime options and dependency order as Homerun
   services, with a preview of anything that doesn't map across
@@ -76,10 +94,14 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
 
 ### Running services
 
-- **[Swarm mode](docs/swarm-mode.md)**: the installer's default, every service
-  is a Docker Swarm service with replica scaling and load balancing, and more
-  machines join as workers with one command; standalone (one container per
-  service) stays available
+- **[Multi-node with Swarm](docs/swarm-mode.md)**: the installer's default,
+  every service is a Docker Swarm service with replica scaling and load
+  balancing across nodes, and
+  [another machine joins as a worker with one command](docs/remote-hosts-and-agent.md#adding-a-server-with-one-command);
+  standalone (one container per service) stays available for a single box
+- **[Remote hosts](docs/remote-hosts-and-agent.md)**: register other Docker
+  daemons over `tcp://`, `ssh://` (nothing to install but sshd) or the Homerun
+  Agent to build images, run workstations or run cron jobs on
 - **[Env vars & env files](docs/env-vars.md)**: key/value rows plus `.env` files
   read off the host at each deploy, with a per-variable secret lock always
   redacted for AI agents regardless of name
@@ -109,14 +131,22 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
   subdomains, nested substacks, a dependency tree/diagram of a stack's services,
   and one-step delete of the whole stack
 - **[~100 built-in templates](docs/templates.md)**: Immich, Jellyfin, Plex, the
-  *arr stack, Pi-hole, Vaultwarden, Grafana, Uptime Kuma, PostgreSQL, Redis, n8n
-  and more, with real app logos, one-click **Quick Deploy**, and a details page
-  that pulls in the project's GitHub README, stars and latest release
+  \*arr stack, Pi-hole, Vaultwarden, Grafana, Uptime Kuma, PostgreSQL, Redis,
+  n8n and more, with real app logos, one-click **Quick Deploy**, and a details
+  page that pulls in the project's GitHub README, stars and latest release
 - **[Linked containers](docs/templates.md#linked-containers)**: companions
   deploy with the primary (WordPress brings MySQL), and env vars like
   `{{db.POSTGRES_PASSWORD}}` wire them together without retyping
 - **Custom templates**: save any service's config as your own template, or build
   one from scratch
+
+### Workstations
+
+- **[Browser-based dev boxes](docs/workstations.md)**: a code-server or
+  openvscode-server container with a persistent home volume, your repo already
+  cloned and its dev container config applied, on this server or any remote
+  host, behind the login wall, with auto-stop and presets for the setups you
+  reuse; personal to each account
 
 ### Networking & domains
 
@@ -125,6 +155,19 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
 - **[Domains & SSL](docs/networking.md#domains--ssl)**: any number of extra
   hostnames per service, each with its own router, plus bring-your-own cert/key
   for domains outside Traefik's automatic ACME coverage
+- **[Path-based routing](docs/networking.md)**: route `example.com/api` to one
+  service and `example.com` to another on the same origin, with optional prefix
+  stripping and a login wall scoped to the path
+- **Hostname ownership**: every domain belongs to exactly one service,
+  workstation, redirect or the dashboard itself, conflicts are refused with the
+  owner named, and a domain can be taken over on purpose
+- **[Redirects](docs/redirects.md)**: send a hostname or a path to another URL,
+  answered by Traefik with no container
+- **[Blocked paths & IP bans](docs/blocked-paths-and-ip-bans.md)**: turn away
+  the `.env` / `.git` / `wp-login.php` scanners before they reach the app, ban
+  repeat offenders, and push bans to CrowdSec
+- **[Branded error pages](docs/error-pages.md)**: replace Traefik's bare `404`
+  and `Bad Gateway` with a page that says what's going on
 - **[Host networking](docs/networking.md)**: for apps that need the host's
   network directly (mDNS/SSDP discovery)
 - **[DNS automation](docs/dns-automation.md)**: your domains' records at 16 DNS
@@ -149,6 +192,10 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
   volume's backups at its destination and restore one, optionally wiping the
   volume first, with a searchable history of every run
 
+- **[Object storage](docs/object-storage.md)**: a built-in S3 store Homerun runs
+  for you, plus any S3-compatible provider you connect, with buckets, expiry and
+  public buckets managed from one page
+
 ### Observability & notifications
 
 - **[Monitoring](docs/observability.md#monitoring)**: requests, average response
@@ -166,6 +213,11 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
 - **[Errors in context](docs/observability.md#errors)**: failed deploys and the
   warnings Homerun logged about a service, on that service's page, with crash
   and "container is gone" banners
+- **[Error tracking](docs/error-tracking.md)**: Sentry-protocol compatible, so
+  the official Sentry SDKs report straight to Homerun, grouped into issues with
+  stack traces linked back to your source and source maps applied
+- **[Tracing](docs/tracing.md)**: a built-in OpenTelemetry collector and a
+  waterfall view of every span, including Homerun's own background jobs
 - **[Notifications](docs/notifications.md)**: an in-app bell, plus Discord,
   Slack, Telegram, webhook and email channels subscribed to build, deploy,
   update, rollback, scan and up/down events, retried when delivery fails
@@ -174,17 +226,23 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
 
 - **[Scheduled redeploys](docs/scheduling.md#scheduled-redeploy)**: cron-style
   auto-redeploy per service to pick up new images
-- **[Cron jobs](docs/scheduling.md#cron-jobs)**: a throwaway container, or an
-  host command (needs the System permission) itself, on a schedule, with exit
-  codes and output kept per run
+- **[Cron jobs](docs/scheduling.md#cron-jobs)**: a throwaway container, a script
+  on a Bun, Node, Deno, Python or `sh` runtime, or a host command (needs the
+  System permission), on a schedule or on demand, with secret env vars, config
+  files, volumes, exit codes, output and traces kept per run, and
+  [on another host over `tcp://` or `ssh://`](docs/scheduling.md#running-on-another-host)
 - **[The Scheduling page](docs/scheduling.md#the-scheduling-page)**: every cron
   redeploy, job and backup schedule, plus the live job queue, on one page
 
 ### Users & security
 
-- **[Roles & invites](docs/users-and-roles.md)**: admin, developer, read-only
-  and custom (pick the areas) roles, email or direct-create invites, and a
-  resource pool the whole team shares
+- **[Multi-user, with roles & invites](docs/users-and-roles.md)**: admin,
+  developer, read-only and custom (pick the areas) roles, email or direct-create
+  invites, and a resource pool the whole team shares
+- **[Service accounts](docs/users-and-roles.md#service-accounts)**: non-human
+  accounts for CI and scripts, with no sign-in method, API keys as their only
+  credential, permissions capped at yours and every use logged on an Activity
+  tab; they can also get CI through an app's login wall
 - **[OAuth/OIDC sign-in](docs/authentication-providers.md#oauth--oidc-login)**:
   one-click presets for Pocket ID, Keycloak, Authelia, Authentik, Logto, Zitadel
   and Kanidm
@@ -202,17 +260,33 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
   `homerun.managed=true`, and Homerun never touches anything it didn't create
   (Docker Cleanup being the one deliberate exception)
 
-### API & CLI
+### Automation: API, CLI, IaC & CI
+
+Everything you can click, you can script.
 
 - **[REST API & OpenAPI](docs/api-and-cli.md)**: everything in the dashboard is
   also a typed JSON API (`/api/v1`), authenticated by session or API key, with a
   live Swagger UI
-- **[MCP server](docs/mcp.md)**: let Claude or any MCP agent diagnose and fix
-  your services; an agent that supports Client ID Metadata Documents only needs
-  the URL, others sign in through a client you register on the IDP page, and
-  Claude Code uses an API key
 - **[The `homerun` CLI](cmd/cli/README.md)**: a small (~6MB) standalone Go
-  binary, logs in through a device-code flow and updates itself
+  binary covering services, stacks, previews, workstations, version pins, the
+  registry and more; logs in through a device-code flow and updates itself
+- **[Infrastructure as code](docs/infrastructure-as-code.md)**: a Terraform /
+  OpenTofu provider and Pulumi for stacks, services, every setting and the
+  objects around them, with state kept in your own object storage, a starter
+  config generated from what's already running, and drift detection
+- **[GitHub Actions](docs/ci-cd.md#github-actions)**: `deploy`, `rollback` and
+  `preview` actions that deploy the image CI just pushed and wait for it, so a
+  broken deploy fails the pipeline, plus `gate-session` to run E2E tests behind
+  a login wall; a
+  [Docker image](docs/ci-cd.md#gitlab-ci-and-other-cis-the-docker-image) does
+  the same for GitLab and every other CI
+- **[Preview testing recipes](docs/github-actions-preview-testing.md)**: E2E
+  against every pull request's preview, then ship the exact image that passed;
+  or [main is canary, tags are stable](docs/main-canary-tags-stable.md)
+- **[MCP server](docs/mcp.md)**: let Claude or any MCP agent diagnose and fix
+  your services, with credential-shaped values redacted; an agent that supports
+  Client ID Metadata Documents only needs the URL, others sign in through a
+  client you register on the IDP page, and Claude Code uses an API key
 
 ### Install & operations
 
@@ -238,6 +312,9 @@ Dokploy, Coolify, and friends are great, but there are stuff I can't get around:
 - **[Docker Registry](docs/registry.md)**: turn the internal image mirror into a
   real private registry, `docker push` included, with push/pull tokens and an
   optional public hostname through Traefik
+- **[Simple & advanced modes](docs/ui-modes.md)**: a short click-ops sidebar for
+  the homelab, or the full engineering surface; switching only changes what's in
+  view
 - **[`⌘K` search](docs/dashboard.md#search)**: jump to any page, or to anything
   on the instance, from anywhere
 - **[Appearance](docs/your-profile.md#appearance)**: light/dark/system theme,
@@ -277,3 +354,6 @@ root, not part of the SvelteKit build:
   and `--migrate-to-rootful` for older rootless installs)
 - [`cmd/cli/`](cmd/cli/README.md): a CLI (`homerun services deploy <id>`, etc.)
   against the REST API
+
+Plus the [Terraform provider](terraform/provider) under `terraform/` and the
+GitHub Actions under [`actions/`](actions).

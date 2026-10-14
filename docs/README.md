@@ -1,8 +1,10 @@
 # Homerun docs
 
-Homerun is a self-hosted, single-user PaaS: point at a Docker image or a git
-repo, fill in a form, deploy: Traefik routes it to `<slug>.yourdomain.com` with
-TLS. Single host, local Docker socket, no multi-node orchestration.
+Homerun is a self-hosted PaaS: point at a Docker image or a git repo, fill in a
+form, deploy: Traefik routes it to `<slug>.yourdomain.com` with TLS. It runs on
+one machine or a Docker Swarm of several, for one person or a team with roles,
+and everything is also reachable from the REST API, the CLI, MCP, GitHub Actions
+and Terraform.
 
 This directory is plain Markdown, the source of truth: read it straight from the
 repo, or on your GitHub remote's file browser. The
