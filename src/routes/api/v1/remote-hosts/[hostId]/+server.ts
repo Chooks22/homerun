@@ -54,7 +54,7 @@ export const DELETE = async ({ locals, params }) => {
 	if (!host) {
 		return apiError("Not found", 404);
 	}
-	await host.delete();
+	await RemoteHostSettingsService.remove(host);
 	logger.info(`Remote host deleted: host=${host.id} user=${caller.userId}`);
 	return new Response(null, { status: 204 });
 };

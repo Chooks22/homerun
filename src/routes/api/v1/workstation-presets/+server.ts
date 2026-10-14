@@ -4,6 +4,7 @@ import { workstationPresetApiJson } from "#lib/server/infrastructure-api-json.js
 import {
 	workstationColumns,
 	workstationPresetApiBody,
+	workstationWallColumns,
 } from "#lib/server/validation/infrastructure-api.js";
 import {
 	WorkstationSettingsError,
@@ -35,6 +36,7 @@ export const POST = async ({ locals, request }) => {
 			caller.userId,
 			{
 				...workstationColumns(body.data),
+				...workstationWallColumns(body.data),
 				description: body.data.description?.trim() || null,
 				name: body.data.name,
 			},

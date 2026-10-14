@@ -5,6 +5,7 @@ import { workstationApiJson } from "#lib/server/infrastructure-api-json.js";
 import {
 	updateWorkstationApiBody,
 	workstationColumns,
+	workstationWallColumns,
 } from "#lib/server/validation/infrastructure-api.js";
 import {
 	WorkstationSettingsError,
@@ -57,6 +58,7 @@ export const PATCH = async ({ locals, params, request }) => {
 	try {
 		await WorkstationSettingsService.update(workstation, {
 			...workstationColumns(body.data),
+			...workstationWallColumns(body.data),
 			...(name === undefined ? {} : { name }),
 			autoStop:
 				autoStopMode === undefined && autoStopMinutes === undefined

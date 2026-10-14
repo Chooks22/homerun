@@ -5,6 +5,7 @@ import { workstationApiJson } from "#lib/server/infrastructure-api-json.js";
 import {
 	workstationApiBody,
 	workstationColumns,
+	workstationWallColumns,
 } from "#lib/server/validation/infrastructure-api.js";
 import {
 	WorkstationSettingsError,
@@ -42,7 +43,12 @@ export const POST = async ({ locals, request }) => {
 	try {
 		const workstation = await WorkstationSettingsService.create(
 			caller.userId,
-			{ ...workstationColumns(body.data), domain, name },
+			{
+				...workstationColumns(body.data),
+				...workstationWallColumns(body.data),
+				domain,
+				name,
+			},
 			{
 				autoStop:
 					autoStopMode === undefined

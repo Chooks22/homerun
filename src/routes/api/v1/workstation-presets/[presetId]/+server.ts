@@ -5,6 +5,7 @@ import { workstationPresetApiJson } from "#lib/server/infrastructure-api-json.js
 import {
 	updateWorkstationPresetApiBody,
 	workstationColumns,
+	workstationWallColumns,
 } from "#lib/server/validation/infrastructure-api.js";
 import {
 	WorkstationSettingsError,
@@ -41,6 +42,7 @@ export const PATCH = async ({ locals, params, request }) => {
 	try {
 		await WorkstationSettingsService.updatePreset(preset, {
 			...workstationColumns(body.data),
+			...workstationWallColumns(body.data),
 			...(description === undefined
 				? {}
 				: { description: description?.trim() || null }),
