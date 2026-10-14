@@ -16,14 +16,14 @@ for people who'd rather manage settings as code.
 
 `/settings` is one page per tab, all behind the Settings permission:
 
-| Tab            | What's on it                                                                                                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **General**    | Base domain, Use HTTPS, Dashboard URL, the login wall's auth-check URL, cross-subdomain cookies, the default [interface mode](ui-modes.md), [resource limits](dashboard.md), and the [release channel](upgrading.md#release-channels) |
-| **Docker**     | Docker socket path, the shared network name, [image scanning](image-scanning.md) and its block policy, orchestration mode ([swarm](swarm-mode.md) or standalone)                                                                      |
-| **Networking** | Traefik entrypoint, cert resolver, ACME email, the dynamic-config directory, and the [HTTP cache](networking.md#response-cache). [DNS automation](dns-automation.md) (Cloudflare or Pangolin) has its own DNS page under Integrations |
-| **TLS**        | One certificate for the base domain and its subdomains, served instead of Let's Encrypt (a Cloudflare origin certificate, say), see [One certificate for the whole instance](networking.md#one-certificate-for-the-whole-instance)    |
-| **Email**      | SMTP host/port/user/password/TLS/from address, used for invite emails and email-change confirmations, with a "Send test email" button once saved                                                                                      |
-| **Migrate**    | Import applications, compose stacks and databases from Dokploy or Coolify, see [Migrating from Dokploy or Coolify](migrating-from-dokploy-or-coolify.md)                                                                              |
+| Tab            | What's on it                                                                                                                                                                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **General**    | Base domain, Services subdomain, Use HTTPS, Dashboard URL, the login wall's auth-check URL, cross-subdomain cookies, the default [interface mode](ui-modes.md), [resource limits](dashboard.md), and the [release channel](upgrading.md#release-channels) |
+| **Docker**     | Docker socket path, the shared network name, [image scanning](image-scanning.md) and its block policy, orchestration mode ([swarm](swarm-mode.md) or standalone)                                                                                          |
+| **Networking** | Traefik entrypoint, cert resolver, ACME email, the dynamic-config directory, and the [HTTP cache](networking.md#response-cache). [DNS automation](dns-automation.md) (Cloudflare or Pangolin) has its own DNS page under Integrations                     |
+| **TLS**        | One certificate for the base domain and its subdomains, served instead of Let's Encrypt (a Cloudflare origin certificate, say), see [One certificate for the whole instance](networking.md#one-certificate-for-the-whole-instance)                        |
+| **Email**      | SMTP host/port/user/password/TLS/from address, used for invite emails and email-change confirmations, with a "Send test email" button once saved                                                                                                          |
+| **Migrate**    | Import applications, compose stacks and databases from Dokploy or Coolify, see [Migrating from Dokploy or Coolify](migrating-from-dokploy-or-coolify.md)                                                                                                  |
 
 In [simple mode](ui-modes.md) the Docker, TLS, Error pages and IP bans tabs are
 hidden from this page; they still open from a link.
@@ -63,6 +63,20 @@ the same thing and aren't:
 - **Dashboard URL** is where you reach _Homerun itself_, scheme and port
   included. Leave it blank to derive it from the base domain; fill it in when
   they differ.
+
+**Services subdomain** (blank by default) moves every service's default hostname
+one level down, to `<slug>.<subdomain>.<base domain>`, the way workstations live
+under `dev.`: with `apps`, a service lands at `web.apps.example.com`, so a
+service's slug can never shadow the dashboard, the registry or anything else
+sitting directly under the base domain. It's one DNS label (letters, digits and
+dashes). A service picks the new hostname up on its next deploy; DNS automation
+creates the new record then and deletes the old one once that deploy succeeds
+(unless something else still routes that host), so the old hostname keeps
+answering until the service has moved. Changing the base domain moves the
+records the same way. Point a wildcard (`*.apps.example.com`) at the server, and
+a
+[whole-instance certificate](networking.md#one-certificate-for-the-whole-instance)
+for `*.example.com` doesn't cover it, so add the subdomain's own wildcard name.
 
 They're the same in a normal deployment (`example.com` → `https://example.com`).
 They differ in development, where the dashboard is on `http://localhost:5173`

@@ -1,4 +1,4 @@
-import { config, isSmtpEnabled } from "#lib/config.js";
+import { config, isSmtpEnabled, serviceDomain } from "#lib/config.js";
 import { type DeployTrigger, isRollback } from "#lib/deploy-trigger.js";
 import type { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { JobDTO, type NewJobInput } from "#lib/dto/job-dto.js";
@@ -375,7 +375,7 @@ class NotificationChannelServiceClass {
 		const stack = service.stackId ? await StackDTO.get(service.stackId) : null;
 		const row = service.toJSON();
 		const host =
-			primaryHostname(row, stack?.slug, config.baseDomain) ??
+			primaryHostname(row, stack?.slug, serviceDomain()) ??
 			serviceHostname(row.slug, stack?.slug ?? null);
 		return deployMessage(
 			{

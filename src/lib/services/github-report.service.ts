@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import type { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
@@ -110,12 +110,12 @@ class GitHubReportServiceClass {
 		const stack = row.stackId ? await StackDTO.get(row.stackId) : null;
 		const scheme = config.traefik.entrypoint === "web" ? "http" : "https";
 		const urls = row.dnsResolvable
-			? serviceHostnames(row, stack?.slug, config.baseDomain).map(
+			? serviceHostnames(row, stack?.slug, serviceDomain()).map(
 					(hostname) => `${scheme}://${hostname}`,
 				)
 			: [];
 		const primary = row.dnsResolvable
-			? primaryHostname(row, stack?.slug, config.baseDomain)
+			? primaryHostname(row, stack?.slug, serviceDomain())
 			: null;
 		const commit = deployment.toJSON().gitCommit ?? null;
 		const logUrl = config.auth.origin

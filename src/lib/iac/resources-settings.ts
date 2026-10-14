@@ -53,6 +53,10 @@ export const IAC_SETTINGS_RESOURCES: IacResource[] = [
 				description:
 					"Each service gets a subdomain of it, named after its slug. A bare hostname.",
 			}),
+			setting("serviceSubdomain", "string", {
+				description:
+					"One DNS label services' default hostnames go under, `slug.service_subdomain.base_domain`. Left unset, they're `slug.base_domain`.",
+			}),
 			setting("dashboardUrl", "string", {
 				description:
 					"The dashboard's URL, an origin with no path or trailing slash. Left unset, it's derived from base_domain.",

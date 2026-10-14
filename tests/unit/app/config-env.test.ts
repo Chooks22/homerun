@@ -12,6 +12,7 @@ import {
 	isPlaceholderAuthSecret,
 	isSmtpEnabled,
 	parseConfig,
+	serviceDomain,
 	setDetectedAuthCheckUrl,
 	yamlConfigSchema,
 } from "../../../src/lib/config";
@@ -245,6 +246,18 @@ describe("instance settings", () => {
 		expect(config.docker.networkName).toBe(defaults.dockerNetworkName);
 		expect(config.pangolinEnabled).toBe(false);
 		expect(config.traefik.entrypoint).toBe(defaults.traefikEntrypoint);
+	});
+
+	test("services live under the base domain, or the services subdomain once set", () => {
+		applyInstanceSettings({ baseDomain: "example.com" });
+		expect(serviceDomain()).toBe("example.com");
+		applyInstanceSettings({
+			baseDomain: "example.com",
+			serviceSubdomain: "apps",
+		});
+		expect(serviceDomain()).toBe("apps.example.com");
+		applyInstanceSettings({});
+		expect(config.serviceSubdomain).toBe("");
 	});
 
 	test("the display defaults never include secrets", () => {

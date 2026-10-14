@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { NotificationDTO } from "#lib/dto/notification-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
@@ -271,7 +271,7 @@ export async function createServiceFromTemplate(
 				: (row.envVars ?? {}),
 			secret,
 		),
-		`https://${defaultHostname(slug, finalStackSlug, config.baseDomain)}`,
+		`https://${defaultHostname(slug, finalStackSlug, serviceDomain())}`,
 	);
 
 	const svc = await ServiceDTO.create({

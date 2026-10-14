@@ -53,6 +53,7 @@ export const actions = {
 					),
 					baseDomain: nullableText(formData, "baseDomain"),
 					dashboardUrl: nullableText(formData, "authOrigin"),
+					serviceSubdomain: nullableText(formData, "serviceSubdomain"),
 					useHttps: checkbox(formData, "useHttps"),
 				},
 				locals.user.id,

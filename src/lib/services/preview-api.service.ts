@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import type { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
@@ -243,7 +243,7 @@ class PreviewApiServiceClass {
 		]);
 		const current = revisions.find((view) => view.current);
 		const host = preview.dnsResolvable
-			? primaryHostname(row, stackSlug, config.baseDomain)
+			? primaryHostname(row, stackSlug, serviceDomain())
 			: null;
 		const scheme = config.traefik.entrypoint === "web" ? "http" : "https";
 		const attempt = latest?.toJSON();
@@ -262,7 +262,7 @@ class PreviewApiServiceClass {
 				: null,
 			gitRef: preview.gitRef,
 			hostnames: preview.dnsResolvable
-				? serviceHostnames(row, stackSlug, config.baseDomain)
+				? serviceHostnames(row, stackSlug, serviceDomain())
 				: [],
 			id: preview.id,
 			name: preview.name,

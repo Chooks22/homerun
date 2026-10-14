@@ -176,9 +176,10 @@ OIDC provider in `auth.md`) plus:
   envVars (JSON), `secretEnvKeys` (jsonb `string[]`, migration 0065, the subset
   of `envVars`' own keys the owner marked secret in Environments & Deployments →
   Environment Variables; always redacted for the MCP server regardless of name,
-  see the MCP server section in `auth.md`), port/restart-policy/resource limits,
-  `desiredState` (user intent) vs `currentStatus` (live reconciled Docker
-  state), `containerId`, `stackId` (nullable FK, `onDelete: "set null"`),
+  see the MCP server section in `auth.md`; `cron_job` has the same column with
+  the same meaning), port/restart-policy/resource limits, `desiredState` (user
+  intent) vs `currentStatus` (live reconciled Docker state), `containerId`,
+  `stackId` (nullable FK, `onDelete: "set null"`),
   `cronEnabled`/`cronSchedule`/`cronLastRunAt` (opt-in scheduled redeploy, see
   below), `authRequired` + `authProviders`/`authAllowedUserIds`/
   `authAllowedEmails`/`authAllowedGroups` (the per-app login wall and its access
@@ -218,15 +219,37 @@ OIDC provider in `auth.md`) plus:
   `revision` plan). Migration 0038 backfilled `imageRef`/`buildSource` on each
   service's latest running row from the service's current image. See Revisions
   and rollback in `services-and-templates.md`.
-- `service.domains` (text[], the service's own hostnames, unique across services
-  via `ServiceDTO.domainTaken`), `defaultDomainEnabled` (boolean, default true:
-  whether `<slug>.<baseDomain>` is still routed) and `primaryDomain` (nullable,
-  the main one), replacing the old single `customDomain`. Each routed hostname
-  gets its own Traefik router sharing the primary router's backend service, see
-  labels.ts below. Pure helpers in `src/lib/service-domains.ts`
-  (`defaultHostname`, `serviceHostnames`, `primaryHostname`, `isUnderDomain`,
-  `normalizeDomains`). Configured on the service's Networking tab (Domains
-  card).
+- `service.domains` (text[], the service's own hostnames),
+  `defaultDomainEnabled` (boolean, default true: whether
+  `<slug>.<serviceDomain()>` is still routed) and `primaryDomain` (nullable, the
+  main one), replacing the old single `customDomain`. `serviceDomain()`
+  (`config.ts`) is the base domain, or `<serviceSubdomain>.<baseDomain>` once
+  `instance_settings.serviceSubdomain` (Settings → General, "Services
+  subdomain", one DNS label, DB-only) is set: every service hostname helper call
+  takes it instead of `config.baseDomain`, which stays for the base domain's own
+  uses (cookies, workstations' legacy fallback, core host suggestions). A save
+  that adds an entry (a domain, or the default hostname a slug/stack change
+  moves) goes through `serviceDomainConflicts` (`server/hostname-owner.ts`):
+  core hosts, workstations and enabled redirects compare on the host, other
+  services on the exact entry, so path entries can share a host.
+  `DomainConflictError` (409) carries the conflicts; `takeOverDomains` (REST
+  body, the Networking tab's "Take over and save") hands them to
+  `takeOverDomains()` (`services/domain-takeover.ts`), which strips the entry
+  from a service owner (default hostname or public routing off when that's all
+  it had) or disables a redirect, then the saving service is redeployed. The old
+  owner keeps its Traefik route until its own redeploy, which is what makes the
+  move downtime-free. The REST routes answer that 409 with `err.body()`:
+  `conflicts` as `{domain, owner, ownerKind, ownerId, canTakeOver}` beside
+  `error` (the manifest route carries it through `ManifestError.body`), and the
+  CLI's `decodeJSON` adds a `--set takeOverDomains=true` hint when `canTakeOver`
+  is set. Previews (skip the templated domain), environments, canaries (refuse)
+  and compose import (drop the domain) run the same `serviceDomainConflicts`,
+  without a takeover; only redirects still check `ServiceDTO.domainTaken`. Each
+  routed hostname gets its own Traefik router sharing the primary router's
+  backend service, see labels.ts below. Pure helpers in
+  `src/lib/service-domains.ts` (`defaultHostname`, `serviceHostnames`,
+  `primaryHostname`, `isUnderDomain`, `normalizeDomains`). Configured on the
+  service's Networking tab (Domains card).
 - `stack`, name/description/userId/`slug` (unique, DNS-safe, prefixes every
   member service's container name and public subdomain, see Docker integration
   below). Every stack has a matching Docker network (see below), created

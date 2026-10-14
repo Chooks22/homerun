@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { config, isPlaceholderAuthSecret, isSmtpEnabled } from "#lib/config.js";
+import {
+	config,
+	isPlaceholderAuthSecret,
+	isSmtpEnabled,
+	serviceDomain,
+} from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { db } from "#lib/server/db/lib.js";
 import { user as userTable } from "#lib/server/db/schema.js";
@@ -117,7 +122,7 @@ class AdminServiceClass {
 			};
 		}
 		return {
-			detail: `Services are routed under <slug>.${config.baseDomain}.`,
+			detail: `Services are routed under <slug>.${serviceDomain()}.`,
 			id: "base-domain",
 			label: "Base domain",
 			severity: "ok",

@@ -137,6 +137,28 @@
           </p>
         {/if}
       </div>
+      <div>
+        <label class={label} for="serviceSubdomain">Services subdomain</label>
+        <Input
+          id="serviceSubdomain"
+          name="serviceSubdomain"
+          placeholder="none"
+          spellcheck="false"
+          type="text"
+          value={data.settings.serviceSubdomain ?? ""}
+        />
+        <p class="text-text-subtle mt-1.5 text-xs">
+          One DNS label, e.g.
+          <code class="">apps</code>
+          , to give every service's default hostname its own namespace,
+          <code class="">&lt;slug&gt;.apps.{data.settings.baseDomain ?? data.envDefaults.baseDomain}</code>
+          , the way workstations live under
+          <code class="">dev</code>
+          . Blank keeps
+          <code class="">&lt;slug&gt;.{data.settings.baseDomain ?? data.envDefaults.baseDomain}</code>
+          . A service picks up a change on its next deploy.
+        </p>
+      </div>
       <CheckBox
         checked={data.settings.authOrigin
           ? data.settings.authOrigin.startsWith("https://")

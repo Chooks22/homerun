@@ -1,3 +1,4 @@
+import { serviceDomain } from "#lib/config.js";
 import {
 	type InstanceSettingsDockerInput,
 	InstanceSettingsDTO,
@@ -13,8 +14,10 @@ import { parseThresholds } from "#lib/resource-thresholds.js";
 import { MAX_RETAINED_IMAGES, MIN_RETAINED_IMAGES } from "#lib/revisions.js";
 import { normalizeBaseDomain } from "#lib/server/validation/base-domain.js";
 import { applyAndRebuild } from "#lib/server/validation/instance-settings-form.js";
+import { isDnsLabel } from "#lib/service-domains.js";
 import { inspectCertificate } from "#lib/tls-certificate.js";
 import { CrowdsecService } from "./crowdsec.service.ts";
+import { markStaleServiceDns } from "./dns.service.ts";
 import { DockerService } from "./docker.service.ts";
 
 const logger = new Logger("InstanceSettings");
@@ -30,6 +33,8 @@ export interface CoreSettingsInput {
 	baseDomain: string | null;
 	/** The dashboard's URL, or null to derive it from the base domain and `useHttps`. */
 	dashboardUrl: string | null;
+	/** The DNS label services' default hostnames go under (`<slug>.<label>.<baseDomain>`), or null for `<slug>.<baseDomain>`. */
+	serviceSubdomain: string | null;
 	useHttps: boolean;
 }
 
@@ -74,11 +79,13 @@ function wholeIn(value: number, min: number, max: number): boolean {
  */
 class InstanceSettingsServiceClass {
 	/**
-	 * Saves the base domain, the dashboard URL (derived from the base domain
-	 * when not given), the auth-check URL and cross-subdomain cookies, then
-	 * applies them to the running instance.
+	 * Saves the base domain, the services subdomain, the dashboard URL
+	 * (derived from the base domain when not given), the auth-check URL and
+	 * cross-subdomain cookies, then applies them to the running instance.
+	 * A services domain that moved leaves each service's old default
+	 * hostname for its next deploy to delete from DNS (`markStaleServiceDns`).
 	 *
-	 * @throws {InstanceSettingsError} When the base domain isn't a bare hostname or the URL isn't a URL.
+	 * @throws {InstanceSettingsError} When the base domain isn't a bare hostname, the services subdomain isn't one DNS label or the URL isn't a URL.
 	 */
 	async saveCore(input: CoreSettingsInput, userId: string): Promise<void> {
 		const normalized = input.baseDomain
@@ -87,6 +94,13 @@ class InstanceSettingsServiceClass {
 		if (input.baseDomain && !normalized) {
 			throw new InstanceSettingsError(
 				'Base domain must be a bare hostname, like "example.com" or "app.example.local" : no "https://", path, or trailing slash.',
+			);
+		}
+		const serviceSubdomain =
+			input.serviceSubdomain?.trim().toLowerCase().replace(/\.+$/, "") || null;
+		if (serviceSubdomain && !isDnsLabel(serviceSubdomain)) {
+			throw new InstanceSettingsError(
+				'Services subdomain must be one DNS label, like "apps" : letters, digits and dashes, no dots.',
 			);
 		}
 		if (input.dashboardUrl && !URL.canParse(input.dashboardUrl)) {
@@ -100,6 +114,7 @@ class InstanceSettingsServiceClass {
 				}`
 			: null;
 		const settings = await InstanceSettingsDTO.get();
+		const previousServiceDomain = serviceDomain();
 		await settings.updateCore({
 			authCheckUrl: input.authCheckUrl,
 			authCrossSubdomainCookies: input.authCrossSubdomainCookies,
@@ -107,8 +122,10 @@ class InstanceSettingsServiceClass {
 				? new URL(input.dashboardUrl).origin
 				: derivedOrigin,
 			baseDomain: normalized?.domain ?? null,
+			serviceSubdomain,
 		});
 		applyAndRebuild(settings);
+		await markStaleServiceDns(previousServiceDomain);
 		logger.info(`Core instance settings updated: user=${userId}`);
 	}
 

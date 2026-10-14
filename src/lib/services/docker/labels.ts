@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { type AuthPathsMode, pathPatternsRegex } from "#lib/path-patterns.js";
 import { GATE_CALLBACK_PATH, GATE_LOGOUT_PATH } from "#lib/server/app-gate.js";
 import { serviceHostnames, splitDomain } from "#lib/service-domains.js";
@@ -133,7 +133,7 @@ export function buildContainerLabels(params: {
 			slug,
 		},
 		params.stackSlug,
-		config.baseDomain,
+		serviceDomain(),
 	);
 	if (!dnsResolvable || hostnames.length === 0) {
 		return baseLabels;

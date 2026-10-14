@@ -28,6 +28,9 @@ export const instanceSettingsApiBody = z.object({
 	baseDomain: nullableText.describe(
 		"Services get <slug>.<baseDomain>. A bare hostname.",
 	),
+	serviceSubdomain: nullableText.describe(
+		"One DNS label services' default hostnames go under, <slug>.<serviceSubdomain>.<baseDomain>, like workstations under dev. Null keeps <slug>.<baseDomain>.",
+	),
 	dashboardUrl: nullableText.describe(
 		"The dashboard's URL. Null derives it from the base domain, over https unless it was http before.",
 	),

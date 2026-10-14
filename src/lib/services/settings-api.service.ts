@@ -82,6 +82,7 @@ class SettingsApiServiceClass {
 			defaultUiMode: row.defaultUiMode ?? DEFAULT_UI_MODE,
 			dockerNetworkName: row.dockerNetworkName,
 			dockerSocketPath: row.dockerSocketPath,
+			serviceSubdomain: row.serviceSubdomain,
 			imageScanBlockFixableOnly: settings.imageScanBlockFixableOnly,
 			imageScanBlockSeverity: settings.imageScanBlockSeverity,
 			imageScanEnabled: settings.imageScanEnabled,
@@ -143,6 +144,7 @@ class SettingsApiServiceClass {
 				"authCrossSubdomainCookies",
 				"baseDomain",
 				"dashboardUrl",
+				"serviceSubdomain",
 			])
 		) {
 			return;
@@ -163,6 +165,7 @@ class SettingsApiServiceClass {
 				),
 				baseDomain: pick(body.baseDomain, row.baseDomain),
 				dashboardUrl: pick(body.dashboardUrl, derived ? null : row.authOrigin),
+				serviceSubdomain: pick(body.serviceSubdomain, row.serviceSubdomain),
 				useHttps: !row.authOrigin?.startsWith("http://"),
 			},
 			userId,

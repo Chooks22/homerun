@@ -1,5 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { config } from "#lib/config.js";
+import { config, serviceDomain } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
@@ -33,7 +33,7 @@ async function coveredServices(names: string[]) {
 				serviceHostnames(
 					svc.toJSON(),
 					svc.stackId ? slugs.get(svc.stackId) : null,
-					config.baseDomain,
+					serviceDomain(),
 				),
 			).some((host) => certificateCovers(names, host)),
 	);
