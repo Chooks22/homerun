@@ -10,6 +10,7 @@ import { parseListQuery } from "#lib/server/list-query.js";
 import { enrollCommand } from "#lib/server/node-install-script.js";
 import { AgentClientService } from "#lib/services/agent-client.service.js";
 import { DockerService } from "#lib/services/docker.service.js";
+import { RemoteHostSettingsService } from "#lib/services/remote-host-settings.service.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("RemoteHosts");
@@ -108,7 +109,7 @@ export const actions = {
 			return fail(404, { error: "Remote host not found." });
 		}
 
-		await host.delete();
+		await RemoteHostSettingsService.remove(host);
 		logger.info(`Remote host deleted: host=${hostId} user=${locals.user.id}`);
 		return { success: true };
 	},

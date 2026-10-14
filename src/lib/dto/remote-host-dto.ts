@@ -8,10 +8,12 @@ import {
 	searchCondition,
 	sortOrder,
 } from "#lib/server/list-query.js";
+import { WorkerClient } from "#lib/server/worker-client.js";
 import type { AgentConnection } from "#lib/services/agent-client.service.js";
 import type { RemoteHostConnection } from "#lib/services/docker.service.js";
 import { decryptSecret } from "#lib/services/secrets.js";
 import { BaseDTO } from "./base-dto";
+import { InstanceSettingsDTO } from "./instance-settings-dto";
 
 export interface NewRemoteHostInput {
 	agentTokenEnc?: string | null;
@@ -200,6 +202,47 @@ export class RemoteHostDTO extends BaseDTO<RemoteHost> {
 		};
 	}
 
+	/**
+	 * `toConnection`, plus what an `ssh://` daemon needs: the instance's SSH
+	 * key and the host key recorded for this host. With none recorded yet, the
+	 * worker connects once, trusting the key presented, checks the daemon
+	 * answers, and that key is recorded (shared with this host's machine
+	 * terminal) so a changed one is refused from then on.
+	 *
+	 * @throws When Homerun has no SSH key yet, or the worker can't reach the
+	 *   daemon over SSH (key refused, forwarding refused, host unreachable).
+	 */
+	async toDockerConnection(): Promise<RemoteHostConnection> {
+		const connection = this.toConnection();
+		if (!connection.dockerHost.startsWith("ssh://")) {
+			return connection;
+		}
+		const keyPair = (await InstanceSettingsDTO.get()).sshKeyPair;
+		if (!keyPair) {
+			throw new Error(
+				"Homerun has no SSH key yet: open Terminal, add Homerun's public key to the remote user's ~/.ssh/authorized_keys, then try again.",
+			);
+		}
+		let hostKey = this.row.sshHostKey;
+		if (!hostKey) {
+			const probed = await WorkerClient.post<{ hostKey: string }>(
+				"/v1/ssh/docker-probe",
+				{
+					dockerHost: connection.dockerHost,
+					sshHostKey: "",
+					sshPrivateKey: keyPair.privateKey,
+				},
+			);
+			hostKey = probed.hostKey;
+			await this.update({ sshHostKey: hostKey });
+		}
+		return {
+			...connection,
+			sshHostKey: hostKey,
+			sshPrivateKey: keyPair.privateKey,
+		};
+	}
+
 	/** Decrypts the stored agent token into what agent-client.service.ts expects. Only meaningful for `kind: "agent"`. */
 	toAgentConnection(): AgentConnection | null {
 		const { agentTokenEnc, agentUrl, kind } = this.row;
@@ -260,6 +303,10 @@ export class RemoteHostDTO extends BaseDTO<RemoteHost> {
 			}
 			return { connection, hostId, kind: "agent" };
 		}
-		return { connection: host.toConnection(), hostId, kind: "docker" };
+		return {
+			connection: await host.toDockerConnection(),
+			hostId,
+			kind: "docker",
+		};
 	}
 }

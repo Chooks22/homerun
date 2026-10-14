@@ -222,28 +222,35 @@ describe("workstations and presets", () => {
 		expect(gone.response.status).toBe(404);
 	});
 
-	test("refuses a Docker host as a workstation's host", async () => {
-		const host = await client.POST("/remote-hosts", {
+	test("runs a workstation on tcp:// and ssh:// Docker hosts, and refuses an ssh:// host with no user", async () => {
+		for (const [name, dockerHost] of [
+			["ws-tcp-host", "tcp://127.0.0.1:1"],
+			["ws-ssh-host", "ssh://deploy@127.0.0.1"],
+		]) {
+			const host = await client.POST("/remote-hosts", {
+				body: { dockerHost, kind: "docker", name },
+			});
+			const hostId = expectOk(host.data, host.response).id;
+			hostIds.push(hostId);
+			const created = await client.POST("/workstations", {
+				body: {
+					desiredState: "stopped",
+					name: `on ${name}`,
+					remoteHostId: hostId,
+				},
+			});
+			workstationIds.push(expectOk(created.data, created.response).id);
+			expect(created.response.status).toBe(201);
+		}
+
+		const userless = await client.POST("/remote-hosts", {
 			body: {
-				dockerHost: "tcp://127.0.0.1:1",
+				dockerHost: "ssh://127.0.0.1",
 				kind: "docker",
-				name: "ws-host",
+				name: "ws-ssh-no-user",
 			},
 		});
-		const hostId = expectOk(host.data, host.response).id;
-		hostIds.push(hostId);
-		const created = await client.POST("/workstations", {
-			body: {
-				desiredState: "stopped",
-				name: "on docker",
-				remoteHostId: hostId,
-			},
-		});
-		expect(created.response.status).toBe(400);
-		const preset = await client.POST("/workstation-presets", {
-			body: { name: "on docker", remoteHostId: hostId },
-		});
-		expect(preset.response.status).toBe(400);
+		expect(userless.response.status).toBe(400);
 	});
 
 	test("creates, edits and deletes a preset", async () => {

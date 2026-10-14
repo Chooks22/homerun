@@ -136,19 +136,32 @@ Every route requires `Authorization: Bearer <token>` except `/v1/health` and
   `docker save` tarball (`application/x-tar`, 404 when the image isn't there).
   The main app `docker load`s it when a build server has no cache registry.
 - `PUT /v1/workstations/{id}`, body is a workstation `Spec` (see
-  `internal/workstation`): pulls the image, ensures the
-  `homerun-workstation-<id>` home volume, recreates the container with its port
-  published on an ephemeral host port, starts it, then clones `git` into the
-  home volume as the container's own user when it isn't there yet. Answers `202`
-  as soon as the start is under way, `409` while one already is.
+  `internal/workstation`): pulls the image (falling back to the local copy when
+  the pull fails), ensures the `homerun-workstation-<id>` home volume, recreates
+  the container with its port published on an ephemeral host port, starts it,
+  then clones `git` into the home volume as the container's own user when it
+  isn't there yet. Answers `202` as soon as the start is under way, `409` while
+  one already is.
 - `GET /v1/workstations/{id}?port=<container port>`,
   `{state, error?, containerId?, hostPort}`: `pulling`, `starting`, `cloning`
   while a start is in flight, then `running`, `stopped`, `failed` or `missing`
   from the container itself, with the host port it's published on.
+- `GET /v1/workstations/{id}/disk?path=<home path>`, `{bytes}`: how much the
+  home directory holds, from `du` run in the container, `404` when it isn't
+  running.
 - `POST /v1/workstations/{id}/stop` stops it, keeping the container and volume.
 - `DELETE /v1/workstations/{id}?volume=1` removes the container, and the home
   volume too with `volume=1`.
 
-The local worker's Docker control API serves the same four workstation routes
+The local worker's Docker control API serves the same workstation routes
 (without publishing the port: the app joins it to the Traefik network instead),
-from the same `internal/workstation` package.
+from the same `internal/workstation` package. There, a request carrying
+`X-Homerun-Docker-Remote` (base64 JSON of a remote host's `tcp://` address and
+TLS material, or its `ssh://user@host` address, Homerun's SSH private key and
+the recorded host key) runs on that remote daemon instead, published like on an
+agent. An `ssh://` daemon is reached through one shared SSH connection per host,
+as a stream-local channel to its `/var/run/docker.sock`.
+`POST /v1/ssh/docker-probe` (the same JSON as the body) connects once, checks
+the daemon answers and returns the SSH host key presented, which the app records
+before using the host (`409` when a sent host key doesn't match, `502` when the
+SSH sign-in or the socket forwarding fails).

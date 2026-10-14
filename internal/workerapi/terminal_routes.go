@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/httpapi"
 	"github.com/orochibraru/homerun/internal/sshterm"
 )
@@ -22,6 +23,7 @@ import (
 func (s *Server) mountTerminal(r chi.Router) {
 	r.Post("/v1/terminal", httpapi.H(s.openTerminal))
 	r.Post("/v1/ssh", httpapi.H(s.openSSH))
+	r.Post("/v1/ssh/docker-probe", httpapi.H(s.probeSSHDocker))
 	r.Get("/v1/terminal/{id}", httpapi.H(s.describeTerminal))
 	r.Get("/v1/terminal/{id}/stream", httpapi.H(s.streamTerminal))
 	r.Post("/v1/terminal/{id}/input", httpapi.H(s.writeTerminal))
@@ -75,6 +77,29 @@ func (s *Server) openSSH(w http.ResponseWriter, r *http.Request) error {
 	label := fmt.Sprintf("ssh://%s@%s", target.User, target.Host)
 	id := s.terminals.Adopt(label, session, session.Resize)
 	return httpapi.Answer(w, http.StatusOK, map[string]string{"hostKey": hostKey, "sessionId": id})
+}
+
+// probeSSHDocker connects to an ssh:// Docker host, checks its daemon answers
+// and returns the SSH host key it presented, which the app records before
+// handing the host to anything that drives that daemon. With no host key in the
+// body it trusts whatever key is presented; a mismatch with one sent is a 409.
+func (s *Server) probeSSHDocker(w http.ResponseWriter, r *http.Request) error {
+	var host dockerapi.RemoteHost
+	if !httpapi.DecodeJSON(w, r, &host) {
+		return nil
+	}
+	if host.DockerHost == "" || host.SSHPrivateKey == "" {
+		return httpapi.Invalid(w, "Invalid request body",
+			[]httpapi.ValidationIssue{{Message: "dockerHost and sshPrivateKey are required", Path: []string{}}})
+	}
+	hostKey, err := dockerapi.ProbeSSH(r.Context(), host)
+	if errors.Is(err, dockerapi.ErrSSHHostKeyChanged) {
+		return httpapi.Error(w, http.StatusConflict, err.Error())
+	}
+	if err != nil {
+		return httpapi.Error(w, http.StatusBadGateway, err.Error())
+	}
+	return httpapi.Answer(w, http.StatusOK, map[string]string{"hostKey": hostKey})
 }
 
 // describeTerminal answers with the container a session runs in, which is what

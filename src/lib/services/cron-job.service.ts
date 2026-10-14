@@ -38,6 +38,8 @@ export interface CronJobRunSpec extends Record<string, unknown> {
 	privileged: boolean;
 	remote: {
 		dockerHost: string;
+		sshHostKey: string | null;
+		sshPrivateKey: string | null;
 		tlsCa: string | null;
 		tlsCert: string | null;
 		tlsKey: string | null;
@@ -176,6 +178,8 @@ class CronJobServiceClass {
 				target.kind === "docker"
 					? {
 							dockerHost: target.connection.dockerHost,
+							sshHostKey: target.connection.sshHostKey ?? null,
+							sshPrivateKey: target.connection.sshPrivateKey ?? null,
 							tlsCa: target.connection.tlsCa ?? null,
 							tlsCert: target.connection.tlsCert ?? null,
 							tlsKey: target.connection.tlsKey ?? null,

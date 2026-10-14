@@ -3,6 +3,7 @@ import { Logger } from "#lib/logger.js";
 import type { RemoteHost } from "#lib/server/db/schema.js";
 import { AgentClientService } from "#lib/services/agent-client.service.js";
 import { encryptSecret } from "#lib/services/secrets.js";
+import { WorkstationService } from "#lib/services/workstation.service.js";
 
 const logger = new Logger("RemoteHosts");
 
@@ -39,17 +40,22 @@ function checkedAgentUrl(value: string): string {
 	return value;
 }
 
-/** The Docker daemon address, checked to be a tcp:// or ssh:// URL. */
+/** The Docker daemon address, checked to be a tcp:// URL or an ssh:// one naming its user. */
 function checkedDockerHost(value: string): string {
 	if (!URL.canParse(value)) {
 		throw new RemoteHostSettingsError(
 			"Docker host must be a URL, e.g. tcp://host:2376 or ssh://user@host.",
 		);
 	}
-	const { protocol } = new URL(value);
+	const { protocol, username } = new URL(value);
 	if (!(protocol === "tcp:" || protocol === "ssh:")) {
 		throw new RemoteHostSettingsError(
 			"Only tcp:// and ssh:// hosts are supported.",
+		);
+	}
+	if (protocol === "ssh:" && !username) {
+		throw new RemoteHostSettingsError(
+			"An ssh:// Docker host needs a user, e.g. ssh://user@host.",
 		);
 	}
 	return value;
@@ -135,7 +141,8 @@ class RemoteHostSettingsServiceClass {
 	/**
 	 * Saves the fields sent, keeping the rest. An agent is verified again
 	 * whenever its URL or token changes; a blank token or TLS field keeps the
-	 * stored one.
+	 * stored one. Pointing a Docker host at a different ssh:// address forgets
+	 * the recorded SSH host key, so the new one is recorded on first use.
 	 *
 	 * @throws {RemoteHostSettingsError} When a field is invalid, or the agent
 	 *   refuses the token.
@@ -173,8 +180,25 @@ class RemoteHostSettingsServiceClass {
 				? (host.dockerHost ?? "")
 				: trimmed(input.dockerHost),
 		);
-		await host.update({ dockerHost, name, ...tlsColumns(input) });
+		const sshMoved =
+			dockerHost !== host.dockerHost && dockerHost.startsWith("ssh://");
+		await host.update({
+			dockerHost,
+			name,
+			...tlsColumns(input),
+			...(sshMoved ? { sshHostKey: null } : {}),
+		});
 		logger.info(`Remote host updated: host=${host.id} kind=docker`);
+	}
+
+	/**
+	 * Deletes `host`, first cleaning up the workstations on it (their
+	 * containers, routes and DNS, best effort) since their rows cascade with
+	 * it.
+	 */
+	async remove(host: RemoteHostDTO): Promise<void> {
+		await WorkstationService.removeAllOnHost(host.id);
+		await host.delete();
 	}
 }
 

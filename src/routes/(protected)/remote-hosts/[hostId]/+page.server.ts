@@ -49,7 +49,7 @@ export const actions = {
 		if (!host) {
 			return fail(404, { error: "Remote host not found." });
 		}
-		await host.delete();
+		await RemoteHostSettingsService.remove(host);
 		logger.info(`Remote host deleted: host=${host.id} user=${locals.user.id}`);
 		throw redirect(302, resolve("remote-hosts"));
 	},

@@ -13,6 +13,8 @@
 export interface RemoteHostConnection {
 	dockerHost: string;
 	id: string;
+	sshHostKey?: string | null;
+	sshPrivateKey?: string | null;
 	tlsCa?: string | null;
 	tlsCert?: string | null;
 	tlsKey?: string | null;

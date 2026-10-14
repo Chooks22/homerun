@@ -64,7 +64,41 @@ From `/remote-hosts` → **Register by hand**: a name, plus a connection type:
 ![Registering a build server by hand, with the Homerun Agent connection type and its setup commands](images/remote-hosts-register-agent.webp)
 
 Either kind builds: a Docker-connection host runs the build directly against
-that daemon's Docker API, an agent host through its own `POST /v1/build`.
+that daemon's Docker API, an agent host through its own `POST /v1/build`. Both
+kinds, `tcp://` and `ssh://` alike, can also run
+[dev workstations](workstations.md#on-a-remote-host). Deleting a host removes
+the workstations on it, their containers on that host included (their home
+volumes stay).
+
+### Direct Docker connection over SSH
+
+An `ssh://user@host[:port]` address needs nothing on the host but an SSH server
+and a user that can use Docker. This server's worker signs in with Homerun's own
+SSH key, the one [Machine terminals](machine-terminals.md#setting-it-up) shows,
+and reaches the daemon at `/var/run/docker.sock` through the SSH connection
+(stream-local forwarding, on by default in OpenSSH). To set it up:
+
+1. Open **Terminal** and add Homerun's public key to the user's
+   `~/.ssh/authorized_keys` on that host.
+2. Make sure that user can use Docker (`docker ps` works as them, for example
+   they're in the `docker` group).
+3. Register the host with `ssh://that-user@host`, adding `:port` when sshd isn't
+   on 22. The user is required.
+
+The first time anything uses the host (a build, a cron job, a workstation),
+Homerun connects once, checks the daemon answers and records the SSH host key it
+presented, the same key the host's machine terminal trusts. Every connection
+after that must present the same key; changing the host's address forgets it,
+and so does
+[changing the host on its terminal card](machine-terminals.md#host-keys). One
+SSH connection per host is shared by every call to its daemon, reopened when it
+drops and closed after a few idle minutes.
+
+The errors say what to fix: "refused Homerun's key" means the public key isn't
+in that user's `authorized_keys`; "wouldn't connect to /var/run/docker.sock"
+means sshd has stream-local forwarding off (`AllowStreamLocalForwarding` or
+`DisableForwarding`), the daemon's socket is elsewhere (rootless Docker isn't
+reached this way), or the user can't open it.
 
 The same registration is available over the REST API (`/api/v1/remote-hosts`)
 and as the Terraform provider's `homerun_remote_host`, see
@@ -126,7 +160,7 @@ prebuilt binary, or the installer below).
 it in a git-based service's Environments & Deployments → Source section routes
 that service's builds through this agent's HTTP API instead of a raw Docker
 connection. An agent host can also run [dev workstations](workstations.md): pick
-it under **Runs on** when creating one.
+it under **Runs on** when creating one, the same as a Docker host.
 
 ## Installer
 
