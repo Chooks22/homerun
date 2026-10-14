@@ -31,11 +31,13 @@ import {
 	restoreRevisionConfig,
 	swapRestoredVolume,
 } from "./deploy/revision-step.ts";
+import { RouteCheckFailedError } from "./deploy/route-check.ts";
 import {
 	notifyStatusChecksFailed,
 	StatusChecksFailedError,
 } from "./deploy/status-check-step.ts";
 import { deployWorkerSpec } from "./deploy/worker-spec.ts";
+import { releaseStaleServiceDns } from "./dns.service.ts";
 import { MIRROR_HOST_PORT } from "./docker/image-scan-refs.ts";
 import { authCheckUrlFor, loginWallDrifted } from "./docker/labels.ts";
 import { RolloutFailedError } from "./docker/rollout.ts";
@@ -103,7 +105,7 @@ interface WorkerDeployOutcome {
 	built?: boolean;
 	containerId?: string;
 	digest?: string;
-	failure?: "scan-blocked" | "rollout-failed";
+	failure?: "scan-blocked" | "rollout-failed" | "route-failed";
 	gitCommit?: string;
 	gitRef?: string;
 	image?: string;
@@ -114,7 +116,7 @@ interface WorkerDeployOutcome {
 	tag?: string;
 }
 
-/** The error a worker-reported failure stands for, so `#recordFailure` keeps the previous workload's status for a scan block or a failed rollout. */
+/** The error a worker-reported failure stands for, so `#recordFailure` keeps the workload's status for a scan block, a failed rollout or a failed route check. */
 function workerFailure(
 	kind: WorkerDeployOutcome["failure"],
 	message: string,
@@ -124,6 +126,8 @@ function workerFailure(
 			return new ImageScanBlockedError(message);
 		case "rollout-failed":
 			return new RolloutFailedError(message);
+		case "route-failed":
+			return new RouteCheckFailedError(message);
 		default:
 			return new Error(message);
 	}
@@ -207,7 +211,7 @@ class DeploymentServiceClass {
 		});
 	}
 
-	/** Marks the deployment failed (and the service too, unless a status-check block, an image-scan block or a failed health-gated rollout left its previous workload running), notifies, and returns the error message. */
+	/** Marks the deployment failed (and the service too, unless a status-check block, an image-scan block or a failed health-gated rollout left its previous workload running, or a failed route check left the new one running), notifies, and returns the error message. */
 	async #recordFailure(
 		ctx: DeployContext,
 		err: unknown,
@@ -219,7 +223,8 @@ class DeploymentServiceClass {
 		const keptRunning =
 			checksFailed ||
 			err instanceof ImageScanBlockedError ||
-			err instanceof RolloutFailedError;
+			err instanceof RolloutFailedError ||
+			err instanceof RouteCheckFailedError;
 		if (keptRunning && (svc.containerId || svc.swarmServiceId)) {
 			await DockerService.syncServiceStatus(svc.id);
 		} else {
@@ -409,7 +414,7 @@ class DeploymentServiceClass {
 			const plan = await this.#loadDeployPlan(svc, revision);
 			await dep.appendLog(phaseLine("volumes"));
 			const stack = svc.stackId ? await StackDTO.get(svc.stackId) : null;
-			await syncAutoDns(svc, stack, dep);
+			const publicHosts = await syncAutoDns(svc, stack, dep);
 			await dep.appendLog(phaseLine("image"));
 			return await deployWorkerSpec({
 				...ctx,
@@ -417,6 +422,7 @@ class DeploymentServiceClass {
 				mounts,
 				noCache,
 				plan,
+				publicHosts,
 				stack,
 			});
 		} catch (err) {
@@ -492,7 +498,8 @@ class DeploymentServiceClass {
 	 * either the success (service and deployment running, superseded health
 	 * cleared, DNS synced, health watch armed, notifications) or the failure
 	 * (the service kept running when a scan block or a failed health-gated
-	 * rollout left its previous workload in place).
+	 * rollout left its previous workload in place, or pointed at the new
+	 * workload when only its route check failed).
 	 *
 	 * @returns The job result `POST /services/:id/deploy` answers with.
 	 * @throws When the deploy failed, with its error message.
@@ -516,6 +523,13 @@ class DeploymentServiceClass {
 		await this.#applyWorkerOutcome(dep, svc, outcome);
 
 		const ctx: DeployContext = { dep, svc, userId };
+		if (outcome.failure === "route-failed") {
+			await svc.update({
+				containerId: outcome.containerId || null,
+				desiredState: "running",
+				swarmServiceId: outcome.swarmServiceId || null,
+			});
+		}
 		if (error !== null || !outcome.image) {
 			const message = error ?? "The worker didn't report a deployed image.";
 			throw new Error(
@@ -536,6 +550,9 @@ class DeploymentServiceClass {
 			image: outcome.image,
 			imageId: outcome.imageId || null,
 			tag: outcome.tag ?? "",
+		});
+		void releaseStaleServiceDns(svc).catch((error: unknown) => {
+			logger.warn(`Old hostname DNS cleanup failed: service=${svc.id}`, error);
 		});
 		this.watchHealth(dep.id, svc.id, userId);
 		this.#notifySuccess(dep, svc, trigger);

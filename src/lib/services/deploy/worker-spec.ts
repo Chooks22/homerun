@@ -16,6 +16,7 @@ import {
 	containerCreateTemplate,
 	type RegistryAuth,
 } from "../docker/containers.ts";
+import { errorPagesPublished } from "../docker/error-pages.ts";
 import {
 	dockerHealthcheck,
 	healthcheckTimingOf,
@@ -54,6 +55,7 @@ import {
 	unreachable,
 	type WorkloadPlan,
 } from "./plan.ts";
+import { routeSpec } from "./route-check.ts";
 import {
 	buildScanTargets,
 	localScanTarget,
@@ -68,6 +70,8 @@ export interface WorkerSpecContext {
 	mounts: ServiceMounts;
 	noCache: boolean;
 	plan: DeployPlan;
+	/** The hosts DNS automation or Pangolin points here, whose public URL the route check probes. */
+	publicHosts: ReadonlySet<string>;
 	stack: StackDTO | null;
 	svc: ServiceDTO;
 	userId: string;
@@ -178,6 +182,8 @@ function buildServerSpec(server: BuildServer) {
 			return {
 				docker: {
 					dockerHost: server.connection.dockerHost,
+					sshHostKey: server.connection.sshHostKey ?? "",
+					sshPrivateKey: server.connection.sshPrivateKey ?? "",
 					tlsCa: server.connection.tlsCa ?? "",
 					tlsCert: server.connection.tlsCert ?? "",
 					tlsKey: server.connection.tlsKey ?? "",
@@ -394,6 +400,7 @@ export async function deployWorkerSpec(
 		svc.toJSON(),
 		knownRelease(plan.image),
 	);
+	const routed = svc.dnsResolvable && plan.workload.networkMode !== "host";
 	return {
 		deploymentId: dep.id,
 		env: [
@@ -416,9 +423,16 @@ export async function deployWorkerSpec(
 			disabled: svc.healthcheckDisabled,
 			healthcheckCommand: svc.healthcheckCommand ?? "",
 			portProtocol: svc.portProtocol ?? "tcp",
-			routed: svc.dnsResolvable && plan.workload.networkMode !== "host",
+			routed,
 		},
 		releaseEnv: sentry?.releaseFromBuild ? RELEASE_ENV : "",
+		route: routeSpec({
+			errorPages: errorPagesPublished(),
+			publicHosts: ctx.publicHosts,
+			routed,
+			stackSlug: ctx.stack?.slug,
+			svc: svc.toJSON(),
+		}),
 		seeds: mounts.flatMap((m) =>
 			m.volumeSeedFrom
 				? [

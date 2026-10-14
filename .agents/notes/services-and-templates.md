@@ -213,6 +213,29 @@ failed health-gated rollout left its previous workload in place, via
 `RolloutFailedError`/`ImageScanBlockedError`, mapped from the worker's
 `Result.Failure` by `workerFailure`).
 
+**The route check** (`internal/jobs/deploy/route.go`, spec built by
+`deploy/route-check.ts`'s `routeSpec`) runs in the worker's "Routing traffic"
+phase, after the workload is up: every routed hostname is probed over HTTPS
+through the local Traefik (found by image, reached at its address on the shared
+network or else its published loopback port, with the hostname as SNI and Host
+header), and through its public URL for the hosts `syncAutoDns` reports a
+provider (a DNS connection or Pangolin) now points here. Each probe retries for
+30s (`DefaultRouteTiming`). Traefik's own answers are told apart from the app's
+by `TraefikError`: Homerun's error pages carry `X-Homerun-Error-Page`
+(`ERROR_PAGE_HEADER`), so the catch-all's 404 is unambiguous, and Traefik's
+plain `404 page not found` only counts without published error pages (with them,
+a missing router lands on the catch-all, so a plain 404 is the app's). A 502/504
+is settled by asking the container directly (`GatewayVerdict`): the same status
+is the app's own, a connection with no HTTP answer is a non-HTTP service
+(warning), nothing to ask (swarm, unreachable) is a warning. Publicly, a trusted
+certificate for another name is the edge's default certificate (fail);
+`TRAEFIK DEFAULT CERT` or an untrusted chain is a certificate still being issued
+(warning). A failure comes back as `Result.Failure = "route-failed"`:
+`finalizeWorkerDeploy` points the service at the new workload ids first (the old
+one is already gone), then records the failure as `RouteCheckFailedError`, which
+keeps the service's live status. Database images and UDP-only ports get no route
+spec, since they never answer HTTP.
+
 ## Required status checks (`src/lib/status-checks.ts`, `StatusCheckService`, `deploy/status-check-step.ts`)
 
 `service.requireStatusChecks` + `requiredStatusChecks` gate a git build. In

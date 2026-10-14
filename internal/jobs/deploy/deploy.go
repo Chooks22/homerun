@@ -32,6 +32,7 @@ type Spec struct {
 	Network      string         `json:"network"`
 	Readiness    ReadinessInput `json:"readiness"`
 	ReleaseEnv   string         `json:"releaseEnv"`
+	Route        *RouteSpec     `json:"route"`
 	Seeds        []VolumeSeed   `json:"seeds"`
 	ServiceID    string         `json:"serviceId"`
 	SocketPath   string         `json:"socketPath"`
@@ -177,11 +178,13 @@ type ImageRef struct {
 	Tag   string `json:"tag"`
 }
 
-// Failure kinds the finalize step treats as "the previous workload kept
-// running", so the service isn't marked failed.
+// Failure kinds the finalize step treats as "a workload kept running", so
+// the service isn't marked failed: the previous one after a scan block or a
+// failed rollout, the new one after a failed route check.
 const (
 	FailureScanBlocked   = "scan-blocked"
 	FailureRolloutFailed = "rollout-failed"
+	FailureRouteFailed   = "route-failed"
 )
 
 type kindError struct {
@@ -239,7 +242,8 @@ func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 }
 
 // deploy runs the deploy pipeline: build or resolve the image, scan it, start
-// the container or swarm service, and wait for it to become ready.
+// the container or swarm service, wait for it to become ready, then check its
+// route answers through Traefik.
 func (r *run) deploy(ctx context.Context) error {
 	var resolved resolvedImage
 	if err := tracing.Stage(ctx, ImageStage(r.spec.Image.Kind), func(ctx context.Context) error {
@@ -270,7 +274,7 @@ func (r *run) deploy(ctx context.Context) error {
 	if inspected, err := r.docker.InspectImage(ctx, resolved.ref()); err == nil {
 		r.result.ImageID = inspected.ID
 	}
-	return nil
+	return tracing.Stage(ctx, "route check", r.checkRoutes)
 }
 
 // ImageStage names the trace stage that resolves a deploy's image of kind:

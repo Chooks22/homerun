@@ -1,8 +1,9 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import {
+	ERROR_PAGE_HEADER,
 	type ErrorPageKind,
 	errorPageKind,
 	renderErrorPage,
@@ -19,7 +20,9 @@ class ErrorPageServiceClass {
 	 * The error page for `status` as a response with that status, for the
 	 * request's original host. A 404 on a host one of the services routes
 	 * says the app is on its way rather than that nothing lives there.
-	 * `preview` forces a page, for the settings tab's preview links.
+	 * `preview` forces a page, for the settings tab's preview links. Every
+	 * page carries `ERROR_PAGE_HEADER`, so a deploy's route check tells
+	 * Traefik's answer apart from the app's own.
 	 */
 	async respond(
 		status: number,
@@ -41,6 +44,7 @@ class ErrorPageServiceClass {
 				headers: {
 					"Cache-Control": "no-store",
 					"Content-Type": "text/html; charset=utf-8",
+					[ERROR_PAGE_HEADER]: String(status),
 				},
 				status,
 			},
@@ -60,7 +64,7 @@ class ErrorPageServiceClass {
 				serviceHostnames(
 					row,
 					row.stackId ? stackSlugs.get(row.stackId) : null,
-					config.baseDomain,
+					serviceDomain(),
 				),
 			).includes(host);
 		});

@@ -1,4 +1,4 @@
-import { config } from "#lib/config.js";
+import { serviceDomain } from "#lib/config.js";
 import type { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
@@ -29,21 +29,30 @@ export type ServiceMounts = Awaited<
  * when the service isn't DNS-resolvable. Appends a result line per hostname
  * to the deployment's log, and logs a warning for any provider failure
  * rather than throwing : DNS sync is best-effort, it never fails the deploy.
+ *
+ * @returns The hosts a provider (a DNS connection or Pangolin) now points
+ * here, whose public URL the route check probes.
  */
 export async function syncAutoDns(
 	svc: ServiceDTO,
 	stack: StackDTO | null,
 	dep: DeploymentDTO,
-): Promise<void> {
+): Promise<Set<string>> {
 	if (!svc.dnsResolvable) {
-		return;
+		return new Set();
 	}
 	const hostnames = serviceHostnames(
 		svc.toJSON(),
 		stack?.slug,
-		config.baseDomain,
+		serviceDomain(),
 	);
-	const results = await syncDns(domainHosts(hostnames));
+	const perHost = await Promise.all(
+		domainHosts(hostnames).map(async (host) => ({
+			host,
+			results: await syncDns([host]),
+		})),
+	);
+	const results = perHost.flatMap((entry) => entry.results);
 	if (results.length > 0) {
 		await dep.appendLog(
 			results
@@ -62,6 +71,11 @@ export async function syncAutoDns(
 				.join(" ")}`,
 		);
 	}
+	return new Set(
+		perHost
+			.filter((entry) => entry.results.some((result) => result.ok))
+			.map((entry) => entry.host),
+	);
 }
 
 /** Shapes a service's resolved volume mounts into the params `DockerService`'s container/swarm create calls expect. */

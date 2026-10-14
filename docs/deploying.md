@@ -78,6 +78,27 @@ standalone mode: Docker's DNS resolves the name to the new container as soon as
 it starts. In swarm mode the service name only resolves to tasks that passed
 their healthcheck.
 
+**Route check: a deploy only succeeds once its address answers.** Once the new
+copy is running, the routing traffic phase asks every hostname the service is
+published at for its page, through Traefik on this server, and through its
+public URL too when [DNS automation](dns-automation.md) or Pangolin points that
+hostname here. Traefik gets a moment to pick up the new route: each address is
+retried for up to 30 seconds before it's judged. The deploy fails when the
+answer is Traefik's own rather than the app's: no route for the hostname
+(Traefik's 404, or the not-found [error page](error-pages.md)), or Traefik
+unable to reach the container (502 or 504), or, publicly, an edge that answers
+with its own default certificate for another name, or Cloudflare unable to reach
+this server. Such a deploy keeps the new copy running, so you can read its logs,
+and its Overview still shows it running; only the deployment is marked failed.
+Whatever the app itself answers, a 401, a 404 or a 500, counts as an answer: a
+502 or 504 is checked against the container directly, and one the app returns
+itself passes. The one look-alike is a bare `404 page not found`, Traefik's
+exact text: without published error pages it's taken for Traefik's. A
+certificate still being issued, a public URL that doesn't resolve yet (DNS still
+propagating), a service that doesn't speak HTTP, or a Traefik this server can't
+reach only add a warning to the deploy log. Database images and UDP-only ports
+aren't checked.
+
 **Requests racing a removed copy are retried.** Every published service's router
 carries a retry middleware: a request that reaches a container or swarm task
 that just went away, before Traefik has dropped it, is retried on another copy,
