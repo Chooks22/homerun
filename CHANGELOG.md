@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.62](https://github.com/orochibraru/homerun/compare/v1.0.61...v1.0.62) (2026-10-15)
+
+### Features
+
+- **builds:** build-time env vars passed to git builds as build args or build
+  env
+  ([c2cd0c2](https://github.com/orochibraru/homerun/commit/c2cd0c28b0c8fe71954fda47c5eab9562664eee3))
+
 ## [1.0.61](https://github.com/orochibraru/homerun/compare/v1.0.60...v1.0.61) (2026-10-15)
 
 ### Features
