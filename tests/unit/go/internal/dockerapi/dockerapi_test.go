@@ -559,6 +559,38 @@ func TestRemoveSwarmNodeForces(t *testing.T) {
 	d.expect(t, http.MethodDelete, "/nodes/n1", map[string][]string{"force": {"true"}})
 }
 
+func TestSwarmServiceSendsRegistryAuthToWorkers(t *testing.T) {
+	ctx := context.Background()
+	auth := &dockerapi.AuthConfig{Password: "pw", ServerAddress: "ghcr.io", Username: "me"}
+	client, d := newDaemon(t, http.StatusCreated, `{"ID":"s1"}`)
+	id, err := client.CreateSwarmService(ctx, map[string]any{"Name": "app"}, auth)
+	if err != nil || id != "s1" {
+		t.Fatalf("CreateSwarmService = %q, %v", id, err)
+	}
+	created := d.expect(t, http.MethodPost, "/services/create", nil)
+
+	d.set(http.StatusOK, `{}`)
+	if err := client.UpdateSwarmService(ctx, "s1", 7, map[string]any{"Name": "app"}, auth); err != nil {
+		t.Fatalf("UpdateSwarmService: %v", err)
+	}
+	updated := d.expect(t, http.MethodPost, "/services/s1/update", map[string][]string{"version": {"7"}})
+
+	for name, got := range map[string]call{"create": created, "update": updated} {
+		decoded, _ := base64.URLEncoding.DecodeString(got.header.Get("X-Registry-Auth"))
+		var sent dockerapi.AuthConfig
+		if err := json.Unmarshal(decoded, &sent); err != nil || sent != *auth {
+			t.Errorf("%s X-Registry-Auth = %s, want %+v", name, decoded, *auth)
+		}
+	}
+
+	if _, err := client.CreateSwarmService(ctx, map[string]any{"Name": "app"}, nil); err != nil {
+		t.Fatalf("CreateSwarmService without auth: %v", err)
+	}
+	if _, ok := d.last(t).header["X-Registry-Auth"]; ok {
+		t.Error("X-Registry-Auth sent without auth")
+	}
+}
+
 func TestParseDuKilobytes(t *testing.T) {
 	got, err := dockerapi.ParseDuKilobytes("2048\t/volume\n")
 	if err != nil || got != 2048*1024 {

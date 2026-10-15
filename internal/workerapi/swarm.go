@@ -93,7 +93,7 @@ func (s *Server) createSwarmService(w http.ResponseWriter, r *http.Request) erro
 		return httpapi.Invalid(w, "Invalid request body",
 			[]httpapi.ValidationIssue{{Message: "Name is required", Path: []string{"Name"}}})
 	}
-	id, err := s.docker.CreateSwarmService(r.Context(), spec)
+	id, err := s.docker.CreateSwarmService(r.Context(), spec, nil)
 	if err != nil {
 		return err
 	}

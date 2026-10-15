@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"log"
@@ -37,7 +38,7 @@ func (r *run) startSwarm(ctx context.Context, image resolvedImage) (string, erro
 		return "", err
 	}
 	if err := tracing.Stage(ctx, "pull on the swarm manager", func(ctx context.Context) error {
-		return r.pull(ctx, image.ref(), r.spec.Image.Auth)
+		return r.pull(ctx, image.ref(), r.registryAuth())
 	}, attribute.String("homerun.deploy.image", image.ref())); err != nil {
 		log.Printf("[homerun-worker] pull before service create failed for %s: %s", image.ref(), err)
 	}
@@ -79,13 +80,23 @@ func (r *run) startSwarm(ctx context.Context, image resolvedImage) (string, erro
 	r.progress.line("Creating swarm service...")
 	var id string
 	if err := tracing.Stage(ctx, "create swarm service", func(ctx context.Context) error {
-		id, err = r.docker.CreateSwarmService(ctx, spec)
+		id, err = r.docker.CreateSwarmService(ctx, spec, r.registryAuth())
 		return err
 	}); err != nil {
 		return "", err
 	}
 	log.Printf("[homerun-worker] swarm service created: id=%s service=%s", id, r.spec.ServiceID)
 	return id, nil
+}
+
+// registryAuth is the credentials the deployed image pulls with: a git build's
+// cache registry when it publishes through one, the service's own otherwise.
+func (r *run) registryAuth() *dockerapi.AuthConfig {
+	if build := r.spec.Image.Build; build != nil && build.Registry != nil {
+		auth := build.Registry.auth()
+		return &auth
+	}
+	return r.spec.Image.Auth
 }
 
 // PublishesThroughIngress reports whether a swarm service spec publishes a
@@ -175,7 +186,7 @@ func (r *run) rollOutSwarm(ctx context.Context, id string, spec map[string]any, 
 		previousStartedAt = inspected.UpdateStatus.StartedAt
 	}
 	if err := tracing.Stage(ctx, "update swarm service", func(ctx context.Context) error {
-		return r.docker.UpdateSwarmService(ctx, id, inspected.Version.Index, update)
+		return r.docker.UpdateSwarmService(ctx, id, inspected.Version.Index, update, r.registryAuth())
 	}, attribute.String("homerun.swarm.service_id", id), attribute.String("homerun.swarm.update_order", order)); err != nil {
 		return "", err
 	}

@@ -3,6 +3,7 @@ package dockerapi
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -49,20 +50,33 @@ func (c *Client) InspectSwarmService(ctx context.Context, id string) (*SwarmServ
 }
 
 // CreateSwarmService creates a swarm service from a raw spec and returns its id.
-func (c *Client) CreateSwarmService(ctx context.Context, spec map[string]any) (string, error) {
+// auth, when given, is stored with the service so every node, not just this
+// manager, can pull a private image (the CLI's --with-registry-auth).
+func (c *Client) CreateSwarmService(ctx context.Context, spec map[string]any, auth *AuthConfig) (string, error) {
+	response, err := c.request(ctx, http.MethodPost, "/services/create", nil, spec, auth)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = response.Body.Close() }()
 	var created struct {
 		ID string `json:"ID"`
 	}
-	if err := c.decode(ctx, http.MethodPost, "/services/create", nil, spec, &created); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
 		return "", err
 	}
 	return created.ID, nil
 }
 
-// UpdateSwarmService replaces a swarm service's spec at version.
-func (c *Client) UpdateSwarmService(ctx context.Context, id string, version int64, spec map[string]any) error {
-	return c.Call(ctx, http.MethodPost, "/services/"+id+"/update",
-		url.Values{"version": {strconv.FormatInt(version, 10)}}, spec)
+// UpdateSwarmService replaces a swarm service's spec at version, with auth
+// handed to every node that pulls its image, as for CreateSwarmService.
+func (c *Client) UpdateSwarmService(ctx context.Context, id string, version int64, spec map[string]any, auth *AuthConfig) error {
+	response, err := c.request(ctx, http.MethodPost, "/services/"+id+"/update",
+		url.Values{"version": {strconv.FormatInt(version, 10)}}, spec, auth)
+	if err != nil {
+		return err
+	}
+	_, _ = io.Copy(io.Discard, response.Body)
+	return response.Body.Close()
 }
 
 // CountSwarmNodes is how many nodes the swarm has.
