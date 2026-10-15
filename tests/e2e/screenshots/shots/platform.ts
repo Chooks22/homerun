@@ -233,7 +233,7 @@ async function seedRedirects(page: Page) {
 			destination: "https://blog.example.com",
 			keepPath: true,
 			permanent: false,
-			source: "example.com/blog",
+			source: "news.example.com/blog",
 		},
 		{
 			destination: "https://example.com/store",
@@ -254,8 +254,8 @@ async function seedRedirects(page: Page) {
 		}),
 	);
 	ids.redirect =
-		created.find((redirect) => redirect.source === "example.com/blog")?.id ??
-		"";
+		created.find((redirect) => redirect.source === "news.example.com/blog")
+			?.id ?? "";
 }
 
 export const shots: ShotModule = {
