@@ -170,6 +170,9 @@ export type ServiceUpdateInput = Partial<
 		| "registryUrl"
 		| "registryUsername"
 		| "replicas"
+		| "scaleToZeroMinutes"
+		| "sleepingSince"
+		| "wokenAt"
 		| "requireStatusChecks"
 		| "requiredStatusChecks"
 		| "restartPolicy"
@@ -201,6 +204,46 @@ export const NEW_SERVICE_VERSION_COLUMNS: Pick<
 	updateCheck: null,
 	updateCheckEnabled: false,
 	updateTrialEnabled: true,
+};
+
+/** The lifecycle columns a new service starts with: never deployed, stopped, no schedule, no custom certificate, no status checks, scale to zero off. */
+export const NEW_SERVICE_STATE_COLUMNS: Pick<
+	Service,
+	| "autoRollback"
+	| "containerId"
+	| "cronEnabled"
+	| "cronLastRunAt"
+	| "cronSchedule"
+	| "currentStatus"
+	| "customSslCertEnc"
+	| "customSslKeyEnc"
+	| "desiredState"
+	| "errorsDismissedAt"
+	| "errorsDismissedByDeploymentId"
+	| "requireStatusChecks"
+	| "requiredStatusChecks"
+	| "scaleToZeroMinutes"
+	| "sleepingSince"
+	| "swarmServiceId"
+	| "wokenAt"
+> = {
+	autoRollback: false,
+	containerId: null,
+	cronEnabled: false,
+	cronLastRunAt: null,
+	cronSchedule: null,
+	currentStatus: "pending",
+	customSslCertEnc: null,
+	customSslKeyEnc: null,
+	desiredState: "stopped",
+	errorsDismissedAt: null,
+	errorsDismissedByDeploymentId: null,
+	requireStatusChecks: false,
+	requiredStatusChecks: [],
+	scaleToZeroMinutes: null,
+	sleepingSince: null,
+	swarmServiceId: null,
+	wokenAt: null,
 };
 
 /** How a new git service is built : the build method, its per-method file, target and context settings, and which env vars reach the build. */

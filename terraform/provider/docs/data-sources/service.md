@@ -148,6 +148,7 @@ data "homerun_service" "example" {
 - `required_status_checks` (List of String)
 - `restart_policy` (String)
 - `run_as_user` (String)
+- `scale_to_zero_minutes` (Number)
 - `secret_env_keys` (List of String)
 - `stack_id` (String)
 - `strip_path_domains` (List of String) Domains with a path whose prefix is

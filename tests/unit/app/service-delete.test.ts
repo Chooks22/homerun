@@ -360,7 +360,13 @@ describe("ServiceLifecycleService start/stop/restart", () => {
 		const { state, svc } = fakeService();
 		await ServiceLifecycleService.startService(svc);
 		expect(dockerCalls).toEqual([["startContainer", "c1"]]);
-		expect(state.updates).toEqual([{ desiredState: "running" }]);
+		expect(state.updates).toEqual([
+			{
+				desiredState: "running",
+				sleepingSince: null,
+				wokenAt: expect.any(Date),
+			},
+		]);
 	});
 
 	test("startService starts stopped dependencies first, once, and skips running or undeployed ones", async () => {
@@ -417,13 +423,21 @@ describe("ServiceLifecycleService start/stop/restart", () => {
 			["scaleSwarmService", "sw1", 1],
 			["scaleSwarmService", "sw3", 3],
 		]);
-		expect(three.state.updates).toEqual([{ desiredState: "running" }]);
+		expect(three.state.updates).toEqual([
+			{
+				desiredState: "running",
+				sleepingSince: null,
+				wokenAt: expect.any(Date),
+			},
+		]);
 	});
 
 	test("stopService records the stop before stopping the container", async () => {
 		const { state, svc } = fakeService();
 		await ServiceLifecycleService.stopService(svc);
-		expect(state.updates).toEqual([{ desiredState: "stopped" }]);
+		expect(state.updates).toEqual([
+			{ desiredState: "stopped", sleepingSince: null },
+		]);
 		expect(dockerCalls).toEqual([["stopContainer", "c1"]]);
 	});
 

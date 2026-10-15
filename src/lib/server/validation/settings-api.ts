@@ -129,7 +129,7 @@ export const errorPagesApiBody = z.object({
 		.partialRecord(z.enum(ERROR_PAGE_TEXT_KEYS), text.max(400))
 		.optional()
 		.describe(
-			"Each page's title and message (notReadyTitle, notReadyMessage, unavailable..., notFound..., blocked...). One left out or blank shows the default.",
+			"Each page's title and message (notReadyTitle, notReadyMessage, unavailable..., waking..., notFound..., blocked...). One left out or blank shows the default.",
 		),
 	showPoweredBy: z.boolean().optional(),
 });

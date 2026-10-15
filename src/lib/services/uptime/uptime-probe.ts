@@ -312,10 +312,14 @@ export class UptimeProbe extends BaseScheduler {
 		}
 	}
 
-	/** Probes a service's publicly published hostname over HTTP(S), or null when it isn't published or externally reachable to probe (see `externalHostFor`/`externalProbeSkipReason`). */
+	/** Probes a service's publicly published hostname over HTTP(S), or null when it isn't published or externally reachable to probe (see `externalHostFor`/`externalProbeSkipReason`), or scales to zero: a probe through Traefik is a request, and would keep it awake for good. */
 	async #external(svc: ServiceDTO): Promise<ProbeResult | null> {
 		const host = externalHostFor(svc);
-		if (!host || externalProbeSkipReason(host)) {
+		if (
+			!host ||
+			externalProbeSkipReason(host) ||
+			svc.toJSON().scaleToZeroMinutes
+		) {
 			return null;
 		}
 		const scheme = config.traefik.entrypoint === "web" ? "http" : "https";

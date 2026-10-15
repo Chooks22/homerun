@@ -23,6 +23,7 @@
 		notFound: 404,
 		notReady: 404,
 		unavailable: 503,
+		waking: 503,
 	};
 </script>
 

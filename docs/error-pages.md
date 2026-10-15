@@ -16,10 +16,14 @@ app is down sees something that says what's going on.
   can't answer, because it crashed, it's restarting or it timed out.
 - **Blocked path** (403): the path matches one of the service's
   [blocked paths](blocked-paths-and-ip-bans.md).
+- **Waking up** (503): the service was put to sleep by
+  [scale to zero](runtime-and-compute.md#scale-to-zero) and is starting again.
+  Most visitors never see it: their request waits for the app and lands on it.
 
-The first and last pages reload themselves every 15 seconds, so a visitor lands
-on the app once it's up. An app's own error pages are left alone: its 404s pass
-through untouched, and only the three gateway errors are replaced.
+The "not available yet" and "temporarily unavailable" pages reload themselves
+every 15 seconds, and "waking up" every 2, so a visitor lands on the app once
+it's up. An app's own error pages are left alone: its 404s pass through
+untouched, and only the three gateway errors are replaced.
 
 ![The "temporarily unavailable" page shown for a 502, 503 or 504](images/error-page-unavailable.webp)
 

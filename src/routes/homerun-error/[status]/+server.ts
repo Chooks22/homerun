@@ -10,5 +10,11 @@ export const GET = async ({ params, request, url }) => {
 		Number.isInteger(status) && status >= 400 && status <= 599 ? status : 404,
 		forwardedHost(request.headers),
 		preview ?? null,
+		{
+			replacedPath: request.headers.get("x-replaced-path"),
+			search: url.search,
+		},
 	);
 };
+
+export const fallback = GET;

@@ -193,6 +193,18 @@ export const serviceResponse = z.object({
 	requiredStatusChecks: z.array(z.string()),
 	pullPolicy: z.enum(["always", "missing", "never"]),
 	replicas: z.number().int(),
+	scaleToZeroMinutes: z.number().int().nullable().meta({
+		description:
+			"Minutes without a request before the service is stopped until the next one, null when it never sleeps",
+	}),
+	sleepingSince: isoTimestamp.nullable().meta({
+		description:
+			"When scale to zero stopped the service, null while it's awake",
+	}),
+	wokenAt: isoTimestamp.nullable().meta({
+		description:
+			"When the service last started from a request, a deploy or scale to zero being turned on",
+	}),
 	restartPolicy: z.enum(["no", "always", "on-failure", "unless-stopped"]),
 	slug: z.string(),
 	swarmServiceId: z.string().nullable(),

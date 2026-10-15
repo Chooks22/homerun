@@ -35,6 +35,7 @@ import { BaseDTO } from "./base-dto";
 import type { NewServiceInput, ServiceUpdateInput } from "./service-input";
 import {
 	buildMethodColumns,
+	NEW_SERVICE_STATE_COLUMNS,
 	NEW_SERVICE_VERSION_COLUMNS,
 } from "./service-input";
 
@@ -262,6 +263,20 @@ export class ServiceDTO extends BaseDTO<Service> {
 		return rows.map((row) => new ServiceDTO(row));
 	}
 
+	/** Every service with scale to zero on, or still asleep from it: what the sleep pass looks at. */
+	static async listScaleToZero(): Promise<ServiceDTO[]> {
+		const rows = await db
+			.select()
+			.from(service)
+			.where(
+				or(
+					isNotNull(service.scaleToZeroMinutes),
+					isNotNull(service.sleepingSince),
+				),
+			);
+		return rows.map((row) => new ServiceDTO(row));
+	}
+
 	/** The first of `domains` another service (not `excludeId`) already routes, or null when they're all free. */
 	static async domainTaken(
 		domains: string[],
@@ -442,23 +457,13 @@ export class ServiceDTO extends BaseDTO<Service> {
 			...ServiceDTO.#runtimeColumns(input),
 			...ServiceDTO.#gitTriggerColumns(input),
 			...NEW_SERVICE_VERSION_COLUMNS,
-			autoRollback: false,
-			containerId: null,
+			...NEW_SERVICE_STATE_COLUMNS,
 			containerPort: input.containerPort,
 			createdAt: now,
-			cronEnabled: false,
-			cronLastRunAt: null,
-			cronSchedule: null,
-			currentStatus: "pending",
-			errorsDismissedAt: null,
-			errorsDismissedByDeploymentId: null,
-			customSslCertEnc: null,
-			customSslKeyEnc: null,
 			defaultDomainEnabled: true,
 			domains: input.domains ?? [],
 			primaryDomain: input.domains?.[0] ?? null,
 			stripPathDomains: input.stripPathDomains ?? [],
-			desiredState: "stopped",
 			envVars: input.envVars,
 			secretEnvKeys: input.secretEnvKeys ?? [],
 			healthcheckCommand: input.healthcheckCommand ?? null,
@@ -472,11 +477,8 @@ export class ServiceDTO extends BaseDTO<Service> {
 			image: input.image,
 			imageScanEnabled: true,
 			name: input.name,
-			requireStatusChecks: false,
-			requiredStatusChecks: [],
 			restartPolicy: input.restartPolicy,
 			slug: input.slug,
-			swarmServiceId: null,
 			tag: input.tag,
 			tracesEnabled: false,
 			uptimeEnabled: input.uptimeEnabled ?? !isDatabaseImage(input.image),

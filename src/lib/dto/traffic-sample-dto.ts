@@ -1,4 +1,4 @@
-import { and, gte, inArray, lt, min, sql } from "drizzle-orm";
+import { and, gte, inArray, lt, max, min, sql } from "drizzle-orm";
 import { db } from "#lib/server/db/lib.js";
 import { type TrafficSample, trafficSample } from "#lib/server/db/schema.js";
 import type { TrafficCounters } from "#lib/traffic-metrics.js";
@@ -98,6 +98,27 @@ export class TrafficSampleDTO extends BaseDTO<TrafficSample> {
 				status4xx: Math.round(row.status4xx),
 				status5xx: Math.round(row.status5xx),
 			})),
+		);
+	}
+
+	/** The minute each of `serviceIds` last served a request, from `since` on; a service with none since then is left out. */
+	static async lastRequestAt(
+		serviceIds: string[],
+		since: Date,
+	): Promise<Map<string, Date>> {
+		if (serviceIds.length === 0) {
+			return new Map();
+		}
+		const rows = await db
+			.select({
+				at: max(trafficSample.createdAt),
+				serviceId: trafficSample.serviceId,
+			})
+			.from(trafficSample)
+			.where(scope(serviceIds, since))
+			.groupBy(trafficSample.serviceId);
+		return new Map(
+			rows.flatMap((row) => (row.at ? [[row.serviceId, row.at]] : [])),
 		);
 	}
 

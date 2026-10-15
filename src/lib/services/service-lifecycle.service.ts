@@ -83,7 +83,8 @@ class ServiceLifecycleServiceClass {
 	 * Starts a service: first each service it depends on
 	 * (`ServiceDependencyDTO`) that is deployed but not running, recursively,
 	 * then scales its swarm service up (to its configured replica count) or
-	 * starts its single container, and persists `desiredState: "running"`.
+	 * starts its single container, and persists `desiredState: "running"`,
+	 * waking it from scale to zero's sleep (the idle clock restarts now).
 	 *
 	 * @throws When the service has no swarm service and no container yet, or a
 	 * dependency fails to start.
@@ -131,11 +132,16 @@ class ServiceLifecycleServiceClass {
 		} else {
 			await this.start(this.#requireContainer(svc));
 		}
-		await svc.update({ desiredState: "running" });
+		await svc.update({
+			desiredState: "running",
+			sleepingSince: null,
+			wokenAt: new Date(),
+		});
 	}
 
 	/**
-	 * Stops a service: persists `desiredState: "stopped"` first, so a status
+	 * Stops a service: persists `desiredState: "stopped"` first (and drops a
+	 * scale to zero sleep, a hand stop isn't one), so a status
 	 * sync during a slow stop already knows the exit was asked for, then scales
 	 * its swarm service to 0 replicas or stops its single container.
 	 *
@@ -145,7 +151,7 @@ class ServiceLifecycleServiceClass {
 		if (!svc.swarmServiceId) {
 			this.#requireContainer(svc);
 		}
-		await svc.update({ desiredState: "stopped" });
+		await svc.update({ desiredState: "stopped", sleepingSince: null });
 		if (svc.swarmServiceId) {
 			await DockerService.scaleSwarmService(svc.swarmServiceId, 0);
 		} else {

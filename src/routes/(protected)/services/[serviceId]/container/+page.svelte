@@ -5,6 +5,9 @@
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
+	import { timeAgo } from "#lib/formatting.js";
+	import { scaleToZeroLabel } from "#lib/scale-to-zero.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { visibleIn } from "#lib/ui-mode.js";
@@ -23,16 +26,19 @@
 			cpuLimit: svc.cpuLimit ?? "",
 			memoryLimitMb: svc.memoryLimitMb ? String(svc.memoryLimitMb) : "",
 			replicas: String(svc.replicas ?? 1),
+			scaleToZeroEnabled: svc.scaleToZeroMinutes ? "on" : "",
+			scaleToZeroMinutes: String(svc.scaleToZeroMinutes ?? 15),
 		},
 	);
 	const errors = $derived(form?.errors as Record<string, string[]> | undefined);
 
 	let submitting = $state(false);
+	let scaleToZero = $derived(values.scaleToZeroEnabled === "on");
 </script>
 
 <section class="panel rounded-md">
   <PanelHeader
-    description="Resource limits and autoscaling. Changes take effect on the next deploy."
+    description="Resource limits, replicas and scale to zero. Limits and replicas take effect on the next deploy, scale to zero right away."
     icon={Cpu}
     title="Compute"
   >
@@ -86,6 +92,72 @@
           <p class={errorClass}>{errors.memoryLimitMb[0]}</p>
         {/if}
       </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-text text-sm font-medium">Scale to zero</p>
+          <p class="text-text-subtle mt-0.5 text-xs">
+            Stops the service after a stretch without requests, and starts it
+            again on the next one: that request waits for it to boot. Only
+            requests through its domains count, not other services calling
+            it over the Docker network. Not for databases, workers or anything
+            that has to keep running.
+          </p>
+        </div>
+        <input
+          name="scaleToZeroEnabled"
+          type="hidden"
+          value={scaleToZero ? "on" : ""}
+        />
+        <Switch
+          aria-label="Scale to zero"
+          checked={scaleToZero}
+          onCheckedChange={(checked) => {
+            scaleToZero = checked;
+          }}
+        />
+      </div>
+      {#if scaleToZero}
+        <div class="max-w-48">
+          <label class={label} for="scaleToZeroMinutes">Idle minutes</label>
+          <Input
+            id="scaleToZeroMinutes"
+            max="1440"
+            min="1"
+            name="scaleToZeroMinutes"
+            type="number"
+            value={values.scaleToZeroMinutes}
+          />
+          {#if errors?.scaleToZeroMinutes}
+            <p class={errorClass}>{errors.scaleToZeroMinutes[0]}</p>
+          {/if}
+        </div>
+      {/if}
+      {#if svc.sleepingSince}
+        <p class="text-text-muted text-xs">
+          Went to sleep {timeAgo(svc.sleepingSince)}. The next request
+          to one of its domains wakes it.
+        </p>
+      {:else if svc.scaleToZeroMinutes}
+        <p class="text-text-muted text-xs">
+          {scaleToZeroLabel(svc.scaleToZeroMinutes)}.
+        </p>
+      {/if}
+      {#if scaleToZero && !data.errorPagesPublished}
+        <p class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-600">
+          Traefik's dynamic config directory isn't set (Settings → Networking),
+          so nothing could wake the service: it won't be put to sleep until it
+          is.
+        </p>
+      {/if}
+      {#if scaleToZero && !svc.dnsResolvable}
+        <p class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-600">
+          This service isn't routed by Traefik, so no request could wake it:
+          it won't be put to sleep.
+        </p>
+      {/if}
     </div>
 
     {#if data.orchestrationMode === "swarm"}

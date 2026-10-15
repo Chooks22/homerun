@@ -67,6 +67,9 @@ function svc(overrides: Record<string, unknown> = {}): Service {
 		swarmServiceId: null,
 		uptimeEnabled: true,
 		...overrides,
+		toJSON() {
+			return this;
+		},
 	} as unknown as Service;
 }
 

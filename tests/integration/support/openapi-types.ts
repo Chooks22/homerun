@@ -6795,7 +6795,7 @@ export interface operations {
 					accentColor?: string | null;
 					brandName?: string;
 					logoUrl?: string | null;
-					/** @description Each page's title and message (notReadyTitle, notReadyMessage, unavailable..., notFound..., blocked...). One left out or blank shows the default. */
+					/** @description Each page's title and message (notReadyTitle, notReadyMessage, unavailable..., waking..., notFound..., blocked...). One left out or blank shows the default. */
 					pageTexts?: {
 						[key: string]: string;
 					};
@@ -8200,7 +8200,7 @@ export interface operations {
 					 * @enum {string}
 					 */
 					pullPolicy?: "always" | "missing" | "never";
-					/** @description How many replicas to run under swarm; 0 scales it to zero. */
+					/** @description How many replicas to run under swarm; 0 stops it. */
 					replicas?: number;
 					/**
 					 * @description Docker's restart policy for the container.
@@ -8209,6 +8209,8 @@ export interface operations {
 					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
 					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 					runAsUser?: string | null;
+					/** @description Minutes without a request before the service is stopped until the next one; null never sleeps it. */
+					scaleToZeroMinutes?: number | null;
 					/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
 					stripPathDomains?: string[];
 					/** @description The image tag to run. */
@@ -13917,7 +13919,11 @@ export interface operations {
 						/** @enum {string} */
 						restartPolicy: "no" | "always" | "on-failure" | "unless-stopped";
 						runAsUser: string | null;
+						/** @description Minutes without a request before the service is stopped until the next one, null when it never sleeps */
+						scaleToZeroMinutes: number | null;
 						secretEnvKeys: string[];
+						/** @description When scale to zero stopped the service, null while it's awake */
+						sleepingSince: string | null;
 						slug: string;
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
@@ -13965,6 +13971,8 @@ export interface operations {
 						/** @description Whether the per-minute internal and external uptime probes run for this service */
 						uptimeEnabled: boolean;
 						userId: string;
+						/** @description When the service last started from a request, a deploy or scale to zero being turned on */
+						wokenAt: string | null;
 					}[];
 				};
 			};
@@ -14178,6 +14186,8 @@ export interface operations {
 							restartPolicy: "no" | "always" | "on-failure" | "unless-stopped";
 							/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 							runAsUser?: string | null;
+							/** @description Minutes without a request before the service is stopped, started again by the next request to one of its hosts. Null never sleeps it. */
+							scaleToZeroMinutes?: number | null;
 							/** @description envVars keys the dashboard masks. */
 							secretEnvKeys?: string[];
 							slug: string;
@@ -14343,6 +14353,8 @@ export interface operations {
 							restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
 							/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 							runAsUser?: string | null;
+							/** @description Minutes without a request before the service is stopped, started again by the next request to one of its hosts. Null never sleeps it. */
+							scaleToZeroMinutes?: number | null;
 							/** @description envVars keys the dashboard masks. */
 							secretEnvKeys?: string[];
 							slug?: string;
@@ -14536,7 +14548,11 @@ export interface operations {
 						/** @enum {string} */
 						restartPolicy: "no" | "always" | "on-failure" | "unless-stopped";
 						runAsUser: string | null;
+						/** @description Minutes without a request before the service is stopped until the next one, null when it never sleeps */
+						scaleToZeroMinutes: number | null;
 						secretEnvKeys: string[];
+						/** @description When scale to zero stopped the service, null while it's awake */
+						sleepingSince: string | null;
 						slug: string;
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
@@ -14584,6 +14600,8 @@ export interface operations {
 						/** @description Whether the per-minute internal and external uptime probes run for this service */
 						uptimeEnabled: boolean;
 						userId: string;
+						/** @description When the service last started from a request, a deploy or scale to zero being turned on */
+						wokenAt: string | null;
 					};
 				};
 			};
@@ -14838,7 +14856,11 @@ export interface operations {
 						/** @enum {string} */
 						restartPolicy: "no" | "always" | "on-failure" | "unless-stopped";
 						runAsUser: string | null;
+						/** @description Minutes without a request before the service is stopped until the next one, null when it never sleeps */
+						scaleToZeroMinutes: number | null;
 						secretEnvKeys: string[];
+						/** @description When scale to zero stopped the service, null while it's awake */
+						sleepingSince: string | null;
 						slug: string;
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
@@ -14886,6 +14908,8 @@ export interface operations {
 						/** @description Whether the per-minute internal and external uptime probes run for this service */
 						uptimeEnabled: boolean;
 						userId: string;
+						/** @description When the service last started from a request, a deploy or scale to zero being turned on */
+						wokenAt: string | null;
 					};
 				};
 			};
@@ -15162,6 +15186,8 @@ export interface operations {
 					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
 					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 					runAsUser?: string | null;
+					/** @description Minutes without a request before the service is stopped, started again by the next request to one of its hosts. Null never sleeps it. */
+					scaleToZeroMinutes?: number | null;
 					/** @description envVars keys the dashboard masks. */
 					secretEnvKeys?: string[];
 					slug?: string;
@@ -15353,7 +15379,11 @@ export interface operations {
 						/** @enum {string} */
 						restartPolicy: "no" | "always" | "on-failure" | "unless-stopped";
 						runAsUser: string | null;
+						/** @description Minutes without a request before the service is stopped until the next one, null when it never sleeps */
+						scaleToZeroMinutes: number | null;
 						secretEnvKeys: string[];
+						/** @description When scale to zero stopped the service, null while it's awake */
+						sleepingSince: string | null;
 						slug: string;
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
@@ -15401,6 +15431,8 @@ export interface operations {
 						/** @description Whether the per-minute internal and external uptime probes run for this service */
 						uptimeEnabled: boolean;
 						userId: string;
+						/** @description When the service last started from a request, a deploy or scale to zero being turned on */
+						wokenAt: string | null;
 					};
 				};
 			};
@@ -16864,7 +16896,7 @@ export interface operations {
 					 * @enum {string}
 					 */
 					pullPolicy?: "always" | "missing" | "never";
-					/** @description How many replicas to run under swarm; 0 scales it to zero. */
+					/** @description How many replicas to run under swarm; 0 stops it. */
 					replicas?: number;
 					/**
 					 * @description Docker's restart policy for the container.
@@ -16873,6 +16905,8 @@ export interface operations {
 					restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
 					/** @description Docker User (uid, uid:gid, name or name:group), null keeps the image's */
 					runAsUser?: string | null;
+					/** @description Minutes without a request before the service is stopped until the next one; null never sleeps it. */
+					scaleToZeroMinutes?: number | null;
 					/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
 					stripPathDomains?: string[];
 					/** @description The image tag to run. */

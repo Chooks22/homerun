@@ -37,6 +37,7 @@ describe("withErrorPageDefaults", () => {
 				notFound: { message: "", title: "Lost?" },
 				notReady: { message: "Soon.", title: "" },
 				unavailable: { message: "", title: "" },
+				waking: { message: "", title: "" },
 			},
 			showPoweredBy: false,
 		});
@@ -87,6 +88,7 @@ describe("renderErrorPage", () => {
 					notFound: { message: "<b>gone</b>", title: "T" },
 					notReady: { message: "", title: "" },
 					unavailable: { message: "", title: "" },
+					waking: { message: "", title: "" },
 				},
 			}),
 			"notFound",
@@ -109,6 +111,12 @@ describe("renderErrorPage", () => {
 		expect(renderErrorPage(settings, "notFound", 404)).not.toContain(
 			'http-equiv="refresh"',
 		);
+	});
+
+	test("the waking page reloads every two seconds", () => {
+		const html = renderErrorPage(withErrorPageDefaults(null), "waking", 503);
+		expect(html).toContain('http-equiv="refresh" content="2"');
+		expect(html).toContain("Waking up");
 	});
 
 	test("Powered by Homerun only shows under another brand", () => {

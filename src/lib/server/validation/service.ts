@@ -8,6 +8,10 @@ import {
 	type PublishedPort,
 	publishedPortsProblem,
 } from "#lib/published-ports.js";
+import {
+	SCALE_TO_ZERO_MAX_MINUTES,
+	SCALE_TO_ZERO_MIN_MINUTES,
+} from "#lib/scale-to-zero.js";
 import { environmentNameField } from "#lib/server/validation/environment-name.js";
 import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
@@ -171,11 +175,22 @@ export const updateHealthSchema = z.object({
 });
 
 // Backs the Compute tab : cpu/memory limits and swarm replica count.
-export const updateComputeSchema = baseServiceSchema.pick({
-	cpuLimit: true,
-	memoryLimitMb: true,
-	replicas: true,
-});
+export const updateComputeSchema = baseServiceSchema
+	.pick({
+		cpuLimit: true,
+		memoryLimitMb: true,
+		replicas: true,
+	})
+	.extend({
+		scaleToZeroEnabled: z.literal("on").optional(),
+		scaleToZeroMinutes: optionalNumber(
+			z.coerce
+				.number()
+				.int()
+				.min(SCALE_TO_ZERO_MIN_MINUTES)
+				.max(SCALE_TO_ZERO_MAX_MINUTES),
+		),
+	});
 export type UpdateComputeInput = z.infer<typeof updateComputeSchema>;
 
 // Backs the Networking tab's "Network" section : container port, which

@@ -39,6 +39,7 @@ const RUNTIME_KEYS = [
 	"replicas",
 	"restartPolicy",
 	"runAsUser",
+	"scaleToZeroMinutes",
 ] as const;
 
 const ROUTING_KEYS = [
@@ -174,8 +175,10 @@ const DESCRIPTIONS: Partial<Record<ManifestKey, string>> = {
 	previewsEnabled: "Deploy a preview for every pull request.",
 	primaryDomain: "The hostname shown and linked as the service's address.",
 	pullPolicy: "When to pull image: always, only when missing, or never.",
-	replicas: "How many replicas to run under swarm; 0 scales it to zero.",
+	replicas: "How many replicas to run under swarm; 0 stops it.",
 	restartPolicy: "Docker's restart policy for the container.",
+	scaleToZeroMinutes:
+		"Minutes without a request before the service is stopped until the next one; null never sleeps it.",
 	tag: "The image tag to run.",
 	tracesEnabled: "Collect OpenTelemetry traces from the service.",
 	uptimeEnabled: "Probe the service's address for the uptime history.",

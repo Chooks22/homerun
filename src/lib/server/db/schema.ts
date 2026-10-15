@@ -1340,6 +1340,9 @@ export const service = pgTable(
 		// = "swarm") : ignored entirely in standalone mode, always 1 container.
 		// Editable on the Compute tab.
 		replicas: integer("replicas").default(1).notNull(),
+		scaleToZeroMinutes: integer("scale_to_zero_minutes"),
+		sleepingSince: timestamp("sleeping_since", { mode: "date" }),
+		wokenAt: timestamp("woken_at", { mode: "date" }),
 		// always | missing | never
 		pullPolicy: text("pull_policy")
 			.$type<PullPolicy>()

@@ -446,6 +446,11 @@
 					"default": 1
 				},
 				{
+					"kind": "int",
+					"name": "scaleToZeroMinutes",
+					"tf": "scale_to_zero_minutes"
+				},
+				{
 					"kind": "string",
 					"name": "restartPolicy",
 					"tf": "restart_policy",

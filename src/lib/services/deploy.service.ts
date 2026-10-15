@@ -289,7 +289,9 @@ class DeploymentServiceClass {
 			// before it : whatever they were, this deploy is the answer.
 			errorsDismissedAt: new Date(),
 			errorsDismissedByDeploymentId: dep.id,
+			sleepingSince: null,
 			swarmServiceId: swarmServiceId ?? null,
+			wokenAt: new Date(),
 		});
 		await dep.update({
 			buildSource: dep.toJSON().buildSource ?? svc.buildSource,

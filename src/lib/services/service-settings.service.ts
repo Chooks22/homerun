@@ -41,6 +41,7 @@ import {
 	ReleaseChannelError,
 	ReleaseChannelService,
 } from "#lib/services/release-channel.service.js";
+import { ScaleToZeroService } from "#lib/services/scale-to-zero.service.js";
 import { encryptSecret } from "#lib/services/secrets.js";
 import { TEMPLATE_CATEGORIES } from "#lib/template-categories.js";
 
@@ -221,6 +222,9 @@ class ServiceSettingsServiceClass {
 		}
 		if (patch.customSslCertEnc !== undefined) {
 			await DockerService.syncCustomSslConfig(svc);
+		}
+		if (input.scaleToZeroMinutes !== undefined) {
+			await ScaleToZeroService.configured(svc, before.scaleToZeroMinutes);
 		}
 		await this.#channels(svc, input, actor);
 		logger.info(

@@ -85,8 +85,8 @@ sync by hand.
   DNS providers (Cloudflare, Route 53, Google, Azure, Hetzner, Namecheap…), kept
   in sync with your services, or Pangolin resources.
 - **[Runtime and compute](runtime-and-compute.md)**: entrypoint, command,
-  labels, run-as user, capabilities, devices, privileged mode, and CPU/memory
-  limits.
+  labels, run-as user, capabilities, devices, privileged mode, CPU/memory
+  limits, and scale to zero.
 - **[Swarm mode](swarm-mode.md)**: replicas, what swarm mode changes, and adding
   a node.
 - **[Observability](observability.md)**: per-service monitoring (requests,

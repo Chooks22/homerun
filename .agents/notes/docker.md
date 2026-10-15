@@ -1272,6 +1272,47 @@ correct byte-for-byte content, plus correct removal on clear. **Not verified**:
 Traefik itself picking up the config, since that requires the live container
 change this app deliberately doesn't make.
 
+## Scale to zero (`service.scaleToZeroMinutes`/`sleepingSince`/`wokenAt`, `ScaleToZeroService`, `src/lib/scale-to-zero.ts`)
+
+Knative-style, built on two things that already existed. **Idle** is Traefik's
+request metrics, not a connection count: `StatsSampler` calls
+`ScaleToZeroService.sleepIdle` right after a tick that recorded a minute of
+`traffic_sample`, with the time its baseline was taken, so an app restart or an
+unreadable metrics endpoint never reads as idle (`shouldSleep` floors the clock
+at the latest of the last request, `wokenAt` and that baseline). The
+`/proc/net/tcp` exec workstations use was rejected: it needs `cat` in the image,
+and a distroless one would count as in use forever. A sleep is
+`ServiceLifecycleService.stopService` then `sleepingSince` set (and
+`currentStatus: "stopped"`), so it's a real stop (swarm: 0 replicas) and every
+status-driven surface already handles it. Skipped while a job runs for the
+service, for `dnsResolvable` false or host networking, and entirely while
+`errorPagesPublished()` is false.
+
+**Wake** is the error pages' catch-all: a stopped container's labels (or a
+0-replica swarm service's tasks) vanish from Traefik, so its host lands on
+`/homerun-error/404` (the route exports `fallback`, so every method gets there).
+`ErrorPageService` finds the owning service; when it's asleep, or a wake is in
+flight, `ScaleToZeroService.wake` (one shared promise per service) clears
+`sleepingSince`, runs `startService` (dependencies first, like a hand start) and
+polls `inspectStatus` + `containerHealth` (swarm: `inspectSwarmServiceStatus`,
+whose tasks only turn running once healthy) every 500ms, then waits Traefik's
+lag (500ms on the event-driven docker provider, `SWARM_REFRESH_SECONDS` + 500ms
+on swarm). The request is held up to 25s and answered with a 307 to
+`X-Replaced-Path` + the query (Traefik's `replacePath` keeps the original path
+there), else the `waking` page (2s meta refresh, 503, `Retry-After: 2`). Within
+`WAKE_GRACE_MS` after a wake a 404 gets the waking page instead of a redirect,
+so a Traefik that's slower than the slack can't loop a client through 307s. A
+failed start restores `sleepingSince` so the next request retries. A hand start,
+a hand stop and a successful deploy all clear `sleepingSince` (`startService`
+and `#recordSuccess` also stamp `wokenAt`), and a sleeping service the status
+sync finds running (restart policy `always`) is marked awake on the next pass.
+The external uptime probe skips these services, since it goes through Traefik
+and is a request.
+
+Not handled: internal callers over the Docker network neither count as traffic
+nor wake it, and a wake that fails is retried by every request (the waking
+page's 2s reload included), with no backoff.
+
 ## Error pages (`docker/error-pages.ts`, `ErrorPageService`, `/homerun-error/[status]`)
 
 `syncErrorPages` (called next to `syncDashboardRouter`, from settings saves and

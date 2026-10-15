@@ -4,7 +4,12 @@ export const ERROR_PAGE_HEADER = "X-Homerun-Error-Page";
 
 export const HOMERUN_URL = "https://orochibraru.com/homerun";
 
-export type ErrorPageKind = "blocked" | "notFound" | "notReady" | "unavailable";
+export type ErrorPageKind =
+	| "blocked"
+	| "notFound"
+	| "notReady"
+	| "unavailable"
+	| "waking";
 
 export interface ErrorPageText {
 	message: string;
@@ -29,6 +34,7 @@ export interface ErrorPagesSettings {
 
 export const ERROR_PAGE_KINDS: { kind: ErrorPageKind; label: string }[] = [
 	{ kind: "notReady", label: "Not available yet" },
+	{ kind: "waking", label: "Waking up" },
 	{ kind: "unavailable", label: "Temporarily unavailable" },
 	{ kind: "notFound", label: "Nothing here" },
 	{ kind: "blocked", label: "Blocked path" },
@@ -58,6 +64,11 @@ export const DEFAULT_ERROR_PAGES: ErrorPagesSettings = {
 			message:
 				"This app is restarting or having trouble right now. This page checks again on its own.",
 			title: "Temporarily unavailable",
+		},
+		waking: {
+			message:
+				"This app was asleep and is starting up. This page reloads on its own once it's ready.",
+			title: "Waking up",
 		},
 	},
 	showPoweredBy: true,
@@ -126,6 +137,12 @@ export function errorPageKind(
 	return "unavailable";
 }
 
+const REFRESH_SECONDS: Partial<Record<ErrorPageKind, number>> = {
+	notReady: 15,
+	unavailable: 15,
+	waking: 2,
+};
+
 function escapeHtml(value: string): string {
 	return value
 		.replaceAll("&", "&amp;")
@@ -142,7 +159,8 @@ const HOMERUN_MARK = `<svg class="mark" aria-hidden="true" viewBox="0 0 32 32"><
  * inline logo unless a logo URL is set, no script and no request back to the
  * page's own host, since every path on an unrouted host lands on this page.
  * A "not available yet" or "temporarily unavailable" page reloads itself
- * every 15 seconds, so a visitor lands on the app once it's up.
+ * every 15 seconds and a "waking up" one every 2, so a visitor lands on the
+ * app once it's up.
  */
 export function renderErrorPage(
 	settings: ErrorPagesSettings,
@@ -155,10 +173,9 @@ export function renderErrorPage(
 	const logo = settings.logoUrl
 		? `<img class="logo" src="${escapeHtml(settings.logoUrl)}" alt="${brand}">`
 		: HOMERUN_MARK;
-	const refresh =
-		kind === "notReady" || kind === "unavailable"
-			? `<meta http-equiv="refresh" content="15">`
-			: "";
+	const refresh = REFRESH_SECONDS[kind]
+		? `<meta http-equiv="refresh" content="${REFRESH_SECONDS[kind]}">`
+		: "";
 	const poweredBy = showsPoweredBy(settings)
 		? `<p class="powered">Powered by <a href="${HOMERUN_URL}" rel="noopener" target="_blank">Homerun</a></p>`
 		: "";

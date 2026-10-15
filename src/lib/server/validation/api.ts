@@ -7,6 +7,10 @@ import {
 import { AUTH_PATHS_MODES, pathPatternsProblem } from "#lib/path-patterns.js";
 import { PERMISSION_AREAS, PERMISSION_LEVELS } from "#lib/permissions.js";
 import { branchPatternProblem } from "#lib/preview-branches.js";
+import {
+	SCALE_TO_ZERO_MAX_MINUTES,
+	SCALE_TO_ZERO_MIN_MINUTES,
+} from "#lib/scale-to-zero.js";
 import { environmentNameField } from "#lib/server/validation/environment-name.js";
 import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
@@ -186,6 +190,16 @@ const serviceSettingsFields = {
 		)
 		.optional(),
 	replicas: z.number().int().min(0).max(50).optional(),
+	scaleToZeroMinutes: z
+		.number()
+		.int()
+		.min(SCALE_TO_ZERO_MIN_MINUTES)
+		.max(SCALE_TO_ZERO_MAX_MINUTES)
+		.nullable()
+		.optional()
+		.describe(
+			"Minutes without a request before the service is stopped, started again by the next request to one of its hosts. Null never sleeps it.",
+		),
 	secretEnvKeys: z
 		.array(z.string())
 		.optional()

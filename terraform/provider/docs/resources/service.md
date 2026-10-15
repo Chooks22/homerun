@@ -158,6 +158,7 @@ resource "homerun_service" "example" {
 - `required_status_checks` (List of String)
 - `restart_policy` (String) Defaults to `"unless-stopped"`.
 - `run_as_user` (String)
+- `scale_to_zero_minutes` (Number)
 - `secret_env_keys` (List of String)
 - `slug` (String) Subdomain and container name, unique. Required unless
   template_id is set.

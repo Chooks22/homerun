@@ -439,7 +439,7 @@
 			"type": "string"
 		},
 		"replicas": {
-			"description": "How many replicas to run under swarm; 0 scales it to zero.",
+			"description": "How many replicas to run under swarm; 0 stops it.",
 			"maximum": 50,
 			"minimum": 0,
 			"type": "integer"
@@ -452,6 +452,19 @@
 		"runAsUser": {
 			"description": "Docker User (uid, uid:gid, name or name:group), null keeps the image's",
 			"type": ["string", "null"]
+		},
+		"scaleToZeroMinutes": {
+			"anyOf": [
+				{
+					"maximum": 1440,
+					"minimum": 1,
+					"type": "integer"
+				},
+				{
+					"type": "null"
+				}
+			],
+			"description": "Minutes without a request before the service is stopped until the next one; null never sleeps it."
 		},
 		"stripPathDomains": {
 			"description": "The domains with a path whose prefix is stripped before the request reaches the container.",

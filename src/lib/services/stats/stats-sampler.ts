@@ -16,6 +16,7 @@ import { BaseScheduler } from "../cron/base-scheduler.ts";
 import type { ContainerSample } from "../docker/containers.ts";
 import { sumReplicaSamples } from "../docker/swarm-replicas.ts";
 import { DockerService } from "../docker.service.ts";
+import { ScaleToZeroService } from "../scale-to-zero.service.ts";
 import { SystemStatsService } from "../system-stats.service.ts";
 import { WorkstationService } from "../workstation.service.ts";
 
@@ -30,7 +31,8 @@ const PRUNE_EVERY_TICKS = 60;
  * the Host Resources panel polls live values and keeps none. Each host
  * sample is also checked against the resource thresholds (`CapacityService`),
  * and each tick also records the requests every service served, from
- * Traefik's metrics.
+ * Traefik's metrics, then puts the services scale to zero finds idle to
+ * sleep.
  */
 export class StatsSampler extends BaseScheduler {
 	protected readonly label = "Stats";
@@ -41,16 +43,23 @@ export class StatsSampler extends BaseScheduler {
 
 	#lastTraffic: Map<string, TrafficCounters> | null = null;
 
+	#trafficSince: Date | null = null;
+
 	/**
 	 * Reads Traefik's request counters and records what each running
 	 * service served since the last read (`TrafficSampleDTO`). The first
 	 * read after a start only sets the baseline, since the counters are
 	 * cumulative. Skipped quietly when Traefik's metrics can't be read.
+	 *
+	 * @returns Whether a minute of traffic was recorded, so idle services can
+	 * be judged on it.
 	 */
-	async #sampleTraffic(services: ServiceDTO[]): Promise<void> {
+	async #sampleTraffic(services: ServiceDTO[]): Promise<boolean> {
 		const text = await DockerService.traefikMetrics();
 		if (!text) {
-			return;
+			this.#lastTraffic = null;
+			this.#trafficSince = null;
+			return false;
 		}
 		const idBySlug = new Map(services.map((svc) => [svc.slug, svc.id]));
 		const current = countersBySlug(
@@ -60,7 +69,8 @@ export class StatsSampler extends BaseScheduler {
 		const previous = this.#lastTraffic;
 		this.#lastTraffic = current;
 		if (!previous) {
-			return;
+			this.#trafficSince = new Date();
+			return false;
 		}
 		await TrafficSampleDTO.recordMany(
 			[...current].flatMap(([slug, counters]) => {
@@ -71,6 +81,7 @@ export class StatsSampler extends BaseScheduler {
 					: [];
 			}),
 		);
+		return true;
 	}
 
 	/** One service's current sample : its container's, or the sum over its local swarm replicas. Null when nothing of it runs here. */
@@ -158,9 +169,17 @@ export class StatsSampler extends BaseScheduler {
 			...workstations,
 		]);
 
-		await this.#sampleTraffic(services).catch((err) => {
+		const sampled = await this.#sampleTraffic(services).catch((err) => {
 			this.logger.warn("Couldn't record request traffic", err);
+			return false;
 		});
+		if (sampled && this.#trafficSince) {
+			await ScaleToZeroService.sleepIdle(new Date(), this.#trafficSince).catch(
+				(err) => {
+					this.logger.warn("Couldn't put idle services to sleep", err);
+				},
+			);
+		}
 
 		if (this.#ticks % PRUNE_EVERY_TICKS === 0) {
 			await StatSampleDTO.prune();

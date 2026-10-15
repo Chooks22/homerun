@@ -154,6 +154,7 @@ const serviceAttributes: IacAttribute[] = [
 	attr("cpuLimit", "string"),
 	attr("memoryLimitMb", "int"),
 	attr("replicas", "int", { default: 1 }),
+	attr("scaleToZeroMinutes", "int"),
 	attr("restartPolicy", "string", { default: "unless-stopped" }),
 	attr("containerPort", "int", templated),
 	attr("portProtocol", "string", { default: "tcp" }),
