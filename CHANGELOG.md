@@ -1,5 +1,125 @@
 # Changelog
 
+## [1.0.61](https://github.com/orochibraru/homerun/compare/v1.0.60...v1.0.61) (2026-10-15)
+
+### Features
+
+- **api:** workstation login wall fields, recreate route and remote host cleanup
+  ([d2bcf4a](https://github.com/orochibraru/homerun/commit/d2bcf4a893a7bfd54b6461d2c4155d10785cbb5e))
+- **api:** read-only routes for the built-in registry's repositories and tags
+  ([709c3b6](https://github.com/orochibraru/homerun/commit/709c3b691794b0a79292cdb0ea62f6bcd12de678))
+- **api:** OIDC apps, environments and secrets routes
+  ([120a5ec](https://github.com/orochibraru/homerun/commit/120a5ec5a4cde51dc44a451a15f732b801677440))
+- **api:** monitoring, system log, container and Docker cleanup routes
+  ([7248957](https://github.com/orochibraru/homerun/commit/724895764d42a1f50dd467c4fa986fff106edd2c))
+- **api:** version pinning and update check routes
+  ([fc78d2c](https://github.com/orochibraru/homerun/commit/fc78d2cd042ef3b4c85da63e232dcaf4fa3cfb5b))
+- **api:** secret env keys on the cron job routes
+  ([9cd2be1](https://github.com/orochibraru/homerun/commit/9cd2be1c68136d5c6f97be454d473b2acf99ebea))
+- **api:** structured 409 for domain conflicts, takeover and force delete on the
+  service routes
+  ([6f9a488](https://github.com/orochibraru/homerun/commit/6f9a48873fb9c6eba0b82c51d22a71ec134e8f2c))
+- **auth:** auth-check serves a workstation's login wall
+  ([987ced5](https://github.com/orochibraru/homerun/commit/987ced5909af81547a2e28ab8481286897e33d93))
+- **api:** document the new routes in OpenAPI, add serviceDomain() and
+  regenerate the API types, Manifest schema and Terraform provider
+  ([82c300a](https://github.com/orochibraru/homerun/commit/82c300adbffc7a3484a518cf251c2acb75549e51))
+- **cli:** workstations, presets, version pinning, registry images, service
+  account updates and a takeover hint
+  ([8d042ad](https://github.com/orochibraru/homerun/commit/8d042ad0f6fd5cfbed8d229cb8143bbd62f01e27))
+- **mcp:** version pinning, workstation, monitoring, system, DNS, registry and
+  read-only admin tools
+  ([3cf3c23](https://github.com/orochibraru/homerun/commit/3cf3c238c9a8e179a29227e9641e85ccaff6d3d9))
+- **services:** version pinning and update checks behind a service layer shared
+  by every surface
+  ([f1bf5ff](https://github.com/orochibraru/homerun/commit/f1bf5ff664ee7409847bc0c0c2aa6f89aef476db))
+- **cron-jobs:** secret env vars like services, with one shared env editor
+  ([458eb9d](https://github.com/orochibraru/homerun/commit/458eb9d3db060ae05f952f41a7800be5efd38d44))
+- **ui:** a fixed-length mask for every hidden value
+  ([f473e8b](https://github.com/orochibraru/homerun/commit/f473e8bb8402e77aa93feaf7863d7929f74c06d8))
+- **api:** permission areas for the new system, monitoring, registry and OIDC
+  app routes
+  ([f0e8e37](https://github.com/orochibraru/homerun/commit/f0e8e37b7873465cb833bab574e8e5538ef5ddfd))
+- **iac:** OIDC apps, their environments and secrets in the Terraform provider
+  ([08f6657](https://github.com/orochibraru/homerun/commit/08f6657cb12f559855f2027d599b2df1647cd9fb))
+- **auth:** any admin edits Sign in with Homerun apps, without better-auth's
+  owner-only endpoints
+  ([9c0b1ed](https://github.com/orochibraru/homerun/commit/9c0b1edb7ce1bec2d1fa4ebb0c273271e96fa368))
+- **remote-hosts:** reach ssh:// Docker hosts over SSH for workstations, builds
+  and cron jobs
+  ([8b0484a](https://github.com/orochibraru/homerun/commit/8b0484af9b4dbb2460bc1b5c19f13caac64a1d16))
+- **workstations:** dev container Apply on Settings, openvscode-server, and the
+  login wall on workstations and presets
+  ([3efec50](https://github.com/orochibraru/homerun/commit/3efec50d91b64ce993b6a910a247ee40b65f67b1))
+- **workstations:** home volume disk use, re-pull on start, tcp:// Docker hosts
+  and cleanup on host delete
+  ([9dddb5e](https://github.com/orochibraru/homerun/commit/9dddb5e063dcb1257ccff061a52c62195076f7e6))
+- **auth:** split the login wall form helpers and share the section between
+  services and workstations
+  ([195baa7](https://github.com/orochibraru/homerun/commit/195baa7d871de5ff561fd024670e2ebd6f5a5351))
+- **auth:** one login wall gate for services and workstations
+  ([df55f1c](https://github.com/orochibraru/homerun/commit/df55f1c0e929f9a38dcd41aecc472fdc7064167e))
+- **notifications:** create a channel on its own page
+  ([ce1ff1c](https://github.com/orochibraru/homerun/commit/ce1ff1c00b7deff4ac1a449fdb83d66482d2d1e3))
+- **services:** refuse deleting a service mid-deploy unless forced
+  ([a572ae3](https://github.com/orochibraru/homerun/commit/a572ae35e1c579fb4f2f1db306a6147f5dd965c9))
+- **deploy:** check the route through Traefik after a deploy and fail on
+  Traefik's own errors
+  ([40c28ce](https://github.com/orochibraru/homerun/commit/40c28ceb24f5f23023a7620318c98cbc89898831))
+- **services:** domain conflict checks for environments, release channel
+  canaries and compose import
+  ([4811c7d](https://github.com/orochibraru/homerun/commit/4811c7d2eb19c94af0505b171ba92767c7851b88))
+- **previews:** pull request previews get uptime probes only when the parent
+  opts in
+  ([e00c3d2](https://github.com/orochibraru/homerun/commit/e00c3d28570c4e5f8bad0b2da9bdb963767b2382))
+- **manifest:** a manifest apply reports domain conflicts and can take the
+  domains over
+  ([fa7b3da](https://github.com/orochibraru/homerun/commit/fa7b3da29b1ce33bd56d939d2f18df90bf2e326b))
+- **services:** default hostnames under the services subdomain across the
+  services pages and the new service wizard
+  ([886ac1f](https://github.com/orochibraru/homerun/commit/886ac1f76c272af1bca8b8df5c6e08d26c5b806f))
+- **services:** take a domain over from its owner when saving the Networking tab
+  ([36e39f7](https://github.com/orochibraru/homerun/commit/36e39f7122a2ae9d67c68e82a52992b5e6b8a82b))
+- **settings:** a services subdomain for default hostnames
+  ([e150428](https://github.com/orochibraru/homerun/commit/e150428d4e5ec2964b874202766114c05af9a73a))
+- **redirects:** refuse a redirect on the dashboard's or another core host
+  ([d15b8c9](https://github.com/orochibraru/homerun/commit/d15b8c99aed1998aa73a090b4b8af8a922b4fb68))
+- **dns:** never delete a core host's records, and release a service's old
+  hostnames after it redeploys
+  ([d2e4b45](https://github.com/orochibraru/homerun/commit/d2e4b45143ecc5f587e74de4093c597d0771e271))
+- **services:** domain entries, hostname ownership and conflict detection across
+  services, workstations, redirects and core hosts
+  ([bc4c6c7](https://github.com/orochibraru/homerun/commit/bc4c6c791ed2791d001de8eb773bfd9c556651cf))
+- **db:** columns for preview uptime, workstation and preset login walls,
+  services subdomain, cron secrets and stale DNS hosts
+  ([6834cb7](https://github.com/orochibraru/homerun/commit/6834cb7458fcdc29a35e584fc21a4595deb247a0))
+
+### Bug Fixes
+
+- **deploy:** pass registry auth to swarm service create and update so worker
+  nodes can pull private images
+  ([62d2398](https://github.com/orochibraru/homerun/commit/62d2398065d3fc4963251144418dbade07425bb6))
+- **mcp:** redact credential-shaped values, error event URLs and headers, and
+  log secrets, and return uploaded icons as a label
+  ([160e00b](https://github.com/orochibraru/homerun/commit/160e00b08b785cb79b1826e91bd468d6e26b6bfc))
+- **auth:** refuse the API keys and MCP tokens of a banned user
+  ([b225674](https://github.com/orochibraru/homerun/commit/b22567486fde6c221c998dfe7a371dff7e66b798))
+- **uptime:** confirm a down probe over three checks and retry probes on a fresh
+  connection
+  ([5bcd8c3](https://github.com/orochibraru/homerun/commit/5bcd8c31301b698f846bf8cd14ee5b347adf67c3))
+
+### Documentation
+
+- README tagline, five roles, release channels on self-update, CI deploys,
+  machine terminals and a License section
+  ([2f1003f](https://github.com/orochibraru/homerun/commit/2f1003f457694cae22373447f837717966eb02c4))
+- rewrite the README for multi-node, multi-user Homerun and document cron jobs
+  on remote tcp:// and ssh:// hosts
+  ([fe8e43d](https://github.com/orochibraru/homerun/commit/fe8e43d03be24aeaf30052d05c7d97f3ca99b619))
+- REST API and CLI reference for the new routes and commands, and clear the
+  finished TODO items
+  ([1e4c110](https://github.com/orochibraru/homerun/commit/1e4c11012449a576f2869e2346072f8df0284a75))
+
 ## [1.0.60](https://github.com/orochibraru/homerun/compare/v1.0.59...v1.0.60) (2026-10-14)
 
 ### Features
