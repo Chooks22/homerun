@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.63](https://github.com/orochibraru/homerun/compare/v1.0.62...v1.0.63) (2026-10-15)
+
+### Features
+
+- **services:** scale to zero, stop idle services and wake them on the next
+  request
+  ([64009dc](https://github.com/orochibraru/homerun/commit/64009dccf7258e266d98b0077ebf11d7a5d7239e))
+
 ## [1.0.62](https://github.com/orochibraru/homerun/compare/v1.0.61...v1.0.62) (2026-10-15)
 
 ### Features
