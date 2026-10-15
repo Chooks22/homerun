@@ -13771,6 +13771,8 @@ export interface operations {
 						blockedPaths: string[];
 						buildCacheBuiltin: boolean;
 						buildCacheRegistryId: string | null;
+						/** @description envVars keys also passed to a git build as build args or build env. */
+						buildEnvKeys: string[];
 						buildServerRemoteHostId: string | null;
 						/** @enum {string} */
 						buildSource: "image" | "git";
@@ -14025,6 +14027,8 @@ export interface operations {
 							/** @description Use the built-in registry as a git build's layer cache. */
 							buildCacheBuiltin?: boolean;
 							buildCacheRegistryId?: string | null;
+							/** @description envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks. */
+							buildEnvKeys?: string[];
 							buildServerRemoteHostId?: string | null;
 							/**
 							 * @default image
@@ -14211,6 +14215,8 @@ export interface operations {
 							/** @description Use the built-in registry as a git build's layer cache. */
 							buildCacheBuiltin?: boolean;
 							buildCacheRegistryId?: string | null;
+							/** @description envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks. */
+							buildEnvKeys?: string[];
 							buildServerRemoteHostId?: string | null;
 							/** @enum {string} */
 							buildSource?: "image" | "git";
@@ -14384,6 +14390,8 @@ export interface operations {
 						blockedPaths: string[];
 						buildCacheBuiltin: boolean;
 						buildCacheRegistryId: string | null;
+						/** @description envVars keys also passed to a git build as build args or build env. */
+						buildEnvKeys: string[];
 						buildServerRemoteHostId: string | null;
 						/** @enum {string} */
 						buildSource: "image" | "git";
@@ -14684,6 +14692,8 @@ export interface operations {
 						blockedPaths: string[];
 						buildCacheBuiltin: boolean;
 						buildCacheRegistryId: string | null;
+						/** @description envVars keys also passed to a git build as build args or build env. */
+						buildEnvKeys: string[];
 						buildServerRemoteHostId: string | null;
 						/** @enum {string} */
 						buildSource: "image" | "git";
@@ -15024,6 +15034,8 @@ export interface operations {
 					/** @description Use the built-in registry as a git build's layer cache. */
 					buildCacheBuiltin?: boolean;
 					buildCacheRegistryId?: string | null;
+					/** @description envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks. */
+					buildEnvKeys?: string[];
 					buildServerRemoteHostId?: string | null;
 					/** @enum {string} */
 					buildSource?: "image" | "git";
@@ -15195,6 +15207,8 @@ export interface operations {
 						blockedPaths: string[];
 						buildCacheBuiltin: boolean;
 						buildCacheRegistryId: string | null;
+						/** @description envVars keys also passed to a git build as build args or build env. */
+						buildEnvKeys: string[];
 						buildServerRemoteHostId: string | null;
 						/** @enum {string} */
 						buildSource: "image" | "git";
@@ -15690,6 +15704,7 @@ export interface operations {
 							restartPolicy: string;
 						};
 						env: {
+							buildKeys: string[];
 							files: string[];
 							secretKeys: string[];
 							vars: {

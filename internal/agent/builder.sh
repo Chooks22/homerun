@@ -73,6 +73,10 @@ case "$BUILD_METHOD" in
       exit 1
     fi
     set -- build --progress plain -f "$BUILD_FILE" -t "$IMAGE_TAG" --load
+    for name in ${BUILD_ARGS:-}; do
+      eval "value=\${HOMERUN_ARG_$name}"
+      set -- "$@" --build-arg "$name=$value"
+    done
     if [ -n "${BUILD_TARGET:-}" ]; then
       set -- "$@" --target "$BUILD_TARGET"
     fi
@@ -102,6 +106,10 @@ case "$BUILD_METHOD" in
       exit 1
     fi
     set -- bake --progress plain -f "$BUILD_FILE" --set "$targets.tags=$IMAGE_TAG" --set "$targets.output=type=docker"
+    for name in ${BUILD_ARGS:-}; do
+      eval "value=\${HOMERUN_ARG_$name}"
+      set -- "$@" --set "$targets.args.$name=$value"
+    done
     if [ -n "${NO_CACHE:-}" ]; then
       set -- "$@" --no-cache
     fi
@@ -117,6 +125,10 @@ case "$BUILD_METHOD" in
   nixpacks)
     fetch "nixpacks-$NIXPACKS_VERSION" "https://github.com/railwayapp/nixpacks/releases/download/v$NIXPACKS_VERSION/nixpacks-v$NIXPACKS_VERSION-$nix.tar.gz" nixpacks "$nix_archive" "$nix_binary"
     set -- build "$BUILD_DIR" --name "$IMAGE_TAG"
+    for name in ${BUILD_ARGS:-}; do
+      eval "value=\${HOMERUN_ARG_$name}"
+      set -- "$@" --env "$name=$value"
+    done
     if [ -n "${NO_CACHE:-}" ]; then
       set -- "$@" --no-cache
     fi
@@ -127,8 +139,16 @@ case "$BUILD_METHOD" in
     ;;
   railpack)
     fetch "railpack-$RAILPACK_VERSION" "https://github.com/railwayapp/railpack/releases/download/v$RAILPACK_VERSION/railpack-v$RAILPACK_VERSION-$rail.tar.gz" railpack "$rail_archive" "$rail_binary"
-    "/tools/railpack-$RAILPACK_VERSION" prepare "$BUILD_DIR" --plan-out /tmp/railpack-plan.json --info-out /tmp/railpack-info.json
+    set -- prepare "$BUILD_DIR" --plan-out /tmp/railpack-plan.json --info-out /tmp/railpack-info.json
+    for name in ${BUILD_ARGS:-}; do
+      eval "value=\${HOMERUN_ARG_$name}"
+      set -- "$@" --env "$name=$value"
+    done
+    "/tools/railpack-$RAILPACK_VERSION" "$@"
     set -- build --progress plain --build-arg "BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend:v$RAILPACK_VERSION" -f /tmp/railpack-plan.json -t "$IMAGE_TAG" --load
+    for name in ${BUILD_ARGS:-}; do
+      set -- "$@" --secret "id=$name,env=HOMERUN_ARG_$name"
+    done
     if [ -n "${NO_CACHE:-}" ]; then
       set -- "$@" --no-cache
     fi
@@ -144,6 +164,10 @@ case "$BUILD_METHOD" in
   heroku|paketo)
     fetch "pack-$PACK_VERSION" "https://github.com/buildpacks/pack/releases/download/v$PACK_VERSION/pack-v$PACK_VERSION-$pk.tgz" pack "$pk_archive" "$pk_binary"
     set -- build "$IMAGE_TAG" --builder "$PACK_BUILDER" --path "$BUILD_DIR" --trust-builder --pull-policy if-not-present --network bridge
+    for name in ${BUILD_ARGS:-}; do
+      eval "value=\${HOMERUN_ARG_$name}"
+      set -- "$@" --env "$name=$value"
+    done
     if [ -n "${NO_CACHE:-}" ]; then
       set -- "$@" --clear-cache
     fi

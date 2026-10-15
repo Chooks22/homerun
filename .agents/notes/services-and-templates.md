@@ -1287,6 +1287,21 @@ since `--set a.b.tags` splits on the first dot). A failed build throws
 the last 40 output lines, so the deployment error says why, not "see the log"
 (the agent returns no log at all).
 
+**Build-time variables** are env vars whose names are in `service.buildEnvKeys`
+(the hammer toggle on the Variables tab, git services only; `buildEnvKeys` in
+the API/Terraform). `deployWorkerSpec`'s `buildSpec` sends their values as
+`build.buildArgs`, the worker forwards them as `BuildInput.buildArgs` (same
+field to an agent), and `BuilderEnv` turns them into `BUILD_ARGS=<sorted names>`
+plus one `HOMERUN_ARG_<name>` variable each. The prefix is load-bearing: a build
+var named `PATH` or `BUILD_DIR` would otherwise clobber the script's own. Names
+must match `BuildArgNamePattern` (`BUILD_ARG_NAME_PATTERN` on the TS side, a
+shell identifier) since the script reads each value with
+`eval "value=\${HOMERUN_ARG_$name}"`; values never touch `eval`. Per method:
+`--build-arg` (dockerfile), `--set <target>.args.NAME` (bake), `--env`
+(nixpacks, pack), and for railpack `--env` on `prepare` plus
+`--secret id=NAME,env=HOMERUN_ARG_NAME` on the buildx build, since Railpack
+plans its env as BuildKit secrets. Env files don't feed build args.
+
 None of the three tools ships an official CLI image, so the script downloads the
 pinned musl release binary from GitHub once per version into `/tools` and runs
 it. The binary runs with the Docker socket mounted (root-equivalent), so

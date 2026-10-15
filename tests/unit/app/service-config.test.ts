@@ -35,6 +35,7 @@ function row(overrides: Partial<Service> = {}): Service {
 		envFiles: [],
 		envVars: { POSTGRES_DB: "app" },
 		secretEnvKeys: [],
+		buildEnvKeys: [],
 		gitBakeFile: null,
 		gitBuildTarget: null,
 		gitBuildContext: null,

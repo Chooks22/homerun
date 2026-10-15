@@ -21,7 +21,9 @@
 <div class="space-y-6">
 <section class="rounded-md panel">
   <PanelHeader
-    description="Changes take effect on the next deploy : hit Redeploy on Overview after saving. The lock marks a value secret: it's hidden here and always redacted for AI agents, whatever its name."
+    description={svc.buildSource === "git"
+      ? "Changes take effect on the next deploy : hit Redeploy on Overview after saving. The lock marks a value secret: it's hidden here and always redacted for AI agents, whatever its name. The hammer marks it build-time: it's also passed to the build, as a build arg for a Dockerfile (declare it with ARG) or Bake, and as build env for Nixpacks, Railpack and buildpacks."
+      : "Changes take effect on the next deploy : hit Redeploy on Overview after saving. The lock marks a value secret: it's hidden here and always redacted for AI agents, whatever its name."}
     icon={SlidersHorizontal}
     title="Environment variables"
   >
@@ -47,7 +49,11 @@
       success: "Saved.",
     })}
   >
-    <EnvVarsEditor envVars={svc.envVars ?? {}} secretEnvKeys={svc.secretEnvKeys} />
+    <EnvVarsEditor
+      buildEnvKeys={svc.buildSource === "git" ? svc.buildEnvKeys : undefined}
+      envVars={svc.envVars ?? {}}
+      secretEnvKeys={svc.secretEnvKeys}
+    />
   </form>
 </section>
 

@@ -88,6 +88,32 @@ as `secretEnvKeys` (`secret_env_keys` in Terraform), next to `envVars`.
 
 ![Two variables marked secret: their values are hidden behind a fixed mask and their locks are closed](images/env-vars-secret.webp)
 
+## Build-time variables
+
+A service built from a git repo gets a hammer icon next to each row. It marks
+that variable build-time: besides being set in the running container, it's
+handed to the build on every deploy:
+
+- **Dockerfile**: as a build argument (`--build-arg NAME=value`). The Dockerfile
+  only sees it where it declares it, `ARG NAME` (then `ENV NAME=$NAME` if a
+  `RUN` step's tools read it from the environment, like `next build` reading
+  `NEXT_PUBLIC_*`).
+- **Docker Bake**: as a build argument of the built target
+  (`--set <target>.args.NAME`), declared with `ARG` in its Dockerfile the same
+  way.
+- **Nixpacks** and **buildpacks**: as build environment (`--env NAME=value`).
+- **Railpack**: as build environment, mounted into its build steps as BuildKit
+  secrets.
+
+A build argument ends up in the image's history (`docker history`), so keep real
+secrets out of a Dockerfile's `ARG`s: use them for public config baked into a
+frontend bundle (`NEXT_PUBLIC_API_URL`, `VITE_*`), a version, a feature switch.
+A build-time variable's name must be a plain identifier (letters, digits and
+underscores, not starting with a digit), and only the service's own variables
+count, not its [env files](#env-files). Previews and environments start with the
+parent's marks. The REST API, the CLI and Terraform read and set them as
+`buildEnvKeys` (`build_env_keys` in Terraform), next to `envVars`.
+
 ## Env files
 
 Under the variables, **Env files** lists `.env` files on this host, one absolute

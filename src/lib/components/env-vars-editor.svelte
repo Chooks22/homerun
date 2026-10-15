@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Lock, LockOpen, Plus, Trash2 } from "@lucide/svelte";
+	import { Hammer, Lock, LockOpen, Plus, Trash2 } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import EnvPasteButton from "#lib/components/env-paste-button.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -16,18 +16,20 @@
 	import { SECRET_MASK } from "#lib/formatting.js";
 
 	const {
+		buildEnvKeys,
 		envVars,
 		secretEnvKeys,
 	}: {
+		buildEnvKeys?: string[];
 		envVars: Record<string, string>;
 		secretEnvKeys: string[];
 	} = $props();
 
 	let rows = $state<EnvEditorRow[]>(
-		untrack(() => envEditorRows(envVars, secretEnvKeys)),
+		untrack(() => envEditorRows(envVars, secretEnvKeys, buildEnvKeys)),
 	);
 	$effect(() => {
-		rows = envEditorRows(envVars, secretEnvKeys);
+		rows = envEditorRows(envVars, secretEnvKeys, buildEnvKeys);
 	});
 
 	function addRow() {
@@ -69,6 +71,26 @@
     <input name="envKeep" type="hidden" value={envRowKeep(row)} />
     {#if row.secret}
       <input name="envSecret" type="hidden" value={row.key} />
+    {/if}
+    {#if buildEnvKeys && row.build}
+      <input name="envBuild" type="hidden" value={row.key} />
+    {/if}
+    {#if buildEnvKeys}
+      <Button
+        aria-label={row.build ? "Unmark as build-time" : "Mark as build-time"}
+        aria-pressed={row.build}
+        class="shrink-0 {row.build ? 'text-accent' : 'text-text-subtle'}"
+        onclick={() => {
+          row.build = !row.build;
+        }}
+        size="icon-sm"
+        title={row.build
+          ? "Build-time: also passed to the build as a build arg"
+          : "Mark as build-time"}
+        variant="ghost"
+      >
+        <Hammer class="size-4" />
+      </Button>
     {/if}
     <Button
       aria-label={row.secret ? "Unmark as secret" : "Mark as secret"}

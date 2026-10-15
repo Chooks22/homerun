@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { BAKE_TARGET_PATTERN, BUILD_METHODS } from "#lib/build-methods.js";
+import {
+	BAKE_TARGET_PATTERN,
+	BUILD_ARG_NAME_PATTERN,
+	BUILD_METHODS,
+} from "#lib/build-methods.js";
 import { AUTH_PATHS_MODES, pathPatternsProblem } from "#lib/path-patterns.js";
 import { PERMISSION_AREAS, PERMISSION_LEVELS } from "#lib/permissions.js";
 import { branchPatternProblem } from "#lib/preview-branches.js";
@@ -7,6 +11,15 @@ import { environmentNameField } from "#lib/server/validation/environment-name.js
 import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
 import { UPDATE_CHANNELS } from "#lib/update-channel.js";
+
+const buildEnvKeysField = z.array(
+	z
+		.string()
+		.regex(
+			BUILD_ARG_NAME_PATTERN,
+			"A build-time variable's name uses letters, digits and underscores, not starting with a digit.",
+		),
+);
 
 const branchPatterns = z
 	.array(z.string().trim().min(1))
@@ -99,6 +112,11 @@ const serviceSettingsFields = {
 		.optional()
 		.describe("Use the built-in registry as a git build's layer cache."),
 	buildCacheRegistryId: z.string().nullable().optional(),
+	buildEnvKeys: buildEnvKeysField
+		.optional()
+		.describe(
+			"envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks.",
+		),
 	buildServerRemoteHostId: z.string().nullable().optional(),
 	category: z.string().nullable().optional(),
 	channelBranch: z.string().trim().nullable().optional(),
@@ -342,6 +360,11 @@ const baseCreateServiceFields = {
 	entrypoint: runtimeFields.entrypoint.optional(),
 	envFiles: runtimeFields.envFiles.default([]),
 	envVars: z.record(z.string(), z.string()).default({}),
+	buildEnvKeys: buildEnvKeysField
+		.optional()
+		.describe(
+			"envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks.",
+		),
 	gitBakeFile: z.string().optional(),
 	gitBuildTarget: z.string().regex(BAKE_TARGET_PATTERN).optional(),
 	gitBuildContext: z.string().optional(),

@@ -121,7 +121,12 @@ var (
 	nullableString         = object{"type": []string{"string", "null"}}
 	buildInputSchema       = object{
 		"properties": object{
-			"bakeFile":     nullableString,
+			"bakeFile": nullableString,
+			"buildArgs": object{
+				"additionalProperties": object{"type": "string"},
+				"propertyNames":        object{"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+				"type":                 []string{"object", "null"},
+			},
 			"buildTarget":  object{"pattern": "^[A-Za-z0-9_][A-Za-z0-9_-]*$", "type": []string{"string", "null"}},
 			"buildContext": nullableString,
 			"buildMethod":  object{"enum": append(toAny(Tools.BuildMethods), nil)},

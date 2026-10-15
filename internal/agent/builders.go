@@ -52,6 +52,15 @@ var bakeTargetPattern = regexp.MustCompile(Tools.BakeTargetPattern)
 // platformPattern is an os/arch pair, which reaches the shell as a variable.
 var platformPattern = regexp.MustCompile(`^[a-z0-9]+/[a-z0-9]+$`)
 
+// BuildArgNamePattern is a build-time variable's name: a shell identifier, so
+// it can name an environment variable inside the builder container.
+var BuildArgNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// buildArgEnvPrefix namespaces build-time variables inside the builder
+// container, so one named like the script's own (PATH, BUILD_DIR) can't
+// clobber it.
+const buildArgEnvPrefix = "HOMERUN_ARG_"
+
 // MustParseTools parses builder-tools.json, panicking on invalid data since a
 // broken embed should stop the agent at startup, not at build time.
 func MustParseTools(raw []byte) BuilderTools {
@@ -77,7 +86,11 @@ type CacheRegistry struct {
 
 // BuilderInput is what selects and configures a build.
 type BuilderInput struct {
-	BakeFile       string
+	BakeFile string
+	// BuildArgs are the service's build-time variables, handed to whichever
+	// tool builds as build args (Dockerfile, bake) or build env (Nixpacks,
+	// Railpack, buildpacks).
+	BuildArgs      map[string]string
 	BuildTarget    string
 	BuildContext   string
 	CacheRegistry  *CacheRegistry
@@ -175,6 +188,22 @@ func BuilderEnv(input BuilderInput) ([]string, error) {
 		env["BINFMT_IMAGE"] = Tools.BinfmtImage
 		env["BUILD_PLATFORM"] = input.Platform
 	}
+	if len(input.BuildArgs) > 0 {
+		names := make([]string, 0, len(input.BuildArgs))
+		for name := range input.BuildArgs {
+			if !BuildArgNamePattern.MatchString(name) {
+				return nil, fmt.Errorf(
+					"The build variable %s isn't valid, use letters, digits and underscores, not starting with a digit.", name,
+				)
+			}
+			names = append(names, name)
+		}
+		slices.Sort(names)
+		env["BUILD_ARGS"] = strings.Join(names, " ")
+		for _, name := range names {
+			env[buildArgEnvPrefix+name] = input.BuildArgs[name]
+		}
+	}
 	switch input.Method {
 	case "dockerfile":
 		file, err := builderFilePath(input.RepoDir, buildDir, input.DockerfilePath, "Dockerfile")
@@ -213,16 +242,27 @@ var envOrder = []string{
 	"BUILD_DIR", "BUILD_METHOD", "CACHE_PASSWORD", "CACHE_REF", "CACHE_REGISTRY",
 	"CACHE_USERNAME", "IMAGE_TAG", "NIXPACKS_VERSION", "PACK_VERSION",
 	"PACK_VOLUME_KEY", "RAILPACK_VERSION", "BUILD_FILE", "BUILD_TARGET", "PACK_BUILDER", "NO_CACHE",
-	"BINFMT_IMAGE", "BUILD_PLATFORM",
+	"BINFMT_IMAGE", "BUILD_PLATFORM", "BUILD_ARGS",
 }
 
-// orderedEnv renders env as KEY=value strings in envOrder.
+// orderedEnv renders env as KEY=value strings in envOrder, followed by the
+// build-time variables sorted by name.
 func orderedEnv(env map[string]string) []string {
 	ordered := make([]string, 0, len(env))
 	for _, key := range envOrder {
 		if value, ok := env[key]; ok {
 			ordered = append(ordered, key+"="+value)
 		}
+	}
+	args := []string{}
+	for key := range env {
+		if strings.HasPrefix(key, buildArgEnvPrefix) {
+			args = append(args, key)
+		}
+	}
+	slices.Sort(args)
+	for _, key := range args {
+		ordered = append(ordered, key+"="+env[key])
 	}
 	return ordered
 }

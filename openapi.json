@@ -22174,6 +22174,13 @@
 											"buildCacheRegistryId": {
 												"type": ["string", "null"]
 											},
+											"buildEnvKeys": {
+												"description": "envVars keys also passed to a git build as build args or build env.",
+												"items": {
+													"type": "string"
+												},
+												"type": "array"
+											},
 											"buildServerRemoteHostId": {
 												"type": ["string", "null"]
 											},
@@ -22861,6 +22868,7 @@
 											"envVars",
 											"environmentName",
 											"secretEnvKeys",
+											"buildEnvKeys",
 											"autoDeployOnPush",
 											"gitBakeFile",
 											"primaryDomain",
@@ -23077,6 +23085,14 @@
 											},
 											"buildCacheRegistryId": {
 												"type": ["string", "null"]
+											},
+											"buildEnvKeys": {
+												"description": "envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks.",
+												"items": {
+													"pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+													"type": "string"
+												},
+												"type": "array"
 											},
 											"buildServerRemoteHostId": {
 												"type": ["string", "null"]
@@ -23698,6 +23714,14 @@
 											"buildCacheRegistryId": {
 												"type": ["string", "null"]
 											},
+											"buildEnvKeys": {
+												"description": "envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks.",
+												"items": {
+													"pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+													"type": "string"
+												},
+												"type": "array"
+											},
 											"buildServerRemoteHostId": {
 												"type": ["string", "null"]
 											},
@@ -24309,6 +24333,13 @@
 										"buildCacheRegistryId": {
 											"type": ["string", "null"]
 										},
+										"buildEnvKeys": {
+											"description": "envVars keys also passed to a git build as build args or build env.",
+											"items": {
+												"type": "string"
+											},
+											"type": "array"
+										},
 										"buildServerRemoteHostId": {
 											"type": ["string", "null"]
 										},
@@ -24991,6 +25022,7 @@
 										"envVars",
 										"environmentName",
 										"secretEnvKeys",
+										"buildEnvKeys",
 										"autoDeployOnPush",
 										"gitBakeFile",
 										"primaryDomain",
@@ -25404,6 +25436,13 @@
 										"buildCacheRegistryId": {
 											"type": ["string", "null"]
 										},
+										"buildEnvKeys": {
+											"description": "envVars keys also passed to a git build as build args or build env.",
+											"items": {
+												"type": "string"
+											},
+											"type": "array"
+										},
 										"buildServerRemoteHostId": {
 											"type": ["string", "null"]
 										},
@@ -26086,6 +26125,7 @@
 										"envVars",
 										"environmentName",
 										"secretEnvKeys",
+										"buildEnvKeys",
 										"autoDeployOnPush",
 										"gitBakeFile",
 										"primaryDomain",
@@ -26323,6 +26363,14 @@
 									},
 									"buildCacheRegistryId": {
 										"type": ["string", "null"]
+									},
+									"buildEnvKeys": {
+										"description": "envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks.",
+										"items": {
+											"pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+											"type": "string"
+										},
+										"type": "array"
 									},
 									"buildServerRemoteHostId": {
 										"type": ["string", "null"]
@@ -26922,6 +26970,13 @@
 										"buildCacheRegistryId": {
 											"type": ["string", "null"]
 										},
+										"buildEnvKeys": {
+											"description": "envVars keys also passed to a git build as build args or build env.",
+											"items": {
+												"type": "string"
+											},
+											"type": "array"
+										},
 										"buildServerRemoteHostId": {
 											"type": ["string", "null"]
 										},
@@ -27604,6 +27659,7 @@
 										"envVars",
 										"environmentName",
 										"secretEnvKeys",
+										"buildEnvKeys",
 										"autoDeployOnPush",
 										"gitBakeFile",
 										"primaryDomain",
@@ -28284,6 +28340,12 @@
 										"env": {
 											"additionalProperties": false,
 											"properties": {
+												"buildKeys": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
 												"files": {
 													"items": {
 														"type": "string"
@@ -28306,7 +28368,7 @@
 													"type": "object"
 												}
 											},
-											"required": ["files", "secretKeys", "vars"],
+											"required": ["buildKeys", "files", "secretKeys", "vars"],
 											"type": "object"
 										},
 										"id": {

@@ -226,6 +226,11 @@ async function buildSpec(
 		...built,
 		build: {
 			authHint: cloneFailureHint(plan.git.gitUrl, "Authentication failed"),
+			buildArgs: Object.fromEntries(
+				Object.entries(svc.envVars).filter(([key]) =>
+					svc.buildEnvKeys.includes(key),
+				),
+			),
 			commit: commit ?? ctx.manifestCommit ?? "",
 			credential: await resolveGitCredential(plan.git.gitUrl, ctx.userId),
 			git: plan.git,

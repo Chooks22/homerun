@@ -87,6 +87,7 @@ const secret = { sensitive: true, writeOnly: true };
 const replace = { forceNew: true, required: true };
 const off = { default: false };
 const on = { default: true };
+const templated = { description: "Required unless template_id is set." };
 
 const publishedPortFields = [
 	attr("containerPort", "int", required),
@@ -95,9 +96,7 @@ const publishedPortFields = [
 ];
 
 const serviceAttributes: IacAttribute[] = [
-	attr("name", "string", {
-		description: "Required unless template_id is set.",
-	}),
+	attr("name", "string", templated),
 	attr("slug", "string", {
 		description:
 			"Subdomain and container name, unique. Required unless template_id is set.",
@@ -150,14 +149,13 @@ const serviceAttributes: IacAttribute[] = [
 	attr("buildServerRemoteHostId", "string"),
 	attr("envVars", "stringMap", { sensitive: true }),
 	attr("secretEnvKeys", "strings"),
+	attr("buildEnvKeys", "strings"),
 	attr("envFiles", "strings"),
 	attr("cpuLimit", "string"),
 	attr("memoryLimitMb", "int"),
 	attr("replicas", "int", { default: 1 }),
 	attr("restartPolicy", "string", { default: "unless-stopped" }),
-	attr("containerPort", "int", {
-		description: "Required unless template_id is set.",
-	}),
+	attr("containerPort", "int", templated),
 	attr("portProtocol", "string", { default: "tcp" }),
 	attr("networkMode", "string", { default: "bridge" }),
 	attr("dnsResolvable", "bool", {

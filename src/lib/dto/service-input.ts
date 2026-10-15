@@ -24,6 +24,7 @@ export interface NewServiceInput {
 	stripPathDomains?: string[];
 	envVars: Record<string, string>;
 	secretEnvKeys?: string[];
+	buildEnvKeys?: string[];
 	gitBakeFile?: string | null;
 	gitBuildTarget?: string | null;
 	gitBuildContext?: string | null;
@@ -103,6 +104,7 @@ export type ServiceUpdateInput = Partial<
 		| "staleDnsHosts"
 		| "envVars"
 		| "secretEnvKeys"
+		| "buildEnvKeys"
 		| "errorsDismissedAt"
 		| "errorsDismissedByDeploymentId"
 		| "gitBakeFile"
@@ -200,3 +202,15 @@ export const NEW_SERVICE_VERSION_COLUMNS: Pick<
 	updateCheckEnabled: false,
 	updateTrialEnabled: true,
 };
+
+/** How a new git service is built : the build method, its per-method file, target and context settings, and which env vars reach the build. */
+export function buildMethodColumns(input: NewServiceInput) {
+	return {
+		buildEnvKeys: input.buildEnvKeys ?? [],
+		gitBakeFile: input.gitBakeFile ?? null,
+		gitBuildTarget: input.gitBuildTarget ?? null,
+		gitBuildContext: input.gitBuildContext ?? null,
+		gitBuildMethod: input.gitBuildMethod ?? "dockerfile",
+		gitDockerfilePath: input.gitDockerfilePath ?? null,
+	} satisfies Partial<Service>;
+}

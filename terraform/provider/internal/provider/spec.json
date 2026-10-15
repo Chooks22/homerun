@@ -421,6 +421,11 @@
 				},
 				{
 					"kind": "strings",
+					"name": "buildEnvKeys",
+					"tf": "build_env_keys"
+				},
+				{
+					"kind": "strings",
 					"name": "envFiles",
 					"tf": "env_files"
 				},

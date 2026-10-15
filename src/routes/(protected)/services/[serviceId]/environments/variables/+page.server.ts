@@ -4,6 +4,7 @@ import { HOST_ACCESS_MESSAGE, hostAccessChanged } from "#lib/host-access.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import {
+	parseBuildEnvKeys,
 	parseEnvVars,
 	parseSecretEnvKeys,
 	updateEnvFilesSchema,
@@ -29,8 +30,16 @@ export const actions = {
 		const formData = await request.formData();
 		const envVars = parseEnvVars(formData, svc.envVars);
 		const secretEnvKeys = parseSecretEnvKeys(formData, envVars);
+		let buildEnvKeys = svc.buildEnvKeys.filter((key) => key in envVars);
+		if (svc.buildSource === "git") {
+			try {
+				buildEnvKeys = parseBuildEnvKeys(formData, envVars);
+			} catch (error) {
+				return fail(400, { error: (error as Error).message });
+			}
+		}
 
-		await svc.update({ envVars, secretEnvKeys });
+		await svc.update({ buildEnvKeys, envVars, secretEnvKeys });
 		logger.info(`Env vars updated: service=${svc.id} user=${locals.user.id}`);
 		return { success: true };
 	},

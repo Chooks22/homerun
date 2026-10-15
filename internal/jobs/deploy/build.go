@@ -88,6 +88,7 @@ func (r *run) buildInput(tag string) agent.BuildInput {
 	build := r.spec.Image.Build
 	input := agent.BuildInput{
 		BakeFile:       build.Git.BakeFile,
+		BuildArgs:      build.BuildArgs,
 		BuildTarget:    build.Git.BuildTarget,
 		BuildContext:   build.Git.BuildContext,
 		BuildMethod:    build.Git.BuildMethod,

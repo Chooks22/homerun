@@ -154,6 +154,7 @@ export function mirroredSettings(parent: ServiceDTO) {
 		blockedPaths: parent.blockedPaths,
 		buildCacheRegistryId: parent.buildCacheRegistryId,
 		buildCacheBuiltin: parent.buildCacheBuiltin,
+		buildEnvKeys: parent.buildEnvKeys,
 		buildServerRemoteHostId: parent.buildServerRemoteHostId,
 		category: parent.category,
 		containerPort: parent.containerPort,

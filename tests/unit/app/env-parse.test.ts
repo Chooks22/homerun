@@ -107,10 +107,28 @@ describe("the env editor's rows", () => {
 
 	test("a secret starts with no value, keeping the stored one under its name", () => {
 		expect(envEditorRows(envVars, ["API_TOKEN"])).toEqual([
-			{ keep: "API_TOKEN", key: "API_TOKEN", secret: true, value: "" },
-			{ keep: null, key: "TZ", secret: false, value: "UTC" },
+			{
+				build: false,
+				keep: "API_TOKEN",
+				key: "API_TOKEN",
+				secret: true,
+				value: "",
+			},
+			{ build: false, keep: null, key: "TZ", secret: false, value: "UTC" },
 		]);
 		expect(envEditorRows({}, [])).toEqual([plainEnvRow()]);
+	});
+
+	test("a var named in the build keys is flagged build-time, secret or not", () => {
+		expect(
+			envEditorRows(envVars, ["API_TOKEN"], ["API_TOKEN", "TZ"]).map(
+				(row) => row.build,
+			),
+		).toEqual([true, true]);
+		expect(envEditorRows(envVars, [], ["TZ"]).map((row) => row.build)).toEqual([
+			false,
+			true,
+		]);
 	});
 
 	test("a row only keeps the stored value while it has no new one", () => {
@@ -130,6 +148,7 @@ describe("the env editor's rows", () => {
 		}
 		toggleEnvRowSecret(secret, envVars);
 		expect(secret).toEqual({
+			build: false,
 			keep: null,
 			key: "API_TOKEN",
 			secret: false,
@@ -137,6 +156,7 @@ describe("the env editor's rows", () => {
 		});
 		toggleEnvRowSecret(plain, envVars);
 		expect(plain).toEqual({
+			build: false,
 			keep: null,
 			key: "TZ",
 			secret: true,

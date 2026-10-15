@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { BAKE_TARGET_PATTERN, BUILD_METHODS } from "#lib/build-methods.js";
+import {
+	BAKE_TARGET_PATTERN,
+	BUILD_ARG_NAME_PATTERN,
+	BUILD_METHODS,
+} from "#lib/build-methods.js";
 import {
 	type PublishedPort,
 	publishedPortsProblem,
@@ -250,6 +254,29 @@ export function parseSecretEnvKeys(
 	return [...new Set(formData.getAll("envSecret").map(String))].filter(
 		(key) => key in envVars,
 	);
+}
+
+/**
+ * The env var names an env editor marked build-time (its `envBuild` fields),
+ * deduplicated and limited to the vars it saved.
+ *
+ * @throws When a marked name isn't a shell identifier, which a build arg's
+ *   name has to be.
+ */
+export function parseBuildEnvKeys(
+	formData: FormData,
+	envVars: Record<string, string>,
+): string[] {
+	const keys = [...new Set(formData.getAll("envBuild").map(String))].filter(
+		(key) => key in envVars,
+	);
+	const invalid = keys.find((key) => !BUILD_ARG_NAME_PATTERN.test(key));
+	if (invalid) {
+		throw new Error(
+			`${invalid} can't be a build-time variable: use letters, digits and underscores, not starting with a digit.`,
+		);
+	}
+	return keys;
 }
 
 /** Splits a textarea into its trimmed, non-blank lines. */

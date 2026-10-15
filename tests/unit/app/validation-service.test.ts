@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	createServiceSchema,
+	parseBuildEnvKeys,
 	parseEnvVars,
 	parseSecretEnvKeys,
 	updateRuntimeSchema,
@@ -91,5 +92,25 @@ describe("parseEnvVars", () => {
 			TZ: "UTC",
 		});
 		expect(parseSecretEnvKeys(form, envVars)).toEqual(["API_TOKEN"]);
+	});
+});
+
+describe("parseBuildEnvKeys", () => {
+	test("keeps the marked names the editor saved, once each", () => {
+		const form = new FormData();
+		for (const key of ["NEXT_PUBLIC_URL", "NEXT_PUBLIC_URL", "GONE"]) {
+			form.append("envBuild", key);
+		}
+		expect(
+			parseBuildEnvKeys(form, { NEXT_PUBLIC_URL: "x", TZ: "UTC" }),
+		).toEqual(["NEXT_PUBLIC_URL"]);
+	});
+
+	test("refuses a name that can't be a build arg", () => {
+		const form = new FormData();
+		form.append("envBuild", "my-var");
+		expect(() => parseBuildEnvKeys(form, { "my-var": "x" })).toThrow(
+			"my-var can't be a build-time variable",
+		);
 	});
 });

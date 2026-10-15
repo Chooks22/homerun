@@ -1214,6 +1214,10 @@ export const service = pgTable(
 			.default(sql`'{}'::text[]`)
 			.notNull(),
 		envVars: jsonb("env_vars").$type<Record<string, string>>().default({}),
+		buildEnvKeys: jsonb("build_env_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
 		// Bake file relative to gitBuildContext, "docker-bake.hcl" when unset.
 		gitBakeFile: text("git_bake_file"),
 		// Bake target or group resolving to one target, "default" when unset.

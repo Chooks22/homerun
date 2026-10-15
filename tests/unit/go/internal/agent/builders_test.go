@@ -259,7 +259,7 @@ func TestBuilderEnvNoCache(t *testing.T) {
 // runBakeScript runs the builder script's bake method against a fake docker
 // CLI that answers `bake --print` with the given testdata fixture and echoes
 // every other invocation, returning the combined output and the exit error.
-func runBakeScript(t *testing.T, fixture string) (string, error) {
+func runBakeScript(t *testing.T, fixture string, extraEnv ...string) (string, error) {
 	t.Helper()
 	printed, err := filepath.Abs(filepath.Join("testdata", fixture))
 	if err != nil {
@@ -285,6 +285,7 @@ func runBakeScript(t *testing.T, fixture string) (string, error) {
 		"IMAGE_TAG=svc:abc",
 		"CACHE_REF=",
 	)
+	cmd.Env = append(cmd.Env, extraEnv...)
 	output, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(output)), err
 }
@@ -304,5 +305,47 @@ func TestBakeRefusesAGroupOfImages(t *testing.T) {
 	output, err := runBakeScript(t, "bake-print-group.json")
 	if err == nil || !strings.Contains(output, "resolves to 2 targets (api web)") {
 		t.Errorf("a group building two images must be refused, got %v: %s", err, output)
+	}
+}
+
+func TestBuilderEnvBuildArgs(t *testing.T) {
+	input := agent.BuilderInput{
+		BuildArgs: map[string]string{"NEXT_PUBLIC_URL": "https://example.com", "API_KEY": "a b"},
+		Method:    "dockerfile",
+		RepoDir:   "/workspace/repo",
+		Tag:       "app:1",
+	}
+	env, err := agent.BuilderEnv(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tail := env[len(env)-3:]
+	want := []string{"BUILD_ARGS=API_KEY NEXT_PUBLIC_URL", "HOMERUN_ARG_API_KEY=a b", "HOMERUN_ARG_NEXT_PUBLIC_URL=https://example.com"}
+	if !slices.Equal(tail, want) {
+		t.Errorf("want %v at the end, got %v", want, env)
+	}
+	input.BuildArgs = map[string]string{"PATH": "/nope"}
+	env, err = agent.BuilderEnv(input)
+	if err != nil || slices.Contains(env, "PATH=/nope") {
+		t.Errorf("a build variable must not reach the script under its own name, got %v %v", env, err)
+	}
+	input.BuildArgs = map[string]string{"A;rm -rf /": "x"}
+	if _, err := agent.BuilderEnv(input); err == nil {
+		t.Error("a build variable name that isn't a shell identifier is refused")
+	}
+}
+
+func TestBakePassesBuildArgs(t *testing.T) {
+	output, err := runBakeScript(t, "bake-print-contexts.json",
+		"BUILD_ARGS=GREETING TOKEN",
+		"HOMERUN_ARG_GREETING=hello $(touch pwned) world",
+		"HOMERUN_ARG_TOKEN=s3cr3t",
+	)
+	if err != nil {
+		t.Fatalf("got %v: %s", err, output)
+	}
+	want := "buildx bake --progress plain -f docker-bake.hcl --set app.tags=svc:abc --set app.output=type=docker --set app.args.GREETING=hello $(touch pwned) world --set app.args.TOKEN=s3cr3t app"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
 	}
 }

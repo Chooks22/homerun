@@ -146,6 +146,11 @@ func validateBuildInput(input BuildInput) []httpapi.ValidationIssue {
 	if input.BuildTarget != nil && *input.BuildTarget != "" && !bakeTargetPattern.MatchString(*input.BuildTarget) {
 		add("buildTarget must be a plain target name", "buildTarget")
 	}
+	for name := range input.BuildArgs {
+		if !BuildArgNamePattern.MatchString(name) {
+			add(fmt.Sprintf("buildArgs key %s must be a shell identifier", name), "buildArgs", name)
+		}
+	}
 	if input.Platform != nil && *input.Platform != "" && !platformPattern.MatchString(*input.Platform) {
 		add("platform must be an os/arch pair like linux/amd64", "platform")
 	}

@@ -64,6 +64,9 @@ function toCreateInput(
 	return {
 		...toSourceInput(input),
 		authRequired: input.authRequired,
+		buildEnvKeys: (input.buildEnvKeys ?? []).filter(
+			(key) => key in input.envVars,
+		),
 		containerPort: input.containerPort,
 		cpuLimit: input.cpuLimit || null,
 		dnsResolvable: input.dnsResolvable,

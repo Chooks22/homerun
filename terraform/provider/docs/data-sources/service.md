@@ -48,6 +48,7 @@ data "homerun_service" "example" {
 - `blocked_paths` (List of String)
 - `build_cache_builtin` (Boolean) Use the built-in registry as the build cache.
 - `build_cache_registry_id` (String)
+- `build_env_keys` (List of String)
 - `build_server_remote_host_id` (String)
 - `build_source` (String) image or git.
 - `cap_add` (List of String)

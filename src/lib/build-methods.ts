@@ -15,6 +15,8 @@ export const DEFAULT_BAKE_TARGET = "default";
 
 export const BAKE_TARGET_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]*$/;
 
+export const BUILD_ARG_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 export const BUILD_METHOD_LABELS: Record<BuildMethod, string> = {
 	bake: "Docker Bake",
 	dockerfile: "Dockerfile",

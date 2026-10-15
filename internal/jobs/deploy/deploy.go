@@ -93,6 +93,7 @@ type Revision struct {
 // cache and, on a build server, to publish the image through.
 type BuildSpec struct {
 	AuthHint   string               `json:"authHint"`
+	BuildArgs  map[string]string    `json:"buildArgs"`
 	Commit     string               `json:"commit"`
 	Credential *agent.GitCredential `json:"credential"`
 	Git        GitSource            `json:"git"`

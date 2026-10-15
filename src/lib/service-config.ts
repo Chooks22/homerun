@@ -13,6 +13,7 @@ export const serviceConfigSchema = z.object({
 		restartPolicy: z.string(),
 	}),
 	env: z.object({
+		buildKeys: z.array(z.string()),
 		files: z.array(z.string()),
 		secretKeys: z.array(z.string()),
 		vars: z.record(z.string(), z.string()),
@@ -176,6 +177,7 @@ export function serviceConfig(
 			restartPolicy: row.restartPolicy,
 		},
 		env: {
+			buildKeys: row.buildEnvKeys,
 			files: row.envFiles,
 			secretKeys: row.secretEnvKeys,
 			vars: row.envVars ?? {},

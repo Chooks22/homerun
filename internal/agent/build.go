@@ -68,19 +68,20 @@ type PushTarget struct {
 // local tag directly. Platform is the os/arch of the daemon the image deploys
 // to: when this one's differs, the build runs emulated through QEMU.
 type BuildInput struct {
-	BakeFile       *string        `json:"bakeFile"`
-	BuildTarget    *string        `json:"buildTarget"`
-	BuildContext   *string        `json:"buildContext"`
-	BuildMethod    *string        `json:"buildMethod"`
-	Commit         *string        `json:"commit"`
-	Credential     *GitCredential `json:"credential"`
-	DockerfilePath *string        `json:"dockerfilePath"`
-	GitRef         *string        `json:"gitRef"`
-	GitURL         string         `json:"gitUrl"`
-	NoCache        bool           `json:"noCache"`
-	Platform       *string        `json:"platform"`
-	Push           *PushTarget    `json:"push"`
-	Tag            string         `json:"tag"`
+	BakeFile       *string           `json:"bakeFile"`
+	BuildArgs      map[string]string `json:"buildArgs"`
+	BuildTarget    *string           `json:"buildTarget"`
+	BuildContext   *string           `json:"buildContext"`
+	BuildMethod    *string           `json:"buildMethod"`
+	Commit         *string           `json:"commit"`
+	Credential     *GitCredential    `json:"credential"`
+	DockerfilePath *string           `json:"dockerfilePath"`
+	GitRef         *string           `json:"gitRef"`
+	GitURL         string            `json:"gitUrl"`
+	NoCache        bool              `json:"noCache"`
+	Platform       *string           `json:"platform"`
+	Push           *PushTarget       `json:"push"`
+	Tag            string            `json:"tag"`
 
 	Cache *CacheRegistry `json:"-"`
 }
@@ -167,6 +168,7 @@ func (b *Builder) BuildWithProgress(ctx context.Context, input BuildInput, progr
 
 	builderInput := BuilderInput{
 		BakeFile:       valueOr(input.BakeFile, ""),
+		BuildArgs:      input.BuildArgs,
 		BuildTarget:    valueOr(input.BuildTarget, ""),
 		BuildContext:   valueOr(input.BuildContext, ""),
 		DockerfilePath: valueOr(input.DockerfilePath, ""),

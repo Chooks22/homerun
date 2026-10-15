@@ -33,7 +33,10 @@ import { runtimeOptionsFrom } from "#lib/service-runtime.js";
 import type { ContainerStatus, PullPolicy } from "#lib/types.js";
 import { BaseDTO } from "./base-dto";
 import type { NewServiceInput, ServiceUpdateInput } from "./service-input";
-import { NEW_SERVICE_VERSION_COLUMNS } from "./service-input";
+import {
+	buildMethodColumns,
+	NEW_SERVICE_VERSION_COLUMNS,
+} from "./service-input";
 
 const preview = alias(service, "preview");
 
@@ -319,17 +322,6 @@ export class ServiceDTO extends BaseDTO<Service> {
 		return !!row;
 	}
 
-	/** How a git service is built : the build method and its per-method file, target and context settings. */
-	static #buildMethodColumns(input: NewServiceInput) {
-		return {
-			gitBakeFile: input.gitBakeFile ?? null,
-			gitBuildTarget: input.gitBuildTarget ?? null,
-			gitBuildContext: input.gitBuildContext ?? null,
-			gitBuildMethod: input.gitBuildMethod ?? "dockerfile",
-			gitDockerfilePath: input.gitDockerfilePath ?? null,
-		} satisfies Partial<Service>;
-	}
-
 	/** Where the image comes from : registry coordinates plus the git-build fields, all optional with a default. */
 	static #buildColumns(input: NewServiceInput) {
 		return {
@@ -337,7 +329,7 @@ export class ServiceDTO extends BaseDTO<Service> {
 			buildCacheBuiltin: input.buildCacheBuiltin ?? false,
 			buildServerRemoteHostId: input.buildServerRemoteHostId ?? null,
 			buildSource: input.buildSource ?? "image",
-			...ServiceDTO.#buildMethodColumns(input),
+			...buildMethodColumns(input),
 			gitRef: input.gitRef ?? null,
 			gitUrl: input.gitUrl ?? null,
 			gitProviderId: input.gitProviderId ?? null,
@@ -581,6 +573,10 @@ export class ServiceDTO extends BaseDTO<Service> {
 	/** Env var names the owner marked secret: redacted wherever the service is exported, whatever their name. */
 	get secretEnvKeys(): string[] {
 		return this.row.secretEnvKeys;
+	}
+	/** Env var names the owner marked build-time: also handed to a git build as build args. */
+	get buildEnvKeys(): string[] {
+		return this.row.buildEnvKeys;
 	}
 	/** The container healthcheck command, if one is set. */
 	get healthcheckCommand(): string | null {

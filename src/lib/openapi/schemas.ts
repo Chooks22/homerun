@@ -104,6 +104,10 @@ export const serviceResponse = z.object({
 			"Custom environment name its deployments are recorded under, null for production. Canaries and previews ignore it.",
 	}),
 	secretEnvKeys: z.array(z.string()),
+	buildEnvKeys: z.array(z.string()).meta({
+		description:
+			"envVars keys also passed to a git build as build args or build env.",
+	}),
 	autoDeployOnPush: z.boolean(),
 	gitBakeFile: z.string().nullable(),
 	primaryDomain: z.string().nullable(),

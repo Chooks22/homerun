@@ -111,7 +111,9 @@ mismatch fails the build rather than running an unverified binary. The build
 context field still applies: point it at a subdirectory for a monorepo.
 Configure the builder the way its own docs say, from the repository
 (`nixpacks.toml`, `railpack.json`, `project.toml`, `Procfile`), there are no
-per-builder fields here. The same methods work on
+per-builder fields here. Variables a build needs (`NEXT_PUBLIC_*` in a web
+bundle, a Dockerfile `ARG`) are env vars marked
+[build-time](env-vars.md#build-time-variables). The same methods work on
 [build servers](remote-hosts-and-agent.md), both Docker connections and the
 Homerun Agent, as long as a Docker connection's socket lives at
 `/var/run/docker.sock` (rootless Docker doesn't). Nixpacks and buildpacks don't
