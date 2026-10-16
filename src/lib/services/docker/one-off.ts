@@ -12,6 +12,8 @@ export interface OneOffRunParams {
 	entrypoint?: string[] | null;
 	envVars?: Record<string, string>;
 	image: string;
+	/** Other images mounted read-only at `target`, to run a binary they ship (Docker Engine 28 or newer). */
+	imageMounts?: { image: string; target: string }[];
 	labels?: Record<string, string>;
 	networkName?: string | null;
 	/** `"host"` shares the host's PID namespace, which is what lets a privileged helper `nsenter` into PID 1. */
@@ -93,6 +95,7 @@ export function DockerOneOffMixin<TBase extends Constructor<BaseDockerService>>(
 					([key, value]) => `${key}=${value}`,
 				),
 				Image: `${params.image}:${params.tag}`,
+				ImageMounts: params.imageMounts,
 				Labels: { ...params.labels, [MANAGED_LABEL]: "true" },
 				NetworkMode: params.networkName ?? undefined,
 				PidMode: params.pidMode ?? undefined,

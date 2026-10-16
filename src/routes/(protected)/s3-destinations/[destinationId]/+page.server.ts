@@ -33,6 +33,7 @@ export const load = async ({ params, parent }) => {
 			id: row.id,
 			name: row.name,
 			region: row.region,
+			resticPassword: await destination.resticPassword(),
 			type: row.type,
 			updatedAt: row.updatedAt,
 		},

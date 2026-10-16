@@ -40,9 +40,9 @@
 		].join(" "),
 	);
 
-	function requestRestore(e: MouseEvent, key: string) {
+	function requestRestore(e: MouseEvent, label: string) {
 		pendingRestoreForm = (e.currentTarget as HTMLElement).closest("form");
-		pendingRestoreKey = key;
+		pendingRestoreKey = label;
 		restoreDialogOpen = true;
 	}
 </script>
@@ -102,7 +102,7 @@
         {#each backups.current as backup (backup.key)}
           <li class="flex items-center gap-3 py-2">
             <div class="min-w-0 flex-1">
-              <p class="text-text truncate font-mono text-xs">{backup.key}</p>
+              <p class="text-text truncate font-mono text-xs" title={backup.key}>{backup.label}</p>
               <p class="text-text-subtle mt-0.5 text-xs">
                 {backup.lastModified
                   ? new Date(backup.lastModified).toLocaleString()
@@ -134,7 +134,7 @@
               >
               <Button
                 disabled={restoringKey !== null}
-                onclick={(e) => requestRestore(e, backup.key)}
+                onclick={(e) => requestRestore(e, backup.label)}
                 size="sm"
                 type="button"
                 variant="outline"

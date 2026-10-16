@@ -7,6 +7,7 @@
 	} from "#lib/backup-destinations.js";
 	import BackupDestinationFields from "#lib/components/backup-destination-fields.svelte";
 	import CapacityBar from "#lib/components/capacity-bar.svelte";
+	import CopyBox from "#lib/components/copy-box.svelte";
 	import { inputClass, labelClass } from "#lib/components/form-styles.js";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
@@ -199,6 +200,18 @@
       </div>
     </section>
   {/if}
+
+  <section class="panel mb-6 rounded-md">
+    <PanelHeader title="Repository password" />
+    <div class="space-y-2 p-5">
+      <CopyBox label="restic password" truncate value={destination.resticPassword} />
+      <p class="text-text-muted text-xs">
+        Every volume's backups here are restic repositories encrypted with this
+        password. Keep a copy outside Homerun: if this instance's database is
+        lost, it's the only way to restore them, with restic itself.
+      </p>
+    </div>
+  </section>
 
   <section class="panel mb-6 rounded-md">
     <PanelHeader title="Settings">

@@ -414,61 +414,70 @@ return path including a spec that couldn't be built), and `/backups` is the page
 over that history, plus a "Run now" action per volume, the same one
 `storage/[volumeId]` offers.
 
-**Retention runs in TS, in the backup worker job's `finalize`**, not in Go:
-after a successful run, `S3BackupService.pruneBackups` lists the volume's
-archives with the same listing the Restore picker uses and deletes all but the
-newest `s3Destination.backupKeep` (one limit per destination, applied to each
-volume on it, null keeps all), through a signed `DELETE` or `rclone deletefile`.
-`backupKeyPattern` matches only the exact `<prefix/>name-<ISO timestamp>.tar.gz`
-keys `backupSpec` writes, so `db` never claims `db-data`'s archives, and it
-refuses to delete anything when the key just uploaded isn't in the listing (an
-S3 listing is capped at 200 keys, oldest first). A prune failure goes to the job
-log and a `warn`, never fails the run. The on-demand **Clean up old backups** on
-`/backups` queues a `backup_prune` job (`enqueueBackupPrune`, deduped, one
-attempt), an in-process handler in `queue/handlers.ts` like `core_service`: it
-walks every volume on a destination with a limit one at a time, logs each, and
-fails at the end if any volume did.
+**Backups are restic snapshots, one repository per volume** at
+`rclone:dest:<destination path>/<prefix/>restic/<volume id>`
+(`src/lib/services/backup/restic.ts`'s `resticRepository`, keyed by id so a
+rename keeps history). The Go job (`internal/jobs/backup/restic.go`) runs one
+`restic/restic` helper with the `rclone/rclone` image **image-mounted** at
+`/opt/rclone` (`dockerapi.ImageMount`, `HostConfig.Mounts` type `image`, Docker
+Engine 28+), because restic needs an rclone binary for SFTP/SMB/WebDAV and
+there's no official image with both; S3 goes through rclone's S3 backend too, so
+there's one path. A `sh -c` script obscures the rclone password like the rclone
+helpers do, inits the repository only on `cat config` exit 10 (missing; 12 is a
+wrong password and must never trigger an init), runs `backup --json` (status
+lines logged every 30s, the summary gives the snapshot id) and then
+`forget --keep-last N --prune` with `s3Destination.backupKeep`. The run's key is
+`restic:<volume id>:<snapshot id>`: it names its repository, so a restore into
+another volume (a revision restore makes a new one) still finds the snapshot.
+The repository password is per destination (`S3DestinationDTO.resticPassword()`,
+generated on first use, stored encrypted, shown on the destination page,
+stripped from every API/IaC/list payload): losing the instance DB without a copy
+loses the backups. Restic's cache is the `homerun-restic-cache` named volume.
+The Restore picker and pruning list snapshots through `DockerService.runOneOff`
+with `imageMounts`.
 
-**The tar-then-upload (and download-then-unpack) pipeline itself runs in the Go
-worker now**: `S3BackupService` (`s3-backup.service.ts`) only resolves and
-returns the spec `internal/jobs/backup/backup.go`'s `Run` needs —
+**Pre-snapshot `.tar.gz` archives are legacy, restore-only**: the Go restore
+still downloads and unpacks them (`spec.Key` without the `restic:` prefix), and
+retention counts them with the snapshots toward the newest N and deletes the
+ones past it in TS, in the backup worker job's `finalize`
+(`S3BackupService.pruneBackups`), through a signed `DELETE` or
+`rclone deletefile`, never touching snapshots (Go's forget owns those).
+`backupKeyPattern` matches only exact `<prefix/>name-<ISO timestamp>.tar.gz`
+keys, so `db` never claims `db-data`'s archives, and pruning refuses when the
+key just written isn't listed. A prune failure goes to the job log and a `warn`,
+never fails the run. The on-demand **Clean up old backups** on `/backups` queues
+a `backup_prune` job (`enqueueBackupPrune`, deduped, one attempt), an in-process
+handler in `queue/handlers.ts` like `core_service`.
+
+**The backup and restore pipeline runs in the Go worker**: `S3BackupService`
+(`s3-backup.service.ts`) only resolves and returns the spec
+`internal/jobs/backup/backup.go`'s `Run` needs —
 `backupSpec(volume)`/`restoreSpec(volume, key, options)`, called from
-`worker-jobs/backup.ts`/`backup_restore.ts`'s `prepare` — the destination
-(decrypted via `destinationFor`), the helper image/mount path, the pre-backup
-command's target and, when `backupStopServices`/`options.stopServices`, the
-running services to stop (all resolved by
-`src/lib/services/backup/volume-services.ts`'s `VolumeServices`, see Quiescing
-below). `S3Config`'s hand-rolled AWS Signature V4 client (`signedRequest`,
-`listBackups`'s `ListObjectsV2`) is the one part still in TS, since the app
-itself lists backups for the Restore picker; the Go side has its own S3 client
-(`internal/s3`) for the actual PUT/GET. **A destination has a `type`**
-(`src/lib/backup-destinations.ts`: `s3`, `sftp`, `smb`, `webdav`), and
-`destinationFor` returns either `{ destination: S3Config }` or
-`{ remote: RcloneRemote }` (`src/lib/services/backup/rclone.ts`), so the spec's
-`Spec.Remote` is set instead of the S3 fields. A non-S3 row reuses the S3
-columns (`endpoint` = `host[:port]` or the WebDAV URL, `bucket` = the path, for
-smb the share then an optional path, `accessKeyId` = username,
-`secretAccessKeyEnc` = password or an sftp PEM key, `region` empty), parsed by
-`src/lib/server/backup-destination-form.ts`. `backup.go`'s `archives()` picks
-`internal/rclone` when `Spec.Remote` is set, else `internal/s3`. **rclone
-transport**: a throwaway `rclone/rclone` helper (`RCLONE_TAG`), one remote named
-`dest` configured only through `RCLONE_CONFIG_DEST_*` env vars, an `sh -c`
+`worker-jobs/backup.ts`/`backup_restore.ts`'s `prepare` — the restic repository
+(or, for a legacy archive, the decrypted destination), the helper image/mount
+path, the pre-backup command's target and, when
+`backupStopServices`/`options.stopServices`, the running services to stop (all
+resolved by `src/lib/services/backup/volume-services.ts`'s `VolumeServices`, see
+Quiescing below). `S3Config`'s hand-rolled AWS Signature V4 client
+(`signedRequest`, `listBackups`'s `ListObjectsV2`) is the one part still in TS,
+since the app itself lists legacy archives for the Restore picker; the Go side
+keeps a small S3 client (`internal/s3`) only to GET a legacy archive. **A
+destination has a `type`** (`src/lib/backup-destinations.ts`: `s3`, `sftp`,
+`smb`, `webdav`), and `targetOf` returns either `{ destination: S3Config }` or
+`{ remote: RcloneRemote }` (`src/lib/services/backup/rclone.ts`), which a legacy
+archive's restore spec carries. A non-S3 row reuses the S3 columns (`endpoint` =
+`host[:port]` or the WebDAV URL, `bucket` = the path, for smb the share then an
+optional path, `accessKeyId` = username, `secretAccessKeyEnc` = password or an
+sftp PEM key, `region` empty), parsed by
+`src/lib/server/backup-destination-form.ts`. **rclone transport**: one remote
+named `dest` configured only through `RCLONE_CONFIG_DEST_*` env vars, an `sh -c`
 entrypoint running `rclone obscure` on the password inside the container, sftp
-with `shell_type = none` and no host key check. `Remote.Upload` is `rclone rcat`
-of the gzip stream to `<key>.partial`, then `rclone moveto` to the key, and
-`deletefile` of the partial on any failure; one stream, no parallel parts, a
-progress line every 30s. `Remote.Get` is `rclone cat`. **Both volume kinds are
-supported**: `kind: "bind"` is tar'd straight off the host, and `kind: "volume"`
-(Docker-managed, whose content isn't visible on the host filesystem the same
-way) is mounted read-only into a throwaway helper container that tars it to
-stdout — both `internal/jobs/backup/backup.go`'s `archiveAndUpload`, one code
-path for both kinds since a bind's source is as mountable as a named volume. The
-helper is **started** and streams through its own process
-(`tar -C <mount> --numeric-owner -cf - .`, read off a hijacked attach by
-`dockerapi.RunHelper`, gzipped on the fly and piped straight into the multipart
-upload, no temp file whatever the volume's size). A non-zero exit from the
-helper fails the run with the helper's own stderr attached, and the upload is
-aborted rather than left truncated.
+with `shell_type = none` and no host key check; restic's repositories, the
+listings, capacity checks and legacy `rclone cat` all use it. **Both volume
+kinds are supported** with one code path: a bind's source is as mountable as a
+named volume, so either is mounted into the restic helper (read-only for a
+backup). The helper is **started** and read off a hijacked attach by
+`dockerapi.RunHelper`.
 
 **Destination capacity** (`BackupCapacityService`, `BackupCapacityScheduler`,
 hourly, `src/lib/backup-capacity.ts`): SFTP/SMB/WebDAV destinations are measured
@@ -482,33 +491,6 @@ check keeps the last good figures. `capacityAlertChange` alerts once on crossing
 channel event and clears 5 points under it, so a destination hovering at the
 line doesn't alert hourly. S3 has no size and is never measured.
 
-**Real production incident** (2026-09-28): the S3 endpoint answered part PUTs
-with `504 Gateway Timeout`, and every failed run said only "the upload stopped
-reading the archive": `archiveAndUpload` returned the helper's broken-pipe error
-(the upload had stopped reading because it failed) instead of the upload's own.
-The upload error now wins. `internal/s3`'s buffered requests (single PUT, parts,
-multipart start/completion) each get `RequestTimeout` (10m) and
-`RequestAttempts` (3) tries on a transport error, timeout, 429 or 5xx, every
-retry and a throughput line every 30s going to the job log through `Client.Log`.
-The activity watchdog alone couldn't bound these: an endpoint trickling bytes
-counts as progress. `backup_run.size_bytes` is `bigint`, it was `integer` and
-any archive over 2 GiB failed the finalize write.
-
-**Uploads send 16 parts at once** (`internal/s3`'s `uploadParts`,
-`UploadConcurrency`, from a pool of buffers so memory stays bounded; parts start
-at 8 MiB and double every 2000 up to 32 MiB, `PartSizeFor`, which keeps the
-10000-part cap at about 240 GiB) and the archive is gzipped at `BestSpeed`.
-**Real production incident** (2026-09-29): a backup to Hetzner's object storage
-ran for five hours before being cancelled. Parts went up strictly one at a time,
-and Hetzner caps one connection at about 1.3 MiB/s: measured with
-`tests/integration/s3-backup.test.ts` on a 256 MiB volume, one part at a time
-took 196s, 4 at a time 54s, 8 at a time 27s, 16 at a time 16s (the uplink of the
-machine running the test was likely the limit by then). The shared HTTP client
-keeps `UploadConcurrency+2` idle connections per host, because
-`http.DefaultTransport` keeps two and the rest would redo TLS per part. That
-test runs a backup and a restore against a real bucket when `HOMERUN_TEST_S3_*`
-is set (see `tests/integration/README.md`).
-
 **Never Docker's archive API on a never-started container.** Backups used to
 create an `alpine` helper with entrypoint `true`, never start it, and read the
 volume out through `GET /containers/<id>/archive` (restores used
@@ -519,10 +501,9 @@ are running") for hours; after a forced restart the requeued backup's fresh
 helper wedged dockerd itself (`docker inspect`/`docker rm -f` on it hung until
 dockerd restarted), and because Traefik's Docker provider inspects every
 container before building any route, every label-routed site, the dashboard
-included, went 404 (swarm services kept working). The file format is unchanged
-(a gzipped tar of `./`-prefixed entries), so archives made the old way restore
-through the new `tar -x` (verified with a `docker cp` archive, symlink and uid
-999 file included). Scheduled backups are one `DueScheduler` config over
+included, went 404 (swarm services kept working). Legacy archives made that way
+restore through the same `tar -x` (verified with a `docker cp` archive, symlink
+and uid 999 file included). Scheduled backups are one `DueScheduler` config over
 `StorageVolumeDTO.listBackupEnabled()`, see Schedulers above.
 
 **Quiescing** is resolved in `src/lib/services/backup/volume-services.ts`

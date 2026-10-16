@@ -40,6 +40,13 @@ func HelperLabels(labels map[string]string) map[string]string {
 	return merged
 }
 
+// ImageMount mounts another image's filesystem read-only at Target, so a
+// helper can run a binary that image ships (Docker Engine 28 or newer).
+type ImageMount struct {
+	Image  string `json:"image"`
+	Target string `json:"target"`
+}
+
 // HelperConfig is a throwaway container RunHelper runs to completion.
 type HelperConfig struct {
 	Binds           []string
@@ -47,6 +54,7 @@ type HelperConfig struct {
 	Entrypoint      []string
 	Env             []string
 	Image           string
+	ImageMounts     []ImageMount
 	Labels          map[string]string
 	NetworkDisabled bool
 	NetworkMode     string
@@ -99,6 +107,9 @@ func (c *Client) EnsureImage(ctx context.Context, image string) error {
 // container that can't be created or started, or a stream that stalls, is.
 func (c *Client) RunHelper(ctx context.Context, config HelperConfig) (HelperResult, error) {
 	if err := c.EnsureImage(ctx, config.Image); err != nil {
+		return HelperResult{}, err
+	}
+	if err := c.ensureImageMounts(ctx, config.ImageMounts); err != nil {
 		return HelperResult{}, err
 	}
 	id, err := c.CreateContainerFrom(ctx, "", helperBody(config))
@@ -163,10 +174,32 @@ func (c *Client) RunHelper(ctx context.Context, config HelperConfig) (HelperResu
 	return result, nil
 }
 
+// imageMounts is the HostConfig.Mounts entries for mounts, each read-only.
+func imageMounts(mounts []ImageMount) []map[string]any {
+	entries := make([]map[string]any, 0, len(mounts))
+	for _, mount := range mounts {
+		entries = append(entries, map[string]any{"ReadOnly": true, "Source": mount.Image, "Target": mount.Target, "Type": "image"})
+	}
+	return entries
+}
+
+// ensureImageMounts pulls every mounted image the daemon doesn't already have.
+func (c *Client) ensureImageMounts(ctx context.Context, mounts []ImageMount) error {
+	for _, mount := range mounts {
+		if err := c.EnsureImage(ctx, mount.Image); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // helperBody is the create body for config: no TTY, so stdout and stderr come
 // back framed, and stdin open for one attach when there's something to feed.
 func helperBody(config HelperConfig) map[string]any {
 	hostConfig := map[string]any{"Binds": config.Binds}
+	if len(config.ImageMounts) > 0 {
+		hostConfig["Mounts"] = imageMounts(config.ImageMounts)
+	}
 	if config.NetworkMode != "" {
 		hostConfig["NetworkMode"] = config.NetworkMode
 	}

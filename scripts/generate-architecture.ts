@@ -366,8 +366,8 @@ const edges: Edge[] = [
 	{
 		from: "worker",
 		to: "s3",
-		via: "S3 API multipart PUT and GET",
-		why: "Stream volume backups up and restores down.",
+		via: "S3 API from a restic helper container (through rclone), and GET",
+		why: "Snapshot volumes into restic repositories, restore them, and read pre-snapshot archives back.",
 	},
 	{
 		from: "app",
@@ -378,8 +378,8 @@ const edges: Edge[] = [
 	{
 		from: "worker",
 		to: "fileserver",
-		via: "SFTP, SMB or WebDAV from an rclone helper container",
-		why: "Stream volume backups up and restores down, and list them for the restore picker.",
+		via: "SFTP, SMB or WebDAV from restic and rclone helper containers",
+		why: "Snapshot volumes into restic repositories, restore them, and list snapshots and archives for the restore picker.",
 	},
 	{
 		from: "app",

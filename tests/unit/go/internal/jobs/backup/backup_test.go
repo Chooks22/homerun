@@ -100,11 +100,14 @@ func TestOutputTail(t *testing.T) {
 	}
 }
 
-// stubS3 starts a fake S3 server backed by an in-memory object store and
-// returns a client pointed at it.
-func stubS3(t *testing.T) s3.Client {
+// stubS3 starts a fake S3 server backed by an in-memory object store holding
+// seed (by request path) and returns a client pointed at it.
+func stubS3(t *testing.T, seed map[string]string) s3.Client {
 	var mu sync.Mutex
 	objects := map[string][]byte{}
+	for path, content := range seed {
+		objects[path] = []byte(content)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -146,35 +149,37 @@ func volumeFiles(t *testing.T, docker *dockerapi.Client, spec backup.Spec) []str
 // runStep runs cmd to completion in a throwaway container with spec's volume
 // mounted, failing the test on a non-zero exit.
 func runStep(t *testing.T, docker *dockerapi.Client, spec backup.Spec, cmd string) {
-	id, err := docker.CreateContainer(context.Background(), dockerapi.ContainerConfig{
-		Binds: []string{spec.Source + ":" + spec.MountPath}, Cmd: []string{"sh", "-c", cmd}, Image: spec.HelperImage,
+	result, err := docker.RunHelper(context.Background(), dockerapi.HelperConfig{
+		Binds: []string{spec.Source + ":" + spec.MountPath, "homerun-restic-cache:/cache"},
+		Cmd:   []string{"sh", "-c", cmd},
+		Image: spec.HelperImage,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer docker.RemoveContainer(context.Background(), id)
-	if err := docker.StartContainer(context.Background(), id); err != nil {
-		t.Fatal(err)
-	}
-	if code, err := docker.WaitContainer(context.Background(), id); err != nil || code != 0 {
-		t.Fatalf("%q: code=%d err=%v", cmd, code, err)
+	if err != nil || result.ExitCode != 0 {
+		t.Fatalf("%q: %v %+v", cmd, err, result)
 	}
 }
 
 func TestBackupAndRestoreRoundTripOnRealDocker(t *testing.T) {
 	socket := dockersocket.Resolve("")
 	docker := dockerapi.New(socket)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	if err := docker.Ping(ctx); err != nil {
 		t.Skipf("no Docker daemon: %v", err)
 	}
 	volume := fmt.Sprintf("homerun-backup-test-%d", time.Now().UnixNano())
-	t.Cleanup(func() { _ = docker.RemoveVolume(context.Background(), volume) })
+	repository := "/cache/" + volume
 	spec := backup.Spec{
-		Destination: stubS3(t), HelperImage: "alpine:3", Key: "p/" + volume + ".tar.gz",
-		MountPath: "/homerun-backup-source", Source: volume, VolumeName: volume,
+		HelperImage: "alpine:3", MountPath: "/homerun-backup-source", Source: volume, VolumeName: volume,
+		Restic: &backup.Restic{
+			Env: map[string]string{"RCLONE_CONFIG_DEST_TYPE": "local", "RCLONE_LOG_LEVEL": "ERROR"}, Image: "restic/restic:0.18.1", Keep: 1, KeyPrefix: "restic:" + volume + ":",
+			Label: "local " + repository, Password: "test", RcloneImage: "rclone/rclone:1.75.1", Repository: "rclone:dest:" + repository,
+		},
 	}
+	t.Cleanup(func() {
+		runStep(t, docker, spec, "rm -rf "+repository)
+		_ = docker.RemoveVolume(context.Background(), volume)
+	})
 	if err := docker.EnsureImage(ctx, spec.HelperImage); err != nil {
 		t.Fatal(err)
 	}
@@ -182,22 +187,31 @@ func TestBackupAndRestoreRoundTripOnRealDocker(t *testing.T) {
 
 	job, lines, _ := jobs.Recorder("backup", spec)
 	job.DockerSocket = socket
-	result, err := backup.Run(ctx, job)
+	first, err := backup.Run(ctx, job)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v, log %v", err, lines())
 	}
-	if result["key"] != spec.Key || result["sizeBytes"].(int64) <= 0 {
-		t.Fatalf("result = %v", result)
+	runStep(t, docker, spec, "echo y > /homerun-backup-source/extra")
+	job, lines, _ = jobs.Recorder("backup", spec)
+	job.DockerSocket = socket
+	second, err := backup.Run(ctx, job)
+	if err != nil {
+		t.Fatalf("%v, log %v", err, lines())
+	}
+	if first["key"] == second["key"] || second["sizeBytes"].(int64) >= first["sizeBytes"].(int64)*4 {
+		t.Fatalf("the second snapshot must be its own and small, got %v then %v", first, second)
 	}
 
-	runStep(t, docker, spec, "rm /homerun-backup-source/a.txt && echo y > /homerun-backup-source/extra")
+	runStep(t, docker, spec, "rm /homerun-backup-source/a.txt && echo z > /homerun-backup-source/stray")
+	spec.Key = second["key"].(string)
+	spec.Restic.Snapshot = strings.TrimPrefix(spec.Key, spec.Restic.KeyPrefix)
 	spec.Wipe = true
-	job, _, _ = jobs.Recorder("backup_restore", spec)
+	job, lines, _ = jobs.Recorder("backup_restore", spec)
 	job.DockerSocket = socket
 	if _, err := backup.Run(ctx, job); err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v, log %v", err, lines())
 	}
-	if got := volumeFiles(t, docker, spec); !reflect.DeepEqual(got, []string{"a.txt", "sub/b"}) {
+	if got := volumeFiles(t, docker, spec); !reflect.DeepEqual(got, []string{"a.txt", "extra", "sub/b"}) {
 		t.Fatalf("restored files = %v, log %v", got, lines())
 	}
 }

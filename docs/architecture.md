@@ -81,9 +81,9 @@ flowchart LR
   docker -->|"container or one-replica swarm service"| newt
   newt -->|"outbound tunnel"| pangolin
   newt -->|"HTTPS on the homerun network"| traefik
-  worker -->|"S3 API multipart PUT and GET"| s3
+  worker -->|"S3 API from a restic helper container (through rclone), and GET"| s3
   app -->|"S3 ListObjectsV2 (SigV4)"| s3
-  worker -->|"SFTP, SMB or WebDAV from an rclone helper container"| fileserver
+  worker -->|"SFTP, SMB or WebDAV from restic and rclone helper containers"| fileserver
   app -->|"HTTPS webhooks, Telegram Bot API, SMTP, Web Push"| notify
   cli -->|"HTTPS REST /api/v1 + x-api-key"| app
   mcp -->|"Streamable HTTP /api/v1/mcp + OAuth access token or API key"| app
@@ -122,9 +122,9 @@ flowchart LR
 | Docker daemon                                    | Newt tunnel (homerun-newt)                                                            | container or one-replica swarm service                                                | Runs the tunnel client when Pangolin's Newt credentials are set.                                                     |
 | Newt tunnel (homerun-newt)                       | Pangolin                                                                              | outbound tunnel                                                                       | Publish this host's routes with no inbound ports open.                                                               |
 | Newt tunnel (homerun-newt)                       | Traefik (`traefik:v3`)                                                                | HTTPS on the homerun network                                                          | Hand tunnelled requests to the usual Traefik routers.                                                                |
-| Go worker (homerun-worker)                       | S3 storage                                                                            | S3 API multipart PUT and GET                                                          | Stream volume backups up and restores down.                                                                          |
+| Go worker (homerun-worker)                       | S3 storage                                                                            | S3 API from a restic helper container (through rclone), and GET                       | Snapshot volumes into restic repositories, restore them, and read pre-snapshot archives back.                        |
 | SvelteKit app                                    | S3 storage                                                                            | S3 ListObjectsV2 (SigV4)                                                              | List existing backups for the restore picker.                                                                        |
-| Go worker (homerun-worker)                       | SFTP, SMB and WebDAV storage (NAS, Storage Box)                                       | SFTP, SMB or WebDAV from an rclone helper container                                   | Stream volume backups up and restores down, and list them for the restore picker.                                    |
+| Go worker (homerun-worker)                       | SFTP, SMB and WebDAV storage (NAS, Storage Box)                                       | SFTP, SMB or WebDAV from restic and rclone helper containers                          | Snapshot volumes into restic repositories, restore them, and list snapshots and archives for the restore picker.     |
 | SvelteKit app                                    | Notification targets (Discord, Slack, Telegram, webhook, SMTP, browser push services) | HTTPS webhooks, Telegram Bot API, SMTP, Web Push                                      | Notifications (to a closed browser too), invites and emailed sign-in codes.                                          |
 | homerun CLI                                      | SvelteKit app                                                                         | HTTPS REST `/api/v1` + `x-api-key`                                                    | Deploy, inspect and manage from a terminal or CI.                                                                    |
 | MCP clients (Claude, agents)                     | SvelteKit app                                                                         | Streamable HTTP `/api/v1/mcp` + OAuth access token or API key                         | AI agents manage services; each tool calls the REST API as the caller.                                               |

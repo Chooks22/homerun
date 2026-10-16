@@ -7,6 +7,20 @@ When done delete the entry, no bloat.
 
 ## Small
 
+- [ ] Backup destination capacity: on an SFTP or WebDAV box with automatic
+      snapshots, `rclone about` reports used as live files only, so the size
+      shown is used + free and space held by snapshots is invisible; say so on
+      the Storage panel, and in the docs: deleted backups only free space once
+      the snapshots holding them are gone
+
+- [ ] Storage Box integration tests never delete what they upload: each run
+      leaves its restic repositories under `homerun-it/<type>/` in the
+      configured location; purge that prefix after the round trip
+
+- [ ] Backup cleanup skips backups of deleted volumes: they stay on the
+      destination forever; offer to delete them when a volume is deleted, or
+      list them as orphans on the destination's page
+
 ## Medium
 
 - [ ] Pipelines: expose watched repositories, their CI runs and stats in the

@@ -1475,6 +1475,7 @@ export const s3Destination = pgTable(
 		id: text("id").primaryKey(),
 		name: text("name").notNull(),
 		region: text("region").notNull(),
+		resticPasswordEnc: text("restic_password_enc"),
 		// AES-256-GCM ciphertext, same scheme as service.registryPasswordEnc.
 		secretAccessKeyEnc: text("secret_access_key_enc").notNull(),
 		type: text("type").$type<DestinationType>().default("s3").notNull(),

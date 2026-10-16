@@ -23,6 +23,7 @@ type OneOffConfig struct {
 	Files       []File
 	GroupAdd    []string
 	Image       string
+	ImageMounts []ImageMount
 	Labels      map[string]string
 	NetworkMode string
 	OnOutput    func(chunk string) `json:"-"`
@@ -73,6 +74,10 @@ func (c *Client) RunOneOff(ctx context.Context, config OneOffConfig) (OneOffResu
 		if err := c.PullImage(ctx, config.Image, config.Auth, nil); err != nil {
 			return OneOffResult{}, err
 		}
+	}
+
+	if err := c.ensureImageMounts(ctx, config.ImageMounts); err != nil {
+		return OneOffResult{}, err
 	}
 
 	config, err = c.withImageFiles(ctx, config)
@@ -138,6 +143,9 @@ func (c *Client) createOneOff(ctx context.Context, config OneOffConfig) (string,
 	}
 	if len(config.Binds) > 0 {
 		hostConfig["Binds"] = config.Binds
+	}
+	if len(config.ImageMounts) > 0 {
+		hostConfig["Mounts"] = imageMounts(config.ImageMounts)
 	}
 	if config.NetworkMode != "" {
 		hostConfig["NetworkMode"] = config.NetworkMode

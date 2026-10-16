@@ -185,6 +185,7 @@ export async function listRemoteBackups(
 		)
 		.map((entry) => ({
 			key: `${directory}${entry.Name}`,
+			label: `${directory}${entry.Name}`,
 			lastModified: entry.ModTime ?? null,
 			sizeBytes: entry.Size,
 		}))

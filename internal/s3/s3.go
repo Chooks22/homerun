@@ -11,61 +11,16 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/orochibraru/homerun/internal/activity"
 )
-
-// PartSize is the size of an upload's first parts. S3 needs at least 5 MiB
-// per part but the last, and allows 10000 parts, so the size doubles every
-// PartsPerStep parts up to MaxPartSize (see PartSizeFor): small parts keep a
-// normal backup's memory low, bigger ones keep a huge one under the part cap,
-// about 240 GiB in all.
-const PartSize = 8 << 20
-
-// MaxPartSize is the largest part PartSizeFor hands out.
-const MaxPartSize = 32 << 20
-
-// PartsPerStep is how many parts are sent at one size before it doubles.
-const PartsPerStep = 2000
-
-// UploadConcurrency is how many parts are sent at once. Measured against
-// Hetzner's object storage, one connection carries about 1.3 MiB/s and the
-// total grows almost linearly with parallel parts (4 at a time was 3.6 times
-// faster, 16 about 12 times), so several in flight also keep the archive from
-// waiting on the upload. At most UploadConcurrency+1 parts are held in memory.
-const UploadConcurrency = 16
-
-// PartSizeFor is the size of multipart part number (1-based).
-func PartSizeFor(number int) int {
-	steps := min((number-1)/PartsPerStep, 8)
-	return min(PartSize<<steps, MaxPartSize)
-}
-
-// RequestTimeout caps one buffered request (a single PUT, one part, a
-// multipart start or completion), so an endpoint that stops answering fails
-// that request instead of holding the job forever.
-var RequestTimeout = 10 * time.Minute
-
-// RequestAttempts is how many times a buffered request is sent before its
-// error is returned: a transport error, a timeout, a 429 or a 5xx is retried.
-const RequestAttempts = 3
-
-// RetryDelay is the pause before retry n (1-based), doubling from 2s.
-var RetryDelay = func(n int) time.Duration { return time.Duration(1<<n) * time.Second }
-
-// progressEvery is the minimum gap between two upload progress lines.
-const progressEvery = 30 * time.Second
 
 // Client is one bucket on one S3-compatible endpoint.
 type Client struct {
@@ -76,7 +31,6 @@ type Client struct {
 	SecretAccessKey string `json:"secretAccessKey"`
 
 	HTTP *http.Client     `json:"-"`
-	Log  func(string)     `json:"-"`
 	Now  func() time.Time `json:"-"`
 }
 
@@ -89,37 +43,12 @@ type StatusError struct {
 // Error renders the status and the body S3 sent back.
 func (e *StatusError) Error() string { return e.Message }
 
-// log hands line to c.Log when set.
-func (c *Client) log(line string) {
-	if c.Log != nil {
-		c.Log(line)
-	}
-}
-
-// retryable reports whether a failed request is worth sending again.
-func retryable(err error) bool {
-	var status *StatusError
-	if errors.As(err, &status) {
-		return status.Code == http.StatusTooManyRequests || status.Code >= 500
-	}
-	return true
-}
-
-// defaultHTTP keeps enough idle connections per host for every part in
-// flight: http.DefaultTransport keeps two, so the others would redo a TLS
-// handshake for every part.
-var defaultHTTP = func() *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.MaxIdleConnsPerHost = UploadConcurrency + 2
-	return &http.Client{Transport: transport}
-}()
-
-// httpClient returns c.HTTP, or a shared client tuned for parallel parts when unset.
+// httpClient returns c.HTTP, or http.DefaultClient when unset.
 func (c *Client) httpClient() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return defaultHTTP
+	return http.DefaultClient
 }
 
 // now returns c.Now(), or time.Now() when unset.
@@ -259,65 +188,6 @@ func (c *Client) do(ctx context.Context, method, key string, query url.Values, b
 	return nil, &StatusError{Code: response.StatusCode, Message: fmt.Sprintf("S3 %s failed: %s %s", method, response.Status, strings.TrimSpace(string(text)))}
 }
 
-// send is do plus reading the response body fully, each attempt capped at
-// RequestTimeout and a retryable failure sent again up to RequestAttempts
-// times, every retry logged.
-func (c *Client) send(ctx context.Context, method, key string, query url.Values, body []byte) (http.Header, []byte, error) {
-	var err error
-	for attempt := 1; ; attempt++ {
-		var header http.Header
-		var raw []byte
-		header, raw, err = c.sendOnce(ctx, method, key, query, body)
-		if err == nil {
-			return header, raw, nil
-		}
-		if ctx.Err() != nil || attempt >= RequestAttempts || !retryable(err) {
-			return nil, nil, err
-		}
-		delay := RetryDelay(attempt)
-		c.log(fmt.Sprintf("S3 %s %s failed (attempt %d/%d), retrying in %s: %s", method, describe(query), attempt, RequestAttempts, delay, err))
-		select {
-		case <-ctx.Done():
-			return nil, nil, err
-		case <-time.After(delay):
-		}
-	}
-}
-
-// sendOnce is one attempt of send.
-func (c *Client) sendOnce(ctx context.Context, method, key string, query url.Values, body []byte) (http.Header, []byte, error) {
-	attemptCtx, cancel := context.WithTimeout(ctx, RequestTimeout)
-	defer cancel()
-	response, err := c.do(attemptCtx, method, key, query, body)
-	if err == nil {
-		defer func() { _ = response.Body.Close() }()
-		var raw []byte
-		raw, err = io.ReadAll(response.Body)
-		if err == nil {
-			return response.Header, raw, nil
-		}
-	}
-	if errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
-		return nil, nil, fmt.Errorf("S3 %s %s got no answer within %s: %w", method, describe(query), RequestTimeout, err)
-	}
-	return nil, nil, err
-}
-
-// describe names a request by its query, for a log line: which part, or the
-// multipart start/completion.
-func describe(query url.Values) string {
-	switch {
-	case query.Has("partNumber"):
-		return "part " + query.Get("partNumber")
-	case query.Has("uploads"):
-		return "multipart start"
-	case query.Has("uploadId"):
-		return "multipart completion"
-	default:
-		return "object"
-	}
-}
-
 // MiB renders a byte count in MiB.
 func MiB(n int64) string {
 	return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
@@ -331,211 +201,6 @@ func (c *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	}
 	response.Body = progressBody{Reader: activity.Reader(ctx, response.Body), Closer: response.Body}
 	return response.Body, nil
-}
-
-// Upload streams body to key and returns how many bytes it stored. A body that
-// fits in PartSize is a single PUT, anything larger a multipart upload of
-// UploadConcurrency parts at a time, aborted if any part fails.
-func (c *Client) Upload(ctx context.Context, key string, body io.Reader) (int64, error) {
-	first := make([]byte, PartSize)
-	n, err := io.ReadFull(body, first)
-	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		return 0, err
-	}
-	if n < PartSize {
-		if _, _, err := c.send(ctx, http.MethodPut, key, nil, first[:n]); err != nil {
-			return 0, err
-		}
-		return int64(n), nil
-	}
-	c.log(fmt.Sprintf("Archive is over %s, uploading it in parts", MiB(PartSize)))
-	uploadID, err := c.startMultipart(ctx, key)
-	if err != nil {
-		return 0, err
-	}
-	total, err := c.uploadParts(ctx, key, uploadID, first, body)
-	if err != nil {
-		abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-		defer cancel()
-		_, _, _ = c.send(abortCtx, http.MethodDelete, key, url.Values{"uploadId": {uploadID}}, nil)
-		return 0, err
-	}
-	return total, nil
-}
-
-// startMultipart initiates a multipart upload for key and returns its upload id.
-func (c *Client) startMultipart(ctx context.Context, key string) (string, error) {
-	_, raw, err := c.send(ctx, http.MethodPost, key, url.Values{"uploads": {""}}, nil)
-	if err != nil {
-		return "", err
-	}
-	var started struct {
-		UploadID string `xml:"UploadId"`
-	}
-	if err := xml.Unmarshal(raw, &started); err != nil || started.UploadID == "" {
-		return "", fmt.Errorf("S3 didn't return an upload id: %s", strings.TrimSpace(string(raw)))
-	}
-	return started.UploadID, nil
-}
-
-type completedPart struct {
-	ETag       string `xml:"ETag"`
-	PartNumber int    `xml:"PartNumber"`
-}
-
-// uploadParts uploads buffer, then the rest of body, as parts of uploadID,
-// UploadConcurrency at a time, and completes the multipart upload. Reading the
-// next part overlaps with sending the previous ones; the first failed part
-// cancels the rest.
-func (c *Client) uploadParts(ctx context.Context, key, uploadID string, buffer []byte, body io.Reader) (int64, error) {
-	ctx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
-	progress := newProgress(c)
-	var (
-		mu    sync.Mutex
-		parts []completedPart
-	)
-	type part struct {
-		data   []byte
-		number int
-	}
-	queue := make(chan part)
-	free := make(chan []byte, UploadConcurrency+1)
-	for range UploadConcurrency {
-		free <- make([]byte, PartSize)
-	}
-	var workers sync.WaitGroup
-	for range UploadConcurrency {
-		workers.Go(func() {
-			for p := range queue {
-				header, _, err := c.send(ctx, http.MethodPut, key,
-					url.Values{"partNumber": {strconv.Itoa(p.number)}, "uploadId": {uploadID}}, p.data)
-				if err != nil {
-					cancel(fmt.Errorf("part %d (after %s uploaded): %w", p.number, MiB(progress.total()), err))
-					continue
-				}
-				mu.Lock()
-				parts = append(parts, completedPart{ETag: header.Get("ETag"), PartNumber: p.number})
-				mu.Unlock()
-				progress.add(len(p.data))
-				free <- p.data[:cap(p.data)]
-			}
-		})
-	}
-	readErr := c.feedParts(ctx, body, buffer, free, func(number int, data []byte) bool {
-		select {
-		case queue <- part{data: data, number: number}:
-			return true
-		case <-ctx.Done():
-			return false
-		}
-	})
-	close(queue)
-	workers.Wait()
-	if err := context.Cause(ctx); err != nil {
-		return 0, err
-	}
-	if readErr != nil {
-		return 0, readErr
-	}
-	progress.done(len(parts))
-	sort.Slice(parts, func(i, j int) bool { return parts[i].PartNumber < parts[j].PartNumber })
-	complete, err := xml.Marshal(struct {
-		XMLName xml.Name        `xml:"CompleteMultipartUpload"`
-		Parts   []completedPart `xml:"Part"`
-	}{Parts: parts})
-	if err != nil {
-		return 0, err
-	}
-	_, raw, err := c.send(ctx, http.MethodPost, key, url.Values{"uploadId": {uploadID}}, complete)
-	if err != nil {
-		return 0, err
-	}
-	if bytes.Contains(raw, []byte("<Error>")) {
-		return 0, fmt.Errorf("S3 couldn't complete the upload: %s", strings.TrimSpace(string(raw)))
-	}
-	return progress.total(), nil
-}
-
-// feedParts hands buffer and then every further chunk of body to send, each
-// PartSizeFor its number, taking a buffer from free for each read (a bigger
-// one once parts grow). It stops at the end of body, when send refuses (the
-// upload failed), or on a read error.
-func (c *Client) feedParts(ctx context.Context, body io.Reader, buffer []byte, free chan []byte, send func(int, []byte) bool) error {
-	n, want := len(buffer), len(buffer)
-	for number := 1; n > 0; number++ {
-		if !send(number, buffer[:n]) {
-			return nil
-		}
-		if n < want {
-			return nil
-		}
-		select {
-		case buffer = <-free:
-		case <-ctx.Done():
-			return nil
-		}
-		want = PartSizeFor(number + 1)
-		if cap(buffer) < want {
-			buffer = make([]byte, want)
-		}
-		var err error
-		n, err = io.ReadFull(body, buffer[:want])
-		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-			return err
-		}
-	}
-	return nil
-}
-
-// progress counts the bytes of an upload's parts as they land and logs the
-// throughput at most every progressEvery.
-type progress struct {
-	client  *Client
-	mu      sync.Mutex
-	sent    int64
-	parts   int
-	started time.Time
-	lastLog time.Time
-}
-
-// newProgress starts counting now.
-func newProgress(client *Client) *progress {
-	now := time.Now()
-	return &progress{client: client, lastLog: now, started: now}
-}
-
-// add records one uploaded part of n bytes, logging if it's time to.
-func (p *progress) add(n int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.sent += int64(n)
-	p.parts++
-	if time.Since(p.lastLog) >= progressEvery {
-		p.lastLog = time.Now()
-		p.client.log("Uploaded " + p.line())
-	}
-}
-
-// done logs the final count.
-func (p *progress) done(parts int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.client.log(fmt.Sprintf("All %d parts uploaded: %s", parts, p.line()))
-}
-
-// total is how many bytes have landed so far.
-func (p *progress) total() int64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.sent
-}
-
-// line is the count, the throughput and the time taken, the mutex held.
-func (p *progress) line() string {
-	elapsed := time.Since(p.started)
-	return fmt.Sprintf("%s in %d parts (%s/s over %s, %d at a time)", MiB(p.sent), p.parts,
-		MiB(int64(float64(p.sent)/max(elapsed.Seconds(), 0.001))), elapsed.Round(time.Second), UploadConcurrency)
 }
 
 type progressBody struct {

@@ -725,9 +725,9 @@ const generalHandler: Handle = async ({ event, resolve }) => {
 	const isAsset =
 		!event.url.pathname.endsWith("/") && event.url.pathname.includes(".");
 	if (
-		res.status >= 400 &&
+		res.status >= 500 &&
 		!isAsset &&
-		res.status !== 404 &&
+		!event.url.pathname.startsWith("/homerun-error/") &&
 		!isIngestPath(event.url.pathname)
 	) {
 		logger.error(

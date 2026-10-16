@@ -174,7 +174,7 @@ export async function backupRoundTrip(
 		);
 		expect(backup.status).toBeLessThan(300);
 		const backedUp = await finishedRun(sql, volumeId, "backup", started);
-		expect(backedUp.key).toStartWith(`${prefix}/${suffix}/`);
+		expect(backedUp.key).toStartWith("restic:");
 		console.info(
 			`Backup of ${sizeMb} MiB: ${((backedUp.sizeBytes ?? 0) / 2 ** 20).toFixed(1)} MiB archive in ${backedUp.seconds}s`,
 		);

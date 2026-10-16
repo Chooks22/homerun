@@ -1,7 +1,7 @@
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
 import type { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
-import type { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
+import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { stackPath } from "#lib/stack-tree.js";
 import {
 	deleteRemoteFile,
@@ -10,6 +10,12 @@ import {
 	rcloneRemote,
 	testRemote,
 } from "./backup/rclone.ts";
+import {
+	listSnapshots,
+	parseResticKey,
+	RESTIC_KEY_PREFIX,
+	resticRepository,
+} from "./backup/restic.ts";
 import {
 	VOLUME_HELPER_IMAGE,
 	VOLUME_HELPER_MOUNT_PATH,
@@ -39,8 +45,17 @@ export type BackupTarget = { destination: S3Config } | { remote: RcloneRemote };
 
 export interface BackupObject {
 	key: string;
+	label: string;
 	lastModified: string | null;
 	sizeBytes: number;
+}
+
+/** Orders backups newest first by when they were taken, undated ones last. */
+function newestFirst(a: BackupObject, b: BackupObject): number {
+	return (
+		(b.lastModified ? Date.parse(b.lastModified) : 0) -
+		(a.lastModified ? Date.parse(a.lastModified) : 0)
+	);
 }
 
 const CONTENTS_RE = /<Contents>([\s\S]*?)<\/Contents>/g;
@@ -81,6 +96,7 @@ async function listObjects(
 		if (key?.endsWith(".tar.gz")) {
 			objects.push({
 				key,
+				label: key,
 				lastModified: tagValue(body, "LastModified"),
 				sizeBytes: Number.parseInt(tagValue(body, "Size") ?? "0", 10),
 			});
@@ -92,21 +108,21 @@ async function listObjects(
 
 class S3BackupServiceClass {
 	/**
-	 * Everything the Go worker needs to back `volume` up: its decrypted
-	 * destination, a fresh timestamped key, the pre-backup command's target
-	 * and, with `backupStopServices`, the running services to stop around it.
+	 * Everything the Go worker needs to back `volume` up: its restic
+	 * repository on the destination, the pre-backup command's target and, with
+	 * `backupStopServices`, the running services to stop around it.
 	 *
 	 * @throws When the destination can't be resolved or the pre-backup
 	 *   command has nowhere to run.
 	 */
 	async backupSpec(volume: StorageVolumeDTO): Promise<Record<string, unknown>> {
-		const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-		const prefix = volume.backupPrefix ? `${volume.backupPrefix}/` : "";
 		const services = await VolumeServices.servicesUsing(volume);
 		return {
 			...(await this.#helperSpec(volume, services)),
-			...(await this.destinationFor(volume)),
-			key: `${prefix}${volume.name}-${timestamp}.tar.gz`,
+			restic: await resticRepository(
+				await this.#destinationRow(volume),
+				volume,
+			),
 			preCommand: await VolumeServices.preCommandTarget(volume),
 			stopServices: volume.backupStopServices
 				? await VolumeServices.stopTargets(services)
@@ -115,8 +131,9 @@ class S3BackupServiceClass {
 	}
 
 	/**
-	 * Everything the Go worker needs to restore backup `key` into `volume`,
-	 * with the running services using it to stop when `options.stopServices`.
+	 * Everything the Go worker needs to restore backup `key` (a restic
+	 * snapshot, or a legacy archive) into `volume`, with the running services
+	 * using it to stop when `options.stopServices`.
 	 *
 	 * @throws When the destination can't be resolved.
 	 */
@@ -126,9 +143,21 @@ class S3BackupServiceClass {
 		options: RestoreOptions,
 	): Promise<Record<string, unknown>> {
 		const services = await VolumeServices.servicesUsing(volume);
+		const row = await this.#destinationRow(volume);
+		const snapshot = parseResticKey(key);
 		return {
 			...(await this.#helperSpec(volume, services)),
-			...(await this.destinationFor(volume)),
+			...(snapshot
+				? {
+						restic: {
+							...(await resticRepository(
+								row,
+								await this.#snapshotVolume(volume, snapshot.volumeId),
+							)),
+							snapshot: snapshot.snapshot,
+						},
+					}
+				: this.targetOf(row)),
 			key,
 			stopServices: options.stopServices
 				? await VolumeServices.stopTargets(services)
@@ -162,16 +191,17 @@ class S3BackupServiceClass {
 		};
 	}
 
-	/** The backups that exist for this volume, newest first : what the Restore picker lists. */
+	/** The backups that exist for this volume, its restic snapshots and any legacy archives, newest first : what the Restore picker lists. */
 	async listBackups(volume: StorageVolumeDTO): Promise<BackupObject[]> {
-		return await this.#listBackups(volume, await this.destinationFor(volume));
+		return await this.#allBackups(volume, await this.#destinationRow(volume));
 	}
 
 	/**
-	 * Deletes `volume`'s archives on its destination beyond the newest
-	 * `backupKeep` that destination sets: after the backup that wrote
-	 * `latestKey` succeeded, or on demand without one. Does nothing when the
-	 * destination keeps every backup.
+	 * Deletes `volume`'s legacy tar.gz archives on its destination that fall
+	 * past the newest `backupKeep` it sets, counting its restic snapshots
+	 * (which the backup itself forgets and prunes past the same limit): after
+	 * the backup that wrote `latestKey` succeeded, or on demand without one.
+	 * Does nothing when the destination keeps every backup.
 	 *
 	 * @returns The deleted keys, oldest last.
 	 * @throws When the destination can't be listed or an archive can't be
@@ -189,13 +219,16 @@ class S3BackupServiceClass {
 			return [];
 		}
 		const target = this.targetOf(row);
-		const backups = await this.#listBackups(volume, target);
+		const backups = await this.#allBackups(volume, row);
 		if (latestKey && !backups.some((backup) => backup.key === latestKey)) {
 			throw new Error(
 				`${latestKey} isn't listed on the destination, so no older backup was deleted.`,
 			);
 		}
-		const stale = backups.slice(keep).map((backup) => backup.key);
+		const stale = backups
+			.slice(keep)
+			.map((backup) => backup.key)
+			.filter((key) => !key.startsWith(RESTIC_KEY_PREFIX));
 		for (const key of stale) {
 			// oxlint-disable-next-line no-await-in-loop -- one rclone container at a time: storage boxes cap concurrent connections
 			await this.#deleteBackup(target, key);
@@ -218,7 +251,41 @@ class S3BackupServiceClass {
 		);
 	}
 
-	/** `volume`'s archives on `target`, newest first, matched by `backupKeyPattern`. */
+	/**
+	 * The volume whose repository holds a snapshot: `volume` itself, or the
+	 * one a revision restore copies from.
+	 *
+	 * @throws When that volume no longer exists.
+	 */
+	async #snapshotVolume(
+		volume: StorageVolumeDTO,
+		volumeId: string,
+	): Promise<StorageVolumeDTO> {
+		if (volumeId === volume.id) {
+			return volume;
+		}
+		const source = await StorageVolumeDTO.get(volumeId);
+		if (!source) {
+			throw new Error(
+				"The volume this snapshot was taken of no longer exists, so its repository can't be found.",
+			);
+		}
+		return source;
+	}
+
+	/** `volume`'s restic snapshots and legacy archives on `row`, newest first. */
+	async #allBackups(
+		volume: StorageVolumeDTO,
+		row: S3DestinationDTO,
+	): Promise<BackupObject[]> {
+		const [snapshots, archives] = await Promise.all([
+			listSnapshots(await resticRepository(row, volume)),
+			this.#listBackups(volume, this.targetOf(row)),
+		]);
+		return [...snapshots, ...archives].sort(newestFirst);
+	}
+
+	/** `volume`'s legacy archives on `target`, newest first, matched by `backupKeyPattern`. */
 	async #listBackups(
 		volume: StorageVolumeDTO,
 		target: BackupTarget,
@@ -232,17 +299,6 @@ class S3BackupServiceClass {
 				: await listObjects(target.destination, prefix);
 		const pattern = backupKeyPattern(prefix);
 		return objects.filter((object) => pattern.test(object.key));
-	}
-
-	/**
-	 * Resolves and decrypts a volume's destination: an `S3Config` for an S3
-	 * one, the rclone helper that reaches it for an SFTP, SMB or WebDAV one.
-	 *
-	 * @throws When the volume has no destination picked, the destination row
-	 *   no longer exists, or its secret can't be decrypted.
-	 */
-	async destinationFor(volume: StorageVolumeDTO): Promise<BackupTarget> {
-		return this.targetOf(await this.#destinationRow(volume));
 	}
 
 	/**
