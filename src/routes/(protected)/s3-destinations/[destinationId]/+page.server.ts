@@ -22,6 +22,7 @@ export const load = async ({ params, parent }) => {
 	return {
 		destination: {
 			accessKeyId: row.accessKeyId,
+			backupKeep: row.backupKeep,
 			bucket: row.bucket,
 			capacity: destination.capacity,
 			capacityAlertPercent: row.capacityAlertPercent,
@@ -123,8 +124,19 @@ export const actions = {
 		if ("error" in result) {
 			return fail(400, { error: result.error });
 		}
+		const keep = String(formData.get("backupKeep") ?? "").trim();
+		const backupKeep = keep ? Number(keep) : null;
+		if (
+			backupKeep !== null &&
+			!(Number.isInteger(backupKeep) && backupKeep >= 1)
+		) {
+			return fail(400, {
+				error:
+					"Backups to keep is a whole number of at least 1, or empty to keep them all.",
+			});
+		}
 
-		await destination.update(result.parsed);
+		await destination.update({ ...result.parsed, backupKeep });
 		logger.info(
 			`Backup destination updated: destination=${destination.id} user=${locals.user.id}`,
 		);

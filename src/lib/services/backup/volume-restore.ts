@@ -81,7 +81,6 @@ export async function restoreVolumeBackup(
 	});
 	await restored.update({
 		backupEnabled: row.backupEnabled,
-		backupKeep: row.backupKeep,
 		backupPrefix: row.backupPrefix,
 		backupPreCommand: row.backupPreCommand,
 		backupPreCommandServiceId: row.backupPreCommandServiceId,

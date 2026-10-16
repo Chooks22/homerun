@@ -169,8 +169,9 @@ class S3BackupServiceClass {
 
 	/**
 	 * Deletes `volume`'s archives on its destination beyond the newest
-	 * `backupKeep`: after the backup that wrote `latestKey` succeeded, or on
-	 * demand without one. Does nothing when every backup is kept.
+	 * `backupKeep` that destination sets: after the backup that wrote
+	 * `latestKey` succeeded, or on demand without one. Does nothing when the
+	 * destination keeps every backup.
 	 *
 	 * @returns The deleted keys, oldest last.
 	 * @throws When the destination can't be listed or an archive can't be
@@ -182,11 +183,12 @@ class S3BackupServiceClass {
 		volume: StorageVolumeDTO,
 		latestKey?: string,
 	): Promise<string[]> {
-		const keep = volume.backupKeep;
+		const row = await this.#destinationRow(volume);
+		const keep = row.backupKeep;
 		if (!keep) {
 			return [];
 		}
-		const target = await this.destinationFor(volume);
+		const target = this.targetOf(row);
 		const backups = await this.#listBackups(volume, target);
 		if (latestKey && !backups.some((backup) => backup.key === latestKey)) {
 			throw new Error(
@@ -240,6 +242,16 @@ class S3BackupServiceClass {
 	 *   no longer exists, or its secret can't be decrypted.
 	 */
 	async destinationFor(volume: StorageVolumeDTO): Promise<BackupTarget> {
+		return this.targetOf(await this.#destinationRow(volume));
+	}
+
+	/**
+	 * The destination row `volume` backs up to.
+	 *
+	 * @throws When the volume has no destination picked or the row no longer
+	 *   exists.
+	 */
+	async #destinationRow(volume: StorageVolumeDTO): Promise<S3DestinationDTO> {
 		if (!volume.s3DestinationId) {
 			throw new Error("No backup destination picked for this volume.");
 		}
@@ -247,7 +259,7 @@ class S3BackupServiceClass {
 		if (!row) {
 			throw new Error("The picked backup destination no longer exists.");
 		}
-		return this.targetOf(row);
+		return row;
 	}
 
 	/**

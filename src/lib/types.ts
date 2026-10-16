@@ -22,6 +22,7 @@ export type JobStage = "prepare" | "execute" | "finalize" | "finalizing";
 
 export type JobType =
 	| "backup"
+	| "backup_prune"
 	| "backup_restore"
 	| "core_service"
 	| "cron_job"

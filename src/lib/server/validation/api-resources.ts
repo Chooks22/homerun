@@ -40,15 +40,6 @@ export const serviceDependencyApiBody = z.object({
 
 const volumeBackupFields = {
 	backupEnabled: z.boolean().optional(),
-	backupKeep: z
-		.number()
-		.int()
-		.min(1)
-		.nullable()
-		.optional()
-		.describe(
-			"How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all.",
-		),
 	backupPreCommand: nullableText.describe(
 		"A command run in backupPreCommandServiceId before each backup.",
 	),
@@ -202,8 +193,19 @@ export const updateNotificationChannelApiBody = notificationChannelApiBody
 	.omit({ kind: true })
 	.partial();
 
+const backupKeep = z
+	.number()
+	.int()
+	.min(1)
+	.nullable()
+	.optional()
+	.describe(
+		"How many of each volume's newest backups to keep here, older ones deleted after each successful backup. null keeps them all.",
+	);
+
 export const backupDestinationApiBody = z.object({
 	accessKeyId: text.min(1).describe("Access key id, or username."),
+	backupKeep,
 	bucket: text.default("").describe("Bucket, or path (share for smb)."),
 	endpoint: text.min(1).describe("S3 endpoint URL, or host / WebDAV URL."),
 	name: text.min(1).max(100),
@@ -215,6 +217,7 @@ export const backupDestinationApiBody = z.object({
 export const updateBackupDestinationApiBody = z
 	.object({
 		accessKeyId: text.min(1),
+		backupKeep,
 		bucket: text,
 		endpoint: text.min(1),
 		name: text.min(1).max(100),

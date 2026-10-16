@@ -114,8 +114,8 @@ function notifyBackup(
 }
 
 /**
- * Deletes the volume's archives past its `backupKeep` after a successful
- * backup, noting what went in the job's log. A failure is logged as a warning
+ * Deletes the volume's archives past its destination's `backupKeep` after a
+ * successful backup, noting what went in the job's log. A failure is logged as a warning
  * and never fails the backup that just succeeded.
  */
 async function pruneOldBackups(
@@ -123,7 +123,7 @@ async function pruneOldBackups(
 	volume: StorageVolumeDTO | null,
 	key: string | null,
 ): Promise<void> {
-	if (!(volume?.backupKeep && key)) {
+	if (!(volume && key)) {
 		return;
 	}
 	try {
@@ -131,10 +131,10 @@ async function pruneOldBackups(
 		if (deleted.length > 0) {
 			await JobDTO.appendLog(
 				job.id,
-				`Kept the newest ${volume.backupKeep} backups, deleted ${deleted.length} older: ${deleted.join(", ")}`,
+				`Deleted ${deleted.length} older backups past the destination's limit: ${deleted.join(", ")}`,
 			);
 			logger.info(
-				`Old backups deleted: volume=${volume.id} keep=${volume.backupKeep} deleted=${deleted.length}`,
+				`Old backups deleted: volume=${volume.id} deleted=${deleted.length}`,
 			);
 		}
 	} catch (err) {

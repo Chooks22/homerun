@@ -198,23 +198,6 @@
             value={vol.backupPrefix ?? ""}
           />
         </div>
-        <div>
-          <label class={label} for="backupKeep">Backups to keep</label>
-          <Input
-            id="backupKeep"
-            min="1"
-            name="backupKeep"
-            placeholder="All"
-            step="1"
-            type="number"
-            value={vol.backupKeep ?? ""}
-          />
-          <p class="mt-1 text-xs text-text-muted">
-            After each successful backup, older archives of this volume on the
-            destination are deleted so only this many remain. Empty keeps every
-            one.
-          </p>
-        </div>
       </div>
     </form>
   </section>

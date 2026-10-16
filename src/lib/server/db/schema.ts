@@ -1448,6 +1448,7 @@ export const s3Destination = pgTable(
 	"s3_destination",
 	{
 		accessKeyId: text("access_key_id").notNull(),
+		backupKeep: integer("backup_keep"),
 		bucket: text("bucket").notNull(),
 		capacityAlertPercent: integer("capacity_alert_percent")
 			.default(85)
@@ -1574,7 +1575,6 @@ export const storageVolume = pgTable(
 		// Cron expression for scheduled backups, evaluated by the same
 		// scheduler tick as service redeploys : see $lib/services/cron.service.ts.
 		backupEnabled: boolean("backup_enabled").default(false).notNull(),
-		backupKeep: integer("backup_keep"),
 		backupLastRunAt: timestamp("backup_last_run_at", { mode: "date" }),
 		// Object key prefix within the destination's bucket, e.g.
 		// "backups/my-app" : per-volume, even when several volumes share one

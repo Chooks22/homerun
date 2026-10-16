@@ -31,6 +31,7 @@ resource "homerun_backup_destination" "example" {
 
 ### Optional
 
+- `backup_keep` (Number)
 - `bucket` (String)
 - `region` (String)
 - `type` (String) s3, sftp, smb or webdav. Changing it replaces the resource.

@@ -2935,6 +2935,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						accessKeyId: string;
+						/** @description How many of each volume's newest backups are kept, null for all */
+						backupKeep: number | null;
 						bucket: string;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
@@ -2989,6 +2991,8 @@ export interface operations {
 				"application/json": {
 					/** @description Access key id, or username. */
 					accessKeyId: string;
+					/** @description How many of each volume's newest backups to keep here, older ones deleted after each successful backup. null keeps them all. */
+					backupKeep?: number | null;
 					/**
 					 * @description Bucket, or path (share for smb).
 					 * @default
@@ -3018,6 +3022,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						accessKeyId: string;
+						/** @description How many of each volume's newest backups are kept, null for all */
+						backupKeep: number | null;
 						bucket: string;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
@@ -3092,6 +3098,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						accessKeyId: string;
+						/** @description How many of each volume's newest backups are kept, null for all */
+						backupKeep: number | null;
 						bucket: string;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
@@ -3217,6 +3225,8 @@ export interface operations {
 			content: {
 				"application/json": {
 					accessKeyId?: string;
+					/** @description How many of each volume's newest backups to keep here, older ones deleted after each successful backup. null keeps them all. */
+					backupKeep?: number | null;
 					bucket?: string;
 					endpoint?: string;
 					name?: string;
@@ -3235,6 +3245,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						accessKeyId: string;
+						/** @description How many of each volume's newest backups are kept, null for all */
+						backupKeep: number | null;
 						bucket: string;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
@@ -21831,8 +21843,6 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
-						/** @description How many of the newest backups are kept, null for all */
-						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;
@@ -21895,8 +21905,6 @@ export interface operations {
 			content: {
 				"application/json": {
 					backupEnabled?: boolean;
-					/** @description How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all. */
-					backupKeep?: number | null;
 					/** @description A command run in backupPreCommandServiceId before each backup. */
 					backupPreCommand?: string | null;
 					backupPreCommandServiceId?: string | null;
@@ -21924,8 +21932,6 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
-						/** @description How many of the newest backups are kept, null for all */
-						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;
@@ -22009,8 +22015,6 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
-						/** @description How many of the newest backups are kept, null for all */
-						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;
@@ -22145,8 +22149,6 @@ export interface operations {
 			content: {
 				"application/json": {
 					backupEnabled?: boolean;
-					/** @description How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all. */
-					backupKeep?: number | null;
 					/** @description A command run in backupPreCommandServiceId before each backup. */
 					backupPreCommand?: string | null;
 					backupPreCommandServiceId?: string | null;
@@ -22170,8 +22172,6 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
-						/** @description How many of the newest backups are kept, null for all */
-						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;

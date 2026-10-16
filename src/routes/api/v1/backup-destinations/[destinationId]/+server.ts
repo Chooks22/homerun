@@ -36,7 +36,12 @@ export const PATCH = async ({ locals, params, request }) => {
 	if ("error" in result) {
 		return apiError(result.error);
 	}
-	await destination.update(result.parsed);
+	await destination.update({
+		...result.parsed,
+		...(body.data.backupKeep === undefined
+			? {}
+			: { backupKeep: body.data.backupKeep }),
+	});
 	return Response.json(backupDestinationApiJson(destination.toJSON()));
 };
 

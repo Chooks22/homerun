@@ -12,6 +12,9 @@ const { rcloneRemote } = await import(
 const { DockerService } = await import(
 	"../../../src/lib/services/docker.service"
 );
+const { S3DestinationDTO } = await import(
+	"../../../src/lib/dto/s3-destination-dto"
+);
 const { S3BackupService, backupKeyPattern } = await import(
 	"../../../src/lib/services/s3-backup.service"
 );
@@ -32,19 +35,23 @@ const REMOTE = rcloneRemote({
 	username: "bob",
 });
 
+let destinationKeep: number | null = null;
+
 function volume(backupKeep: number | null) {
+	destinationKeep = backupKeep;
 	return {
-		backupKeep,
 		backupPrefix: null,
 		name: "db",
+		s3DestinationId: "dest-1",
 	} as never;
 }
 
 function remoteWith(names: string[]) {
 	restorers.push(
-		spyOn(S3BackupService, "destinationFor").mockResolvedValue({
-			remote: REMOTE,
-		}),
+		spyOn(S3DestinationDTO, "get").mockImplementation(
+			async () => ({ backupKeep: destinationKeep }) as never,
+		),
+		spyOn(S3BackupService, "targetOf").mockReturnValue({ remote: REMOTE }),
 	);
 	const listing = JSON.stringify(
 		names.map((Name) => ({ ModTime: null, Name, Size: 1 })),

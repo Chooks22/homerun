@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { ChevronRight, CloudUpload, Play, Trash2 } from "@lucide/svelte";
+	import {
+		ChevronRight,
+		CloudUpload,
+		Play,
+		Settings,
+		Trash2,
+	} from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import BackupCancelButton from "#lib/components/backup-cancel-button.svelte";
 	import DeployLogPanel from "#lib/components/deploy-log-panel.svelte";
@@ -31,9 +37,6 @@
 	let runningAll = $state(false);
 	let pruning = $state(false);
 
-	const prunableVolumes = $derived(
-		data.volumes.filter((v) => v.backupKeep && v.s3DestinationId),
-	);
 	let expandedRunId = $state<string | null>(null);
 
 	function toggleRun(id: string) {
@@ -123,29 +126,26 @@
     <div class="mb-3 flex items-center justify-between gap-3">
       <h2 class="eyebrow">Scheduled backups</h2>
       <div class="flex flex-wrap items-center gap-2">
-      {#if prunableVolumes.length > 0}
+      {#if backupEnabledVolumes.length > 0}
         <form
           action="?/prune"
           method="POST"
           use:enhance={enhanceToast({
             error: "Couldn't clean up the old backups.",
-            loading: "Deleting old backups from the destinations",
+            loading: "Queueing the cleanup",
             onSettled: () => {
               pruning = false;
             },
             onStart: () => {
               pruning = true;
             },
-            success: (data) =>
-              data?.deleted
-                ? `Deleted ${data.deleted} old ${data.deleted === 1 ? "backup" : "backups"}.`
-                : "Nothing to clean up.",
+            success: "Cleanup queued : follow it in the job queue.",
           })}
         >
           <Button
             disabled={pruning}
             size="sm"
-            title="Delete the archives past each volume's Backups to keep from its destination"
+            title="Delete each volume's archives past its destination's Backups to keep"
             type="submit"
             variant="outline"
           >
@@ -208,13 +208,18 @@
               >{vol.name}</a>
 
               <p class="text-text-muted mt-0.5 truncate text-xs">{describeOrigin(vol.origin)}</p>
-              <p class="text-text-muted mt-0.5 truncate text-xs">{describeSchedule(scheduleFromCron(vol.backupSchedule))} · to {vol.destinationName}</p>
+              <p class="text-text-muted mt-0.5 truncate text-xs">{describeSchedule(scheduleFromCron(vol.backupSchedule))} · to {vol.destinationName} · {vol.destinationKeep ? `keeps the newest ${vol.destinationKeep}` : "keeps every backup"}</p>
 
               <p class="text-text-subtle mt-0.5 text-xs">
                 next run {vol.nextRunAt ? formatDate(vol.nextRunAt) : "never"}
                 · last run {formatDate(vol.backupLastRunAt)}
               </p>
             </div>
+            <div class="flex items-center gap-2">
+            <Button href="{resolve('storage')}/{vol.id}" variant="outline">
+              <Settings class="size-4" />
+              Settings
+            </Button>
             <form
               action="?/run"
               method="POST"
@@ -239,6 +244,7 @@
                 Run now
               </Button>
             </form>
+            </div>
           </div>
         {/each}
       </div>

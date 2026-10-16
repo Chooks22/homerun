@@ -227,6 +227,23 @@
         <p class="text-sm text-red-500">{form.error}</p>
       {/if}
       <BackupDestinationFields {destination} />
+      <div>
+        <label class={labelClass} for="backupKeep">Backups to keep per volume</label>
+        <input
+          id="backupKeep"
+          class={inputClass}
+          min="1"
+          name="backupKeep"
+          placeholder="All"
+          step="1"
+          type="number"
+          value={destination.backupKeep ?? ""}
+        />
+        <p class="text-text-subtle mt-1 text-xs">
+          After each successful backup, that volume's older archives here are
+          deleted so only this many remain. Empty keeps every one.
+        </p>
+      </div>
       <p class="text-text-subtle text-xs">
         The test uses the saved settings: save a change before testing it.
       </p>

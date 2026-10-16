@@ -34,6 +34,7 @@ export const POST = async ({ locals, request }) => {
 	}
 	const destination = await S3DestinationDTO.create({
 		...result.parsed,
+		backupKeep: body.data.backupKeep,
 		userId: caller.userId,
 	});
 	return Response.json(backupDestinationApiJson(destination.toJSON()), {

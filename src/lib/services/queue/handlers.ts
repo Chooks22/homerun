@@ -1,8 +1,11 @@
 import { JobDTO } from "#lib/dto/job-dto.js";
+import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
+import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import type { JobType } from "#lib/types.js";
 import { NotificationChannelService } from "../notification-channel.service.ts";
 import { ObjectStorageService } from "../object-storage.service.ts";
 import { RegistryService } from "../registry.service.ts";
+import { S3BackupService } from "../s3-backup.service.ts";
 import {
 	type CoreServiceJob,
 	coreServiceJobPayload,
@@ -71,7 +74,68 @@ async function runCoreService(entry: JobDTO): Promise<JobResult> {
 	return { action: payload.action };
 }
 
+/** Prunes one volume's archives, logging the outcome to the job; returns how many went, or null when it failed. */
+async function pruneVolume(
+	entry: JobDTO,
+	volume: StorageVolumeDTO,
+	keep: number,
+): Promise<number | null> {
+	try {
+		const deleted = await S3BackupService.pruneBackups(volume);
+		await JobDTO.appendLog(
+			entry.id,
+			deleted.length > 0
+				? `${volume.name}: kept the newest ${keep}, deleted ${deleted.length}: ${deleted.join(", ")}`
+				: `${volume.name}: nothing past the newest ${keep}`,
+		);
+		return deleted.length;
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		await JobDTO.appendLog(entry.id, `${volume.name}: failed: ${message}`);
+		return null;
+	}
+}
+
+/**
+ * Deletes every volume's archives past its destination's `backupKeep`, one
+ * volume at a time, logging each to the job.
+ *
+ * @throws After every volume was tried, when any of them couldn't be cleaned up.
+ */
+async function runBackupPrune(entry: JobDTO): Promise<JobResult> {
+	const keeps = new Map(
+		(await S3DestinationDTO.list()).map((d) => [d.id, d.backupKeep]),
+	);
+	const volumes = (await StorageVolumeDTO.list()).filter(
+		(volume) => volume.s3DestinationId && keeps.get(volume.s3DestinationId),
+	);
+	await JobDTO.appendLog(
+		entry.id,
+		`Cleaning up ${volumes.length} volumes on destinations with a backup limit`,
+	);
+	let deleted = 0;
+	const failed: string[] = [];
+	for (const volume of volumes) {
+		const keep = keeps.get(volume.s3DestinationId ?? "") ?? 0;
+		// oxlint-disable-next-line no-await-in-loop -- one volume at a time: storage boxes cap concurrent connections
+		const count = await pruneVolume(entry, volume, keep);
+		if (count === null) {
+			failed.push(volume.name);
+		} else {
+			deleted += count;
+		}
+	}
+	await JobDTO.appendLog(entry.id, `Deleted ${deleted} old backups`);
+	if (failed.length > 0) {
+		throw new Error(
+			`Deleted ${deleted} old backups, but couldn't clean up ${failed.join(", ")}: see the log.`,
+		);
+	}
+	return { deleted };
+}
+
 export const jobHandlers: Partial<Record<JobType, JobHandler>> = {
+	backup_prune: runBackupPrune,
 	core_service: runCoreService,
 	notification_delivery: runNotificationDelivery,
 };

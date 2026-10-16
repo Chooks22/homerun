@@ -70,3 +70,16 @@ export async function cancelBackupRun(
 	await run.finish({ error: reason, success: false });
 	return true;
 }
+
+/** Enqueues a cleanup of every volume's archives past its destination's `backupKeep`, deduped so a second click while one is pending does nothing, and never retried. */
+export function enqueueBackupPrune(userId: string): Promise<JobDTO> {
+	return QueueService.enqueue({
+		dedupeKey: "backup_prune",
+		lockKey: "backup_prune",
+		maxAttempts: 1,
+		payload: { userId },
+		title: "Clean up old backups",
+		type: "backup_prune",
+		userId,
+	});
+}

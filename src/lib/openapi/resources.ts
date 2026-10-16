@@ -208,6 +208,10 @@ export const notificationChannelResponse = z.object({
 
 export const backupDestinationResponse = z.object({
 	accessKeyId: z.string(),
+	backupKeep: z.number().int().nullable().meta({
+		description:
+			"How many of each volume's newest backups are kept, null for all",
+	}),
 	bucket: z.string(),
 	createdAt: timestamp,
 	endpoint: z.string(),

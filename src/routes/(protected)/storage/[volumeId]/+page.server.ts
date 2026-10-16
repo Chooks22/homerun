@@ -115,10 +115,8 @@ export const actions = {
 		const formData = await request.formData();
 		const backupEnabled = formData.get("backupEnabled") === "on";
 		try {
-			const keep = String(formData.get("backupKeep") ?? "").trim();
 			await VolumeSettingsService.apply(volume, {
 				backupEnabled,
-				backupKeep: keep ? Number(keep) : null,
 				backupPreCommand: formData.get("backupPreCommand") as string | null,
 				backupPreCommandServiceId: formData.get("backupPreCommandServiceId") as
 					| string

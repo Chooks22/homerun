@@ -17,6 +17,7 @@ import { BaseDTO } from "./base-dto";
 
 export interface NewS3DestinationInput {
 	accessKeyId: string;
+	backupKeep?: number | null;
 	bucket: string;
 	endpoint: string;
 	name: string;
@@ -27,7 +28,10 @@ export interface NewS3DestinationInput {
 }
 
 export type S3DestinationUpdateInput = Partial<
-	Pick<S3Destination, "accessKeyId" | "bucket" | "endpoint" | "name" | "region">
+	Pick<
+		S3Destination,
+		"accessKeyId" | "backupKeep" | "bucket" | "endpoint" | "name" | "region"
+	>
 > & {
 	/** Blank/undefined means "keep the currently stored secret". */
 	secretAccessKey?: string;
@@ -128,6 +132,7 @@ export class S3DestinationDTO extends BaseDTO<S3Destination> {
 		const now = new Date();
 		const row: S3Destination = {
 			accessKeyId: input.accessKeyId,
+			backupKeep: input.backupKeep ?? null,
 			bucket: input.bucket,
 			capacityAlertPercent: DEFAULT_CAPACITY_ALERT_PERCENT,
 			capacityAlertedAt: null,
@@ -217,6 +222,11 @@ export class S3DestinationDTO extends BaseDTO<S3Destination> {
 			.where(eq(s3Destination.id, this.row.id));
 		this.row.capacityAlertPercent = percent;
 		this.row.capacityAlertedAt = null;
+	}
+
+	/** How many of each volume's newest backups are kept here, null to keep them all. */
+	get backupKeep(): number | null {
+		return this.row.backupKeep;
 	}
 
 	/** The last capacity measurement, null before the first successful check. */

@@ -318,7 +318,6 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("backupEnabled", "bool", off),
 			attr("backupSchedule", "string"),
 			attr("backupPrefix", "string"),
-			attr("backupKeep", "int"),
 			attr("s3DestinationId", "string", {
 				ref: "homerun_backup_destination",
 			}),
@@ -465,6 +464,7 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("accessKeyId", "string", required),
 			attr("secretAccessKey", "string", { ...required, ...secret }),
 			attr("secretAccessKeySet", "bool", { readOnly: true }),
+			attr("backupKeep", "int"),
 		],
 		collectionPath: "/backup-destinations",
 		description: "Where volume backups are written.",

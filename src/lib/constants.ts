@@ -30,6 +30,7 @@ import {
 	ShieldCheck,
 	Sparkles,
 	Terminal,
+	Trash2,
 	Wallet,
 	Workflow,
 	XCircle,
@@ -72,6 +73,7 @@ export const JOB_STATUS_CONFIG: Record<
 
 export const JOB_TYPE_ICONS: Record<JobType, typeof Database> = {
 	backup: CloudUpload,
+	backup_prune: Trash2,
 	backup_restore: ArchiveRestore,
 	core_service: Server,
 	cron_job: CalendarClock,
@@ -83,6 +85,7 @@ export const JOB_TYPE_ICONS: Record<JobType, typeof Database> = {
 
 export const JOB_TYPE_LABELS: Record<JobType, string> = {
 	backup: "Backup",
+	backup_prune: "Backup cleanup",
 	backup_restore: "Restore",
 	core_service: "Core service",
 	cron_job: "Cron job",

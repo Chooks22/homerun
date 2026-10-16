@@ -9,10 +9,10 @@ import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
 import {
 	cancelBackupRun,
+	enqueueBackupPrune,
 	enqueueVolumeBackup,
 } from "#lib/services/backup-queue.js";
 import { nextCronRun } from "#lib/services/cron/cron-expression.js";
-import { S3BackupService } from "#lib/services/s3-backup.service.js";
 import { stackPath } from "#lib/stack-tree.js";
 import { resolve } from "$app/paths";
 
@@ -48,6 +48,9 @@ export const load = async ({ parent, url }) => {
 		};
 	};
 	const destinationNames = new Map(destinations.map((d) => [d.id, d.name]));
+	const destinationKeeps = new Map(
+		destinations.map((d) => [d.id, d.backupKeep]),
+	);
 	const logs = await JobDTO.logsFor(
 		runs.items.map(({ run }) => run.toJSON().jobId),
 	);
@@ -70,6 +73,9 @@ export const load = async ({ parent, url }) => {
 			destinationName: v.s3DestinationId
 				? (destinationNames.get(v.s3DestinationId) ?? "unknown destination")
 				: "no destination",
+			destinationKeep: v.s3DestinationId
+				? (destinationKeeps.get(v.s3DestinationId) ?? null)
+				: null,
 			nextRunAt:
 				v.backupEnabled && v.backupSchedule
 					? nextCronRun(v.backupSchedule, new Date())
@@ -104,39 +110,18 @@ export const actions = {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
 		}
-		const volumes = (await StorageVolumeDTO.list()).filter(
-			(volume) => volume.backupKeep && volume.s3DestinationId,
-		);
-		if (volumes.length === 0) {
+		const destinations = await S3DestinationDTO.list();
+		if (!destinations.some((destination) => destination.backupKeep)) {
 			return fail(400, {
-				error: "Set Backups to keep on a volume first.",
+				error:
+					"Every destination keeps all its backups: set Backups to keep per volume on a destination first.",
 			});
 		}
-		const results = await Promise.allSettled(
-			volumes.map((volume) => S3BackupService.pruneBackups(volume)),
-		);
-		let deleted = 0;
-		const failures: string[] = [];
-		results.forEach((result, index) => {
-			if (result.status === "fulfilled") {
-				deleted += result.value.length;
-				return;
-			}
-			const reason =
-				result.reason instanceof Error
-					? result.reason.message
-					: String(result.reason);
-			failures.push(`${volumes[index].name}: ${reason}`);
-		});
+		const entry = await enqueueBackupPrune(locals.user.id);
 		logger.info(
-			`Old backups cleaned up: volumes=${volumes.length} deleted=${deleted} failed=${failures.length} user=${locals.user.id}`,
+			`Backup cleanup queued: job=${entry.id} user=${locals.user.id}`,
 		);
-		if (failures.length > 0) {
-			return fail(502, {
-				error: `Deleted ${deleted} old backups, but couldn't clean up ${failures.join("; ")}`,
-			});
-		}
-		return { deleted };
+		return { queued: true };
 	},
 
 	run: async ({ request, locals }) => {

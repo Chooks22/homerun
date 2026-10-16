@@ -966,11 +966,6 @@
 					"tf": "backup_prefix"
 				},
 				{
-					"kind": "int",
-					"name": "backupKeep",
-					"tf": "backup_keep"
-				},
-				{
 					"kind": "string",
 					"name": "s3DestinationId",
 					"tf": "s3_destination_id",
@@ -1365,6 +1360,11 @@
 					"name": "secretAccessKeySet",
 					"tf": "secret_access_key_set",
 					"readOnly": true
+				},
+				{
+					"kind": "int",
+					"name": "backupKeep",
+					"tf": "backup_keep"
 				}
 			],
 			"collectionPath": "/backup-destinations",

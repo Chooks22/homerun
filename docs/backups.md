@@ -124,23 +124,27 @@ volume's contents and streams it, gzipped, to
 
 **Every backup is a full archive, and Homerun keeps them all by default**, so a
 nightly backup of a large volume fills its destination within weeks. Set
-**Backups to keep** on the volume's page (`backupKeep` in the REST API, MCP and
-Terraform) to cap it: after each successful backup, Homerun lists that volume's
-archives on the destination and deletes all but the newest N. Only files named
-exactly `<prefix/>volumeName-<timestamp>.tar.gz` count, so another volume
-sharing the destination (even one called `db-data` next to `db`) and anything
-else stored there are never touched. A failed backup deletes nothing. If the
-listing or a deletion fails, or the archive just uploaded isn't listed, the
-backup still succeeds: its run log and Homerun's system logs say why nothing (or
-not everything) was deleted, and the next successful backup tries again. Runs on
-`/backups` stay listed after their archive is deleted, but a restore can only
-pick archives that are still on the destination.
+**Backups to keep per volume** in the destination's **Settings** (`backupKeep`
+on a backup destination in the REST API and Terraform) to cap it: the limit
+applies to each volume backing up there, and after each successful backup
+Homerun lists that volume's archives on the destination and deletes all but the
+newest N. Only files named exactly `<prefix/>volumeName-<timestamp>.tar.gz`
+count, so another volume sharing the destination (even one called `db-data` next
+to `db`) and anything else stored there are never touched. A failed backup
+deletes nothing. If the listing or a deletion fails, or the archive just
+uploaded isn't listed, the backup still succeeds: its run log and Homerun's
+system logs say why nothing (or not everything) was deleted, and the next
+successful backup tries again. Runs on `/backups` stay listed after their
+archive is deleted, but a restore can only pick archives that are still on the
+destination.
 
 **Clean up old backups** on `/backups` applies the same rule right away, without
-waiting for the next backup: for every volume with **Backups to keep** set, it
-deletes the archives past the newest N from its destination and says how many
-went. It's the quick way to free space after setting the limit on a destination
-that's already full.
+waiting for the next backup: it queues a **Backup cleanup** job that goes
+through every volume on a destination with a limit, one at a time, deletes its
+archives past the newest N and logs what went per volume. Follow it in the job
+queue. It's the quick way to free space after setting the limit on a destination
+that's already full; a volume that fails is logged, the others are still cleaned
+up, and the job ends failed so it doesn't go unnoticed.
 
 **S3 uploads** go through a hand-rolled Signature V4 client (a multipart upload
 of 8 MiB parts, sixteen sent at once while the next ones are archived, the parts
@@ -230,9 +234,10 @@ that:
 
 The top of `/backups` lists every volume with backups on, as soon as they're
 turned on: its schedule in words, its destination, and when it next and last
-ran, with a **Run now** button. **Run all** above the list queues a backup of
-every one of them at once; a volume whose backup is already queued isn't queued
-twice.
+ran, how many backups its destination keeps, with **Settings** (the volume's own
+page, to change its schedule and backup settings) and **Run now** buttons. **Run
+all** above the list queues a backup of every one of them at once; a volume
+whose backup is already queued isn't queued twice.
 
 ![Backups, with the volumes on a schedule above the run log](images/backups-history.webp)
 
