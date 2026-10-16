@@ -21831,6 +21831,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
+						/** @description How many of the newest backups are kept, null for all */
+						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;
@@ -21893,6 +21895,8 @@ export interface operations {
 			content: {
 				"application/json": {
 					backupEnabled?: boolean;
+					/** @description How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all. */
+					backupKeep?: number | null;
 					/** @description A command run in backupPreCommandServiceId before each backup. */
 					backupPreCommand?: string | null;
 					backupPreCommandServiceId?: string | null;
@@ -21920,6 +21924,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
+						/** @description How many of the newest backups are kept, null for all */
+						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;
@@ -22003,6 +22009,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
+						/** @description How many of the newest backups are kept, null for all */
+						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;
@@ -22137,6 +22145,8 @@ export interface operations {
 			content: {
 				"application/json": {
 					backupEnabled?: boolean;
+					/** @description How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all. */
+					backupKeep?: number | null;
 					/** @description A command run in backupPreCommandServiceId before each backup. */
 					backupPreCommand?: string | null;
 					backupPreCommandServiceId?: string | null;
@@ -22160,6 +22170,8 @@ export interface operations {
 				content: {
 					"application/json": {
 						backupEnabled: boolean;
+						/** @description How many of the newest backups are kept, null for all */
+						backupKeep: number | null;
 						backupLastRunAt: string | null;
 						/** @description When the schedule fires next, null when backups are off */
 						backupNextRunAt: string | null;

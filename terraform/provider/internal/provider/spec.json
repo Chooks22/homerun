@@ -966,6 +966,11 @@
 					"tf": "backup_prefix"
 				},
 				{
+					"kind": "int",
+					"name": "backupKeep",
+					"tf": "backup_keep"
+				},
+				{
 					"kind": "string",
 					"name": "s3DestinationId",
 					"tf": "s3_destination_id",

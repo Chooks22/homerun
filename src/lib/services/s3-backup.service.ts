@@ -4,6 +4,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import type { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { stackPath } from "#lib/stack-tree.js";
 import {
+	deleteRemoteFile,
 	listRemoteBackups,
 	type RcloneRemote,
 	rcloneRemote,
@@ -43,6 +44,16 @@ export interface BackupObject {
 }
 
 const CONTENTS_RE = /<Contents>([\s\S]*?)<\/Contents>/g;
+const BACKUP_SUFFIX = String.raw`\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.tar\.gz`;
+
+/**
+ * Matches exactly the keys `backupSpec` writes under `prefix`, so a volume
+ * named `db` never claims `db-data`'s archives.
+ */
+export function backupKeyPattern(prefix: string): RegExp {
+	const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return new RegExp(`^${escaped}${BACKUP_SUFFIX}$`);
+}
 
 function tagValue(xml: string, tag: string): string | null {
 	const match = xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
@@ -153,13 +164,71 @@ class S3BackupServiceClass {
 
 	/** The backups that exist for this volume, newest first : what the Restore picker lists. */
 	async listBackups(volume: StorageVolumeDTO): Promise<BackupObject[]> {
+		return await this.#listBackups(volume, await this.destinationFor(volume));
+	}
+
+	/**
+	 * Deletes `volume`'s archives on its destination beyond the newest
+	 * `backupKeep`, once the backup that wrote `latestKey` succeeded. Does
+	 * nothing when every backup is kept.
+	 *
+	 * @returns The deleted keys, oldest last.
+	 * @throws When the destination can't be listed or an archive can't be
+	 *   deleted, or when `latestKey` isn't listed: pruning against a listing
+	 *   that misses the newest archive could delete the ones worth keeping.
+	 */
+	async pruneBackups(
+		volume: StorageVolumeDTO,
+		latestKey: string,
+	): Promise<string[]> {
+		const keep = volume.backupKeep;
+		if (!keep) {
+			return [];
+		}
 		const target = await this.destinationFor(volume);
+		const backups = await this.#listBackups(volume, target);
+		if (!backups.some((backup) => backup.key === latestKey)) {
+			throw new Error(
+				`${latestKey} isn't listed on the destination, so no older backup was deleted.`,
+			);
+		}
+		const stale = backups.slice(keep).map((backup) => backup.key);
+		for (const key of stale) {
+			// oxlint-disable-next-line no-await-in-loop -- one rclone container at a time: storage boxes cap concurrent connections
+			await this.#deleteBackup(target, key);
+		}
+		return stale;
+	}
+
+	/** Deletes one archive on `target`: a signed `DELETE`, or `rclone deletefile`. */
+	async #deleteBackup(target: BackupTarget, key: string): Promise<void> {
+		if ("remote" in target) {
+			await deleteRemoteFile(target.remote, key);
+			return;
+		}
+		await expectS3Ok(
+			await s3Fetch(target.destination, {
+				method: "DELETE",
+				path: `/${target.destination.bucket}/${key}`,
+			}),
+			"DELETE",
+		);
+	}
+
+	/** `volume`'s archives on `target`, newest first, matched by `backupKeyPattern`. */
+	async #listBackups(
+		volume: StorageVolumeDTO,
+		target: BackupTarget,
+	): Promise<BackupObject[]> {
 		const prefix = volume.backupPrefix
 			? `${volume.backupPrefix}/${volume.name}-`
 			: `${volume.name}-`;
-		return "remote" in target
-			? await listRemoteBackups(target.remote, prefix)
-			: await listObjects(target.destination, prefix);
+		const objects =
+			"remote" in target
+				? await listRemoteBackups(target.remote, prefix)
+				: await listObjects(target.destination, prefix);
+		const pattern = backupKeyPattern(prefix);
+		return objects.filter((object) => pattern.test(object.key));
 	}
 
 	/**

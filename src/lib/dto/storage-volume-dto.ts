@@ -36,6 +36,7 @@ export type StorageVolumeUpdateInput = Partial<
 	Pick<
 		StorageVolume,
 		| "backupEnabled"
+		| "backupKeep"
 		| "backupLastRunAt"
 		| "backupPrefix"
 		| "backupPreCommand"
@@ -202,6 +203,7 @@ export class StorageVolumeDTO extends BaseDTO<StorageVolume> {
 		const now = new Date();
 		const row: StorageVolume = {
 			backupEnabled: false,
+			backupKeep: null,
 			backupLastRunAt: null,
 			backupPrefix: null,
 			backupPreCommand: null,
@@ -268,6 +270,10 @@ export class StorageVolumeDTO extends BaseDTO<StorageVolume> {
 	/** The backup cron expression, if one is set. */
 	get backupSchedule(): string | null {
 		return this.row.backupSchedule;
+	}
+	/** How many of the newest backups to keep on the destination, null to keep them all. */
+	get backupKeep(): number | null {
+		return this.row.backupKeep;
 	}
 	/** When the last scheduled backup started, null if never. */
 	get backupLastRunAt(): Date | null {

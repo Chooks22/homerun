@@ -41,6 +41,9 @@ export const backupRunResponse = z.object({
 
 export const volumeResponse = z.object({
 	backupEnabled: z.boolean(),
+	backupKeep: z.number().int().nullable().meta({
+		description: "How many of the newest backups are kept, null for all",
+	}),
 	backupLastRunAt: timestamp.nullable(),
 	backupNextRunAt: timestamp.nullable().meta({
 		description: "When the schedule fires next, null when backups are off",

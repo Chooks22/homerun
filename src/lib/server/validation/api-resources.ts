@@ -40,6 +40,15 @@ export const serviceDependencyApiBody = z.object({
 
 const volumeBackupFields = {
 	backupEnabled: z.boolean().optional(),
+	backupKeep: z
+		.number()
+		.int()
+		.min(1)
+		.nullable()
+		.optional()
+		.describe(
+			"How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all.",
+		),
 	backupPreCommand: nullableText.describe(
 		"A command run in backupPreCommandServiceId before each backup.",
 	),

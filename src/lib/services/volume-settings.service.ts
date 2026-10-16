@@ -13,6 +13,7 @@ export class VolumeSettingsError extends Error {}
 
 export interface VolumeSettingsInput {
 	backupEnabled?: boolean;
+	backupKeep?: number | null;
 	backupPreCommand?: string | null;
 	backupPreCommandServiceId?: string | null;
 	backupPrefix?: string | null;
@@ -99,6 +100,16 @@ class VolumeSettingsServiceClass {
 		if (configError) {
 			throw new VolumeSettingsError(configError);
 		}
+		const backupKeep =
+			input.backupKeep === undefined ? row.backupKeep : input.backupKeep;
+		if (
+			backupKeep !== null &&
+			(!Number.isInteger(backupKeep) || backupKeep < 1)
+		) {
+			throw new VolumeSettingsError(
+				"Backups to keep must be a whole number of at least 1, or empty to keep them all.",
+			);
+		}
 		const guard = await volumeBackupGuard(
 			{
 				backupPreCommand:
@@ -118,6 +129,7 @@ class VolumeSettingsServiceClass {
 		}
 		await volume.update({
 			backupEnabled,
+			backupKeep,
 			backupPrefix:
 				input.backupPrefix === undefined
 					? row.backupPrefix

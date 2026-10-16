@@ -42158,6 +42158,19 @@
 											"backupEnabled": {
 												"type": "boolean"
 											},
+											"backupKeep": {
+												"anyOf": [
+													{
+														"maximum": 9007199254740991,
+														"minimum": -9007199254740991,
+														"type": "integer"
+													},
+													{
+														"type": "null"
+													}
+												],
+												"description": "How many of the newest backups are kept, null for all"
+											},
 											"backupLastRunAt": {
 												"anyOf": [
 													{
@@ -42231,6 +42244,7 @@
 										},
 										"required": [
 											"backupEnabled",
+											"backupKeep",
 											"backupLastRunAt",
 											"backupNextRunAt",
 											"backupPreCommand",
@@ -42315,6 +42329,19 @@
 									"backupEnabled": {
 										"type": "boolean"
 									},
+									"backupKeep": {
+										"anyOf": [
+											{
+												"maximum": 9007199254740991,
+												"minimum": 1,
+												"type": "integer"
+											},
+											{
+												"type": "null"
+											}
+										],
+										"description": "How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all."
+									},
 									"backupPreCommand": {
 										"description": "A command run in backupPreCommandServiceId before each backup.",
 										"type": ["string", "null"]
@@ -42370,6 +42397,19 @@
 									"properties": {
 										"backupEnabled": {
 											"type": "boolean"
+										},
+										"backupKeep": {
+											"anyOf": [
+												{
+													"maximum": 9007199254740991,
+													"minimum": -9007199254740991,
+													"type": "integer"
+												},
+												{
+													"type": "null"
+												}
+											],
+											"description": "How many of the newest backups are kept, null for all"
 										},
 										"backupLastRunAt": {
 											"anyOf": [
@@ -42444,6 +42484,7 @@
 									},
 									"required": [
 										"backupEnabled",
+										"backupKeep",
 										"backupLastRunAt",
 										"backupNextRunAt",
 										"backupPreCommand",
@@ -42640,6 +42681,19 @@
 										"backupEnabled": {
 											"type": "boolean"
 										},
+										"backupKeep": {
+											"anyOf": [
+												{
+													"maximum": 9007199254740991,
+													"minimum": -9007199254740991,
+													"type": "integer"
+												},
+												{
+													"type": "null"
+												}
+											],
+											"description": "How many of the newest backups are kept, null for all"
+										},
 										"backupLastRunAt": {
 											"anyOf": [
 												{
@@ -42713,6 +42767,7 @@
 									},
 									"required": [
 										"backupEnabled",
+										"backupKeep",
 										"backupLastRunAt",
 										"backupNextRunAt",
 										"backupPreCommand",
@@ -42824,6 +42879,19 @@
 									"backupEnabled": {
 										"type": "boolean"
 									},
+									"backupKeep": {
+										"anyOf": [
+											{
+												"maximum": 9007199254740991,
+												"minimum": 1,
+												"type": "integer"
+											},
+											{
+												"type": "null"
+											}
+										],
+										"description": "How many of the newest backups to keep on the destination, older ones deleted after each successful backup. null keeps them all."
+									},
 									"backupPreCommand": {
 										"description": "A command run in backupPreCommandServiceId before each backup.",
 										"type": ["string", "null"]
@@ -42869,6 +42937,19 @@
 									"properties": {
 										"backupEnabled": {
 											"type": "boolean"
+										},
+										"backupKeep": {
+											"anyOf": [
+												{
+													"maximum": 9007199254740991,
+													"minimum": -9007199254740991,
+													"type": "integer"
+												},
+												{
+													"type": "null"
+												}
+											],
+											"description": "How many of the newest backups are kept, null for all"
 										},
 										"backupLastRunAt": {
 											"anyOf": [
@@ -42943,6 +43024,7 @@
 									},
 									"required": [
 										"backupEnabled",
+										"backupKeep",
 										"backupLastRunAt",
 										"backupNextRunAt",
 										"backupPreCommand",

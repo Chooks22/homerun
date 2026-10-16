@@ -122,6 +122,20 @@ volume's contents and streams it, gzipped, to
 
 ![A volume's backup settings: schedule, stopping services, a pre-backup command, the destination and a key prefix](images/backups-volume.webp)
 
+**Every backup is a full archive, and Homerun keeps them all by default**, so a
+nightly backup of a large volume fills its destination within weeks. Set
+**Backups to keep** on the volume's page (`backupKeep` in the REST API, MCP and
+Terraform) to cap it: after each successful backup, Homerun lists that volume's
+archives on the destination and deletes all but the newest N. Only files named
+exactly `<prefix/>volumeName-<timestamp>.tar.gz` count, so another volume
+sharing the destination (even one called `db-data` next to `db`) and anything
+else stored there are never touched. A failed backup deletes nothing. If the
+listing or a deletion fails, or the archive just uploaded isn't listed, the
+backup still succeeds: its run log and Homerun's system logs say why nothing (or
+not everything) was deleted, and the next successful backup tries again. Runs on
+`/backups` stay listed after their archive is deleted, but a restore can only
+pick archives that are still on the destination.
+
 **S3 uploads** go through a hand-rolled Signature V4 client (a multipart upload
 of 8 MiB parts, sixteen sent at once while the next ones are archived, the parts
 growing to 32 MiB for the largest archives, up to about 240 GB; no SDK).

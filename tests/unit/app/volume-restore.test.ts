@@ -37,6 +37,7 @@ function track<T extends { mockRestore: () => void }>(spy: T): T {
 
 const ROW = {
 	backupEnabled: true,
+	backupKeep: 7,
 	backupPrefix: "pfx",
 	backupPreCommand: null,
 	backupPreCommandServiceId: null,
@@ -142,6 +143,7 @@ describe("restoreVolumeBackup", () => {
 			userId: "u1",
 		});
 		expect(updated[0]).toMatchObject({
+			backupKeep: 7,
 			backupSchedule: "0 3 * * *",
 			s3DestinationId: "dest-1",
 		});

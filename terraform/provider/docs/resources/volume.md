@@ -33,6 +33,7 @@ resource "homerun_volume" "example" {
 ### Optional
 
 - `backup_enabled` (Boolean) Defaults to `false`.
+- `backup_keep` (Number)
 - `backup_pre_command` (String)
 - `backup_pre_command_service_id` (String)
 - `backup_prefix` (String)

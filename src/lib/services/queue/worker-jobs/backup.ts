@@ -1,6 +1,6 @@
 import { config } from "#lib/config.js";
 import { BackupRunDTO } from "#lib/dto/backup-run-dto.js";
-import type { JobDTO } from "#lib/dto/job-dto.js";
+import { JobDTO } from "#lib/dto/job-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
 import { NotificationChannelService } from "../../notification-channel.service.ts";
@@ -113,6 +113,37 @@ function notifyBackup(
 	);
 }
 
+/**
+ * Deletes the volume's archives past its `backupKeep` after a successful
+ * backup, noting what went in the job's log. A failure is logged as a warning
+ * and never fails the backup that just succeeded.
+ */
+async function pruneOldBackups(
+	job: JobDTO,
+	volume: StorageVolumeDTO | null,
+	key: string | null,
+): Promise<void> {
+	if (!(volume?.backupKeep && key)) {
+		return;
+	}
+	try {
+		const deleted = await S3BackupService.pruneBackups(volume, key);
+		if (deleted.length > 0) {
+			await JobDTO.appendLog(
+				job.id,
+				`Kept the newest ${volume.backupKeep} backups, deleted ${deleted.length} older: ${deleted.join(", ")}`,
+			);
+			logger.info(
+				`Old backups deleted: volume=${volume.id} keep=${volume.backupKeep} deleted=${deleted.length}`,
+			);
+		}
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		await JobDTO.appendLog(job.id, `Couldn't delete older backups: ${message}`);
+		logger.warn(`Deleting old backups failed: volume=${volume.id} ${message}`);
+	}
+}
+
 export const backupWorkerJob: WorkerJob | null = {
 	async finalize(job, result, error) {
 		const { scheduled, volumeId } = backupJobPayload.parse(job.payload);
@@ -121,6 +152,7 @@ export const backupWorkerJob: WorkerJob | null = {
 		try {
 			const done = await finishRun(job, result, error, "Backup failed.");
 			notifyBackup(job, volume, scheduled, done);
+			await pruneOldBackups(job, volume, done.key);
 			return done;
 		} catch (err) {
 			notifyBackup(job, volume, scheduled, {

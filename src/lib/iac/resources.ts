@@ -318,6 +318,7 @@ export const IAC_RESOURCES: IacResource[] = [
 			attr("backupEnabled", "bool", off),
 			attr("backupSchedule", "string"),
 			attr("backupPrefix", "string"),
+			attr("backupKeep", "int"),
 			attr("s3DestinationId", "string", {
 				ref: "homerun_backup_destination",
 			}),

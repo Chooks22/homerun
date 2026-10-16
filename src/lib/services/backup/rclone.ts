@@ -192,6 +192,23 @@ export async function listRemoteBackups(
 }
 
 /**
+ * Deletes `key` under `remote` through a one-off rclone container.
+ *
+ * @throws With rclone's own error when it can't be deleted.
+ */
+export async function deleteRemoteFile(
+	remote: RcloneRemote,
+	key: string,
+): Promise<void> {
+	const result = await run(remote, ["deletefile", target(remote.path, key)]);
+	if (failed(result)) {
+		throw new Error(
+			`Couldn't delete ${key} on ${remote.label}: ${detail(result)}`,
+		);
+	}
+}
+
+/**
  * How big `remote` is and how much of it is used, from `rclone about`. SFTP
  * answers through the server's statvfs extension when it has one; when it
  * doesn't, it's asked again through a unix shell, which is how rclone runs

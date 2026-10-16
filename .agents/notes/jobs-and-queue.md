@@ -414,6 +414,16 @@ return path including a spec that couldn't be built), and `/backups` is the page
 over that history, plus a "Run now" action per volume, the same one
 `storage/[volumeId]` offers.
 
+**Retention runs in TS, in the backup worker job's `finalize`**, not in Go:
+after a successful run, `S3BackupService.pruneBackups` lists the volume's
+archives with the same listing the Restore picker uses and deletes all but the
+newest `storageVolume.backupKeep` (null keeps all), through a signed `DELETE` or
+`rclone deletefile`. `backupKeyPattern` matches only the exact
+`<prefix/>name-<ISO timestamp>.tar.gz` keys `backupSpec` writes, so `db` never
+claims `db-data`'s archives, and it refuses to delete anything when the key just
+uploaded isn't in the listing (an S3 listing is capped at 200 keys, oldest
+first). A prune failure goes to the job log and a `warn`, never fails the run.
+
 **The tar-then-upload (and download-then-unpack) pipeline itself runs in the Go
 worker now**: `S3BackupService` (`s3-backup.service.ts`) only resolves and
 returns the spec `internal/jobs/backup/backup.go`'s `Run` needs —

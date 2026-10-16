@@ -37,7 +37,7 @@ export function registerVolumeTools(server: McpServer, api: ApiCall): void {
 		{
 			annotations: change,
 			description:
-				"Change a volume's name, description or backup settings (on/off, schedule, destination, prefix, pre-backup command, stopping its services), keeping what's left out. Turning backups on without a schedule picks 0 3 * * *.",
+				"Change a volume's name, description or backup settings (on/off, schedule, destination, prefix, how many backups to keep, pre-backup command, stopping its services), keeping what's left out. Turning backups on without a schedule picks 0 3 * * *.",
 			inputSchema: updateVolumeApiBody.extend({ volumeId }),
 		},
 		async ({ volumeId: id, ...changes }) =>
