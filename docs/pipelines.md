@@ -1,44 +1,65 @@
 # Pipelines
 
-Advanced mode: [simple mode](ui-modes.md) hides the Pipelines section of a
-service's Observability tab. Syncing keeps running either way.
+**Pipelines**, under **Observability** in the sidebar, brings the CI runs of the
+repositories you choose into Homerun: GitHub Actions workflow runs, GitLab CI
+pipelines and Gitea Actions runs (Gitea 1.24 or later, the first version with an
+Actions API). Each run lands with its jobs, timings and an estimated cost, the
+pages add them up, and every finished run becomes a [trace](tracing.md) you can
+open as a waterfall. Bitbucket Pipelines isn't supported.
 
-A service built from a git repo can pull its repo's CI runs into Homerun: GitHub
-Actions workflow runs, GitLab CI pipelines and Gitea Actions runs (Gitea 1.24 or
-later, the first version with an Actions API). Each run lands with its jobs,
-timings and an estimated cost, the Pipelines section adds them up, and every
-finished run becomes a [trace](tracing.md) you can open as a waterfall.
-Bitbucket Pipelines isn't supported.
+A watched repository can be linked to any service, built from it or not: the
+service then shows the repository's runs under its own **Observability →
+Pipelines**, and [error tracking](error-tracking.md#back-to-the-source) links
+its stack frames to that repository's source.
 
-## Turning it on
+## Watching a repository
 
-Open the service's **Observability → Pipelines** section, tick **Sync CI runs**
-and save. Homerun reads the runs with the service owner's
-[git provider](git-providers.md) connection, the same one it clones and checks
-[status checks](status-checks.md) with, or a token embedded in the git URL. The
-first sync starts right away, then every five minutes; **Sync now** runs one on
-demand. Each sync reads the latest 50 runs and fetches the jobs of every run
-that's new, still running, or was re-run since the last one, so a quiet repo
-costs one API call per sync.
+Open **Pipelines** and click **Watch repository**, pick one of your connected
+[git providers](git-providers.md) and a repository from it, and click **Watch**.
+Homerun reads the repository's runs with your connection, so you need a GitHub,
+GitLab or Gitea provider connected first. Services already building from that
+repository are linked to it right away, and its first sync is queued.
 
-When a sync fails (a revoked token, a repo the connection can't see, an older
-Gitea), the section shows why, and the next sync tries again.
+From then on it's synced every five minutes. Each sync reads the latest 50 runs
+and fetches the jobs of every run that's new, still running, or was re-run since
+the last one, so a quiet repository costs one API call per sync. **Sync now** on
+a repository's page, or **Sync all now** on the Pipelines page, queues a sync as
+a background job on the [job queue](scheduling.md); the toast's **View task**
+opens its log.
 
-Turning syncing off stops it and keeps every stored run, so the totals stay.
+When a sync fails (a revoked token, a repository the connection can't see, an
+older Gitea, a provider that was removed), the repository's page and the
+Pipelines list show why, and the next sync tries again.
 
-## What the section shows
+## The Pipelines page
 
-Over the last 30 days: how many runs, the share that passed (of the runs that
-passed or failed; cancelled and skipped runs don't count), the median duration
-and the duration only one run in twenty exceeds (p95), the mean time a run
-waited before its first job started, billable minutes and cost, plus the cost of
-every stored run. A table breaks the same numbers down per workflow.
+Over the last 30 days, across every watched repository: how many runs, the share
+that passed (of the runs that passed or failed; cancelled and skipped runs don't
+count), the median duration and the duration only one run in twenty exceeds
+(p95), the mean time a run waited before its first job started, billable minutes
+and cost, plus the cost of every stored run. Below it, each repository with the
+services linked to it, its own 30-day numbers and when it last synced, then
+every run of every repository, newest first: repository, workflow and run
+number, commit title, branch, commit and trigger, status, duration, time queued,
+job count and cost. Search matches the repository, workflow, branch, commit
+title or SHA; filter by status, and sort by newest, slowest, most expensive or
+workflow. Each run links to its page on the provider and, once it has finished,
+to its trace.
 
-Below it, every run, newest first: workflow and run number, commit title,
-branch, commit and trigger, status, duration, time queued, job count and cost.
-Search matches the workflow, branch, commit title or SHA; filter by status, and
-sort by newest, slowest, most expensive or workflow. Each run links to its page
-on the provider and, once it has finished, to its trace.
+A repository's own page has the same numbers for it alone, broken down per
+workflow, and its runs.
+
+## Settings and linked services
+
+A repository's **Settings** tab:
+
+- **Sync CI runs** turns the five-minute sync on or off. **Sync now** works
+  either way, and turning it off keeps the stored runs.
+- **Runner rates** set what its runs cost, see below.
+- **Linked services** ticks the services that use this repository. A service
+  links to one repository at a time: ticking it here moves it from any other.
+- **Stop watching**, in the danger zone, deletes the stored runs and drops the
+  link to the services. Traces already exported stay until they expire.
 
 ## Cost
 
@@ -54,7 +75,7 @@ windows = 0.01
 macos = 0.062
 ```
 
-That's also the default for a GitHub repo, matching GitHub's hosted runner
+That's also the default for a GitHub repository, matching GitHub's hosted runner
 prices; GitLab and Gitea default to no rates, since their runners are usually
 your own. Order matters: GitHub labels a self-hosted Linux runner
 `self-hosted, linux, x64`, so `self-hosted` comes first. Put a more specific
@@ -75,7 +96,8 @@ each span's billable minutes and cost, and their service name is
 `github-actions`, `gitlab-ci` or `gitea-actions`.
 
 They go through Homerun's OpenTelemetry collector, like a service's own spans,
-and are stored directly when the collector is off. They show up under the
-service's **Traces** even when its own traces are turned off, and expire with
-the [trace retention](tracing.md#the-collector) while the runs themselves stay
-in the Pipelines section.
+and are stored directly when the collector is off. They're filed under the first
+service linked to the repository, under its **Traces** even when its own traces
+are turned off, or under **Monitoring → Traces** when no service is linked. They
+expire with the [trace retention](tracing.md#the-collector) while the runs
+themselves stay on the Pipelines pages.

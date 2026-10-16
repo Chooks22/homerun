@@ -1,19 +1,35 @@
 import { JobDTO } from "#lib/dto/job-dto.js";
+import { RepositoryDTO } from "#lib/dto/repository-dto.js";
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import type { JobType } from "#lib/types.js";
 import { NotificationChannelService } from "../notification-channel.service.ts";
 import { ObjectStorageService } from "../object-storage.service.ts";
+import { PipelineService } from "../pipeline.service.ts";
 import { RegistryService } from "../registry.service.ts";
 import { S3BackupService } from "../s3-backup.service.ts";
 import {
 	type CoreServiceJob,
 	coreServiceJobPayload,
 	notificationDeliveryJobPayload,
+	pipelineSyncJobPayload,
 } from "./payloads.ts";
 
 export type JobResult = Record<string, unknown> | null;
 type JobHandler = (job: JobDTO) => Promise<JobResult>;
+
+async function runPipelineSync(entry: JobDTO): Promise<JobResult> {
+	const { repositoryId } = pipelineSyncJobPayload.parse(entry.payload);
+	const repo = await RepositoryDTO.get(repositoryId);
+	if (!repo) {
+		throw new Error("The repository isn't watched any more.");
+	}
+	return {
+		...(await PipelineService.sync(repo, (line) =>
+			JobDTO.appendLog(entry.id, line),
+		)),
+	};
+}
 
 async function runNotificationDelivery(entry: JobDTO): Promise<JobResult> {
 	const { channelId, message } = notificationDeliveryJobPayload.parse(
@@ -138,4 +154,5 @@ export const jobHandlers: Partial<Record<JobType, JobHandler>> = {
 	backup_prune: runBackupPrune,
 	core_service: runCoreService,
 	notification_delivery: runNotificationDelivery,
+	pipeline_sync: runPipelineSync,
 };

@@ -2,7 +2,11 @@
 	import { BarChart3 } from "@lucide/svelte";
 	import type { PipelineStats } from "#lib/dto/pipeline-run-dto.js";
 	import { formatCount, formatPercent } from "#lib/metrics-format.js";
-	import { formatRunDuration, formatUsd } from "#lib/pipelines/list.js";
+	import {
+		formatCompactDuration,
+		formatRunDuration,
+		formatUsd,
+	} from "#lib/pipelines/list.js";
 
 	interface Props {
 		allTime: PipelineStats;
@@ -19,11 +23,9 @@
 			label: "Success rate",
 			value: formatPercent(window.succeeded, window.succeeded + window.failed),
 		},
-		{
-			label: "Duration p50 / p95",
-			value: `${formatRunDuration(window.p50Ms)} / ${formatRunDuration(window.p95Ms)}`,
-		},
-		{ label: "Avg queue", value: formatRunDuration(window.avgQueueMs) },
+		{ label: "Duration p50", value: formatCompactDuration(window.p50Ms) },
+		{ label: "Duration p95", value: formatCompactDuration(window.p95Ms) },
+		{ label: "Avg queue", value: formatCompactDuration(window.avgQueueMs) },
 		{ label: "Billable minutes", value: formatCount(window.billableMinutes) },
 		{ label: "Cost", value: formatUsd(window.costUsd) },
 		{ label: "Cost, all time", value: formatUsd(allTime.costUsd) },
@@ -37,7 +39,7 @@
       Last {windowDays} days
     </h2>
   </div>
-  <div class="divide-border grid grid-cols-2 divide-x border-b sm:grid-cols-4 xl:grid-cols-7">
+  <div class="divide-border grid grid-cols-2 divide-x border-b sm:grid-cols-4 xl:grid-cols-8">
     {#each tiles as tile (tile.label)}
       <div class="border-border min-w-0 px-4 py-3">
         <p class="text-text-muted text-xs">{tile.label}</p>
@@ -46,7 +48,7 @@
     {/each}
   </div>
   {#if workflows.length > 0}
-    <div class="overflow-x-auto">
+    <div class="relative overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-border text-text-muted border-b text-left text-xs uppercase">

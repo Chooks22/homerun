@@ -3,6 +3,7 @@ import {
 	count,
 	desc,
 	eq,
+	getTableColumns,
 	gte,
 	inArray,
 	isNotNull,
@@ -11,7 +12,11 @@ import {
 } from "drizzle-orm";
 import type { PipelineJob, PipelineStatus } from "#lib/pipelines/types.js";
 import { db } from "#lib/server/db/lib.js";
-import { type PipelineRun, pipelineRun } from "#lib/server/db/schema.js";
+import {
+	type PipelineRun,
+	pipelineRun,
+	repository,
+} from "#lib/server/db/schema.js";
 import {
 	type ListQuery,
 	type PagedResult,
@@ -22,7 +27,7 @@ import { BaseDTO } from "./base-dto";
 
 export type NewPipelineRun = Omit<
 	PipelineRun,
-	"id" | "traceExported" | "updatedAt"
+	"id" | "traceExported" | "traceServiceId" | "updatedAt"
 >;
 
 export interface PipelineStats {
@@ -33,9 +38,12 @@ export interface PipelineStats {
 	name: string | null;
 	p50Ms: number | null;
 	p95Ms: number | null;
+	repositoryId: string | null;
 	runs: number;
 	succeeded: number;
 }
+
+export type PipelineRunRow = PipelineRun & { repositoryName: string };
 
 export interface KnownRun {
 	attempt: number;
@@ -57,22 +65,26 @@ const aggregates = {
 	succeeded: sql<number>`count(*) filter (where ${pipelineRun.status} = 'success')::int`,
 };
 
-function windowOf(serviceId: string, since: Date | null): SQL | undefined {
+function windowOf(
+	repositoryId: string | null,
+	since: Date | null,
+): SQL | undefined {
 	return and(
-		eq(pipelineRun.serviceId, serviceId),
+		repositoryId ? eq(pipelineRun.repositoryId, repositoryId) : undefined,
 		since ? gte(pipelineRun.createdAt, since) : undefined,
 	);
 }
 
 /**
  * Wraps the `pipeline_run` table: one CI run (GitHub Actions workflow run,
- * GitLab pipeline, Gitea Actions run) of a service's repo, with its jobs and
- * steps as JSON, its timings and its cost at the service's runner rates.
+ * GitLab pipeline, Gitea Actions run) of a watched repository, with its jobs
+ * and steps as JSON, its timings and its cost at the repository's runner
+ * rates.
  */
 export class PipelineRunDTO extends BaseDTO<PipelineRun> {
-	/** What's already stored of the given provider run ids for a service, keyed by run id, to tell which runs need their jobs read again. */
+	/** What's already stored of the given provider run ids for a repository, keyed by run id, to tell which runs need their jobs read again. */
 	static async known(
-		serviceId: string,
+		repositoryId: string,
 		externalIds: string[],
 	): Promise<Map<string, KnownRun>> {
 		if (externalIds.length === 0) {
@@ -87,7 +99,7 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 			.from(pipelineRun)
 			.where(
 				and(
-					eq(pipelineRun.serviceId, serviceId),
+					eq(pipelineRun.repositoryId, repositoryId),
 					inArray(pipelineRun.externalId, externalIds),
 				),
 			);
@@ -106,13 +118,13 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 			.values({ ...input, id: crypto.randomUUID() })
 			.onConflictDoUpdate({
 				set: { ...input, traceExported: false },
-				target: [pipelineRun.serviceId, pipelineRun.externalId],
+				target: [pipelineRun.repositoryId, pipelineRun.externalId],
 			});
 	}
 
-	/** Finished runs of a service whose trace hasn't been exported yet, oldest first, at most `limit`. */
+	/** Finished runs of a repository whose trace hasn't been exported yet, oldest first, at most `limit`. */
 	static async listUnexported(
-		serviceId: string,
+		repositoryId: string,
 		limit = 50,
 	): Promise<PipelineRunDTO[]> {
 		const rows = await db
@@ -120,7 +132,7 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 			.from(pipelineRun)
 			.where(
 				and(
-					eq(pipelineRun.serviceId, serviceId),
+					eq(pipelineRun.repositoryId, repositoryId),
 					eq(pipelineRun.traceExported, false),
 					isNotNull(pipelineRun.finishedAt),
 				),
@@ -130,33 +142,37 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 		return rows.map((row) => new PipelineRunDTO(row));
 	}
 
-	/** Records that this run's trace went out, under `traceId`. */
-	async markExported(traceId: string): Promise<void> {
+	/** Records that this run's trace went out, under `traceId`, filed under `serviceId` (null: Homerun's own traces). */
+	async markExported(traceId: string, serviceId: string | null): Promise<void> {
 		await db
 			.update(pipelineRun)
-			.set({ traceExported: true, traceId })
+			.set({ traceExported: true, traceId, traceServiceId: serviceId })
 			.where(eq(pipelineRun.id, this.row.id));
 		this.row.traceExported = true;
 		this.row.traceId = traceId;
+		this.row.traceServiceId = serviceId;
 	}
 
 	/**
-	 * One page of a service's runs, newest first unless sorted otherwise.
-	 * `q` matches the workflow name, branch, commit title or SHA; the
-	 * `status` filter keeps the given statuses.
+	 * One page of a repository's runs, or every repository's when
+	 * `repositoryId` is null, each with its repository's name, newest first
+	 * unless sorted otherwise. `q` matches the workflow name, branch, commit
+	 * title or SHA, and the repository; the `status` filter keeps the given
+	 * statuses.
 	 */
 	static async list(
-		serviceId: string,
+		repositoryId: string | null,
 		query: ListQuery,
-	): Promise<PagedResult<PipelineRun>> {
+	): Promise<PagedResult<PipelineRunRow>> {
 		const statuses = query.filters.status ?? [];
 		const where = and(
-			eq(pipelineRun.serviceId, serviceId),
+			repositoryId ? eq(pipelineRun.repositoryId, repositoryId) : undefined,
 			searchCondition(query.q, [
 				pipelineRun.name,
 				pipelineRun.branch,
 				pipelineRun.title,
 				pipelineRun.commitSha,
+				repository.fullName,
 			]),
 			statuses.length
 				? inArray(pipelineRun.status, statuses as PipelineStatus[])
@@ -164,8 +180,12 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 		);
 		const [items, [{ total }]] = await Promise.all([
 			db
-				.select()
+				.select({
+					...getTableColumns(pipelineRun),
+					repositoryName: repository.fullName,
+				})
 				.from(pipelineRun)
+				.innerJoin(repository, eq(repository.id, pipelineRun.repositoryId))
 				.where(where)
 				.orderBy(
 					...sortOrder(
@@ -181,42 +201,66 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 				)
 				.limit(query.limit)
 				.offset(query.offset),
-			db.select({ total: count() }).from(pipelineRun).where(where),
+			db
+				.select({ total: count() })
+				.from(pipelineRun)
+				.innerJoin(repository, eq(repository.id, pipelineRun.repositoryId))
+				.where(where),
 		]);
 		return { items, page: query.page, perPage: query.perPage, total };
 	}
 
-	/** Totals over a service's runs since `since` (all of them when null): counts, success and failure, p50/p95 duration, mean queue time, billable minutes and cost. */
+	/** Totals over a repository's runs, or every repository's when `repositoryId` is null, since `since` (all of them when null): counts, success and failure, p50/p95 duration, mean queue time, billable minutes and cost. */
 	static async stats(
-		serviceId: string,
+		repositoryId: string | null,
 		since: Date | null,
 	): Promise<PipelineStats> {
 		const [row] = await db
 			.select(aggregates)
 			.from(pipelineRun)
-			.where(windowOf(serviceId, since));
-		return { ...row, name: null };
+			.where(windowOf(repositoryId, since));
+		return { ...row, name: null, repositoryId };
 	}
 
-	/** The same totals per workflow name since `since`, busiest first. */
+	/** The same totals per workflow name of one repository since `since`, busiest first. */
 	static async byWorkflow(
-		serviceId: string,
+		repositoryId: string,
 		since: Date | null,
 	): Promise<PipelineStats[]> {
-		return await db
+		const rows = await db
 			.select({ ...aggregates, name: pipelineRun.name })
 			.from(pipelineRun)
-			.where(windowOf(serviceId, since))
+			.where(windowOf(repositoryId, since))
 			.groupBy(pipelineRun.name)
 			.orderBy(desc(count()));
+		return rows.map((row) => ({ ...row, repositoryId }));
 	}
 
-	/** Every run of a service with what re-costing it needs. */
-	static async listForService(serviceId: string): Promise<PipelineRunDTO[]> {
+	/** The same totals per repository since `since`, keyed by repository id. */
+	static async byRepository(
+		since: Date | null,
+	): Promise<Map<string, PipelineStats>> {
+		const rows = await db
+			.select({
+				...aggregates,
+				name: repository.fullName,
+				repositoryId: pipelineRun.repositoryId,
+			})
+			.from(pipelineRun)
+			.innerJoin(repository, eq(repository.id, pipelineRun.repositoryId))
+			.where(windowOf(null, since))
+			.groupBy(pipelineRun.repositoryId, repository.fullName);
+		return new Map(rows.map((row) => [row.repositoryId, row]));
+	}
+
+	/** Every run of a repository, for re-costing them. */
+	static async listForRepository(
+		repositoryId: string,
+	): Promise<PipelineRunDTO[]> {
 		const rows = await db
 			.select()
 			.from(pipelineRun)
-			.where(eq(pipelineRun.serviceId, serviceId));
+			.where(eq(pipelineRun.repositoryId, repositoryId));
 		return rows.map((row) => new PipelineRunDTO(row));
 	}
 

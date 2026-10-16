@@ -40,3 +40,22 @@ export function formatUsd(value: number): string {
 export function formatRunDuration(ms: number | null): string {
 	return ms === null ? "—" : formatSpanDuration(ms);
 }
+
+/** A duration short enough for a stat tile: `850ms`, `42s`, `2m 30s`, `1h 5m`; a dash for none. */
+export function formatCompactDuration(ms: number | null): string {
+	if (ms === null) {
+		return "—";
+	}
+	if (ms < 1000) {
+		return `${Math.round(ms)}ms`;
+	}
+	const seconds = Math.round(ms / 1000);
+	if (seconds < 60) {
+		return `${seconds}s`;
+	}
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) {
+		return `${minutes}m ${seconds % 60}s`;
+	}
+	return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}

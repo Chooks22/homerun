@@ -32,6 +32,7 @@ const { NotificationDTO } = await import(
 	"../../../src/lib/dto/notification-dto"
 );
 const { DeploymentDTO } = await import("../../../src/lib/dto/deployment-dto");
+const { RepositoryDTO } = await import("../../../src/lib/dto/repository-dto");
 const { InstanceSettingsDTO } = await import(
 	"../../../src/lib/dto/instance-settings-dto"
 );
@@ -457,6 +458,71 @@ describe("deploy env and DSNs", () => {
 				{ buildSource: "git", gitUrl: "nope" } as never,
 				{ release: null, timestamp: "" },
 			),
+		).toBeNull();
+	});
+});
+
+describe("linked repository", () => {
+	const repo = {
+		providerKind: "gitea",
+		toJSON: () => ({ defaultBranch: "main" }),
+		webUrl: "https://git.test/acme/api",
+	};
+
+	test("links an image service's frames to its linked repository, at the release or its default branch", async () => {
+		const get = track(
+			spyOn(RepositoryDTO, "get").mockResolvedValue(repo as never),
+		);
+		const image = { buildSource: "image", repositoryId: "repo-1" } as never;
+		expect(
+			await ErrorTrackingService.sourceRepo(image, {
+				release: "abc1234def",
+				timestamp: "2026-09-26T00:00:00Z",
+			}),
+		).toEqual({
+			branch: false,
+			buildContext: null,
+			commit: "abc1234def",
+			provider: "gitea",
+			repoUrl: "https://git.test/acme/api",
+		});
+		expect(
+			await ErrorTrackingService.sourceRepo(image, {
+				release: "v2",
+				timestamp: "2026-09-26T00:00:00Z",
+			}),
+		).toMatchObject({ branch: true, commit: "main" });
+		expect(get).toHaveBeenCalledWith("repo-1");
+	});
+
+	test("prefers the deployed commit for a git service and needs some ref", async () => {
+		track(
+			spyOn(RepositoryDTO, "get").mockResolvedValue({
+				...repo,
+				toJSON: () => ({ defaultBranch: null }),
+			} as never),
+		);
+		const commitAt = track(
+			spyOn(DeploymentDTO, "commitAt").mockResolvedValue("def5678"),
+		);
+		const git = {
+			buildSource: "git",
+			gitBuildContext: "web",
+			id: "svc-1",
+			repositoryId: "repo-1",
+		} as never;
+		expect(
+			await ErrorTrackingService.sourceRepo(git, {
+				release: null,
+				timestamp: "2026-09-26T00:00:00Z",
+			}),
+		).toMatchObject({ branch: false, buildContext: "web", commit: "def5678" });
+		commitAt.mockResolvedValue(null);
+		expect(
+			await ErrorTrackingService.sourceRepo(git, {
+				release: null,
+				timestamp: "2026-09-26T00:00:00Z",
+			}),
 		).toBeNull();
 	});
 });

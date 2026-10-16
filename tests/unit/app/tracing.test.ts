@@ -319,6 +319,42 @@ describe("spanOwner", () => {
 		).toBeNull();
 	});
 
+	test("keeps CI spans of a repository no service is linked to as Homerun's own, on the instance token only", () => {
+		const isPipeline = (id: string, value: unknown) =>
+			validPipelineSpanToken(value, "secret", id);
+		expect(
+			spanOwner(
+				{
+					"homerun.pipeline": pipelineSpanToken("secret", ""),
+					"service.name": "gitea-actions",
+				},
+				services,
+				isPipeline,
+			),
+		).toEqual({ serviceId: null, serviceName: "gitea-actions" });
+		expect(
+			spanOwner(
+				{
+					"homerun.pipeline": pipelineSpanToken("secret", "svc-web"),
+					"service.name": "gitea-actions",
+				},
+				services,
+				isPipeline,
+			),
+		).toBeNull();
+		expect(
+			spanOwner(
+				{
+					"homerun.pipeline": pipelineSpanToken("secret", ""),
+					"homerun.service.id": "gone",
+					"service.name": "gitea-actions",
+				},
+				services,
+				isPipeline,
+			),
+		).toBeNull();
+	});
+
 	test("keeps Homerun's own spans with no service", () => {
 		expect(spanOwner({ "service.name": "homerun-worker" }, services)).toEqual({
 			serviceId: null,

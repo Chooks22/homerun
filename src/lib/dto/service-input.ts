@@ -179,10 +179,7 @@ export type ServiceUpdateInput = Partial<
 		| "slug"
 		| "swarmServiceId"
 		| "tracesEnabled"
-		| "pipelinesEnabled"
-		| "pipelineRates"
-		| "pipelinesSyncedAt"
-		| "pipelinesError"
+		| "repositoryId"
 		| "uptimeEnabled"
 		| "tag"
 		| "pinnedFromTag"
@@ -194,15 +191,9 @@ export type ServiceUpdateInput = Partial<
 > &
 	Parameters<typeof runtimeOptionsFrom>[0];
 
-/** The CI pipeline columns of a new service: not syncing, default rates, never synced. */
-export const NEW_SERVICE_PIPELINE_COLUMNS: Pick<
-	Service,
-	"pipelineRates" | "pipelinesEnabled" | "pipelinesError" | "pipelinesSyncedAt"
-> = {
-	pipelineRates: null,
-	pipelinesEnabled: false,
-	pipelinesError: null,
-	pipelinesSyncedAt: null,
+/** The repository link of a new service: none. */
+export const NEW_SERVICE_PIPELINE_COLUMNS: Pick<Service, "repositoryId"> = {
+	repositoryId: null,
 };
 
 /** The version-pinning and update-check columns of a new service: not pinned, not watching for updates, trials on for when it does. */

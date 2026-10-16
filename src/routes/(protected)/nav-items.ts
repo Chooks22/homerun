@@ -32,6 +32,7 @@ import {
 	Trash2,
 	Users,
 	Warehouse,
+	Workflow,
 	Wrench,
 } from "@lucide/svelte";
 import type { Component } from "svelte";
@@ -109,6 +110,14 @@ export const allNavItems: NavItem[] = [
 		href: resolve("monitoring"),
 		icon: BarChart3,
 		label: "Monitoring",
+		parent: "Observability",
+	},
+	{
+		category: "Operations",
+		exact: false,
+		href: resolve("pipelines"),
+		icon: Workflow,
+		label: "Pipelines",
 		parent: "Observability",
 	},
 	{

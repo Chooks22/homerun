@@ -1371,10 +1371,9 @@ export const service = pgTable(
 		swarmServiceId: text("swarm_service_id"),
 		uptimeEnabled: boolean("uptime_enabled").default(true).notNull(),
 		tracesEnabled: boolean("traces_enabled").default(false).notNull(),
-		pipelinesEnabled: boolean("pipelines_enabled").default(false).notNull(),
-		pipelineRates: jsonb("pipeline_rates").$type<PipelineRateRule[] | null>(),
-		pipelinesSyncedAt: timestamp("pipelines_synced_at", { mode: "date" }),
-		pipelinesError: text("pipelines_error"),
+		repositoryId: text("repository_id").references(() => repository.id, {
+			onDelete: "set null",
+		}),
 		tag: text("tag").default("latest").notNull(),
 		pinnedFromTag: text("pinned_from_tag"),
 		pinnedLocally: boolean("pinned_locally").default(false).notNull(),
@@ -2465,6 +2464,87 @@ export const errorIssue = pgTable(
 	],
 );
 
+export const repository = pgTable(
+	"repository",
+	{
+		createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+		defaultBranch: text("default_branch"),
+		fullName: text("full_name").notNull(),
+		id: text("id").primaryKey(),
+		pipelineRates: jsonb("pipeline_rates").$type<PipelineRateRule[] | null>(),
+		pipelinesEnabled: boolean("pipelines_enabled").default(true).notNull(),
+		pipelinesError: text("pipelines_error"),
+		pipelinesSyncedAt: timestamp("pipelines_synced_at", { mode: "date" }),
+		providerId: text("provider_id").notNull(),
+		providerKind: text("provider_kind").$type<GitProviderKind>().notNull(),
+		updatedAt: timestamp("updated_at", { mode: "date" })
+			.$onUpdate(() => new Date())
+			.notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		webUrl: text("web_url").notNull(),
+	},
+	(table) => [
+		uniqueIndex("repository_providerId_fullName_idx").on(
+			table.providerId,
+			table.fullName,
+		),
+	],
+);
+
+export type Repository = typeof repository.$inferSelect;
+
+export const pipelineRun = pgTable(
+	"pipeline_run",
+	{
+		actor: text("actor"),
+		attempt: integer("attempt").default(1).notNull(),
+		billableMinutes: integer("billable_minutes").default(0).notNull(),
+		branch: text("branch"),
+		commitSha: text("commit_sha"),
+		costUsd: doublePrecision("cost_usd").default(0).notNull(),
+		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+		durationMs: doublePrecision("duration_ms"),
+		event: text("event"),
+		externalId: text("external_id").notNull(),
+		finishedAt: timestamp("finished_at", { mode: "date" }),
+		id: text("id").primaryKey(),
+		jobs: jsonb("jobs").$type<PipelineJob[]>().default([]).notNull(),
+		name: text("name").notNull(),
+		number: integer("number"),
+		provider: text("provider").$type<PipelineProvider>().notNull(),
+		queueMs: doublePrecision("queue_ms"),
+		repositoryId: text("repository_id")
+			.notNull()
+			.references(() => repository.id, { onDelete: "cascade" }),
+		startedAt: timestamp("started_at", { mode: "date" }),
+		status: text("status").$type<PipelineStatus>().notNull(),
+		title: text("title"),
+		traceExported: boolean("trace_exported").default(false).notNull(),
+		traceId: text("trace_id"),
+		traceServiceId: text("trace_service_id").references(() => service.id, {
+			onDelete: "set null",
+		}),
+		updatedAt: timestamp("updated_at", { mode: "date" })
+			.$onUpdate(() => new Date())
+			.notNull(),
+		url: text("url"),
+	},
+	(table) => [
+		uniqueIndex("pipelineRun_repositoryId_externalId_idx").on(
+			table.repositoryId,
+			table.externalId,
+		),
+		index("pipelineRun_repositoryId_createdAt_idx").on(
+			table.repositoryId,
+			table.createdAt,
+		),
+	],
+);
+
+export type PipelineRun = typeof pipelineRun.$inferSelect;
+
 export const traceSpan = pgTable(
 	"trace_span",
 	{
@@ -2552,52 +2632,6 @@ export type OauthClient = typeof oauthClient.$inferSelect;
 export type ErrorSourceMap = typeof errorSourceMap.$inferSelect;
 export type ResourceIncident = typeof resourceIncident.$inferSelect;
 export type DnsConnection = typeof dnsConnection.$inferSelect;
-export const pipelineRun = pgTable(
-	"pipeline_run",
-	{
-		actor: text("actor"),
-		attempt: integer("attempt").default(1).notNull(),
-		billableMinutes: integer("billable_minutes").default(0).notNull(),
-		branch: text("branch"),
-		commitSha: text("commit_sha"),
-		costUsd: doublePrecision("cost_usd").default(0).notNull(),
-		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
-		durationMs: doublePrecision("duration_ms"),
-		event: text("event"),
-		externalId: text("external_id").notNull(),
-		finishedAt: timestamp("finished_at", { mode: "date" }),
-		id: text("id").primaryKey(),
-		jobs: jsonb("jobs").$type<PipelineJob[]>().default([]).notNull(),
-		name: text("name").notNull(),
-		number: integer("number"),
-		provider: text("provider").$type<PipelineProvider>().notNull(),
-		queueMs: doublePrecision("queue_ms"),
-		serviceId: text("service_id")
-			.notNull()
-			.references(() => service.id, { onDelete: "cascade" }),
-		startedAt: timestamp("started_at", { mode: "date" }),
-		status: text("status").$type<PipelineStatus>().notNull(),
-		title: text("title"),
-		traceExported: boolean("trace_exported").default(false).notNull(),
-		traceId: text("trace_id"),
-		updatedAt: timestamp("updated_at", { mode: "date" })
-			.$onUpdate(() => new Date())
-			.notNull(),
-		url: text("url"),
-	},
-	(table) => [
-		uniqueIndex("pipelineRun_serviceId_externalId_idx").on(
-			table.serviceId,
-			table.externalId,
-		),
-		index("pipelineRun_serviceId_createdAt_idx").on(
-			table.serviceId,
-			table.createdAt,
-		),
-	],
-);
-
-export type PipelineRun = typeof pipelineRun.$inferSelect;
 
 export type Domain = typeof domain.$inferSelect;
 export type DnsManagedRecord = typeof dnsManagedRecord.$inferSelect;

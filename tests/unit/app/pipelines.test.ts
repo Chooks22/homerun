@@ -6,7 +6,10 @@ import {
 	parseRates,
 	rateFor,
 } from "../../../src/lib/pipelines/cost";
-import { formatUsd } from "../../../src/lib/pipelines/list";
+import {
+	formatCompactDuration,
+	formatUsd,
+} from "../../../src/lib/pipelines/list";
 import {
 	buildPipelineTrace,
 	pipelineTraceId,
@@ -344,6 +347,14 @@ describe("cost", () => {
 		expect(() => parseRates("= 1")).toThrow("Line 1");
 	});
 
+	test("formats a duration short enough for a stat tile", () => {
+		expect(formatCompactDuration(null)).toBe("—");
+		expect(formatCompactDuration(850)).toBe("850ms");
+		expect(formatCompactDuration(42_400)).toBe("42s");
+		expect(formatCompactDuration(150_000)).toBe("2m 30s");
+		expect(formatCompactDuration(3_900_000)).toBe("1h 5m");
+	});
+
 	test("formats dollars", () => {
 		expect(formatUsd(0)).toBe("$0");
 		expect(formatUsd(0.0123)).toBe("$0.012");
@@ -416,6 +427,7 @@ describe("summarizeRun", () => {
 			externalId: "42",
 			pipelineToken: "token",
 			provider: "github",
+			repositoryId: "repo-1",
 			serviceId: "svc-1",
 		});
 		const [resource] = parseOtlpTraces(body);
@@ -479,6 +491,7 @@ describe("buildPipelineTrace", () => {
 		externalId: "42",
 		pipelineToken: pipelineSpanToken("secret", "svc-1"),
 		provider: "github" as const,
+		repositoryId: "repo-1",
 		serviceId: "svc-1",
 	};
 

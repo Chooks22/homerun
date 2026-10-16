@@ -600,36 +600,55 @@ variables, never over a user-set one, and prepends `homerun.service.id=<id>` to
 the user's own `OTEL_RESOURCE_ATTRIBUTES`. Previews start with traces off (a new
 service row).
 
-**CI pipelines** (`pipeline_run`, `PipelineRunDTO`, `PipelineService`,
-`src/lib/pipelines/`, `PipelineSyncScheduler`, Observability → Pipelines):
-opt-in per git service (`service.pipelinesEnabled`). Polling only, no webhook:
-`PipelineSyncScheduler` (5 min, `runOnStart`) syncs each enabled service in
-turn. `PipelineClient` reuses `StatusCheckService.targetFor` (API root, repo,
-owner's token) and reads GitHub/Gitea `actions/runs` (same shape, Gitea takes
-`limit` not `per_page`, 404 before 1.24) or GitLab `pipelines` + per-pipeline
-`jobs` (no steps, commit title only on jobs). A run's jobs are re-read only when
-it's new, unfinished, or its attempt/status changed (`PipelineRunDTO.known`);
-`upsert` on `(service_id, external_id)` resets `trace_exported`. Jobs are read
-with `filter=all` and tagged with their `attempt`: cost sums every attempt,
-while timings and the trace use the latest only, and a re-run's queue time
-starts at its own `run_started_at` (GitHub keeps the first attempt's
-`created_at`). Every status goes through `normalizeStatus` (conclusion wins once
-completed). Cost is `summarizeRun`: per job
+**CI pipelines** (`repository`, `pipeline_run`, `RepositoryDTO`,
+`PipelineRunDTO`, `PipelineService`, `src/lib/pipelines/`,
+`PipelineSyncScheduler`, the `pipeline_sync` job, `/pipelines` under
+Observability in the sidebar): pipelines belong to a watched **repository**, not
+to a service. `/pipelines/new` picks one from a provider the user is connected
+to (`connectedGitProviders` + `GitRepoPicker` with `checkDockerfile={false}`);
+`PipelineService.watch` stores it with that user as the reader
+(`repository.user_id`, whose connection `clientFor` uses), links the services
+already building from it (`servicesBuildingFrom`: `gitProviderId` + `gitRepo`)
+and queues a first sync. Any service, image ones included, links to at most one
+repository through `service.repository_id` (set null on delete), edited from the
+repository's Settings tab (`setLinkedServices` moves a service off its previous
+repository). The service's Observability → Pipelines tab is read-only over the
+linked repository, and `ErrorTrackingService.sourceRepo` prefers the linked
+repository over the git build's URL: release SHA, else the deployed commit (git
+services), else its default branch (`branch: true`, which only changes Gitea's
+`/src/branch/` path). Manual syncs (`Sync now`, `Sync all now`) enqueue a
+`pipeline_sync` job (TS handler in `queue/handlers.ts`, `dedupeKey`/`lockKey`
+`pipeline_sync:<repo>`, logging each step to the job); the five-minute
+`PipelineSyncScheduler` still syncs inline. A sync reads the latest 50 runs
+(GitHub/Gitea `actions/runs`, Gitea takes `limit` and 404s before 1.24; GitLab
+`pipelines` + per-pipeline `jobs`, no steps, commit title only on jobs) and
+re-reads a run's jobs only when it's new, unfinished, or its attempt/status
+changed (`PipelineRunDTO.known`); `upsert` on `(repository_id, external_id)`
+resets `trace_exported`. Jobs are read with `filter=all` and tagged with their
+`attempt`: cost sums every attempt, while timings and the trace use the latest
+only, and a re-run's queue time starts at its own `run_started_at` (GitHub keeps
+the first attempt's `created_at`). Every status goes through `normalizeStatus`.
+Cost is `summarizeRun`: per job
 `ceil(minutes) × rateFor(rules, labels, runner)`, rules ordered `label = rate`
-lines in `service.pipelineRates`, null meaning `defaultRates(provider)` (GitHub
-hosted prices, nothing elsewhere); saving rates re-costs every stored run
-(`recostJobs`). Finished runs become OTLP/JSON (`buildPipelineTrace`, ids
-derived from service/provider/run/attempt so a re-export is a no-op) sent by
-`TracingService.exportSpans` to the collector's
+lines in `repository.pipeline_rates`, null meaning `defaultRates(provider)`
+(GitHub hosted prices, nothing elsewhere); saving rates re-costs every stored
+run (`recostJobs`). Finished runs become OTLP/JSON (`buildPipelineTrace`; the
+trace id hashes repository, provider, run, attempt and `finishedAt`, so a
+re-export is a no-op and a GitLab retry, same pipeline id and attempt, gets a
+fresh trace) sent by `TracingService.exportSpans` to the collector's
 `http://homerun-otel:4318/v1/traces`, falling back to storing directly when the
-collector is off or unreachable (always the case from the dev server). The
-resource carries `homerun.pipeline` =
-`pipelineSpanToken(AUTH_SECRET, serviceId)` (an HMAC, since anything on the
-Docker network can post to the collector), which `spanOwner` accepts even when
-the service's traces are off and `#store` strips before saving. The trace id
-also hashes `finishedAt`, so a GitLab retry (same pipeline id, attempt 1) gets a
-fresh trace instead of colliding with the first. Stats are SQL aggregates
-(`percentile_cont` for p50/p95) over 30 days and all time, plus per workflow.
+collector is off or unreachable (always the case from the dev server). They're
+filed under the repository's first linked service, or as Homerun's own (no
+`homerun.service.id`) when none is linked; `pipeline_run.trace_service_id`
+records which, for the run list's trace link. The resource carries
+`homerun.pipeline` = `pipelineSpanToken(AUTH_SECRET, serviceId)` (`""` for the
+instance), an HMAC since anything on the Docker network can post to the
+collector, which `spanOwner` accepts even when the service's traces are off and
+`#store` strips before saving. Stats are SQL aggregates (`percentile_cont` for
+p50/p95) over 30 days and all time, per workflow and per repository. Table
+scroll wrappers on these pages are `relative`: `main` is positioned, so an
+`sr-only` header label inside an unpositioned scroller escapes its clipping and
+widens the page.
 
 **Job traces**: every worker job span carries `homerun.job.id`;
 `TraceSpanDTO.spansOfJob` finds its traces (one per attempt) through the partial

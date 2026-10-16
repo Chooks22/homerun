@@ -29,7 +29,8 @@ export type JobType =
 	| "deploy"
 	| "docker_cleanup"
 	| "image_scan"
-	| "notification_delivery";
+	| "notification_delivery"
+	| "pipeline_sync";
 
 /** A job as the self-update blockers and `GET /api/v1/jobs` list it. */
 export interface JobSummary {

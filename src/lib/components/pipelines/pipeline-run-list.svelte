@@ -7,6 +7,7 @@
 	} from "#lib/components/entity-toolbar.svelte";
 	import Pagination from "#lib/components/pagination.svelte";
 	import Skeleton from "#lib/components/skeleton.svelte";
+	import type { PipelineRunRow } from "#lib/dto/pipeline-run-dto.js";
 	import { timeAgo } from "#lib/formatting.js";
 	import {
 		formatRunDuration,
@@ -15,11 +16,11 @@
 		PIPELINE_STATUS_LABELS,
 	} from "#lib/pipelines/list.js";
 	import { PIPELINE_STATUSES } from "#lib/pipelines/types.js";
-	import type { PipelineRun } from "#lib/server/db/schema.js";
+	import { resolve } from "$app/paths";
 	import PipelineStatusBadge from "./pipeline-status-badge.svelte";
 
 	interface RunListing {
-		items: PipelineRun[];
+		items: PipelineRunRow[];
 		page: number;
 		perPage: number;
 		total: number;
@@ -29,10 +30,31 @@
 		emptySubtitle: string;
 		listing: Promise<RunListing>;
 		searched: boolean;
-		traceHref: (traceId: string) => string;
+		showRepository?: boolean;
 	}
 
-	const { emptySubtitle, listing, searched, traceHref }: Props = $props();
+	const {
+		emptySubtitle,
+		listing,
+		searched,
+		showRepository = false,
+	}: Props = $props();
+
+	function runDetails(run: PipelineRunRow): string {
+		return [run.title, run.branch, run.commitSha?.slice(0, 7), run.event]
+			.filter(Boolean)
+			.join(" · ");
+	}
+
+	function traceHref(run: PipelineRunRow): string {
+		const traceId = run.traceId ?? "";
+		return run.traceServiceId
+			? resolve(
+					"/(protected)/services/[serviceId]/observability/traces/[traceId]",
+					{ serviceId: run.traceServiceId, traceId },
+				)
+			: resolve("/(protected)/monitoring/traces/[traceId]", { traceId });
+	}
 
 	const filters: FilterGroup[] = [
 		{
@@ -53,7 +75,9 @@
 <div class="space-y-3">
   <EntityToolbar
     filters={filters}
-    placeholder="Search workflows, branches, commits…"
+    placeholder={showRepository
+      ? "Search repositories, workflows, branches, commits…"
+      : "Search workflows, branches, commits…"}
     sorts={PIPELINE_SORTS}
   />
 
@@ -71,11 +95,11 @@
         <p class="text-text-muted text-sm">No run matches your filters.</p>
       </div>
     {:else}
-      <div class="panel overflow-x-auto rounded-md">
+      <div class="panel relative overflow-x-auto rounded-md">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-border text-text-muted border-b text-left text-xs uppercase">
-              <th class="px-4 py-3 font-medium">Run</th>
+              <th class="w-2/5 min-w-48 px-4 py-3 font-medium">Run</th>
               <th class="px-4 py-3 font-medium">Status</th>
               <th class="px-4 py-3 text-right font-medium">Duration</th>
               <th class="hidden px-4 py-3 text-right font-medium md:table-cell">Queued</th>
@@ -88,13 +112,23 @@
           <tbody>
             {#each result.items as run (run.id)}
               <tr class="border-border/60 hover:bg-surface-2 border-b last:border-0">
-                <td class="max-w-0 px-4 py-3">
+                <td class="max-w-0 min-w-48 px-4 py-3">
                   <span class="text-text block truncate font-medium">
-                    {run.name}{#if run.number !== null}<span class="text-text-subtle"> #{run.number}</span>{/if}
+                    {#if showRepository}
+                      <a
+                        class="hover:text-accent"
+                        href={resolve("/(protected)/pipelines/[repositoryId]", {
+                          repositoryId: run.repositoryId,
+                        })}
+                      >{run.repositoryName}</a>
+                      <span class="text-text-subtle">·</span>
+                    {/if}
+                    {run.name}
+                    {#if run.number !== null}
+                      <span class="text-text-subtle">#{run.number}</span>
+                    {/if}
                   </span>
-                  <span class="text-text-subtle block truncate text-xs">
-                    {#if run.title}{run.title} · {/if}{run.branch ?? "—"}{#if run.commitSha} · <span class="font-mono">{run.commitSha.slice(0, 7)}</span>{/if}{#if run.event} · {run.event}{/if}
-                  </span>
+                  <span class="text-text-subtle block truncate text-xs">{runDetails(run)}</span>
                 </td>
                 <td class="px-4 py-3"><PipelineStatusBadge status={run.status} /></td>
                 <td class="text-text px-4 py-3 text-right font-mono text-xs whitespace-nowrap">
@@ -122,7 +156,7 @@
                       <a
                         class="text-text-subtle hover:text-accent"
                         aria-label="Open the trace"
-                        href={traceHref(run.traceId)}
+                        href={traceHref(run)}
                         title="Open the trace"
                       >
                         <Activity class="size-4" />

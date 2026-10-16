@@ -6,7 +6,7 @@ resource use over a range; **Events**, its uptime probes, live logs, failed
 deploys and the errors Homerun logged about it; **Errors**, the exceptions your
 app reports (see [Error tracking](error-tracking.md)); **Traces**, its
 OpenTelemetry traces (see [Tracing](tracing.md)); **Pipelines**, the CI runs of
-the repo it builds from (see [Pipelines](pipelines.md)); and **Health**, the
+the repository linked to it (see [Pipelines](pipelines.md)); and **Health**, the
 healthcheck the running container was created with (see
 [Services](services.md#health)).
 

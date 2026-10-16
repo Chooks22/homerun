@@ -80,3 +80,7 @@ export const notificationDeliveryJobPayload = z.object({
 });
 
 export type DockerCleanupAction = (typeof dockerCleanupActions)[number];
+
+export const pipelineSyncJobPayload = z.object({
+	repositoryId: z.string(),
+});

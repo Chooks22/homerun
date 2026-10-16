@@ -56,9 +56,10 @@ resource attribute, else by a `service.name` matching a service's slug, and only
 while that service has traces turned on. Spans from anything else are accepted
 by the collector and dropped.
 
-A service's CI runs are the exception: when [Pipelines](pipelines.md) are on,
-each finished run is filed under the service as a trace whether or not its own
-traces are.
+CI runs are the exception: each finished run of a repository watched under
+[Pipelines](pipelines.md) is filed under the first service linked to it, whether
+or not that service's own traces are on, or under Monitoring → Traces when no
+service is linked.
 
 ## The trace list
 

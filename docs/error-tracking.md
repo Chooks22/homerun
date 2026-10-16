@@ -74,12 +74,16 @@ has its own link to share.
 
 ![An issue's page: the exception and its stack trace, with the source around each of the app's own frames](images/error-tracking-issue.webp)
 
-For a service built from a git repository, each of your own frames has a **View
-in repo** link to that file and line at the exact commit that ran: the event's
-release when it's a commit, otherwise the deployment that was live when the
-event happened. Build directories such as `/app/`, `/usr/src/app/` or
-`/workspace/repo/` are stripped to get the path inside the repository. GitHub,
-GitLab, Gitea and Bitbucket URLs are supported.
+For a service linked to a repository under [Pipelines](pipelines.md), or built
+from a git repository, each of your own frames has a **View in repo** link to
+that file and line at the exact commit that ran: the event's release when it's a
+commit, otherwise the deployment that was live when the event happened. A
+service that runs an image and has nothing deployed from the repository links to
+its default branch instead, unless its SDK sends the commit as the release. A
+linked repository takes precedence over the one a git service builds from. Build
+directories such as `/app/`, `/usr/src/app/` or `/workspace/repo/` are stripped
+to get the path inside the repository. GitHub, GitLab, Gitea and Bitbucket URLs
+are supported.
 
 ## Source maps
 

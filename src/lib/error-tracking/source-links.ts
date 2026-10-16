@@ -124,10 +124,12 @@ export function repoWebUrl(gitUrl: string): string | null {
 }
 
 /**
- * A link to one line of a file at one commit, in the URL format of the
- * provider hosting the repository.
+ * A link to one line of a file at one commit, or at the head of a branch
+ * when `branch` is set, in the URL format of the provider hosting the
+ * repository.
  */
 export function sourceFileUrl(input: {
+	branch?: boolean;
 	commit: string;
 	line: number | null;
 	path: string;
@@ -143,7 +145,7 @@ export function sourceFileUrl(input: {
 		case "gitlab":
 			return `${base}/-/blob/${commit}/${path}${line ? `#L${line}` : ""}`;
 		case "gitea":
-			return `${base}/src/commit/${commit}/${path}${line ? `#L${line}` : ""}`;
+			return `${base}/src/${input.branch ? "branch" : "commit"}/${commit}/${path}${line ? `#L${line}` : ""}`;
 		case "bitbucket":
 			return `${base}/src/${commit}/${path}${line ? `#lines-${line}` : ""}`;
 		default: {

@@ -23,6 +23,4 @@
   bind:this={ref}
   bind:value
   {...restProps}
->
-  {content}
-</textarea>
+>{content}</textarea>

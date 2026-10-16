@@ -7,6 +7,7 @@ import { ErrorProjectDTO } from "#lib/dto/error-project-dto.js";
 import { ErrorSourceMapDTO } from "#lib/dto/error-source-map-dto.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { NotificationDTO } from "#lib/dto/notification-dto.js";
+import { RepositoryDTO } from "#lib/dto/repository-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import {
 	type DsnProject,
@@ -72,6 +73,7 @@ const CORS_HEADERS = {
 export type IngestKind = "envelope" | "store";
 
 export interface SourceRepo {
+	branch?: boolean;
 	buildContext: string | null;
 	commit: string;
 	provider: SourceProvider;
@@ -403,15 +405,38 @@ class ErrorTrackingServiceClass {
 	}
 
 	/**
-	 * Where an event's in-app frames link to: the service's repository at the
-	 * event's release when that's a commit, else at the commit deployed when
-	 * the event happened. Null for an image service, or when neither the
-	 * provider nor a commit can be worked out.
+	 * Where an event's in-app frames link to: the repository linked to the
+	 * service under Pipelines when there is one, any service included, else
+	 * the one a git service builds from; at the event's release when that's a
+	 * commit, else at the commit deployed when the event happened, else (a
+	 * linked repository with nothing deployed from it) at its default branch.
+	 * Null when neither the provider nor a ref can be worked out.
 	 */
 	async sourceRepo(
 		svc: Service,
 		event: Pick<StoredErrorEvent, "release" | "timestamp">,
 	): Promise<SourceRepo | null> {
+		const linked = svc.repositoryId
+			? await RepositoryDTO.get(svc.repositoryId)
+			: null;
+		if (linked) {
+			const commit = isCommitSha(event.release)
+				? event.release
+				: svc.buildSource === "git"
+					? await DeploymentDTO.commitAt(svc.id, new Date(event.timestamp))
+					: null;
+			const ref = commit ?? linked.toJSON().defaultBranch;
+			return ref
+				? {
+						branch: !commit,
+						buildContext:
+							svc.buildSource === "git" ? svc.gitBuildContext : null,
+						commit: ref,
+						provider: linked.providerKind,
+						repoUrl: linked.webUrl,
+					}
+				: null;
+		}
 		if (svc.buildSource !== "git" || !svc.gitUrl) {
 			return null;
 		}

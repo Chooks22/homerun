@@ -24,7 +24,8 @@ export interface PipelineTraceInput {
 	number: number | null;
 	pipelineToken: string;
 	provider: PipelineProvider;
-	serviceId: string;
+	repositoryId: string;
+	serviceId: string | null;
 	status: PipelineStatus;
 	title: string | null;
 	url: string | null;
@@ -113,10 +114,10 @@ export function pipelineTraceId(input: {
 	externalId: string;
 	finishedAt: Date | null;
 	provider: PipelineProvider;
-	serviceId: string;
+	repositoryId: string;
 }): string {
 	return hex(
-		`pipeline:${input.serviceId}:${input.provider}:${input.externalId}:${input.attempt}:${input.finishedAt?.toISOString() ?? ""}`,
+		`pipeline:${input.repositoryId}:${input.provider}:${input.externalId}:${input.attempt}:${input.finishedAt?.toISOString() ?? ""}`,
 		32,
 	);
 }
@@ -126,9 +127,10 @@ export function pipelineTraceId(input: {
  * finished, a span per job of its latest attempt that ran, and a span per
  * step under its job.
  * Ids derive from the run so exporting it twice stores nothing new. The
- * resource names the service and carries its CI span token, so the ingest
- * keeps them whether or not the service's own traces are on. Null when the run
- * hasn't finished.
+ * resource names the service the trace is filed under (none: Homerun's own
+ * traces) and carries the matching CI span token, so the ingest keeps them
+ * whether or not that service's own traces are on. Null when the run hasn't
+ * finished.
  */
 export function buildPipelineTrace(
 	input: PipelineTraceInput,

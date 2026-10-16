@@ -19,4 +19,5 @@ export const workerJobs: Record<JobType, WorkerJob | null> = {
 	docker_cleanup: dockerCleanupWorkerJob,
 	image_scan: imageScanWorkerJob,
 	notification_delivery: null,
+	pipeline_sync: null,
 };

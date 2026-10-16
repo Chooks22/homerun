@@ -371,6 +371,22 @@ describe("source links", () => {
 		expect(sourceFileUrl({ ...input, provider: "bitbucket" })).toEndWith(
 			"#lines-42",
 		);
+		expect(
+			sourceFileUrl({
+				...input,
+				branch: true,
+				commit: "main",
+				provider: "gitea",
+			}),
+		).toBe("https://host/o/r/src/branch/main/src/a%20b.ts#L42");
+		expect(
+			sourceFileUrl({
+				...input,
+				branch: true,
+				commit: "main",
+				provider: "github",
+			}),
+		).toBe("https://host/o/r/blob/main/src/a%20b.ts#L42");
 	});
 
 	test("reads repositories and providers from clone URLs", () => {

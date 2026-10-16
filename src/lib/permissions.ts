@@ -4,13 +4,15 @@ export type PermissionLevel = (typeof PERMISSION_LEVELS)[number];
 
 export const PERMISSION_AREAS = [
 	{
-		description: "Services, deployments, previews, logs and monitoring.",
+		description:
+			"Services, deployments, previews, logs, monitoring and CI pipelines.",
 		key: "services",
 		label: "Services",
 		routes: [
 			"/services",
 			"/deployments",
 			"/monitoring",
+			"/pipelines",
 			"/api/v1/monitoring",
 			"/api/v1/services",
 			"/api/v1/service-environments",

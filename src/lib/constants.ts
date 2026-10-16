@@ -81,6 +81,7 @@ export const JOB_TYPE_ICONS: Record<JobType, typeof Database> = {
 	docker_cleanup: BrushCleaning,
 	image_scan: ScanSearch,
 	notification_delivery: Bell,
+	pipeline_sync: Workflow,
 };
 
 export const JOB_TYPE_LABELS: Record<JobType, string> = {
@@ -93,6 +94,7 @@ export const JOB_TYPE_LABELS: Record<JobType, string> = {
 	docker_cleanup: "Cleanup",
 	image_scan: "Image scan",
 	notification_delivery: "Notification",
+	pipeline_sync: "CI sync",
 };
 
 export const SERVICE_STATUS_CONFIG: Record<

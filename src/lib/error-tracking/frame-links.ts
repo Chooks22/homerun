@@ -6,6 +6,7 @@ import {
 } from "./source-links";
 
 export interface FrameLinkSource {
+	branch?: boolean;
 	buildContext: string | null;
 	commit: string;
 	provider: SourceProvider;
@@ -35,6 +36,7 @@ export function frameLinks(
 				repoRelativePath(frame.filename, source.buildContext);
 			if (path) {
 				links[`${exceptionIndex}:${frameIndex}`] = sourceFileUrl({
+					branch: source.branch,
 					commit: source.commit,
 					line: frame.lineno,
 					path,
