@@ -19,6 +19,21 @@ import { ServiceDTO } from "./service-dto";
  * plain `ServiceDTO`.
  */
 export class ServiceGitDTO extends ServiceDTO {
+	/** Every git service whose CI runs Homerun syncs into its Pipelines tab. */
+	static async listPipelinesEnabled(): Promise<ServiceDTO[]> {
+		const rows = await db
+			.select()
+			.from(service)
+			.where(
+				and(
+					eq(service.buildSource, "git"),
+					eq(service.pipelinesEnabled, true),
+					isNotNull(service.gitUrl),
+				),
+			);
+		return rows.map((row) => new ServiceGitDTO(row));
+	}
+
 	/**
 	 * Every git service that deploys on push and needs its branch polled:
 	 * polling is turned on for it, or Homerun couldn't register its webhook.

@@ -5,6 +5,7 @@
 		Bug,
 		HeartPulse,
 		ListChecks,
+		Workflow,
 	} from "@lucide/svelte";
 	import ErrorBoundary from "#lib/components/error-boundary.svelte";
 	import SectionNav from "#lib/components/section-nav.svelte";
@@ -46,6 +47,15 @@
 			icon: Activity,
 			id: "service/observability/traces",
 			label: "Traces",
+		},
+		{
+			href: resolve(
+				"/(protected)/services/[serviceId]/observability/pipelines",
+				{ serviceId: data.service.id },
+			),
+			icon: Workflow,
+			id: "service/observability/pipelines",
+			label: "Pipelines",
 		},
 		{
 			href: resolve("/(protected)/services/[serviceId]/observability/health", {

@@ -56,6 +56,10 @@ resource attribute, else by a `service.name` matching a service's slug, and only
 while that service has traces turned on. Spans from anything else are accepted
 by the collector and dropped.
 
+A service's CI runs are the exception: when [Pipelines](pipelines.md) are on,
+each finished run is filed under the service as a trace whether or not its own
+traces are.
+
 ## The trace list
 
 The **Traces** section lists the service's traces, newest first: the root span's

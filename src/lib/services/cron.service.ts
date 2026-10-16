@@ -24,6 +24,7 @@ import { ErrorRetentionScheduler } from "./cron/error-retention-scheduler.ts";
 import { GitPollScheduler } from "./cron/git-poll-scheduler.ts";
 import { IpBanScheduler } from "./cron/ip-ban-scheduler.ts";
 import { MirrorGcScheduler } from "./cron/mirror-gc-scheduler.ts";
+import { PipelineSyncScheduler } from "./cron/pipeline-sync-scheduler.ts";
 import { SwarmDnsWatch } from "./cron/swarm-dns-watch.ts";
 import { TraceRetentionScheduler } from "./cron/trace-retention-scheduler.ts";
 import { UpdateCheckScheduler } from "./cron/update-check-scheduler.ts";
@@ -82,6 +83,8 @@ class CronServiceClass {
 
 	private readonly gitPollScheduler = new GitPollScheduler();
 
+	private readonly pipelineSyncScheduler = new PipelineSyncScheduler();
+
 	private readonly errorRetentionScheduler = new ErrorRetentionScheduler();
 
 	private readonly ipBanScheduler = new IpBanScheduler();
@@ -137,6 +140,11 @@ class CronServiceClass {
 	/** Starts the branch poller that deploys on push when a webhook can't be delivered. */
 	startGitPollScheduler(): void {
 		this.gitPollScheduler.start();
+	}
+
+	/** Starts the five-minute CI pipeline sync. */
+	startPipelineSync(): void {
+		this.pipelineSyncScheduler.start();
 	}
 
 	/** Starts the hourly error tracking retention pass. */

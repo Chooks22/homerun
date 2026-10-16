@@ -4,12 +4,17 @@ import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { type NewTraceSpan, TraceSpanDTO } from "#lib/dto/trace-span-dto.js";
 import { decodeBody, EnvelopeError } from "#lib/error-tracking/envelope.js";
 import { Logger } from "#lib/logger.js";
+import type { OtlpTraceRequest } from "#lib/pipelines/otlp.js";
+import { OTEL_COLLECTOR_HOST, OTEL_HTTP_PORT } from "#lib/tracing/env.js";
 import {
 	otlpIngestToken,
 	validOtlpAuthorization,
+	validPipelineSpanToken,
 } from "#lib/tracing/ingest-token.js";
 import {
 	OtlpError,
+	type ParsedResource,
+	PIPELINE_ATTRIBUTE,
 	parseOtlpTraces,
 	spanOwner,
 	type TracedService,
@@ -135,17 +140,27 @@ class TracingServiceClass {
 					: "Invalid OTLP/JSON body";
 			return reply(400, { message });
 		}
+		await this.#store(resources);
+		return reply(200, {});
+	}
+
+	/** Stores each resource's spans under the service it maps to, dropping the ones no traced service owns. */
+	async #store(resources: ParsedResource[]): Promise<void> {
 		const services = await this.#tracedServices();
 		const rows: NewTraceSpan[] = [];
 		for (const resource of resources) {
-			const owner = spanOwner(resource.attributes, services);
+			const owner = spanOwner(resource.attributes, services, (id, value) =>
+				validPipelineSpanToken(value, config.auth.secret, id),
+			);
 			if (!owner) {
 				continue;
 			}
+			const { [PIPELINE_ATTRIBUTE]: _token, ...resourceAttributes } =
+				resource.attributes;
 			for (const span of resource.spans) {
 				rows.push({
 					...span,
-					resourceAttributes: resource.attributes,
+					resourceAttributes,
 					serviceId: owner.serviceId,
 					serviceName: owner.serviceName,
 				});
@@ -154,7 +169,42 @@ class TracingServiceClass {
 		if (rows.length > 0) {
 			await TraceSpanDTO.insertMany(rows);
 		}
-		return reply(200, {});
+	}
+
+	/**
+	 * Sends spans Homerun builds itself (CI runs) through the collector over
+	 * OTLP/HTTP when it's on, so they take the same path as a service's own,
+	 * and stores them directly when it's off or doesn't answer within five
+	 * seconds (the dev server, outside the Docker network).
+	 *
+	 * @returns Whether the collector took them.
+	 */
+	async exportSpans(body: OtlpTraceRequest): Promise<boolean> {
+		if ((await this.settings()).collectorEnabled) {
+			try {
+				const response = await fetch(
+					`http://${OTEL_COLLECTOR_HOST}:${OTEL_HTTP_PORT}/v1/traces`,
+					{
+						body: JSON.stringify(body),
+						headers: { "content-type": "application/json" },
+						method: "POST",
+						signal: AbortSignal.timeout(5000),
+					},
+				);
+				if (response.ok) {
+					return true;
+				}
+				logger.warn(
+					`Collector refused CI spans with HTTP ${response.status}, storing them directly.`,
+				);
+			} catch (error) {
+				logger.debug(
+					`Collector unreachable, storing CI spans directly: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		}
+		await this.#store(parseOtlpTraces(body));
+		return false;
 	}
 
 	/**

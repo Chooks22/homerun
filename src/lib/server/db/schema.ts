@@ -38,6 +38,12 @@ import type { IpBanSettings } from "#lib/ip-bans.js";
 import type { ObjectStoreKind } from "#lib/object-storage.js";
 import type { AuthPathsMode } from "#lib/path-patterns.js";
 import type { Permissions, Role } from "#lib/permissions.js";
+import type {
+	PipelineJob,
+	PipelineProvider,
+	PipelineRateRule,
+	PipelineStatus,
+} from "#lib/pipelines/types.js";
 import type { PublishedPort } from "#lib/published-ports.js";
 import type { ResourceKind, Threshold } from "#lib/resource-thresholds.js";
 import type { BackupRunKind, RevisionConfig } from "#lib/revision-config.js";
@@ -1365,6 +1371,10 @@ export const service = pgTable(
 		swarmServiceId: text("swarm_service_id"),
 		uptimeEnabled: boolean("uptime_enabled").default(true).notNull(),
 		tracesEnabled: boolean("traces_enabled").default(false).notNull(),
+		pipelinesEnabled: boolean("pipelines_enabled").default(false).notNull(),
+		pipelineRates: jsonb("pipeline_rates").$type<PipelineRateRule[] | null>(),
+		pipelinesSyncedAt: timestamp("pipelines_synced_at", { mode: "date" }),
+		pipelinesError: text("pipelines_error"),
 		tag: text("tag").default("latest").notNull(),
 		pinnedFromTag: text("pinned_from_tag"),
 		pinnedLocally: boolean("pinned_locally").default(false).notNull(),
@@ -2542,6 +2552,53 @@ export type OauthClient = typeof oauthClient.$inferSelect;
 export type ErrorSourceMap = typeof errorSourceMap.$inferSelect;
 export type ResourceIncident = typeof resourceIncident.$inferSelect;
 export type DnsConnection = typeof dnsConnection.$inferSelect;
+export const pipelineRun = pgTable(
+	"pipeline_run",
+	{
+		actor: text("actor"),
+		attempt: integer("attempt").default(1).notNull(),
+		billableMinutes: integer("billable_minutes").default(0).notNull(),
+		branch: text("branch"),
+		commitSha: text("commit_sha"),
+		costUsd: doublePrecision("cost_usd").default(0).notNull(),
+		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+		durationMs: doublePrecision("duration_ms"),
+		event: text("event"),
+		externalId: text("external_id").notNull(),
+		finishedAt: timestamp("finished_at", { mode: "date" }),
+		id: text("id").primaryKey(),
+		jobs: jsonb("jobs").$type<PipelineJob[]>().default([]).notNull(),
+		name: text("name").notNull(),
+		number: integer("number"),
+		provider: text("provider").$type<PipelineProvider>().notNull(),
+		queueMs: doublePrecision("queue_ms"),
+		serviceId: text("service_id")
+			.notNull()
+			.references(() => service.id, { onDelete: "cascade" }),
+		startedAt: timestamp("started_at", { mode: "date" }),
+		status: text("status").$type<PipelineStatus>().notNull(),
+		title: text("title"),
+		traceExported: boolean("trace_exported").default(false).notNull(),
+		traceId: text("trace_id"),
+		updatedAt: timestamp("updated_at", { mode: "date" })
+			.$onUpdate(() => new Date())
+			.notNull(),
+		url: text("url"),
+	},
+	(table) => [
+		uniqueIndex("pipelineRun_serviceId_externalId_idx").on(
+			table.serviceId,
+			table.externalId,
+		),
+		index("pipelineRun_serviceId_createdAt_idx").on(
+			table.serviceId,
+			table.createdAt,
+		),
+	],
+);
+
+export type PipelineRun = typeof pipelineRun.$inferSelect;
+
 export type Domain = typeof domain.$inferSelect;
 export type DnsManagedRecord = typeof dnsManagedRecord.$inferSelect;
 export type OauthClientEnvironment = typeof oauthClientEnvironment.$inferSelect;

@@ -35,6 +35,7 @@ import { BaseDTO } from "./base-dto";
 import type { NewServiceInput, ServiceUpdateInput } from "./service-input";
 import {
 	buildMethodColumns,
+	NEW_SERVICE_PIPELINE_COLUMNS,
 	NEW_SERVICE_STATE_COLUMNS,
 	NEW_SERVICE_VERSION_COLUMNS,
 } from "./service-input";
@@ -457,6 +458,7 @@ export class ServiceDTO extends BaseDTO<Service> {
 			...ServiceDTO.#runtimeColumns(input),
 			...ServiceDTO.#gitTriggerColumns(input),
 			...NEW_SERVICE_VERSION_COLUMNS,
+			...NEW_SERVICE_PIPELINE_COLUMNS,
 			...NEW_SERVICE_STATE_COLUMNS,
 			containerPort: input.containerPort,
 			createdAt: now,

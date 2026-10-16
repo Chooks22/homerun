@@ -74,7 +74,7 @@
 </script>
 
 {#snippet mainToggle(host: string, disabled: boolean)}
-  <div class="flex shrink-0 justify-center sm:w-24">
+  <div class="flex shrink-0 justify-center @2xl:w-24">
     {#if primary !== "" && primary === host}
       <span class="bg-accent/10 text-accent rounded-full px-2.5 py-0.5 text-xs font-medium">Main</span>
     {:else}
@@ -121,7 +121,7 @@
     <form
       id="service-domains"
       action="?/updateDomains"
-      class="space-y-3 p-5"
+      class="@container space-y-3 p-5"
       method="POST"
       use:enhance={enhanceToast({
         error: "Check the domains and try again.",
@@ -150,17 +150,17 @@
     >
       <input name="primaryDomain" type="hidden" value={primary}>
       <div class="space-y-2">
-        <div class="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap sm:border-0 sm:p-0">
+        <div class="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 @2xl:flex-nowrap @2xl:border-0 @2xl:p-0">
           <Input
-            class="basis-full sm:basis-auto {defaultEnabled ? '' : 'text-text-subtle line-through'}"
+            class="basis-full @2xl:basis-auto {defaultEnabled ? '' : 'text-text-subtle line-through'}"
             aria-label="Default domain"
             readonly
             value={fallbackHost}
           />
-          <div class="hidden w-28 shrink-0 sm:block"></div>
-          <div class="hidden w-24 shrink-0 sm:block"></div>
+          <div class="hidden w-28 shrink-0 @2xl:block"></div>
+          <div class="hidden w-24 shrink-0 @2xl:block"></div>
           {@render mainToggle(fallbackHost, !defaultEnabled)}
-          <label class="text-text-muted ml-auto flex shrink-0 items-center gap-2 text-xs sm:ml-0 sm:w-20">
+          <label class="text-text-muted ml-auto flex shrink-0 items-center gap-2 text-xs @2xl:ml-0 @2xl:w-20">
             <Checkbox
               name="defaultDomainEnabled"
               onCheckedChange={(checked) => {
@@ -174,9 +174,9 @@
           </label>
         </div>
         {#each domains as domain, index (index)}
-          <div class="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap sm:border-0 sm:p-0">
+          <div class="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 @2xl:flex-nowrap @2xl:border-0 @2xl:p-0">
             <Input
-              class="basis-full sm:basis-auto"
+              class="basis-full @2xl:basis-auto"
               aria-label="Domain"
               name="domains"
               oninput={(event) => renameDomain(index, event.currentTarget.value)}
@@ -186,7 +186,7 @@
               value={domain}
             />
             <Input
-              class="min-w-0 flex-1 sm:w-28 sm:flex-none sm:shrink-0"
+              class="min-w-0 flex-1 @2xl:w-28 @2xl:flex-none @2xl:shrink-0"
               aria-label="Container port for this domain"
               max="65535"
               min="1"
@@ -201,7 +201,7 @@
               value={ports[index]}
             />
             <input name="domainStripPaths" type="hidden" value={strips[index] ? "on" : ""}>
-            <div class="flex shrink-0 items-center sm:w-24">
+            <div class="flex shrink-0 items-center @2xl:w-24">
               {#if domain.includes("/")}
                 <label class="text-text-muted flex items-center gap-2 text-xs">
                   <Checkbox
@@ -217,7 +217,7 @@
               {/if}
             </div>
             {@render mainToggle(domain, !domain)}
-            <div class="shrink-0 sm:w-20">
+            <div class="shrink-0 @2xl:w-20">
               <Button
                 aria-label="Remove this domain"
                 onclick={() => removeDomain(index)}

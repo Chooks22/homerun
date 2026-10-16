@@ -86,6 +86,7 @@
 				{ "slug": "observability", "icon": "activity" },
 				{ "slug": "error-tracking", "icon": "bug" },
 				{ "slug": "tracing", "icon": "waypoints" },
+				{ "slug": "pipelines", "icon": "workflow" },
 				{ "slug": "scheduling", "icon": "calendar-clock" }
 			]
 		},

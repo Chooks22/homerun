@@ -2,6 +2,8 @@ export const OTLP_TRACES_PATH = "/api/v1/otlp/v1/traces";
 
 export const SERVICE_ID_ATTRIBUTE = "homerun.service.id";
 
+export const PIPELINE_ATTRIBUTE = "homerun.pipeline";
+
 export const HOMERUN_SERVICE_NAMES = new Set(["homerun", "homerun-worker"]);
 
 export const MAX_SPANS_PER_REQUEST = 10_000;
@@ -281,13 +283,15 @@ export function parseOtlpTraces(body: unknown): ParsedResource[] {
 /**
  * Which Homerun service a resource's spans belong to: the service named by
  * its `homerun.service.id` attribute, else the one whose slug is its
- * `service.name`, as long as that service has traces turned on. Homerun's own
- * services (`homerun`, `homerun-worker`) belong to the instance, no service.
- * Null drops the spans.
+ * `service.name`, as long as that service has traces turned on or the
+ * resource carries that service's CI span token (`homerun.pipeline`, checked
+ * by `isPipeline`). Homerun's own services (`homerun`, `homerun-worker`)
+ * belong to the instance, no service. Null drops the spans.
  */
 export function spanOwner(
 	attributes: Record<string, unknown>,
 	services: TracedService[],
+	isPipeline: (serviceId: string, value: unknown) => boolean = () => false,
 ): SpanOwner | null {
 	const serviceId = attributes[SERVICE_ID_ATTRIBUTE];
 	const name =
@@ -300,7 +304,8 @@ export function spanOwner(
 			: undefined) ??
 		(name ? services.find((svc) => svc.slug === name) : undefined);
 	if (found) {
-		return found.tracesEnabled
+		return found.tracesEnabled ||
+			isPipeline(found.id, attributes[PIPELINE_ATTRIBUTE])
 			? { serviceId: found.id, serviceName: name || found.slug }
 			: null;
 	}

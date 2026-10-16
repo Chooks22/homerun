@@ -96,6 +96,9 @@ sync by hand.
   per service, issues, stack traces linked to the source, and alerts.
 - **[Tracing](tracing.md)**: OpenTelemetry traces from your services through
   Homerun's own collector, trace waterfalls, and traces of Homerun's own jobs.
+- **[Pipelines](pipelines.md)**: GitHub Actions, GitLab CI and Gitea Actions
+  runs of a git service's repo, with success rate, durations, queue time,
+  estimated cost, and each run as a trace.
 - **[Scheduling and the job queue](scheduling.md)**: scheduled redeploys, cron
   jobs, the Scheduling page, and the background job queue.
 

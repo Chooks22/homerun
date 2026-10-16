@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { withTracingEnv } from "../../../src/lib/tracing/env";
 import {
 	otlpIngestToken,
+	pipelineSpanToken,
 	validOtlpAuthorization,
+	validPipelineSpanToken,
 } from "../../../src/lib/tracing/ingest-token";
 import {
 	normalizeTraceId,
@@ -278,6 +280,43 @@ describe("spanOwner", () => {
 		expect(spanOwner({ "service.name": "web" }, services)).toBeNull();
 		expect(spanOwner({ "service.name": "stranger" }, services)).toBeNull();
 		expect(spanOwner({}, services)).toBeNull();
+	});
+
+	test("keeps a service's CI spans with its traces off only on a valid token", () => {
+		const isPipeline = (id: string, value: unknown) =>
+			validPipelineSpanToken(value, "secret", id);
+		const token = pipelineSpanToken("secret", "svc-web");
+		expect(
+			spanOwner(
+				{
+					"homerun.pipeline": token,
+					"homerun.service.id": "svc-web",
+					"service.name": "github-actions",
+				},
+				services,
+				isPipeline,
+			),
+		).toEqual({ serviceId: "svc-web", serviceName: "github-actions" });
+		for (const forged of [
+			true,
+			"true",
+			pipelineSpanToken("secret", "svc-api"),
+			pipelineSpanToken("other-secret", "svc-web"),
+		]) {
+			expect(
+				spanOwner(
+					{ "homerun.pipeline": forged, "homerun.service.id": "svc-web" },
+					services,
+					isPipeline,
+				),
+			).toBeNull();
+		}
+		expect(
+			spanOwner(
+				{ "homerun.pipeline": token, "homerun.service.id": "svc-web" },
+				services,
+			),
+		).toBeNull();
 	});
 
 	test("keeps Homerun's own spans with no service", () => {

@@ -492,7 +492,7 @@ to reintroduce a fixed bug.
 | `testing.md`                | `tests/` (unit, integration, e2e), `bunfig.toml`, Playwright, the CI Postgres wiring                                                                                                    |
 | `packages-and-release.md`   | `cmd/installer/`, `cmd/worker/`'s agent mode, `orochibraru/releaser`, CI/Docker publishing, `docs/`                                                                                     |
 | `dns.md`                    | Cloudflare or Pangolin DNS automation                                                                                                                                                   |
-| `observability.md`          | `Logger`, `app_log`, in-app notifications, system stats, setup diagnostics                                                                                                              |
+| `observability.md`          | `Logger`, `app_log`, in-app notifications, system stats, setup diagnostics, tracing, CI pipelines                                                                                       |
 | `planned-features.md`       | Proposing or building something that might be a deliberate gap — check here before designing it                                                                                         |
 
 `TODO.md` is the backlog and the only one. `docs/` is operator-facing and is a

@@ -9,6 +9,9 @@ When done delete the entry, no bloat.
 
 ## Medium
 
+- [ ] Pipelines: expose CI runs and their stats in the REST API, MCP server and
+      CLI, and sync on the provider's workflow webhook instead of only polling
+
 ## Large
 
 - [ ] Pulumi projects: generate a Pulumi program

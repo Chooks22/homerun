@@ -56,9 +56,9 @@ Every tab stays. Inside them, simple mode hides:
   server sit behind a collapsed **Advanced** section on **Source**.
 - **Overview**: gains a **Roll back to the previous version** button once the
   service has an earlier revision to go back to, in place of the Revisions list.
-- **Observability**: **Errors** (error tracking) and **Traces**. **Monitoring**,
-  **Events** and **Health** stay, and Health only shows the current healthcheck,
-  not the override settings.
+- **Observability**: **Errors** (error tracking), **Traces** and **Pipelines**.
+  **Monitoring**, **Events** and **Health** stay, and Health only shows the
+  current healthcheck, not the override settings.
 - **Networking**: the network mode sits behind a collapsed **Advanced** section,
   and **Response cache** and **Published ports** are hidden.
 - **Container**: **Runtime** (entrypoint, command, labels, capabilities,

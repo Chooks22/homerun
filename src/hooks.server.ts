@@ -308,6 +308,7 @@ export const init = async () => {
 	CronService.startMirrorGcScheduler();
 	CronService.startUpdateCheckScheduler();
 	CronService.startGitPollScheduler();
+	CronService.startPipelineSync();
 	CronService.startErrorRetention();
 	CronService.startTraceRetention();
 	CronService.startIpBanScheduler();
