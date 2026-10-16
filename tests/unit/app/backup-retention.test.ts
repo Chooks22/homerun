@@ -105,6 +105,15 @@ describe("S3BackupService.pruneBackups", () => {
 		]);
 	});
 
+	test("cleans up on demand without a new archive", async () => {
+		remoteWith([day(1), day(2), day(3)]);
+
+		expect(await S3BackupService.pruneBackups(volume(1))).toEqual([
+			day(2),
+			day(1),
+		]);
+	});
+
 	test("keeps everything without a limit", async () => {
 		const run = remoteWith([day(1), day(2)]);
 

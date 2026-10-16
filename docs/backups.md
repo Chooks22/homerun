@@ -136,6 +136,12 @@ not everything) was deleted, and the next successful backup tries again. Runs on
 `/backups` stay listed after their archive is deleted, but a restore can only
 pick archives that are still on the destination.
 
+**Clean up old backups** on `/backups` applies the same rule right away, without
+waiting for the next backup: for every volume with **Backups to keep** set, it
+deletes the archives past the newest N from its destination and says how many
+went. It's the quick way to free space after setting the limit on a destination
+that's already full.
+
 **S3 uploads** go through a hand-rolled Signature V4 client (a multipart upload
 of 8 MiB parts, sixteen sent at once while the next ones are archived, the parts
 growing to 32 MiB for the largest archives, up to about 240 GB; no SDK).
@@ -224,7 +230,9 @@ that:
 
 The top of `/backups` lists every volume with backups on, as soon as they're
 turned on: its schedule in words, its destination, and when it next and last
-ran, with a **Run now** button.
+ran, with a **Run now** button. **Run all** above the list queues a backup of
+every one of them at once; a volume whose backup is already queued isn't queued
+twice.
 
 ![Backups, with the volumes on a schedule above the run log](images/backups-history.webp)
 

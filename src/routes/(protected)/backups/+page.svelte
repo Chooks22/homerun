@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronRight, CloudUpload, Play } from "@lucide/svelte";
+	import { ChevronRight, CloudUpload, Play, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import BackupCancelButton from "#lib/components/backup-cancel-button.svelte";
 	import DeployLogPanel from "#lib/components/deploy-log-panel.svelte";
@@ -28,6 +28,12 @@
 	);
 
 	let runningVolumeId = $state<string | null>(null);
+	let runningAll = $state(false);
+	let pruning = $state(false);
+
+	const prunableVolumes = $derived(
+		data.volumes.filter((v) => v.backupKeep && v.s3DestinationId),
+	);
 	let expandedRunId = $state<string | null>(null);
 
 	function toggleRun(id: string) {
@@ -114,7 +120,73 @@
 
   <!-- ═══ Configured volumes ═══ -->
   <section class="mb-8">
-    <h2 class="eyebrow mb-3">Scheduled backups</h2>
+    <div class="mb-3 flex items-center justify-between gap-3">
+      <h2 class="eyebrow">Scheduled backups</h2>
+      <div class="flex flex-wrap items-center gap-2">
+      {#if prunableVolumes.length > 0}
+        <form
+          action="?/prune"
+          method="POST"
+          use:enhance={enhanceToast({
+            error: "Couldn't clean up the old backups.",
+            loading: "Deleting old backups from the destinations",
+            onSettled: () => {
+              pruning = false;
+            },
+            onStart: () => {
+              pruning = true;
+            },
+            success: (data) =>
+              data?.deleted
+                ? `Deleted ${data.deleted} old ${data.deleted === 1 ? "backup" : "backups"}.`
+                : "Nothing to clean up.",
+          })}
+        >
+          <Button
+            disabled={pruning}
+            size="sm"
+            title="Delete the archives past each volume's Backups to keep from its destination"
+            type="submit"
+            variant="outline"
+          >
+            {#if pruning}
+              <Spinner />
+            {:else}
+              <Trash2 class="size-4" />
+            {/if}
+            Clean up old backups
+          </Button>
+        </form>
+      {/if}
+      {#if backupEnabledVolumes.length > 0}
+        <form
+          action="?/runAll"
+          method="POST"
+          use:enhance={enhanceToast({
+            error: "Couldn't queue the backups.",
+            loading: "Queueing every backup",
+            onSettled: () => {
+              runningAll = false;
+            },
+            onStart: () => {
+              runningAll = true;
+            },
+            success: (data) =>
+              `${data?.queued} ${data?.queued === 1 ? "backup" : "backups"} queued : they show up below once they start.`,
+          })}
+        >
+          <Button disabled={runningAll} size="sm" type="submit" variant="outline">
+            {#if runningAll}
+              <Spinner />
+            {:else}
+              <Play class="size-4" />
+            {/if}
+            Run all
+          </Button>
+        </form>
+      {/if}
+      </div>
+    </div>
     {#if backupEnabledVolumes.length === 0}
       <EmptyState
         icon={CloudUpload}

@@ -169,17 +169,18 @@ class S3BackupServiceClass {
 
 	/**
 	 * Deletes `volume`'s archives on its destination beyond the newest
-	 * `backupKeep`, once the backup that wrote `latestKey` succeeded. Does
-	 * nothing when every backup is kept.
+	 * `backupKeep`: after the backup that wrote `latestKey` succeeded, or on
+	 * demand without one. Does nothing when every backup is kept.
 	 *
 	 * @returns The deleted keys, oldest last.
 	 * @throws When the destination can't be listed or an archive can't be
-	 *   deleted, or when `latestKey` isn't listed: pruning against a listing
-	 *   that misses the newest archive could delete the ones worth keeping.
+	 *   deleted, or when `latestKey` is given but isn't listed: pruning against
+	 *   a listing that misses the newest archive could delete the ones worth
+	 *   keeping.
 	 */
 	async pruneBackups(
 		volume: StorageVolumeDTO,
-		latestKey: string,
+		latestKey?: string,
 	): Promise<string[]> {
 		const keep = volume.backupKeep;
 		if (!keep) {
@@ -187,7 +188,7 @@ class S3BackupServiceClass {
 		}
 		const target = await this.destinationFor(volume);
 		const backups = await this.#listBackups(volume, target);
-		if (!backups.some((backup) => backup.key === latestKey)) {
+		if (latestKey && !backups.some((backup) => backup.key === latestKey)) {
 			throw new Error(
 				`${latestKey} isn't listed on the destination, so no older backup was deleted.`,
 			);

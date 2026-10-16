@@ -12,6 +12,7 @@ import {
 	enqueueVolumeBackup,
 } from "#lib/services/backup-queue.js";
 import { nextCronRun } from "#lib/services/cron/cron-expression.js";
+import { S3BackupService } from "#lib/services/s3-backup.service.js";
 import { stackPath } from "#lib/stack-tree.js";
 import { resolve } from "$app/paths";
 
@@ -99,6 +100,45 @@ export const actions = {
 		return { cancelled: true };
 	},
 
+	prune: async ({ locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const volumes = (await StorageVolumeDTO.list()).filter(
+			(volume) => volume.backupKeep && volume.s3DestinationId,
+		);
+		if (volumes.length === 0) {
+			return fail(400, {
+				error: "Set Backups to keep on a volume first.",
+			});
+		}
+		const results = await Promise.allSettled(
+			volumes.map((volume) => S3BackupService.pruneBackups(volume)),
+		);
+		let deleted = 0;
+		const failures: string[] = [];
+		results.forEach((result, index) => {
+			if (result.status === "fulfilled") {
+				deleted += result.value.length;
+				return;
+			}
+			const reason =
+				result.reason instanceof Error
+					? result.reason.message
+					: String(result.reason);
+			failures.push(`${volumes[index].name}: ${reason}`);
+		});
+		logger.info(
+			`Old backups cleaned up: volumes=${volumes.length} deleted=${deleted} failed=${failures.length} user=${locals.user.id}`,
+		);
+		if (failures.length > 0) {
+			return fail(502, {
+				error: `Deleted ${deleted} old backups, but couldn't clean up ${failures.join("; ")}`,
+			});
+		}
+		return { deleted };
+	},
+
 	run: async ({ request, locals }) => {
 		if (!locals.user) {
 			throw redirect(302, resolve("auth/sign-in"));
@@ -118,5 +158,28 @@ export const actions = {
 		const entry = await enqueueVolumeBackup(volume);
 		logger.info(`Manual backup queued: volume=${volume.id} job=${entry.id}`);
 		return { success: true };
+	},
+
+	runAll: async ({ locals }) => {
+		if (!locals.user) {
+			throw redirect(302, resolve("auth/sign-in"));
+		}
+		const volumes = (await StorageVolumeDTO.list()).filter(
+			(volume) => volume.backupEnabled && volume.s3DestinationId,
+		);
+		if (volumes.length === 0) {
+			return fail(400, { error: "No volume has backups enabled." });
+		}
+		const now = new Date();
+		await Promise.all(
+			volumes.map(async (volume) => {
+				await volume.update({ backupLastRunAt: now });
+				await enqueueVolumeBackup(volume);
+			}),
+		);
+		logger.info(
+			`All backups queued: volumes=${volumes.length} user=${locals.user.id}`,
+		);
+		return { queued: volumes.length };
 	},
 };
