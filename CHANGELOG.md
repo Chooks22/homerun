@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.64](https://github.com/orochibraru/homerun/compare/v1.0.63...v1.0.64) (2026-10-16)
+
+### Features
+
+- **backups:** keep only the newest N archives per volume, deleting older ones
+  after each successful backup
+  ([8d0ff43](https://github.com/orochibraru/homerun/commit/8d0ff43b9f72acea824690e3427e9144f4c98d03))
+
 ## [1.0.63](https://github.com/orochibraru/homerun/compare/v1.0.62...v1.0.63) (2026-10-15)
 
 ### Features
