@@ -62,7 +62,7 @@
       {/if}
       <Button href={resolve("pipelines/new")} size="sm">
         <Plus class="size-4" />
-        Watch repository
+        Watch repositories
       </Button>
     </div>
   </div>
@@ -75,7 +75,7 @@
     >
       <Button href={resolve("pipelines/new")} size="sm">
         <Plus class="size-4" />
-        Watch repository
+        Watch repositories
       </Button>
     </EmptyState>
   {:else}

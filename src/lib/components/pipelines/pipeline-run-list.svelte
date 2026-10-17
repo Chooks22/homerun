@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Activity, ExternalLink, Workflow } from "@lucide/svelte";
+	import { ExternalLink, Workflow } from "@lucide/svelte";
 	import Alert from "#lib/components/alert.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import EntityToolbar, {
@@ -44,16 +44,6 @@
 		return [run.title, run.branch, run.commitSha?.slice(0, 7), run.event]
 			.filter(Boolean)
 			.join(" · ");
-	}
-
-	function traceHref(run: PipelineRunRow): string {
-		const traceId = run.traceId ?? "";
-		return run.traceServiceId
-			? resolve(
-					"/(protected)/services/[serviceId]/observability/traces/[traceId]",
-					{ serviceId: run.traceServiceId, traceId },
-				)
-			: resolve("/(protected)/monitoring/traces/[traceId]", { traceId });
 	}
 
 	const filters: FilterGroup[] = [
@@ -123,10 +113,18 @@
                       >{run.repositoryName}</a>
                       <span class="text-text-subtle">·</span>
                     {/if}
-                    {run.name}
-                    {#if run.number !== null}
-                      <span class="text-text-subtle">#{run.number}</span>
-                    {/if}
+                    <a
+                      class="hover:text-accent"
+                      href={resolve("/(protected)/pipelines/[repositoryId]/runs/[runId]", {
+                        repositoryId: run.repositoryId,
+                        runId: run.id,
+                      })}
+                    >
+                      {run.name}
+                      {#if run.number !== null}
+                        <span class="text-text-subtle">#{run.number}</span>
+                      {/if}
+                    </a>
                   </span>
                   <span class="text-text-subtle block truncate text-xs">{runDetails(run)}</span>
                 </td>
@@ -152,16 +150,6 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
-                    {#if run.traceExported && run.traceId}
-                      <a
-                        class="text-text-subtle hover:text-accent"
-                        aria-label="Open the trace"
-                        href={traceHref(run)}
-                        title="Open the trace"
-                      >
-                        <Activity class="size-4" />
-                      </a>
-                    {/if}
                     {#if run.url}
                       <a
                         class="text-text-subtle hover:text-accent"

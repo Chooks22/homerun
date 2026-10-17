@@ -33,7 +33,7 @@ test.describe
 			await signIn(page);
 			await page.goto("/pipelines");
 			await page
-				.getByRole("link", { name: "Watch repository" })
+				.getByRole("link", { name: "Watch repositories" })
 				.first()
 				.click();
 			await expect(page).toHaveURL(/\/pipelines\/new$/);

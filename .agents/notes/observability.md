@@ -604,9 +604,9 @@ service row).
 `PipelineRunDTO`, `PipelineService`, `src/lib/pipelines/`,
 `PipelineSyncScheduler`, the `pipeline_sync` job, `/pipelines` under
 Observability in the sidebar): pipelines belong to a watched **repository**, not
-to a service. `/pipelines/new` picks one from a provider the user is connected
-to (`connectedGitProviders` + `GitRepoPicker` with `checkDockerfile={false}`);
-`PipelineService.watch` stores it with that user as the reader
+to a service. `/pipelines/new` ticks any number from a provider the user is
+connected to (`connectedGitProviders` + `RepositoryChecklist`, already-watched
+ones disabled); `PipelineService.watch` stores it with that user as the reader
 (`repository.user_id`, whose connection `clientFor` uses), links the services
 already building from it (`servicesBuildingFrom`: `gitProviderId` + `gitRepo`)
 and queues a first sync. Any service, image ones included, links to at most one
@@ -640,15 +640,16 @@ fresh trace) sent by `TracingService.exportSpans` to the collector's
 collector is off or unreachable (always the case from the dev server). They're
 filed under the repository's first linked service, or as Homerun's own (no
 `homerun.service.id`) when none is linked; `pipeline_run.trace_service_id`
-records which, for the run list's trace link. The resource carries
-`homerun.pipeline` = `pipelineSpanToken(AUTH_SECRET, serviceId)` (`""` for the
-instance), an HMAC since anything on the Docker network can post to the
-collector, which `spanOwner` accepts even when the service's traces are off and
-`#store` strips before saving. Stats are SQL aggregates (`percentile_cont` for
-p50/p95) over 30 days and all time, per workflow and per repository. Table
-scroll wrappers on these pages are `relative`: `main` is positioned, so an
-`sr-only` header label inside an unpositioned scroller escapes its clipping and
-widens the page.
+records which. A run's page (`/pipelines/[repositoryId]/runs/[runId]`) lists
+every job of every attempt and renders its trace with `TraceWaterfall` straight
+from `trace_span`. The resource carries `homerun.pipeline` =
+`pipelineSpanToken(AUTH_SECRET, serviceId)` (`""` for the instance), an HMAC
+since anything on the Docker network can post to the collector, which
+`spanOwner` accepts even when the service's traces are off and `#store` strips
+before saving. Stats are SQL aggregates (`percentile_cont` for p50/p95) over 30
+days and all time, per workflow and per repository. Table scroll wrappers on
+these pages are `relative`: `main` is positioned, so an `sr-only` header label
+inside an unpositioned scroller escapes its clipping and widens the page.
 
 **Job traces**: every worker job span carries `homerun.job.id`;
 `TraceSpanDTO.spansOfJob` finds its traces (one per attempt) through the partial

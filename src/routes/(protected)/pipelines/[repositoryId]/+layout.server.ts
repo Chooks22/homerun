@@ -8,7 +8,7 @@ export const load = async ({ params, parent }) => {
 		error(404, "Repository not found");
 	}
 	return {
-		crumb: { id: repo.id, name: repo.fullName },
+		repositoryCrumb: { id: repo.id, name: repo.fullName },
 		linkedServices: await repo.linkedServices(),
 		repository: repo.toJSON(),
 	};

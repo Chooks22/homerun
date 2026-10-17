@@ -253,6 +253,21 @@ export class PipelineRunDTO extends BaseDTO<PipelineRun> {
 		return new Map(rows.map((row) => [row.repositoryId, row]));
 	}
 
+	/** One run of one repository; null when missing or when it belongs to another repository. */
+	static async getForRepository(
+		repositoryId: string,
+		id: string,
+	): Promise<PipelineRunDTO | null> {
+		const [row] = await db
+			.select()
+			.from(pipelineRun)
+			.where(
+				and(eq(pipelineRun.repositoryId, repositoryId), eq(pipelineRun.id, id)),
+			)
+			.limit(1);
+		return row ? new PipelineRunDTO(row) : null;
+	}
+
 	/** Every run of a repository, for re-costing them. */
 	static async listForRepository(
 		repositoryId: string,

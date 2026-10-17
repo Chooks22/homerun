@@ -12,13 +12,15 @@ service then shows the repository's runs under its own **Observability →
 Pipelines**, and [error tracking](error-tracking.md#back-to-the-source) links
 its stack frames to that repository's source.
 
-## Watching a repository
+## Watching repositories
 
-Open **Pipelines** and click **Watch repository**, pick one of your connected
-[git providers](git-providers.md) and a repository from it, and click **Watch**.
-Homerun reads the repository's runs with your connection, so you need a GitHub,
-GitLab or Gitea provider connected first. Services already building from that
-repository are linked to it right away, and its first sync is queued.
+Open **Pipelines** and click **Watch repositories**, pick one of your connected
+[git providers](git-providers.md), filter its repositories and tick as many as
+you want, then click **Watch**. Repositories already watched are marked and
+can't be ticked again; come back to this page any time to add more. Homerun
+reads their runs with your connection, so you need a GitHub, GitLab or Gitea
+provider connected first. Services already building from a repository are linked
+to it right away, and each repository's first sync is queued.
 
 From then on it's synced every five minutes. Each sync reads the latest 50 runs
 and fetches the jobs of every run that's new, still running, or was re-run since
@@ -43,11 +45,20 @@ every run of every repository, newest first: repository, workflow and run
 number, commit title, branch, commit and trigger, status, duration, time queued,
 job count and cost. Search matches the repository, workflow, branch, commit
 title or SHA; filter by status, and sort by newest, slowest, most expensive or
-workflow. Each run links to its page on the provider and, once it has finished,
-to its trace.
+workflow. Each run opens its own page (see below) and links to its page on the
+provider.
 
 A repository's own page has the same numbers for it alone, broken down per
 workflow, and its runs.
+
+## A run
+
+Click a run to open its page: its branch, commit, trigger, who started it, how
+long it queued and ran, its attempt, billable minutes and cost; every job of
+every attempt with its runner, duration, minutes and cost (earlier attempts
+dimmed); and the run's trace as a waterfall, the run on top, its jobs under it
+and each job's steps under the job. The trace appears once the run has finished
+and been synced, and goes once it's older than the trace retention.
 
 ## Settings and linked services
 
@@ -96,8 +107,9 @@ each span's billable minutes and cost, and their service name is
 `github-actions`, `gitlab-ci` or `gitea-actions`.
 
 They go through Homerun's OpenTelemetry collector, like a service's own spans,
-and are stored directly when the collector is off. They're filed under the first
-service linked to the repository, under its **Traces** even when its own traces
-are turned off, or under **Monitoring → Traces** when no service is linked. They
-expire with the [trace retention](tracing.md#the-collector) while the runs
-themselves stay on the Pipelines pages.
+and are stored directly when the collector is off. Each run's page shows its
+trace; the same trace is also listed under the **Traces** of the first service
+linked to the repository, even when that service's own traces are turned off, or
+under **Monitoring → Traces** when no service is linked. They expire with the
+[trace retention](tracing.md#the-collector) while the runs themselves stay on
+the Pipelines pages.
