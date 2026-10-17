@@ -4,15 +4,15 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -22,29 +22,34 @@ import (
 	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/jobs"
 	"github.com/orochibraru/homerun/internal/jobs/backup"
-	"github.com/orochibraru/homerun/internal/s3"
 	"github.com/orochibraru/homerun/tests/unit/go/internal/testsupport"
 )
 
 type fakeContainer struct {
-	bind    string
-	cmd     []string
-	code    int
-	exited  chan struct{}
-	labels  map[string]string
-	started chan struct{}
+	bind       string
+	binds      []string
+	cmd        []string
+	code       int
+	entrypoint []string
+	env        []string
+	exited     chan struct{}
+	labels     map[string]string
+	mounts     []map[string]any
+	started    chan struct{}
 }
 
-// fakeEngine is a Docker daemon that runs helper containers' tar, find and
-// failing commands against in-memory volumes, and rclone's rcat, moveto,
-// deletefile and cat against an in-memory remote, over a real hijacked attach.
+// fakeEngine is a Docker daemon that runs helper containers' tar and find
+// against in-memory volumes, rclone's cat against an in-memory remote, and
+// restic's backup and restore against in-memory snapshots, over a real
+// hijacked attach.
 type fakeEngine struct {
 	mu         sync.Mutex
 	containers map[string]*fakeContainer
-	failTar    bool
 	hang       bool
 	remote     map[string]string
 	removed    []string
+	resticCode int
+	snapshots  map[string]map[string]string
 	volumes    map[string]map[string]string
 }
 
@@ -92,9 +97,14 @@ func (e *fakeEngine) container(path string) *fakeContainer {
 // create records a helper's command, bind and labels.
 func (e *fakeEngine) create(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Cmd        []string                 `json:"Cmd"`
-		HostConfig struct{ Binds []string } `json:"HostConfig"`
-		Labels     map[string]string        `json:"Labels"`
+		Cmd        []string `json:"Cmd"`
+		Entrypoint []string `json:"Entrypoint"`
+		Env        []string `json:"Env"`
+		HostConfig struct {
+			Binds  []string
+			Mounts []map[string]any
+		} `json:"HostConfig"`
+		Labels map[string]string `json:"Labels"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	e.mu.Lock()
@@ -104,8 +114,8 @@ func (e *fakeEngine) create(w http.ResponseWriter, r *http.Request) {
 		bind = body.HostConfig.Binds[0]
 	}
 	e.containers[id] = &fakeContainer{
-		bind: bind, cmd: body.Cmd, exited: make(chan struct{}),
-		labels: body.Labels, started: make(chan struct{}),
+		bind: bind, binds: body.HostConfig.Binds, cmd: body.Cmd, entrypoint: body.Entrypoint, env: body.Env,
+		exited: make(chan struct{}), labels: body.Labels, mounts: body.HostConfig.Mounts, started: make(chan struct{}),
 	}
 	e.mu.Unlock()
 	w.WriteHeader(http.StatusCreated)
@@ -113,8 +123,9 @@ func (e *fakeEngine) create(w http.ResponseWriter, r *http.Request) {
 }
 
 // attach hijacks the connection and, once the container starts, runs its
-// command: tar -c streams the volume out framed on stdout, tar -x reads it
-// back in from stdin until the client half-closes, find wipes it.
+// command: a restic script snapshots or restores the volume, tar -x reads an
+// archive in from stdin until the client half-closes, find wipes it, and
+// anything else is an rclone command.
 func (e *fakeEngine) attach(w http.ResponseWriter, c *fakeContainer) {
 	conn, buffered, err := w.(http.Hijacker).Hijack()
 	if err != nil {
@@ -131,11 +142,8 @@ func (e *fakeEngine) attach(w http.ResponseWriter, c *fakeContainer) {
 	}
 	source := strings.Split(c.bind, ":")[0]
 	switch {
-	case e.failTar && c.cmd[0] == "tar":
-		_, _ = buffered.Write(testsupport.DockerFrame(2, "tar: can't open 'secret': Permission denied"))
-		c.code = 1
-	case strings.Contains(strings.Join(c.cmd, " "), "-cf"):
-		_, _ = buffered.Write(testsupport.DockerFrame(1, e.pack(source)))
+	case len(c.entrypoint) > 2 && strings.Contains(c.entrypoint[2], "restic"):
+		e.restic(c, source, buffered)
 	case strings.Contains(strings.Join(c.cmd, " "), "-xf"):
 		e.unpack(source, buffered)
 	case c.cmd[0] == "find":
@@ -148,24 +156,47 @@ func (e *fakeEngine) attach(w http.ResponseWriter, c *fakeContainer) {
 	_ = buffered.Flush()
 }
 
-// rclone runs one rclone command against the in-memory remote: rcat stores
-// stdin, moveto renames, deletefile removes and cat streams an object out.
+// restic runs a restic helper's script against in-memory snapshots: a backup
+// copies the volume into a new snapshot and prints restic's JSON status and
+// summary, a restore copies a snapshot back (replacing the volume with
+// --delete). A non-zero resticCode fails the step with restic's error.
+func (e *fakeEngine) restic(c *fakeContainer, source string, stream *bufio.ReadWriter) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.resticCode != 0 {
+		_, _ = stream.Write(testsupport.DockerFrame(2, "Fatal: wrong password or no key found"))
+		c.code = e.resticCode
+		return
+	}
+	if strings.Contains(c.entrypoint[2], "restic backup") {
+		id := fmt.Sprintf("%064d", len(e.snapshots)+1)
+		snapshot := map[string]string{}
+		for name, content := range e.volumes[source] {
+			snapshot[name] = content
+		}
+		e.snapshots[id] = snapshot
+		_, _ = stream.Write(testsupport.DockerFrame(1, "created restic repository 1234 at rclone:dest:base\n"))
+		_, _ = stream.Write(testsupport.DockerFrame(1, `{"message_type":"status","percent_done":0.5,"bytes_done":1,"total_bytes":2}`+"\n"))
+		_, _ = stream.Write(testsupport.DockerFrame(1, fmt.Sprintf(`{"message_type":"summary","data_added":20,"data_added_packed":12,"total_bytes_processed":40,"snapshot_id":%q}`+"\n", id)))
+		return
+	}
+	snapshot := e.snapshots[strings.Split(c.cmd[0], ":")[0]]
+	if slices.Contains(c.cmd, "--delete") {
+		e.volumes[source] = map[string]string{}
+	}
+	for name, content := range snapshot {
+		e.volumes[source][name] = content
+	}
+	_, _ = stream.Write(testsupport.DockerFrame(1, `{"message_type":"summary","total_bytes":7,"bytes_restored":7}`+"\n"))
+}
+
+// rclone runs rclone's cat against the in-memory remote, streaming an object
+// out.
 func (e *fakeEngine) rclone(c *fakeContainer, stream *bufio.ReadWriter) {
 	last := c.cmd[len(c.cmd)-1]
-	var body []byte
-	if c.cmd[0] == "rcat" {
-		body, _ = io.ReadAll(stream)
-	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	switch c.cmd[0] {
-	case "rcat":
-		e.remote[last] = string(body)
-	case "moveto":
-		e.remote[last] = e.remote[c.cmd[1]]
-		delete(e.remote, c.cmd[1])
-	case "deletefile":
-		delete(e.remote, last)
 	case "cat":
 		object, found := e.remote[last]
 		if !found {
@@ -177,18 +208,19 @@ func (e *fakeEngine) rclone(c *fakeContainer, stream *bufio.ReadWriter) {
 	}
 }
 
-// pack tars a volume's files the way `tar -C mount -cf - .` names them.
-func (e *fakeEngine) pack(source string) string {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+// legacyArchive is a gzipped tar of files named the way the legacy backup's
+// `tar -C mount -cf - .` named them.
+func legacyArchive(files map[string]string) string {
 	var out bytes.Buffer
-	writer := tar.NewWriter(&out)
+	zipped := gzip.NewWriter(&out)
+	writer := tar.NewWriter(zipped)
 	_ = writer.WriteHeader(&tar.Header{Name: "./", Typeflag: tar.TypeDir, Mode: 0o755})
-	for name, content := range e.volumes[source] {
+	for name, content := range files {
 		_ = writer.WriteHeader(&tar.Header{Name: "./" + name, Mode: 0o644, Size: int64(len(content))})
 		_, _ = writer.Write([]byte(content))
 	}
 	_ = writer.Close()
+	_ = zipped.Close()
 	return out.String()
 }
 
@@ -224,15 +256,25 @@ func (e *fakeEngine) files(source string) []string {
 
 // newFakeEngine serves a fakeEngine holding volume "data" on a unix socket.
 func newFakeEngine(t *testing.T, files map[string]string) (*fakeEngine, string) {
-	engine := &fakeEngine{containers: map[string]*fakeContainer{}, remote: map[string]string{}, volumes: map[string]map[string]string{"data": files}}
+	engine := &fakeEngine{
+		containers: map[string]*fakeContainer{}, remote: map[string]string{},
+		snapshots: map[string]map[string]string{}, volumes: map[string]map[string]string{"data": files},
+	}
 	return engine, testsupport.ServeUnixSocket(t, engine)
 }
 
-// fakeSpec is a backup of volume "data" to an in-memory S3.
-func fakeSpec(t *testing.T) backup.Spec {
+// fakeSpec is a backup of volume "data" into a restic repository keeping 7
+// snapshots.
+func fakeSpec() backup.Spec {
 	return backup.Spec{
-		Destination: stubS3(t), HelperImage: "alpine:3", HelperLabels: map[string]string{"homerun.volume": "data"},
-		Key: "p/data.tar.gz", MountPath: "/homerun-backup-source", Source: "data", VolumeName: "data",
+		HelperImage: "alpine:3", HelperLabels: map[string]string{"homerun.volume": "data"},
+		MountPath: "/homerun-backup-source",
+		Restic: &backup.Restic{
+			Env: map[string]string{"RCLONE_CONFIG_DEST_TYPE": "sftp"}, Image: "restic/restic:0.18.1", Keep: 7, KeyPrefix: "restic:data:",
+			Label: "sftp://bob@nas/base/restic/data", Password: "hunter2", RcloneImage: "rclone/rclone:1.75.1",
+			Repository: "rclone:dest:base/restic/data",
+		},
+		Source: "data", VolumeName: "data",
 	}
 }
 
@@ -248,29 +290,42 @@ func runJob(t *testing.T, jobType, socket string, spec backup.Spec) (map[string]
 	return backup.Run(ctx, job)
 }
 
-func TestBackupStreamsTarOutOfAStartedHelperAndRestoresThroughItsStdin(t *testing.T) {
+func TestABackupSnapshotsTheVolumeReadOnlyIntoResticAndRestoresIt(t *testing.T) {
 	engine, socket := newFakeEngine(t, map[string]string{"a.txt": "hi", "sub/b": "x"})
-	spec := fakeSpec(t)
+	spec := fakeSpec()
 
 	result, err := runJob(t, "backup", socket, spec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result["key"] != spec.Key || result["sizeBytes"].(int64) <= 0 {
+	key, _ := result["key"].(string)
+	if !strings.HasPrefix(key, "restic:data:") || result["sizeBytes"].(int64) != 12 {
 		t.Fatalf("result = %v", result)
 	}
-	for id, c := range engine.containers {
-		if c.labels[dockerapi.HelperLabel] != "true" || c.labels["homerun.volume"] != "data" || c.labels[dockerapi.HelperCreatedLabel] == "" {
-			t.Errorf("helper %s must carry the helper labels and the spec's own, got %v", id, c.labels)
+	helper := engine.containers["helper1"]
+	if helper.labels[dockerapi.HelperLabel] != "true" || helper.labels["homerun.volume"] != "data" {
+		t.Errorf("the helper must carry the helper labels and the spec's own, got %v", helper.labels)
+	}
+	if !reflect.DeepEqual(helper.binds, []string{"data:/homerun-backup-source:ro", "homerun-restic-cache:/cache"}) {
+		t.Errorf("the backup must mount the volume read-only and restic's cache, got %v", helper.binds)
+	}
+	if len(helper.mounts) != 1 || helper.mounts[0]["Type"] != "image" || helper.mounts[0]["Source"] != "rclone/rclone:1.75.1" || helper.mounts[0]["Target"] != "/opt/rclone" {
+		t.Errorf("rclone must be mounted from its image, got %v", helper.mounts)
+	}
+	for _, want := range []string{"RESTIC_PASSWORD=hunter2", "RESTIC_REPOSITORY=rclone:dest:base/restic/data", "RCLONE_CONFIG_DEST_TYPE=sftp"} {
+		if !slices.Contains(helper.env, want) {
+			t.Errorf("env should contain %q, got %v", want, helper.env)
 		}
-		if !strings.HasSuffix(c.bind, ":ro") {
-			t.Errorf("the backup helper must mount the volume read-only, got %s", c.bind)
-		}
+	}
+	if !reflect.DeepEqual(helper.cmd, []string{"/homerun-backup-source", "7"}) {
+		t.Errorf("the script gets the mount path and how many snapshots to keep, got %v", helper.cmd)
 	}
 
 	engine.mu.Lock()
 	engine.volumes["data"] = map[string]string{"stray": "y"}
 	engine.mu.Unlock()
+	spec.Key = key
+	spec.Restic.Snapshot = strings.TrimPrefix(key, "restic:data:")
 	spec.Wipe = true
 	if _, err := runJob(t, "backup_restore", socket, spec); err != nil {
 		t.Fatal(err)
@@ -278,23 +333,47 @@ func TestBackupStreamsTarOutOfAStartedHelperAndRestoresThroughItsStdin(t *testin
 	if got := engine.files("data"); !reflect.DeepEqual(got, []string{"a.txt", "sub/b"}) {
 		t.Fatalf("restored files = %v", got)
 	}
+	if got := engine.containers["helper2"].binds[0]; got != "data:/homerun-backup-source" {
+		t.Errorf("a restore mounts the volume read-write, got %s", got)
+	}
 	if len(engine.removed) != len(engine.containers) {
 		t.Errorf("every helper must be removed, created %d removed %v", len(engine.containers), engine.removed)
 	}
 }
 
-func TestAFailedTarFailsTheBackupWithItsStderrAndUploadsNothing(t *testing.T) {
-	engine, socket := newFakeEngine(t, map[string]string{"secret": "s"})
-	engine.failTar = true
-	spec := fakeSpec(t)
+func TestAWrongRepositoryPasswordSaysSo(t *testing.T) {
+	engine, socket := newFakeEngine(t, map[string]string{"a.txt": "hi"})
+	engine.resticCode = 12
 
-	_, err := runJob(t, "backup", socket, spec)
-	if err == nil || !strings.Contains(err.Error(), "Permission denied") || !strings.Contains(err.Error(), "tar exited 1") {
-		t.Fatalf("want tar's own error, got %v", err)
+	_, err := runJob(t, "backup", socket, fakeSpec())
+	if err == nil || !strings.Contains(err.Error(), "doesn't open with this destination's password") {
+		t.Fatalf("want the password error, got %v", err)
 	}
-	if object, err := spec.Destination.Get(context.Background(), spec.Key); err == nil {
-		_ = object.Close()
-		t.Fatal("a failed archive must not be uploaded")
+}
+
+func TestAFailedResticStepFailsWithItsStderr(t *testing.T) {
+	engine, socket := newFakeEngine(t, map[string]string{"a.txt": "hi"})
+	engine.resticCode = 1
+
+	_, err := runJob(t, "backup", socket, fakeSpec())
+	if err == nil || !strings.Contains(err.Error(), "restic exited 1") || !strings.Contains(err.Error(), "Fatal: wrong password or no key found") {
+		t.Fatalf("want restic's own error, got %v", err)
+	}
+}
+
+func TestALegacyArchiveStillRestoresFromS3(t *testing.T) {
+	engine, socket := newFakeEngine(t, map[string]string{"stray": "y"})
+	destination := stubS3(t, map[string]string{"/b/p/data.tar.gz": legacyArchive(map[string]string{"a.txt": "hi", "sub/b": "x"})})
+	spec := backup.Spec{
+		Destination: destination, HelperImage: "alpine:3", Key: "p/data.tar.gz",
+		MountPath: "/homerun-backup-source", Source: "data", VolumeName: "data", Wipe: true,
+	}
+
+	if _, err := runJob(t, "backup_restore", socket, spec); err != nil {
+		t.Fatal(err)
+	}
+	if got := engine.files("data"); !reflect.DeepEqual(got, []string{"a.txt", "sub/b"}) {
+		t.Fatalf("restored files = %v", got)
 	}
 }
 
@@ -307,7 +386,7 @@ func TestABackupOnAWedgedContainerFailsInsteadOfHanging(t *testing.T) {
 	engine, socket := newFakeEngine(t, map[string]string{"a.txt": "hi"})
 	engine.hang = true
 	started := time.Now()
-	_, err := runJob(t, "backup", socket, fakeSpec(t))
+	_, err := runJob(t, "backup", socket, fakeSpec())
 	var stall *dockerapi.StallError
 	if !errors.As(err, &stall) || stall.Container != "helper1" {
 		t.Fatalf("want a StallError naming the helper, got %v", err)
@@ -320,34 +399,9 @@ func TestABackupOnAWedgedContainerFailsInsteadOfHanging(t *testing.T) {
 	}
 }
 
-func TestAFailedUploadReportsTheS3ErrorNotTheBrokenPipe(t *testing.T) {
-	previous := s3.RetryDelay
-	s3.RetryDelay = func(int) time.Duration { return 0 }
-	t.Cleanup(func() { s3.RetryDelay = previous })
-	noise := make([]byte, s3.PartSize+s3.PartSize/2)
-	_, _ = rand.Read(noise)
-	_, socket := newFakeEngine(t, map[string]string{"big": string(noise)})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Has("uploads") {
-			_, _ = io.WriteString(w, "<InitiateMultipartUploadResult><UploadId>u</UploadId></InitiateMultipartUploadResult>")
-			return
-		}
-		_, _ = io.Copy(io.Discard, r.Body)
-		w.WriteHeader(http.StatusGatewayTimeout)
-	}))
-	t.Cleanup(server.Close)
-	spec := fakeSpec(t)
-	spec.Destination = s3.Client{Bucket: "b", Endpoint: server.URL, Region: "us-east-1"}
-
-	_, err := runJob(t, "backup", socket, spec)
-	if err == nil || !strings.Contains(err.Error(), "504") || strings.Contains(err.Error(), "stopped reading") {
-		t.Fatalf("want the S3 504, got %v", err)
-	}
-}
-
 func TestTheBackupLogSaysWhereTheVolumeComesFromAndHowItWent(t *testing.T) {
 	_, socket := newFakeEngine(t, map[string]string{"a.txt": "hi"})
-	spec := fakeSpec(t)
+	spec := fakeSpec()
 	spec.Kind = "volume"
 	spec.UsedBy = []string{"postgres (Gitea / Tools)"}
 	job, lines, err := jobs.Recorder("backup", spec)
@@ -363,9 +417,10 @@ func TestTheBackupLogSaysWhereTheVolumeComesFromAndHowItWent(t *testing.T) {
 	log := strings.Join(lines(), "\n")
 	for _, want := range []string{
 		"Backing up data (Docker volume data), used by postgres (Gitea / Tools)",
-		"Destination: " + spec.Destination.Endpoint + "/b/p/data.tar.gz",
+		"Repository: sftp://bob@nas/base/restic/data",
 		"keep running",
-		"Uploaded p/data.tar.gz: ",
+		"created restic repository 1234",
+		"Snapshot 00000000: scanned 0.0 MiB, 0.0 MiB new, 0.0 MiB stored",
 	} {
 		if !strings.Contains(log, want) {
 			t.Errorf("log should contain %q, got:\n%s", want, log)

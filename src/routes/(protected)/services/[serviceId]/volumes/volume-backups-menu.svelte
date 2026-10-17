@@ -25,6 +25,7 @@
 	let open = $state(false);
 	let confirming = $state(false);
 	let key = $state("");
+	let label = $state("");
 	let mode = $state<RestoreMode>("backupFirst");
 	let wipe = $state(false);
 	let stopServices = $state(true);
@@ -34,13 +35,14 @@
 	const isHostPath = $derived(volume.kind !== "volume");
 	const description = $derived(
 		mode === "revision"
-			? `${key} is restored into a new volume and the service is redeployed with it. ${volume.name} itself isn't touched.`
-			: `This overwrites the current data in ${volume.name} with ${key}${mode === "backupFirst" ? ", once a backup of the current data succeeded" : ""}.`,
+			? `${label} is restored into a new volume and the service is redeployed with it. ${volume.name} itself isn't touched.`
+			: `This overwrites the current data in ${volume.name} with ${label}${mode === "backupFirst" ? ", once a backup of the current data succeeded" : ""}.`,
 	);
 
 	/** Opens the restore confirmation for one backup. */
-	function requestRestore(backupKey: string) {
-		key = backupKey;
+	function requestRestore(backup: { key: string; label: string }) {
+		key = backup.key;
+		label = backup.label;
 		open = false;
 		if (isHostPath && mode === "revision") {
 			mode = "backupFirst";
@@ -94,13 +96,13 @@
         {#each backups.current ?? [] as backup (backup.key)}
           <li class="flex items-center gap-3 px-4 py-2.5">
             <div class="min-w-0 flex-1">
-              <p class="text-text truncate font-mono text-xs" title={backup.key}>{backup.key}</p>
+              <p class="text-text truncate font-mono text-xs" title={backup.key}>{backup.label}</p>
               <p class="text-text-subtle mt-0.5 text-xs">
                 {backup.lastModified ? new Date(backup.lastModified).toLocaleString() : "unknown date"}
                 · {formatBytes(backup.sizeBytes)}
               </p>
             </div>
-            <Button onclick={() => requestRestore(backup.key)} size="sm" variant="outline">
+            <Button onclick={() => requestRestore(backup)} size="sm" variant="outline">
               Restore
             </Button>
           </li>

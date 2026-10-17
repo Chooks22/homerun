@@ -175,3 +175,5 @@ linuxserver
 (?i)preset's
 sshd
 (?i)booleans?
+(?i)restic('s)?
+(?i)deduplicated

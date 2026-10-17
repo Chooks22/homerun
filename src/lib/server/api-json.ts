@@ -84,7 +84,7 @@ export function notificationChannelApiJson(row: NotificationChannel) {
 
 /** A backup destination without its secret's ciphertext. */
 export function backupDestinationApiJson(row: S3Destination) {
-	const { secretAccessKeyEnc, ...rest } = row;
+	const { resticPasswordEnc: _restic, secretAccessKeyEnc, ...rest } = row;
 	return { ...rest, secretAccessKeySet: Boolean(secretAccessKeyEnc) };
 }
 

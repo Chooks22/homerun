@@ -265,11 +265,13 @@ describe("listRemoteBackups", () => {
 		expect(await listRemoteBackups(REMOTE, "pfx/db-")).toEqual([
 			{
 				key: "pfx/db-2.tar.gz",
+				label: "pfx/db-2.tar.gz",
 				lastModified: "2026-01-02T00:00:00Z",
 				sizeBytes: 20,
 			},
 			{
 				key: "pfx/db-1.tar.gz",
+				label: "pfx/db-1.tar.gz",
 				lastModified: "2026-01-01T00:00:00Z",
 				sizeBytes: 10,
 			},

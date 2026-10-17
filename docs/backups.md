@@ -116,67 +116,66 @@ a mounted volume on a service's Storage tab: it turns backups on every day at
 several, it opens the settings instead. The **cog** beside it sets the schedule,
 the destination and an optional key prefix. The volume's own page
 (`storage/[volumeId]`) has the same settings plus restores, stopping services
-during the backup, and a pre-backup command. The homerun worker tars the
-volume's contents and streams it, gzipped, to
-`<prefix/>volumeName-<timestamp>.tar.gz`.
+during the backup, and a pre-backup command.
+
+**Backups are incremental [restic](https://restic.net) snapshots.** Each volume
+has its own restic repository on its destination, at
+`<path>/<prefix/>restic/<volume id>` (by id, so renaming the volume keeps its
+history). The first backup uploads everything; every later one only uploads the
+chunks that changed, deduplicated across all of the volume's snapshots, so a
+nightly backup of a 30 GB volume that barely changes costs megabytes, not 30 GB.
+Every snapshot is still a complete restore point. Restic reaches every
+destination type, S3 included, through rclone: the worker runs the official
+`restic/restic` image with the official `rclone/rclone` image mounted read-only
+into it (a Docker image mount, so the host needs **Docker Engine 28 or newer**),
+both pulled the first time a backup needs them. Restic's cache lives on a
+`homerun-restic-cache` Docker volume so later runs don't rebuild their index.
+
+**Repositories are encrypted** with the destination's restic password, generated
+the first time a backup goes there and shown under **Repository password** on
+the destination's page. Keep a copy outside Homerun: Homerun stores it encrypted
+in its own database, so if that database is lost, the password is the only way
+to open your backups, with restic itself
+(`restic -r rclone:<remote>:<path>/restic/<volume id> restore latest --target ...`).
 
 ![A volume's backup settings: schedule, stopping services, a pre-backup command, the destination and a key prefix](images/backups-volume.webp)
 
-**Every backup is a full archive, and Homerun keeps them all by default**, so a
-nightly backup of a large volume fills its destination within weeks. Set
-**Backups to keep per volume** in the destination's **Settings** (`backupKeep`
-on a backup destination in the REST API and Terraform) to cap it: the limit
-applies to each volume backing up there, and after each successful backup
-Homerun lists that volume's archives on the destination and deletes all but the
-newest N. Only files named exactly `<prefix/>volumeName-<timestamp>.tar.gz`
-count, so another volume sharing the destination (even one called `db-data` next
-to `db`) and anything else stored there are never touched. A failed backup
-deletes nothing. If the listing or a deletion fails, or the archive just
-uploaded isn't listed, the backup still succeeds: its run log and Homerun's
-system logs say why nothing (or not everything) was deleted, and the next
-successful backup tries again. Runs on `/backups` stay listed after their
-archive is deleted, but a restore can only pick archives that are still on the
+**Homerun keeps every snapshot by default.** Set **Backups to keep per volume**
+in the destination's **Settings** (`backupKeep` on a backup destination in the
+REST API and Terraform) to cap it: the limit applies to each volume backing up
+there, and each successful backup ends with
+`restic forget --keep-last N --prune`, which drops the older snapshots and frees
+the chunks nothing else uses. A failed backup forgets nothing.
+
+**Backups made before snapshots** (full `<prefix/>volumeName-<timestamp>.tar.gz`
+archives) stay listed and restorable, and count toward the same limit: once a
+volume has N snapshots, its old archives are past the newest N and deleted after
+its next successful backup. Only files named exactly like that count, so another
+volume sharing the destination (even one called `db-data` next to `db`) and
+anything else stored there are never touched. If listing or deleting fails, the
+backup still succeeds: its run log and Homerun's system logs say why, and the
+next successful backup tries again. Runs on `/backups` stay listed after their
+snapshot or archive is gone, but a restore can only pick what's still on the
 destination.
 
-**Clean up old backups** on `/backups` applies the same rule right away, without
-waiting for the next backup: it queues a **Backup cleanup** job that goes
-through every volume on a destination with a limit, one at a time, deletes its
-archives past the newest N and logs what went per volume. Follow it in the job
-queue. It's the quick way to free space after setting the limit on a destination
-that's already full; a volume that fails is logged, the others are still cleaned
-up, and the job ends failed so it doesn't go unnoticed.
-
-**S3 uploads** go through a hand-rolled Signature V4 client (a multipart upload
-of 8 MiB parts, sixteen sent at once while the next ones are archived, the parts
-growing to 32 MiB for the largest archives, up to about 240 GB; no SDK).
-Parallel parts matter: some providers cap one connection well below what the
-link carries, Hetzner's object storage at about 1.3 MiB/s, so a 256 MiB archive
-that took over three minutes one part at a time uploads in about 16 seconds. The
-run's log reports the throughput every 30 seconds.
-
-**SFTP, SMB and WebDAV uploads** go through [rclone](https://rclone.org) running
-in a throwaway helper container (the official `rclone/rclone` image, pulled the
-first time a backup or a restore listing needs it, so that first run needs
-registry access and is a little slower). The archive is written as one stream,
-with no parallel parts, to `<key>.partial` on the server and renamed to its real
-name only once it is complete, so a half-finished or cancelled backup never
-leaves a file that looks like a valid backup; a failed run deletes its
-`.partial`. The log reports progress every 30 seconds here too. Expect the speed
-of a single connection to your server.
+**Clean up old backups** on `/backups` deletes those old archives right away,
+without waiting for the next backup: it queues a **Backup cleanup** job that
+goes through every volume on a destination with a limit, one at a time, and logs
+what went per volume. Follow it in the job queue. A volume that fails is logged,
+the others are still cleaned up, and the job ends failed so it doesn't go
+unnoticed. Snapshots are only forgotten by a backup, so lowering the limit takes
+effect on each volume's next backup.
 
 **Both volume kinds are backed up the same way.** The volume (a bind mount's
-host path or a Docker-managed volume) is mounted read-only into a short-lived
-`alpine` helper container that runs `tar` and streams the archive out on its own
-output, straight into the upload, and the helper is removed straight after. A
-restore downloads the archive to a temporary file first, so the volume (and any
-services stopped for it) are only touched once the download succeeded, then
-pipes it into `tar` in the same kind of helper. Backups made by older versions
-(which read the volume through Docker's archive API) restore the same way: the
-file format didn't change.
+host path or a Docker-managed volume) is mounted read-only into the restic
+helper container, which snapshots it, then forgets and prunes, and is removed
+straight after. A restore mounts it read-write and has restic write the
+snapshot's files back.
 
 A running backup or restore has a **Cancel** button in the run log, on
-`/backups` and on the volume's page. The job stops within a few seconds, a
-upload in progress is aborted so nothing is left on the destination, any
+`/backups` and on the volume's page. The job stops within a few seconds, an
+interrupted snapshot leaves no snapshot behind (restic only records one once all
+of its data is uploaded, and the next backup's prune reclaims the rest), any
 services stopped for it are started again, and the run is recorded as failed
 with who cancelled it. Cancelling a restore leaves the files already unpacked in
 place, so the volume is half-restored until you restore again. A run that still
@@ -187,17 +186,16 @@ A backup that stops making progress doesn't hang: if Docker stops answering for
 the helper, the backup fails after about 10 minutes with an error naming the
 container, instead of running (and blocking updates) forever. See
 [Docker stuck on a container](faq-and-limitations.md#docker-stuck-on-a-container).
-An S3 upload is bounded the same way: each request to the S3 endpoint (one 16
-MiB part of the archive) gets 10 minutes to answer, and a timeout, a `429` or a
-`5xx` is retried twice before the backup fails with the endpoint's own error.
-The run log opens with the volume, what it is on the host (a Docker volume or a
-host path) and the services using it with their stack
-(`used by postgres (Gitea / Tools)`), then where the archive goes, which
-services are stopped around it (or that they keep running), every retry, how
-much has been uploaded and at what speed every 30 seconds, and the final size,
-duration and throughput. The log of a restore reads the same way. On `/backups`,
-each volume and each run also shows the stacks and services it belongs to under
-its name.
+Two runs on the same repository wait for each other's lock for up to 10 minutes
+before failing. A repository that doesn't open with the destination's password
+fails with an error saying so. The run log opens with the volume, what it is on
+the host (a Docker volume or a host path) and the services using it with their
+stack (`used by postgres (Gitea / Tools)`), then the repository, which services
+are stopped around it (or that they keep running), restic's progress every 30
+seconds and any file it couldn't read, then the snapshot: how much it scanned,
+how much was new and how much that took on the destination. The log of a restore
+reads the same way. On `/backups`, each volume and each run also shows the
+stacks and services it belongs to under its name.
 
 Set a cron schedule alongside the destination to back up automatically; the
 scheduler mirrors the [scheduled-redeploy](scheduling.md#scheduled-redeploy)
@@ -254,20 +252,19 @@ page.
 ## Restoring a backup
 
 A volume with a destination has a **Restore** panel on its own page. **List
-backups** reads what's at the destination for that volume (under its key prefix,
-or path), newest first with date and size (for SFTP, SMB and WebDAV, a directory
-that doesn't exist yet just lists as empty), and **Restore** on one of them
-queues a restore that downloads it and unpacks it back into the volume, for both
-volume kinds, through the same kind of short-lived `alpine` helper container.
+backups** reads what's at the destination for that volume, newest first with
+date and size: its restic snapshots (by short id, sized by what they scanned)
+and any older tar.gz archives (by name). A repository or directory that doesn't
+exist yet just lists as empty. **Restore** on one of them queues a restore into
+the volume, for both volume kinds.
 
 ![The Restore panel on a volume's page, before its backups are listed](images/backups-restore.webp)
 
 Two options sit above the list and apply to whichever backup you restore:
 
-- **Wipe the volume first** deletes everything in the volume before unpacking,
-  so files that weren't in the backup don't survive. Off, the restore unpacks
-  _over_ the volume: files in the archive replace the ones on disk and anything
-  else is left alone.
+- **Wipe the volume first** makes the volume match the backup exactly: files
+  that weren't in it are deleted. Off, the restore writes _over_ the volume:
+  files in the backup replace the ones on disk and anything else is left alone.
 - **Stop services during the restore** (on by default) stops every running
   service that mounts the volume for the wipe and unpack, and starts them again
   afterwards, even when the restore fails. Turn it off only if you've stopped
@@ -275,12 +272,15 @@ Two options sit above the list and apply to whichever backup you restore:
   half-old, half-new data.
 
 Restores go through [the job queue](scheduling.md#the-job-queue) like backups,
-so the button returns straight away. The download happens before anything is
-stopped, so services are only down for the unpack. A restore shares the volume's
+so the button returns straight away. An old archive is downloaded before
+anything is stopped, so services are only down for the unpack; a snapshot is
+restored with the services stopped throughout. A restore shares the volume's
 lock with backups (it never runs while the same volume is being backed up), is
 never retried, and shows up in the run log on the volume's page and on
 `/backups` as a `Restore` row.
 
-You can still fetch a backup yourself if you'd rather unpack it somewhere else:
-`aws s3 cp`, `rclone` or your provider's console for S3, and `rclone`, `sftp` or
-a file browser for SFTP, SMB and WebDAV. It's a plain gzipped tar.
+You can restore a snapshot yourself, somewhere else, with restic and the
+destination's repository password (`restic snapshots`, `restic restore`,
+`restic mount`), pointing it at the repository directly or through rclone. An
+old archive is a plain gzipped tar you can fetch with `rclone`, `sftp`, the S3
+CLI or a file browser.

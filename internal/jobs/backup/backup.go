@@ -1,7 +1,7 @@
 // Package backup executes backup and backup_restore jobs for the homerun
-// worker: a volume's contents streamed as a gzipped tar to S3-compatible
-// storage or, through rclone, to an SFTP, SMB or WebDAV destination, and a
-// stored archive unpacked back into the volume, with the services using it
+// worker: a volume snapshotted into its restic repository on an S3, SFTP, SMB
+// or WebDAV destination (reached through rclone), and a snapshot, or a legacy
+// tar.gz archive, restored back into the volume, with the services using it
 // optionally stopped around the work.
 package backup
 
@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/orochibraru/homerun/internal/activity"
 	"github.com/orochibraru/homerun/internal/dockerapi"
 	"github.com/orochibraru/homerun/internal/jobs"
 	"github.com/orochibraru/homerun/internal/rclone"
@@ -28,8 +27,6 @@ const (
 	preCommandTimeout = 15 * time.Minute
 	outputTailChars   = 2000
 )
-
-var errUploadStopped = errors.New("the upload stopped reading the archive")
 
 // Service is one service using the volume that is stopped around the work:
 // its single container, or its swarm service scaled to 0 and back to Replicas.
@@ -48,14 +45,15 @@ type PreCommand struct {
 	ServiceName string `json:"serviceName"`
 }
 
-// store is where archives go: an S3 bucket or an rclone remote.
+// store is where a legacy tar.gz archive is read from: an S3 bucket or an
+// rclone remote.
 type store interface {
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
-	Upload(ctx context.Context, key string, body io.Reader) (int64, error)
 }
 
 // Spec is what the app's prepare step resolves for one backup or restore.
-// Remote, when set, is used instead of Destination.
+// A backup and a snapshot's restore go through Restic; a legacy archive's
+// restore reads Key from Remote, when set, or Destination.
 type Spec struct {
 	Destination  s3.Client         `json:"destination"`
 	HelperImage  string            `json:"helperImage"`
@@ -65,6 +63,7 @@ type Spec struct {
 	MountPath    string            `json:"mountPath"`
 	PreCommand   *PreCommand       `json:"preCommand"`
 	Remote       *rclone.Remote    `json:"remote"`
+	Restic       *Restic           `json:"restic"`
 	Source       string            `json:"source"`
 	StopServices []Service         `json:"stopServices"`
 	UsedBy       []string          `json:"usedBy"`
@@ -72,60 +71,68 @@ type Spec struct {
 	Wipe         bool              `json:"wipe"`
 }
 
-// Run executes a backup or a backup_restore job and returns the archive's key
-// and size in bytes.
+// Run executes a backup or a backup_restore job and returns the snapshot's or
+// archive's key and its size in bytes: what a backup added to the repository,
+// what a restore wrote.
 func Run(ctx context.Context, job jobs.Job) (map[string]any, error) {
 	var spec Spec
 	if err := job.DecodeSpec(&spec); err != nil {
 		return nil, fmt.Errorf("invalid backup spec: %w", err)
 	}
 	docker := dockerapi.New(job.DockerSocket)
-	spec.Destination.Log = job.AppendLog
 	if spec.Remote != nil {
 		spec.Remote.Docker = docker
 		spec.Remote.Labels = spec.HelperLabels
 		spec.Remote.Log = job.AppendLog
 	}
-	var size int64
-	stage, run := "backup", backup
+	key, size := spec.Key, int64(0)
+	stage := "backup"
 	if job.Type == "backup_restore" {
-		stage, run = "restore", restore
+		stage = "restore"
 	}
 	err := tracing.Stage(ctx, stage, func(ctx context.Context) error {
 		var err error
-		size, err = run(ctx, job, docker, spec)
+		if job.Type == "backup_restore" {
+			size, err = restore(ctx, job, docker, spec)
+		} else {
+			key, size, err = backup(ctx, job, docker, spec)
+		}
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"key": spec.Key, "sizeBytes": size}, nil
+	return map[string]any{"key": key, "sizeBytes": size}, nil
 }
 
-// backup stops spec's services, archives and uploads the volume, then starts
-// them again.
-func backup(ctx context.Context, job jobs.Job, docker *dockerapi.Client, spec Spec) (int64, error) {
+// backup stops spec's services, snapshots the volume into its restic
+// repository, then starts them again, returning the snapshot's key and the
+// bytes it added.
+func backup(ctx context.Context, job jobs.Job, docker *dockerapi.Client, spec Spec) (string, int64, error) {
+	if spec.Restic == nil {
+		return "", 0, errors.New("the backup spec has no restic repository")
+	}
 	started := time.Now()
 	job.AppendLog(fmt.Sprintf("Backing up %s", describeVolume(spec)))
-	job.AppendLog(fmt.Sprintf("Destination: %s", destination(spec)))
+	job.AppendLog(fmt.Sprintf("Repository: %s", spec.Restic.Label))
 	logStopPlan(job, spec)
 	if err := runPreCommand(ctx, job, docker, spec.PreCommand); err != nil {
 		job.AppendLog(fmt.Sprintf("Backup failed after %s: %s", time.Since(started).Round(time.Second), err))
-		return 0, err
+		return "", 0, err
 	}
+	var key string
 	var size int64
 	err := whileStopped(ctx, job, docker, spec.StopServices, func() error {
 		var err error
-		job.AppendLog(fmt.Sprintf("Archiving %s through a %s helper container and streaming it gzipped to %s", spec.VolumeName, spec.HelperImage, via(spec)))
-		size, err = archiveAndUpload(ctx, docker, spec)
+		job.AppendLog(fmt.Sprintf("Snapshotting %s with %s, reaching the destination through %s", spec.VolumeName, spec.Restic.Image, spec.Restic.RcloneImage))
+		key, size, err = resticBackup(ctx, job, docker, spec)
 		return err
 	})
 	if err != nil {
 		job.AppendLog(fmt.Sprintf("Backup failed after %s: %s", time.Since(started).Round(time.Second), err))
-		return 0, err
+		return "", 0, err
 	}
-	job.AppendLog(fmt.Sprintf("Uploaded %s: %s", spec.Key, transferred(size, time.Since(started))))
-	return size, nil
+	return key, size, nil
 }
 
 // describeVolume names the volume, what it is on the host and the services
@@ -150,17 +157,13 @@ func archives(spec *Spec) store {
 	return &spec.Destination
 }
 
-// via names how spec's archive travels: S3, or an rclone helper container.
-func via(spec Spec) string {
-	if spec.Remote != nil {
-		return "a " + spec.Remote.Image + " helper container"
-	}
-	return "S3"
-}
-
-// destination is where spec's archive lives: endpoint, bucket and key, or an
-// rclone remote's address, path and key.
+// destination is where spec's restore comes from: the restic repository and
+// snapshot, or a legacy archive's endpoint, bucket and key, or rclone
+// remote's address, path and key.
 func destination(spec Spec) string {
+	if spec.Restic != nil {
+		return spec.Restic.Label + " snapshot " + spec.Restic.Snapshot
+	}
 	if spec.Remote != nil {
 		return strings.TrimRight(spec.Remote.Label, "/") + "/" + spec.Key
 	}
@@ -191,11 +194,27 @@ func logStopPlan(job jobs.Job, spec Spec) {
 	}
 }
 
-// restore downloads spec's backup and extracts it into the volume, wiping it
-// first when spec.Wipe is set, with services stopped throughout.
+// restore puts spec's snapshot or legacy archive back into the volume,
+// wiping it first when spec.Wipe is set, with services stopped throughout.
 func restore(ctx context.Context, job jobs.Job, docker *dockerapi.Client, spec Spec) (int64, error) {
 	started := time.Now()
 	job.AppendLog(fmt.Sprintf("Restoring into %s", describeVolume(spec)))
+	if spec.Restic != nil {
+		job.AppendLog(fmt.Sprintf("Restoring %s", destination(spec)))
+		logStopPlan(job, spec)
+		var size int64
+		err := whileStopped(ctx, job, docker, spec.StopServices, func() error {
+			var err error
+			size, err = resticRestore(ctx, job, docker, spec)
+			return err
+		})
+		if err != nil {
+			job.AppendLog(fmt.Sprintf("Restore failed after %s: %s", time.Since(started).Round(time.Second), err))
+			return 0, err
+		}
+		job.AppendLog(fmt.Sprintf("Restored %s into %s in %s (files the snapshot doesn't have deleted: %t)", spec.Key, spec.VolumeName, time.Since(started).Round(time.Second), spec.Wipe))
+		return size, nil
+	}
 	job.AppendLog(fmt.Sprintf("Downloading %s", destination(spec)))
 	logStopPlan(job, spec)
 	archive, size, err := download(ctx, spec)
@@ -248,47 +267,6 @@ func download(ctx context.Context, spec Spec) (*os.File, int64, error) {
 		return nil, 0, fmt.Errorf("couldn't download %s: %w", spec.Key, err)
 	}
 	return file, size, nil
-}
-
-// archiveAndUpload tars the volume through a started helper container that
-// streams `tar -c` to its stdout, gzips it on the fly at the fastest level
-// (the default one is CPU-bound well under what an upload sustains), and
-// streams it to spec.Destination, several parts at a time: nothing is
-// buffered on disk, whatever the volume's size.
-// A helper that exits non-zero fails the run with its stderr, and the upload
-// is aborted rather than left truncated. A failed upload wins over the
-// helper's own error, which is then only the broken pipe it caused.
-func archiveAndUpload(ctx context.Context, docker *dockerapi.Client, spec Spec) (int64, error) {
-	reader, writer := io.Pipe()
-	archived := make(chan error, 1)
-	go func() {
-		gz, _ := gzip.NewWriterLevel(writer, gzip.BestSpeed)
-		result, err := docker.RunHelper(ctx, dockerapi.HelperConfig{
-			Binds:  []string{spec.Source + ":" + spec.MountPath + ":ro"},
-			Cmd:    []string{"tar", "-C", spec.MountPath, "--numeric-owner", "-cf", "-", "."},
-			Image:  spec.HelperImage,
-			Labels: spec.HelperLabels,
-			Stdout: gz,
-		})
-		if err == nil && result.ExitCode != 0 {
-			err = fmt.Errorf("Couldn't read the volume %q (tar exited %d)%s", spec.VolumeName, result.ExitCode, detail(result.Stderr))
-		}
-		if err == nil {
-			err = gz.Close()
-		}
-		_ = writer.CloseWithError(err)
-		archived <- err
-	}()
-	size, uploadErr := archives(&spec).Upload(ctx, spec.Key, activity.Reader(ctx, reader))
-	_ = reader.CloseWithError(errUploadStopped)
-	archiveErr := <-archived
-	if uploadErr != nil {
-		return 0, fmt.Errorf("couldn't upload %s: %w", spec.Key, uploadErr)
-	}
-	if archiveErr != nil {
-		return 0, archiveErr
-	}
-	return size, nil
 }
 
 // unpack extracts archive (a gzipped tar, or a plain one) into the volume

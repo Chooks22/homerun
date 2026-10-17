@@ -146,6 +146,7 @@ export class S3DestinationDTO extends BaseDTO<S3Destination> {
 			id: crypto.randomUUID(),
 			name: input.name,
 			region: input.region,
+			resticPasswordEnc: null,
 			secretAccessKeyEnc: encryptSecret(input.secretAccessKey),
 			type: input.type,
 			updatedAt: now,
@@ -222,6 +223,32 @@ export class S3DestinationDTO extends BaseDTO<S3Destination> {
 			.where(eq(s3Destination.id, this.row.id));
 		this.row.capacityAlertPercent = percent;
 		this.row.capacityAlertedAt = null;
+	}
+
+	/**
+	 * The password every restic repository on this destination is encrypted
+	 * with, generated and stored (encrypted) the first time it's needed.
+	 *
+	 * @throws When the stored password can't be decrypted.
+	 */
+	async resticPassword(): Promise<string> {
+		if (this.row.resticPasswordEnc) {
+			const password = decryptSecret(this.row.resticPasswordEnc);
+			if (!password) {
+				throw new Error("Couldn't decrypt the destination's restic password.");
+			}
+			return password;
+		}
+		const password = Buffer.from(
+			crypto.getRandomValues(new Uint8Array(32)),
+		).toString("base64url");
+		const resticPasswordEnc = encryptSecret(password);
+		await db
+			.update(s3Destination)
+			.set({ resticPasswordEnc })
+			.where(eq(s3Destination.id, this.row.id));
+		this.row.resticPasswordEnc = resticPasswordEnc;
+		return password;
 	}
 
 	/** How many of each volume's newest backups are kept here, null to keep them all. */

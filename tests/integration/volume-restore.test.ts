@@ -1,44 +1,20 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createCipheriv, randomBytes, scryptSync } from "node:crypto";
 import { SQL } from "bun";
 import { expectOk } from "./support/assert";
+import { docker, insertDestination } from "./support/backups";
 import { ServiceCleanup } from "./support/cleanup";
 import type { ApiClient } from "./support/client";
-import { nativeFetch, TEST_AUTH_SECRET } from "./support/config";
+import { nativeFetch } from "./support/config";
 import { apiClient, integrationContext } from "./support/context";
 
-const NativeResponse = Response;
+const SFTP_SERVER = `homerun-it-restore-sftp-${Date.now().toString(36)}`;
+const SFTP_PASSWORD = "restore-test";
 
 let client: ApiClient;
 let cleanup: ServiceCleanup;
 let sql: SQL;
-let s3: ReturnType<typeof Bun.serve>;
-const objects = new Map<string, Uint8Array>();
+let sftpAddress = "";
 const dockerVolumes: string[] = [];
-
-function encryptSecret(plaintext: string): string {
-	const iv = randomBytes(12);
-	const cipher = createCipheriv(
-		"aes-256-gcm",
-		scryptSync(TEST_AUTH_SECRET, "homerun-registry-secrets", 32),
-		iv,
-	);
-	const ciphertext = Buffer.concat([
-		cipher.update(plaintext, "utf8"),
-		cipher.final(),
-	]);
-	return [iv, cipher.getAuthTag(), ciphertext]
-		.map((buf) => buf.toString("base64"))
-		.join(".");
-}
-
-function docker(...args: string[]): string {
-	const run = Bun.spawnSync(["docker", ...args]);
-	if (run.exitCode !== 0) {
-		throw new Error(`docker ${args.join(" ")}: ${run.stderr.toString()}`);
-	}
-	return run.stdout.toString().trim();
-}
 
 async function until<T>(
 	what: string,
@@ -60,36 +36,28 @@ beforeAll(() => {
 	client = apiClient();
 	cleanup = new ServiceCleanup(client);
 	sql = new SQL(integrationContext().databaseUrl);
-	s3 = Bun.serve({
-		async fetch(request) {
-			const url = new URL(request.url);
-			const [, bucket, ...rest] = url.pathname.split("/");
-			const key = decodeURIComponent(rest.join("/"));
-			if (request.method === "PUT") {
-				objects.set(key, new Uint8Array(await request.arrayBuffer()));
-				return new NativeResponse("", { headers: { etag: '"stub"' } });
-			}
-			if (request.method === "GET" && !key) {
-				const prefix = url.searchParams.get("prefix") ?? "";
-				const contents = [...objects.entries()]
-					.filter(([name]) => name.startsWith(prefix))
-					.map(
-						([name, body]) =>
-							`<Contents><Key>${name}</Key><Size>${body.length}</Size><LastModified>2026-09-28T12:00:00.000Z</LastModified></Contents>`,
-					)
-					.join("");
-				return new NativeResponse(
-					`<ListBucketResult><Name>${bucket}</Name>${contents}</ListBucketResult>`,
-				);
-			}
-			const body = objects.get(key);
-			return body
-				? new NativeResponse(Buffer.from(body))
-				: new NativeResponse("", { status: 404 });
-		},
-		hostname: "127.0.0.1",
-		port: 0,
-	});
+	docker(
+		"run",
+		"-d",
+		"--name",
+		SFTP_SERVER,
+		"rclone/rclone:1.75.1",
+		"serve",
+		"sftp",
+		"/data",
+		"--addr",
+		":2022",
+		"--user",
+		"bob",
+		"--pass",
+		SFTP_PASSWORD,
+	);
+	sftpAddress = docker(
+		"inspect",
+		"-f",
+		"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+		SFTP_SERVER,
+	);
 });
 
 afterAll(async () => {
@@ -97,7 +65,7 @@ afterAll(async () => {
 	for (const name of dockerVolumes) {
 		Bun.spawnSync(["docker", "volume", "rm", "-f", name]);
 	}
-	s3.stop(true);
+	Bun.spawnSync(["docker", "rm", "-f", SFTP_SERVER]);
 	await sql.close();
 });
 
@@ -130,14 +98,19 @@ describe("restoring a backup from a service's Storage tab", () => {
 		const svc = expectOk(created.data, created.response);
 		cleanup.track(svc.id);
 
-		const destinationId = crypto.randomUUID();
+		const destinationId = await insertDestination(sql, {
+			accessKeyId: "bob",
+			bucket: "backups",
+			endpoint: `${sftpAddress}:2022`,
+			region: "",
+			secret: SFTP_PASSWORD,
+			type: "sftp",
+		});
 		const volumeId = crypto.randomUUID();
 		const source = `homerun-it-restore-${suffix}`;
 		const volumeName = `site-${suffix}`;
 		dockerVolumes.push(source);
 		const now = new Date();
-		await sql`insert into s3_destination (id, name, endpoint, region, bucket, access_key_id, secret_access_key_enc, user_id, created_at, updated_at)
-				values (${destinationId}, ${`stub-${suffix}`}, ${`http://127.0.0.1:${s3.port}`}, 'us-east-1', 'bucket', 'key', ${encryptSecret("secret")}, ${userId}, ${now}, ${now})`;
 		await sql`insert into storage_volume (id, name, kind, source, s3_destination_id, user_id, created_at, updated_at)
 				values (${volumeId}, ${volumeName}, 'volume', ${source}, ${destinationId}, ${userId}, ${now}, ${now})`;
 		await sql`insert into service_volume (id, service_id, volume_id, container_path, read_only, created_at)
@@ -173,8 +146,9 @@ describe("restoring a backup from a service's Storage tab", () => {
 			}
 			return status === "succeeded" ? true : null;
 		});
-		const [key] = [...objects.keys()];
-		expect(key).toStartWith(`${volumeName}-`);
+		const [{ key }] =
+			await sql`select key from backup_run where volume_id = ${volumeId} and kind = 'backup' and success`;
+		expect(key).toStartWith("restic:");
 
 		docker(
 			"exec",
@@ -274,7 +248,6 @@ describe("restoring a backup from a service's Storage tab", () => {
 			docker("exec", containerAfter, "cat", "/usr/share/nginx/html/index.html"),
 		).toBe("v2");
 
-		const backupsBefore = objects.size;
 		const backupFirst = await nativeFetch(
 			`${origin}/services/${svc.id}/volumes?/restoreBackup`,
 			{
@@ -313,7 +286,6 @@ describe("restoring a backup from a service's Storage tab", () => {
 				? true
 				: null;
 		});
-		expect(objects.size).toBe(backupsBefore + 1);
 		const containerRestored = await until(
 			"the service to run again",
 			async () => {

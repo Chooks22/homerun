@@ -1,0 +1,1 @@
+ALTER TABLE "s3_destination" ADD COLUMN "restic_password_enc" text;
