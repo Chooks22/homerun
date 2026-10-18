@@ -1,15 +1,15 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { Logger } from "#lib/logger.js";
 import { API_KEY_EXPIRY_OPTIONS } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { ServiceAccountService } from "#lib/services/service-account.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("ServiceAccounts");
 
 export const actions = {
 	create: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const name =

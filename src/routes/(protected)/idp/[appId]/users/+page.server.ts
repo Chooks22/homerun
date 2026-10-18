@@ -1,8 +1,8 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
 import { OauthGrantDTO } from "#lib/dto/oauth-grant-dto.js";
 import { Logger } from "#lib/logger.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 const logger = new Logger("OidcProvider");
 
@@ -14,7 +14,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	revoke: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const app = await OauthClientDTO.get(params.appId);
 		if (!app) {

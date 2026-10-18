@@ -121,7 +121,7 @@ What counts as needing a doc comment:
 
 - Re-run the inventory script: zero missing in scope (or in the files you were
   given).
-- `bun run lint` and `bun run check` must still pass; a malformed block can
+- `bun run lint` and `bun run type-check` must still pass; a malformed block can
   break biome or svelte-check.
 
 ## Report

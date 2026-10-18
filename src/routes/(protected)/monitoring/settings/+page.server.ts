@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { Logger } from "#lib/logger.js";
 import { can, permissionDeniedMessage } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { TracingService } from "#lib/services/tracing.service.js";
 import {
 	MAX_TRACE_RETENTION_DAYS,
@@ -25,7 +26,7 @@ export const load = async ({ locals, parent }) => {
 export const actions = {
 	save: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!can(locals.permissions, "settings", "write")) {
 			return fail(403, { error: permissionDeniedMessage("settings", "write") });

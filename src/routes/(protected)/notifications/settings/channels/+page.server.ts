@@ -1,17 +1,17 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { NotificationChannelDTO } from "#lib/dto/notification-channel-dto.js";
 import { Logger } from "#lib/logger.js";
 import {
 	channelTargetLabel,
 	parseTelegramTarget,
 } from "#lib/notification-channel-target.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	channelTargetFromForm,
 	notificationChannelSchema,
 	validateChannelTarget,
 } from "#lib/server/validation/notification-channel.js";
 import { NotificationChannelService } from "#lib/services/notification-channel.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("NotificationChannels");
 
@@ -33,7 +33,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	updateChannel: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const form = await request.formData();
 		const id = form.get("channelId");
@@ -74,7 +74,7 @@ export const actions = {
 
 	deleteChannel: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const form = await request.formData();
 		const id = form.get("channelId");
@@ -94,7 +94,7 @@ export const actions = {
 
 	testChannel: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const form = await request.formData();
 		const id = form.get("channelId");

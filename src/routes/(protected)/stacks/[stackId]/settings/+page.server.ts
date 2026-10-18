@@ -2,6 +2,7 @@ import { error, fail, redirect } from "@sveltejs/kit";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
 import { listIconLibrary } from "#lib/server/icon-library.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { WorkloadDetachError } from "#lib/services/docker/workload-removal.js";
 import {
 	ServiceLifecycleService,
@@ -50,7 +51,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	updateIcon: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const stack = await StackDTO.get(params.stackId);
 		if (!stack) {
@@ -72,7 +73,7 @@ export const actions = {
 	},
 	move: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const stack = await StackDTO.get(params.stackId);
 		if (!stack) {
@@ -97,7 +98,7 @@ export const actions = {
 	},
 	delete: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const stack = await StackDTO.get(params.stackId);
 		if (!stack) {
@@ -125,7 +126,7 @@ export const actions = {
 	},
 	rename: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const stack = await StackDTO.get(params.stackId);
 		if (!stack) {

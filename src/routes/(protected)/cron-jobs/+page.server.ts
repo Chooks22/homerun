@@ -1,12 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { CronJobDTO } from "#lib/dto/cron-job-dto.js";
 import { CronJobRunDTO } from "#lib/dto/cron-job-run-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
 import { manageableCronJob } from "#lib/server/cron-job-form.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { enqueueCronJobRun } from "#lib/services/cron-job-queue.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("CronJob");
 
@@ -37,7 +37,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	delete: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const found = await manageableCronJob(
@@ -56,7 +56,7 @@ export const actions = {
 
 	runNow: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const found = await manageableCronJob(

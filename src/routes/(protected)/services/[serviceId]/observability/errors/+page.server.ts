@@ -1,10 +1,11 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { ErrorIssueDTO } from "#lib/dto/error-issue-dto.js";
 import { ErrorProjectDTO } from "#lib/dto/error-project-dto.js";
 import { ErrorSourceMapDTO } from "#lib/dto/error-source-map-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	errorProjectSettingsSchema,
 	issueStatusFormSchema,
@@ -15,7 +16,6 @@ import {
 	EVENTS_PER_MINUTE,
 	RETENTION_DAYS,
 } from "#lib/services/error-tracking.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("ErrorTracking");
 
@@ -63,7 +63,7 @@ export const load = async ({ parent, url }) => {
 
 async function ownService(serviceId: string, locals: App.Locals) {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	return await ServiceDTO.get(serviceId);
 }

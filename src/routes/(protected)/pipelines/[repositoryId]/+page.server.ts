@@ -1,4 +1,4 @@
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { PipelineRunDTO } from "#lib/dto/pipeline-run-dto.js";
 import { RepositoryDTO } from "#lib/dto/repository-dto.js";
 import {
@@ -6,11 +6,11 @@ import {
 	PIPELINE_SORT_KEYS,
 } from "#lib/pipelines/list.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	PipelineService,
 	STATS_WINDOW_DAYS,
 } from "#lib/services/pipeline.service.js";
-import { resolve } from "$app/paths";
 
 export const load = async ({ parent, url }) => {
 	const { preferences, repository } = await parent();
@@ -34,7 +34,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	sync: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const repo = await RepositoryDTO.get(params.repositoryId);
 		if (!repo) {

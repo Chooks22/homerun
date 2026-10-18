@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
@@ -7,7 +7,7 @@ import {
 	manageableCronJob,
 	parseCronJobSection,
 } from "#lib/server/cron-job-form.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 const logger = new Logger("CronJob");
 
@@ -28,7 +28,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	update: async ({ params, request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const found = await manageableCronJob(params.cronJobId, locals.permissions);
 		if ("error" in found) {

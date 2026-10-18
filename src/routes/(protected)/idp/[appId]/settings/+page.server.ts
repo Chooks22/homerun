@@ -2,6 +2,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseOauthAppSettings } from "#lib/server/oauth-app-form.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	OauthAppError,
 	OauthAppService,
@@ -13,7 +14,7 @@ const logger = new Logger("OidcProvider");
 export const actions = {
 	update: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const app = await OauthClientDTO.get(params.appId);
 		if (!app) {
@@ -48,7 +49,7 @@ export const actions = {
 
 	delete: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const app = await OauthClientDTO.get(params.appId);
 		if (app) {

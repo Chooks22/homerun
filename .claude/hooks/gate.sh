@@ -38,7 +38,7 @@ gate() {
   fi
 }
 
-gate "Type check" bun run check
+gate "Type check" bun run type-check
 gate "prek" prek run
 gate "Unit tests (coverage threshold included)" bun run test
 

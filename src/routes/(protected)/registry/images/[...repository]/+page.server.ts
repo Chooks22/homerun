@@ -1,4 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { RegistryService } from "#lib/services/registry.service.js";
 import { resolve } from "$app/paths";
 
@@ -20,7 +21,7 @@ export const load = async ({ params }) => {
 export const actions = {
 	deleteRepository: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		try {
 			const deleted = await RegistryService.deleteRepository(params.repository);
@@ -32,7 +33,7 @@ export const actions = {
 
 	deleteTag: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const tag = String((await request.formData()).get("tag") ?? "");
 		if (!tag) {

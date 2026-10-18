@@ -1,9 +1,9 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { AppLogDTO } from "#lib/dto/app-log-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { DockerService } from "#lib/services/docker.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Traefik");
 
@@ -30,7 +30,7 @@ export const load = async () => {
 export const actions = {
 	clearAppLogs: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		await AppLogDTO.clear();
@@ -40,7 +40,7 @@ export const actions = {
 
 	restartTraefik: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		try {
@@ -59,7 +59,7 @@ export const actions = {
 
 	updateTraefik: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		try {

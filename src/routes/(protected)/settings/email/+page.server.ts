@@ -1,21 +1,21 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config, isSmtpEnabled } from "#lib/config.js";
 import { Logger } from "#lib/logger.js";
 import { brandedEmail } from "#lib/server/email-layout.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	checkbox,
 	nullableText,
 } from "#lib/server/validation/instance-settings-form.js";
 import { EmailService } from "#lib/services/email.service.js";
 import { InstanceSettingsService } from "#lib/services/instance-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
 
 export const actions = {
 	sendTest: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!isSmtpEnabled()) {
 			return fail(400, {
@@ -50,7 +50,7 @@ export const actions = {
 
 	updateSmtp: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const portRaw = (formData.get("smtpPort") as string | null)?.trim();

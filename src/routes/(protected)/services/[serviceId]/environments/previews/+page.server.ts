@@ -1,4 +1,4 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { config, serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
@@ -14,6 +14,7 @@ import {
 	loginWallAvailability,
 	loginWallOptions,
 } from "#lib/server/login-wall-options.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	defaultHostname,
 	previewDomainTemplateProblem,
@@ -24,7 +25,6 @@ import {
 	ServiceSettingsError,
 	ServiceSettingsService,
 } from "#lib/services/service-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Previews");
 
@@ -56,7 +56,7 @@ async function previewParent(serviceId: string) {
 export const actions = {
 	updatePreviewAccess: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await previewParent(params.serviceId);
 		if (!svc) {
@@ -98,7 +98,7 @@ export const actions = {
 
 	updatePreviews: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await previewParent(params.serviceId);
 		if (!svc) {
@@ -182,7 +182,7 @@ export const actions = {
 
 	deployOpen: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await previewParent(params.serviceId);
 		if (!svc) {
@@ -207,7 +207,7 @@ export const actions = {
 
 	redeploy: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await previewParent(params.serviceId);
 		if (!svc) {
@@ -226,7 +226,7 @@ export const actions = {
 
 	delete: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await previewParent(params.serviceId);
 		if (!svc) {

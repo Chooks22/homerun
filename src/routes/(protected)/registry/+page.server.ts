@@ -1,10 +1,10 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { DashboardIconsService } from "#lib/services/dashboard-icons.service.js";
 import { enqueueCleanup } from "#lib/services/docker-cleanup-queue.js";
 import { ImageMirrorGcService } from "#lib/services/image-mirror-gc.service.js";
 import { RegistryService } from "#lib/services/registry.service.js";
-import { resolve } from "$app/paths";
 
 function reason(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -37,7 +37,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	collectGarbage: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const busy = await ImageMirrorGcService.busyReason();
 		if (busy) {

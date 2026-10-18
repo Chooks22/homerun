@@ -1,6 +1,7 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { workstationAction } from "#lib/server/workstation-actions.js";
 import {
 	generateWorkstationPassword,
@@ -12,7 +13,6 @@ import {
 	WorkstationSignInService,
 } from "#lib/services/workstation/sign-in.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Workstation");
 
@@ -45,7 +45,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	autoStop: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
 		if (!ws) {
@@ -64,7 +64,7 @@ export const actions = {
 	},
 	resetPassword: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
 		if (!ws) {

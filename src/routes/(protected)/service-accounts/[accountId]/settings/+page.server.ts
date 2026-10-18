@@ -1,5 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { intersectPermissions, permissionsFromForm } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { ServiceAccountService } from "#lib/services/service-account.service.js";
 import { resolve } from "$app/paths";
 
@@ -10,7 +11,7 @@ export const load = ({ locals }) => ({
 export const actions = {
 	delete: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (
 			!(await ServiceAccountService.delete(params.accountId, locals.user.id))
@@ -22,7 +23,7 @@ export const actions = {
 
 	setDisabled: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const disabled = (await request.formData()).get("disabled") === "true";
 		const updated = await ServiceAccountService.update(
@@ -38,7 +39,7 @@ export const actions = {
 
 	update: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const name = String(formData.get("name") ?? "").trim();

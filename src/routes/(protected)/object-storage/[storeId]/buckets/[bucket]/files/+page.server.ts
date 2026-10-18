@@ -1,7 +1,7 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
-import { resolve } from "$app/paths";
 
 function reason(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);
@@ -48,7 +48,7 @@ export const load = async ({ params, url }) => {
 export const actions = {
 	delete: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const client = await bucketClient(params.storeId);
 		if (!client) {
@@ -68,7 +68,7 @@ export const actions = {
 
 	newFolder: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const client = await bucketClient(params.storeId);
 		if (!client) {
@@ -95,7 +95,7 @@ export const actions = {
 
 	upload: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const client = await bucketClient(params.storeId);
 		if (!client) {

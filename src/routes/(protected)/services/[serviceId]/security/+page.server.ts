@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { ImageScanDTO } from "#lib/dto/image-scan-dto.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
@@ -15,13 +15,13 @@ import {
 	loginWallAvailability,
 	loginWallOptions,
 } from "#lib/server/login-wall-options.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { errorPagesPublished } from "#lib/services/docker/error-pages.js";
 import { ImageScanService } from "#lib/services/image-scan.service.js";
 import {
 	ServiceSettingsError,
 	ServiceSettingsService,
 } from "#lib/services/service-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("ImageScan");
 const accessLogger = new Logger("Services");
@@ -48,7 +48,7 @@ export const load = async ({ locals, params, parent }) => {
 export const actions = {
 	scan: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -67,7 +67,7 @@ export const actions = {
 	},
 	updateAppAuth: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -100,7 +100,7 @@ export const actions = {
 	},
 	updateBlockedPaths: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -132,7 +132,7 @@ export const actions = {
 	},
 	updateAuthPaths: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

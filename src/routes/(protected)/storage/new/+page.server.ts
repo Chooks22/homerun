@@ -1,4 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	VolumeSettingsError,
 	VolumeSettingsService,
@@ -8,7 +9,7 @@ import { resolve } from "$app/paths";
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

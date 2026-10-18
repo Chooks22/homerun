@@ -2,6 +2,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import { InvitationDTO } from "#lib/dto/invitation-dto.js";
 import { Logger } from "#lib/logger.js";
 import { asAuthRole } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { auth } from "#lib/services/auth.js";
 import { emailSignInAvailability } from "#lib/services/email-sign-in.js";
 import { resolve } from "$app/paths";
@@ -75,7 +76,7 @@ export const actions = {
 
 		await invitation.markAccepted();
 		logger.info(`Invite accepted: user=${result.user.id} email=${email}`);
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	},
 	acceptWithCodes: async ({ request, params }) => {
 		const invitation = await InvitationDTO.getByToken(params.token);

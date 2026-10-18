@@ -28,7 +28,11 @@ the reference shapes.
   redirected unauthenticated users before any child `load` runs. This does
   **not** apply to `actions`: a form submission doesn't go through the parent
   layout's `load`, so every action still needs its own explicit
-  `if (!locals.user) throw redirect(...)` guard.
+  `if (!locals.user) redirectToSignIn();` guard
+  (`#lib/server/sign-in-redirect.js`), never an inline
+  `redirect(302, resolve("auth/sign-in"))`: every typed `resolve()` call costs
+  the type checker about 100 ms, and 275 copies of that one made
+  `bun run type-check` twice as slow.
 - Add the tab to the parent `+layout.svelte`'s `tabs` array
   (`{id, label, icon, href: resolve("<parent>/<tab-name>")}`, see
   `src/lib/components/tab-nav.svelte`'s `NavTab`). Use `hasWarning` if the tab

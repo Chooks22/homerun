@@ -1,9 +1,9 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 const logger = new Logger("S3Destinations");
 
@@ -34,7 +34,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	delete: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const destinationId = formData.get("destinationId") as string | null;

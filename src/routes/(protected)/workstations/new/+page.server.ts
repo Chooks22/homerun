@@ -4,6 +4,7 @@ import { WorkstationPresetDTO } from "#lib/dto/workstation-preset-dto.js";
 import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { loginWallOptions } from "#lib/server/login-wall-options.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseNewWorkstation } from "#lib/server/workstation-form.js";
 import { workstationHosts } from "#lib/server/workstation-presets.js";
 import {
@@ -38,7 +39,7 @@ export const load = async ({ locals, parent, url }) => {
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const result = parseNewWorkstation(await request.formData());
 		if ("error" in result) {

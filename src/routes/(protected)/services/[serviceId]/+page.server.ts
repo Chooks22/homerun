@@ -1,16 +1,16 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { JobDTO } from "#lib/dto/job-dto.js";
 import { NotificationDTO } from "#lib/dto/notification-dto.js";
 import { ServiceDependencyDTO } from "#lib/dto/service-dependency-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { linkKeys } from "#lib/service-graph.js";
 import { DeploymentService } from "#lib/services/deploy.service.js";
 import { DockerService } from "#lib/services/docker.service.js";
 import { RevisionService } from "#lib/services/revision.service.js";
 import { ServiceLifecycleService } from "#lib/services/service-lifecycle.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -74,7 +74,7 @@ export const actions = {
 	 */
 	unlink: async ({ params, locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const targetId = (await request.formData()).get("targetId");
 		const [svc, target] = await Promise.all([
@@ -108,7 +108,7 @@ export const actions = {
 	},
 	deploy: async ({ params, locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -132,7 +132,7 @@ export const actions = {
 
 	rollback: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -155,7 +155,7 @@ export const actions = {
 
 	cancel: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const [latest] = await DeploymentDTO.listForService(params.serviceId, 1);
 		const status = latest?.toJSON().status;
@@ -189,7 +189,7 @@ export const actions = {
 
 	kill: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -211,7 +211,7 @@ export const actions = {
 
 	pull: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -238,7 +238,7 @@ export const actions = {
 
 	restart: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -255,7 +255,7 @@ export const actions = {
 
 	start: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -277,7 +277,7 @@ export const actions = {
 
 	stop: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

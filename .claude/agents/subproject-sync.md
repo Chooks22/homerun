@@ -3,8 +3,8 @@ name: subproject-sync
 description: >-
   Use when working in cmd/worker/ (including its agent mode), cmd/installer/, or
   cmd/cli/ — the three standalone sub-projects at the repo root, not part of the
-  SvelteKit build (not covered by the root bun run check's svelte-check half,
-  but covered by its go vet/golangci-lint half). All three are Go packages
+  SvelteKit build (not covered by the root bun run type-check's svelte-check
+  half, but covered by its go vet/golangci-lint half). All three are Go packages
   sharing one go.mod at the repo root, plus shared internal/ libraries
   (buildinfo, release, homerun, dockerapi, jobs, worker). cmd/agent/ no longer
   exists as its own binary — it was merged into cmd/worker as agent mode (no
@@ -37,7 +37,7 @@ the `golangci-lint` equivalent,
 `go tool -modfile=tools/go/go.mod golangci-lint run` over the same paths) to one
 sub-project, all three (plus every shared `internal/` library) covered in one
 pass by `go vet ./cmd/... ./internal/... ./tests/unit/go/...` plus golangci-lint
-over the same paths, which is what `bun run check` runs after the SvelteKit
+over the same paths, which is what `bun run type-check` runs after the SvelteKit
 half. golangci-lint itself is pinned in its own module (`tools/go/go.mod`, kept
 out of the main `go.mod` deliberately, see `.agents/notes/testing.md`). Shared
 Go libraries live under `internal/`: `internal/buildinfo` (the version, stamped
@@ -133,8 +133,8 @@ something was verified live when it wasn't.
   /
   `./cmd/installer/... ./internal/installer/... ./tests/unit/go/internal/installer/...`
   / `./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...` (all
-  three also run inside `bun run check`, along with golangci-lint over the same
-  paths via `go tool -modfile=tools/go/go.mod golangci-lint run`).
+  three also run inside `bun run type-check`, along with golangci-lint over the
+  same paths via `go tool -modfile=tools/go/go.mod golangci-lint run`).
 
 - Its unit tests, the same path scoping with `go test` instead of `go vet`.
 - `bun run lint` (oxlint/biome cover the whole repo including these directories,

@@ -1,13 +1,13 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { isBlockSeverity } from "#lib/image-scan.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { nullableText } from "#lib/server/validation/instance-settings-form.js";
 import { DockerService } from "#lib/services/docker.service.js";
 import {
 	InstanceSettingsError,
 	InstanceSettingsService,
 } from "#lib/services/instance-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
 
@@ -18,7 +18,7 @@ export const load = async () => ({
 export const actions = {
 	updateDocker: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		await InstanceSettingsService.saveDocker(
@@ -33,7 +33,7 @@ export const actions = {
 
 	updateImageScan: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const severity = formData.get("imageScanBlockSeverity");
@@ -55,7 +55,7 @@ export const actions = {
 
 	updateRetainedImages: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		try {
@@ -74,7 +74,7 @@ export const actions = {
 
 	updateOrchestration: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const mode = formData.get("orchestrationMode") as string | null;

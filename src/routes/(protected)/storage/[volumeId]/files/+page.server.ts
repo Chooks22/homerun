@@ -1,6 +1,7 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { VolumeFilesService } from "#lib/services/volume-files.service.js";
 import {
 	isEntryName,
@@ -8,7 +9,6 @@ import {
 	MAX_EDITABLE_BYTES,
 	normalizeVolumePath,
 } from "#lib/volume-files.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Storage");
 
@@ -58,7 +58,7 @@ export const load = async ({ params, parent, url }) => {
 export const actions = {
 	save: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {
@@ -87,7 +87,7 @@ export const actions = {
 	},
 	create: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {
@@ -117,7 +117,7 @@ export const actions = {
 	},
 	delete: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {
@@ -140,7 +140,7 @@ export const actions = {
 	},
 	chmod: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {

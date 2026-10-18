@@ -94,8 +94,7 @@ jobs:
       - name: Type check
         run:
           bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json
-          --fail-on-warnings && bunx tsc --noEmit --project
-          tsconfig.scripts.json
+          --fail-on-warnings && bun check -p tsconfig.scripts.json
 
       # openapi.json, the integration suite's generated types and the config
       # JSON schema are derived from source. Regenerating has to be a no-op on

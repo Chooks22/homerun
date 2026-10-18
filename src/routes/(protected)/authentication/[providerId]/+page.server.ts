@@ -4,6 +4,7 @@ import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { readOauthProviderForm } from "#lib/server/oauth-provider-form.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	OauthProviderConfigError,
 	OauthProviderConfigService,
@@ -46,7 +47,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	delete: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		await OauthProviderConfigService.remove(params.providerId, locals.user.id);
 
@@ -54,7 +55,7 @@ export const actions = {
 	},
 	update: async ({ request, locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		try {

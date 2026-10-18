@@ -1,10 +1,11 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { HOST_VOLUME_PREFIX } from "#lib/constants.js";
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { ServiceVolumeDTO } from "#lib/dto/service-volume-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { restoreBackupFormSchema } from "#lib/server/validation/volume-restore.js";
 import {
 	backupConfigError,
@@ -15,7 +16,6 @@ import {
 	VolumeSettingsError,
 	VolumeSettingsService,
 } from "#lib/services/volume-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -41,7 +41,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	restoreBackup: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = restoreBackupFormSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -94,7 +94,7 @@ export const actions = {
 
 	toggleBackup: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const volume = await StorageVolumeDTO.get(String(formData.get("volumeId")));
@@ -142,7 +142,7 @@ export const actions = {
 
 	configureBackup: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const volume = await StorageVolumeDTO.get(String(formData.get("volumeId")));
@@ -177,7 +177,7 @@ export const actions = {
 
 	attachVolume: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -233,7 +233,7 @@ export const actions = {
 	// away from the service (see storage/new for the full-page equivalent).
 	createVolume: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -284,7 +284,7 @@ export const actions = {
 	},
 	detachVolume: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

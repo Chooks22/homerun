@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { IacProjectDTO } from "#lib/dto/iac-project-dto.js";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
 import { listOwnApiKeys, revokeApiKeyAction } from "#lib/server/api-keys.js";
@@ -6,7 +6,7 @@ import {
 	createBucketKeyAction,
 	revokeBucketKeyAction,
 } from "#lib/server/bucket-key-actions.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 async function projectStore(projectId: string) {
 	const project = await IacProjectDTO.get(projectId);
@@ -21,7 +21,7 @@ export const load = async ({ request }) => ({
 export const actions = {
 	createKey: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const found = await projectStore(params.projectId);
 		if (!found) {
@@ -38,14 +38,14 @@ export const actions = {
 
 	revoke: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return await revokeApiKeyAction(request, locals.user.id);
 	},
 
 	revokeKey: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const found = await projectStore(params.projectId);
 		if (!found) {

@@ -2,6 +2,7 @@ import { error, fail, redirect } from "@sveltejs/kit";
 import { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { RevisionService } from "#lib/services/revision.service.js";
 import { resolve } from "$app/paths";
 
@@ -68,7 +69,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	deployRevision: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const service = await ServiceDTO.get(params.serviceId);
 		if (!service) {

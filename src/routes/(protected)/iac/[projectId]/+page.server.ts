@@ -1,11 +1,11 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { IacProjectDTO } from "#lib/dto/iac-project-dto.js";
 import { IacStateVersionDTO } from "#lib/dto/iac-state-version-dto.js";
 import { usesHttpBackend } from "#lib/iac/tools.js";
 import { httpBackendBlock, pulumiLoginCommand } from "#lib/iac-state.js";
 import { highlightCode } from "#lib/server/shiki.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { IacStateService } from "#lib/services/iac-state.service.js";
-import { resolve } from "$app/paths";
 
 function reason(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);
@@ -51,7 +51,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	forceUnlock: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const project = await IacProjectDTO.get(params.projectId);
 		if (!project) {
@@ -63,7 +63,7 @@ export const actions = {
 
 	rollback: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const project = await IacProjectDTO.get(params.projectId);
 		if (!project) {

@@ -1,10 +1,11 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { buildCacheChoice } from "#lib/build-cache.js";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { watchPathPatterns } from "#lib/server/validation/api.js";
 import {
 	type UpdateSourceInput,
@@ -15,7 +16,6 @@ import { ImageVersionService } from "#lib/services/image-version.service.js";
 import { PreviewService } from "#lib/services/preview.service.js";
 import { encryptSecret } from "#lib/services/secrets.js";
 import { parseWatchPaths } from "#lib/watch-paths.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -174,7 +174,7 @@ function sourcePatch(input: UpdateSourceInput, isGitBuild: boolean) {
 export const actions = {
 	updateSource: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -262,7 +262,7 @@ export const actions = {
 	},
 	findPin: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -278,7 +278,7 @@ export const actions = {
 	},
 	pin: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -303,7 +303,7 @@ export const actions = {
 	},
 	unpin: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -314,7 +314,7 @@ export const actions = {
 	},
 	updateWatch: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -329,7 +329,7 @@ export const actions = {
 	},
 	checkUpdates: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -343,7 +343,7 @@ export const actions = {
 	},
 	applyUpdate: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

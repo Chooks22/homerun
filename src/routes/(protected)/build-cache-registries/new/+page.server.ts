@@ -1,14 +1,14 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
 import { Logger } from "#lib/logger.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 const logger = new Logger("BuildCacheRegistries");
 
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

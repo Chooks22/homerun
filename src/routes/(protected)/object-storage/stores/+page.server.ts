@@ -1,12 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseObjectStoreForm } from "#lib/server/validation/object-store.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
-import { resolve } from "$app/paths";
 
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const { error, values } = parseObjectStoreForm(
 			await request.formData(),

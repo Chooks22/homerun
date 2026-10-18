@@ -5,6 +5,7 @@ import { TemplateLinkDTO } from "#lib/dto/template-link-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { can } from "#lib/permissions.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { quickDeployFromTemplate } from "#lib/services/template-links.js";
 import { resolve } from "$app/paths";
 
@@ -71,7 +72,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	quickDeploy: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

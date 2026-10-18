@@ -103,10 +103,10 @@ independent of provider — `istanbul` avoided it, `v8` didn't). The suite moved
 back to `bun:test` rather than keep the extra dependency around for that.
 
 `tsconfig.json` type-checks `tests/` as part of `svelte-check` (part of
-`bun run check`), same as `src/`; it used to exclude `tests/` entirely, since
-`bun:test`'s `mock()` return type hit real overload-resolution errors under
-svelte-check's TS resolution that don't happen under `tsc`/`bun test` directly,
-but re-including it surfaced real bugs worth catching (see
+`bun run type-check`), same as `src/`; it used to exclude `tests/` entirely,
+since `bun:test`'s `mock()` return type hit real overload-resolution errors
+under svelte-check's TS resolution that don't happen under `tsc`/`bun test`
+directly, but re-including it surfaced real bugs worth catching (see
 `.agents/notes/testing.md`). `cmd/worker/`'s (including its agent mode),
 `cmd/cli/`'s and `cmd/installer/`'s own tests aren't under `tests/unit/app` at
 all and aren't TypeScript: they're checked with `go vet`, not `tsc`, scoped to

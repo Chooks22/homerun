@@ -68,7 +68,7 @@ itself.
 ```bash
 go run ./cmd/cli services list             # from source
 go test ./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...   # its unit tests, part of `bun run test`
-go vet ./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...    # part of `bun run check`
+go vet ./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...    # part of `bun run type-check`
 gofmt -w ./cmd/cli                         # CI fails on anything gofmt would rewrite
 bun scripts/build-packages.ts amd64 darwin-arm64
                                                 # any of amd64, arm64, darwin-amd64,

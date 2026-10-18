@@ -1,13 +1,13 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { WorkstationDTO } from "#lib/dto/workstation-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	parseWorkstationSection,
 	type WorkstationSection,
 	type WorkstationSettings,
 } from "#lib/server/workstation-form.js";
 import { WorkstationService } from "#lib/services/workstation.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Workstation");
 
@@ -27,7 +27,7 @@ export async function workstationAction(
 	id?: string,
 ) {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	const formData = await request.formData();
 	const workstationId = id ?? String(formData.get("workstationId") ?? "");
@@ -70,7 +70,7 @@ export async function saveWorkstationSection(
 	...sections: WorkstationSection[]
 ) {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	const ws = await WorkstationDTO.get(id, locals.user.id);
 	if (!ws) {

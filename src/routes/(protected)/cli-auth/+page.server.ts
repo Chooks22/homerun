@@ -1,7 +1,7 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { CliAuthService } from "#lib/services/cli-auth.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("CliAuth");
 
@@ -13,7 +13,7 @@ export const load = ({ url }) => {
 export const actions = {
 	approve: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const data = await request.formData();
 		const code = (data.get("code") as string | null)?.trim() ?? "";
@@ -35,7 +35,7 @@ export const actions = {
 
 	deny: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const data = await request.formData();
 		const code = (data.get("code") as string | null)?.trim() ?? "";

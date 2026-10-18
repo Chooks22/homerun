@@ -10,6 +10,7 @@ import {
 	loginWallAvailability,
 	loginWallOptions,
 } from "#lib/server/login-wall-options.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { saveWorkstationSection } from "#lib/server/workstation-actions.js";
 import { presetFromWorkstation } from "#lib/server/workstation-presets.js";
 import {
@@ -39,7 +40,7 @@ export const actions = {
 
 	delete: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
 		if (!ws) {
@@ -71,7 +72,7 @@ export const actions = {
 
 	general: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
 		if (!ws) {
@@ -91,7 +92,7 @@ export const actions = {
 
 	loginWall: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
 		if (!ws) {
@@ -130,7 +131,7 @@ export const actions = {
 
 	savePreset: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const ws = await WorkstationDTO.get(params.workstationId, locals.user.id);
 		if (!ws) {

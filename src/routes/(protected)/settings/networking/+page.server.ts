@@ -1,15 +1,15 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { nullableText } from "#lib/server/validation/instance-settings-form.js";
 import {
 	InstanceSettingsError,
 	InstanceSettingsService,
 } from "#lib/services/instance-settings.service.js";
-import { resolve } from "$app/paths";
 
 export const actions = {
 	updateTraefik: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		try {

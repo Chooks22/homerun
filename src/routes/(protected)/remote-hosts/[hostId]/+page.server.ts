@@ -1,6 +1,7 @@
 import { error, fail, redirect } from "@sveltejs/kit";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { AgentClientService } from "#lib/services/agent-client.service.js";
 import {
 	RemoteHostSettingsError,
@@ -43,7 +44,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	delete: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const host = await RemoteHostDTO.get(params.hostId);
 		if (!host) {
@@ -56,7 +57,7 @@ export const actions = {
 
 	update: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const host = await RemoteHostDTO.get(params.hostId);
 		if (!host) {

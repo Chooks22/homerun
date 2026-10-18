@@ -1,10 +1,9 @@
-import { redirect } from "@sveltejs/kit";
 import { oauthMethod } from "#lib/auth-providers.js";
 import { isSmtpEnabled } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { checkbox } from "#lib/server/validation/instance-settings-form.js";
 import { PASSKEY_SIGN_IN, PASSWORD_SIGN_IN } from "#lib/sign-in-methods.js";
-import { resolve } from "$app/paths";
 
 const PREFERRED_FIELD_PREFIX = "preferred:";
 
@@ -42,7 +41,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	emailSignIn: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const settings = await InstanceSettingsDTO.get();
@@ -54,7 +53,7 @@ export const actions = {
 	},
 	preferredSignIn: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const settings = await InstanceSettingsDTO.get();
@@ -68,7 +67,7 @@ export const actions = {
 	},
 	securityPolicy: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const settings = await InstanceSettingsDTO.get();

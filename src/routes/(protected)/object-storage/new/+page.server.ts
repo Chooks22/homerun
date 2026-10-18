@@ -1,12 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
-import { resolve } from "$app/paths";
 
 export const actions = {
 	createBucket: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const store = await ObjectStoreDTO.get(

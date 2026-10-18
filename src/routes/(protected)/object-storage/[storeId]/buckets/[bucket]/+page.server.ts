@@ -1,4 +1,4 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
 import { PublicBucketDTO } from "#lib/dto/public-bucket-dto.js";
 import { MAX_EXPIRATION_DAYS } from "#lib/object-storage.js";
@@ -6,8 +6,8 @@ import {
 	createBucketKeyAction,
 	revokeBucketKeyAction,
 } from "#lib/server/bucket-key-actions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
-import { resolve } from "$app/paths";
 
 function reason(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);
@@ -42,7 +42,7 @@ export const load = async ({ params, url }) => {
 export const actions = {
 	setPublic: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -58,7 +58,7 @@ export const actions = {
 
 	createKey: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -73,7 +73,7 @@ export const actions = {
 
 	deleteBucket: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -90,7 +90,7 @@ export const actions = {
 
 	emptyBucket: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -108,7 +108,7 @@ export const actions = {
 
 	revokeKey: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -119,7 +119,7 @@ export const actions = {
 
 	setExpiration: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -145,7 +145,7 @@ export const actions = {
 
 	useAsBackupDestination: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {

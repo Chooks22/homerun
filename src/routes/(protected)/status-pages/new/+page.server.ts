@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { statusPageSchema } from "#lib/server/validation/status-page.js";
 import {
 	StatusPageSettingsError,
@@ -27,7 +28,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	default: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const form = await request.formData();
 		const parsed = statusPageSchema.safeParse(Object.fromEntries(form));

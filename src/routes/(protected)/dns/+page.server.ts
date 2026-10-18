@@ -4,6 +4,7 @@ import { DnsConnectionDTO } from "#lib/dto/dns-connection-dto.js";
 import { DnsManagedRecordDTO } from "#lib/dto/dns-managed-record-dto.js";
 import { DomainDTO } from "#lib/dto/domain-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseDomainForm } from "#lib/server/validation/dns-forms.js";
 import {
 	DomainSettingsError,
@@ -40,7 +41,7 @@ export const load = async () => {
 export const actions = {
 	addDomain: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = parseDomainForm(await request.formData(), true);
 		if (parsed.error !== null) {
@@ -64,7 +65,7 @@ export const actions = {
 
 	deleteDomain: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const domain = await DomainDTO.get(
 			String((await request.formData()).get("domainId") ?? ""),

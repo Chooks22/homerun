@@ -1,11 +1,11 @@
-import { fail, type RequestEvent, redirect } from "@sveltejs/kit";
+import { fail, type RequestEvent } from "@sveltejs/kit";
 import type {
 	MigrationConnection,
 	MigrationEntry,
 } from "#lib/migrate/common.js";
 import { can } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { MigrationService } from "#lib/services/migration.service.js";
-import { resolve } from "$app/paths";
 
 export interface MigrationSource {
 	label: string;
@@ -17,7 +17,7 @@ export interface MigrationSource {
 
 function guard(event: RequestEvent): string {
 	if (!event.locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	return event.locals.user.id;
 }

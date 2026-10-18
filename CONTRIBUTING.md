@@ -29,7 +29,7 @@ kept out of the root `go.mod` deliberately, so its ~210 indirect dependencies
 don't feed minimum-version-selection into the binaries this repo ships), and run
 via `go tool`, not installed as a standalone binary:
 `go tool -modfile=tools/go/go.mod golangci-lint run ./cmd/... ./internal/... ./tests/unit/go/...`
-(part of `bun run check` and a pre-commit hook, below). Bump it with
+(part of `bun run type-check` and a pre-commit hook, below). Bump it with
 `cd tools/go && go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@vX`.
 
 mise can't install Docker itself, only check it: `mise run docker` (also run
@@ -125,14 +125,14 @@ advice. A product or tool name it flags as a misspelling goes in
 `prek run vale --all-files`.
 
 ```sh
-bun run check   # svelte-check --fail-on-warnings over src/ and tests/, tsc over scripts/, go vet and golangci-lint over every package under cmd/ and internal/, zero errors AND zero warnings
+bun run type-check   # svelte-check --fail-on-warnings over src/ and tests/, bun check over scripts/, go vet and golangci-lint over every package under cmd/ and internal/, zero errors AND zero warnings
 bun run lint    # markdownlint-cli2, lint-tailwind.ts and oxlint --type-aware --deny-warnings, whole repo
 ```
 
-Run both after _every_ change, not just once at the end. `bun run check`'s scope
-is already the whole repo regardless of which files you touched, so a red result
-elsewhere is still your problem to look at, not something to wave off as
-unrelated without actually checking. `bun run check` includes `go vet` and
+Run both after _every_ change, not just once at the end. `bun run type-check`'s
+scope is already the whole repo regardless of which files you touched, so a red
+result elsewhere is still your problem to look at, not something to wave off as
+unrelated without actually checking. `bun run type-check` includes `go vet` and
 `golangci-lint` (the same pair CI's Go job runs, golangci-lint via
 `go tool -modfile=tools/go/go.mod`, see Toolchain above) over `cmd/cli/`,
 `cmd/installer/`, `cmd/worker/` and every shared `internal/` library; scope

@@ -4,6 +4,7 @@ import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { loginWallOptions } from "#lib/server/login-wall-options.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseWorkstationPreset } from "#lib/server/workstation-form.js";
 import { workstationHosts } from "#lib/server/workstation-presets.js";
 import {
@@ -36,7 +37,7 @@ export const load = async ({ locals, params, parent }) => {
 export const actions = {
 	delete: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const preset = await WorkstationPresetDTO.get(
 			params.presetId,
@@ -52,7 +53,7 @@ export const actions = {
 
 	save: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const preset = await WorkstationPresetDTO.get(
 			params.presetId,

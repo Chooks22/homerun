@@ -7,6 +7,7 @@ import {
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { Logger } from "#lib/logger.js";
 import { hasAllPermissions } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { normalizeBaseDomain } from "#lib/server/validation/base-domain.js";
 import {
 	newtFieldsError,
@@ -126,7 +127,7 @@ async function saveDnsSettings(
 export const actions = {
 	testCloudflare: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!hasAllPermissions(locals.permissions)) {
 			throw redirect(302, resolve(""));
@@ -146,7 +147,7 @@ export const actions = {
 
 	testPangolin: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!hasAllPermissions(locals.permissions)) {
 			throw redirect(302, resolve(""));
@@ -167,7 +168,7 @@ export const actions = {
 
 	finish: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!hasAllPermissions(locals.permissions)) {
 			throw redirect(302, resolve(""));

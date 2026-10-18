@@ -3,6 +3,7 @@ import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { convertGithubAppManifest } from "#lib/github-app.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { GitProviderService } from "#lib/services/git-provider.service.js";
 import { resolve } from "$app/paths";
 
@@ -10,7 +11,7 @@ const logger = new Logger("GitProviders");
 
 export const GET = async ({ params, locals, url }) => {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	if (!can(locals.permissions, "git-providers", "write")) {
 		return new Response("Needs write access to Git providers.", {

@@ -154,7 +154,7 @@ repos:
 
       - id: check
         name: Type Check
-        entry: bash -c 'bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && bunx tsc --noEmit --project tsconfig.scripts.json'
+        entry: bash -c 'bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && bun check -p tsconfig.scripts.json'
         language: system
         pass_filenames: false
         stages: [pre-push]

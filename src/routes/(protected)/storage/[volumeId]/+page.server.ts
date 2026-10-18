@@ -1,9 +1,10 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { BackupRunDTO } from "#lib/dto/backup-run-dto.js";
 import { JobDTO } from "#lib/dto/job-dto.js";
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { VolumeServices } from "#lib/services/backup/volume-services.js";
 import {
 	cancelBackupRun,
@@ -14,7 +15,6 @@ import {
 	VolumeSettingsError,
 	VolumeSettingsService,
 } from "#lib/services/volume-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Storage");
 
@@ -46,7 +46,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	cancelRun: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const run = await BackupRunDTO.get(
 			String((await request.formData()).get("runId") ?? ""),
@@ -65,7 +65,7 @@ export const actions = {
 
 	backupNow: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {
@@ -80,7 +80,7 @@ export const actions = {
 
 	restore: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {
@@ -105,7 +105,7 @@ export const actions = {
 
 	updateBackup: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volume = await StorageVolumeDTO.get(params.volumeId);
 		if (!volume) {

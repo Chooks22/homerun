@@ -5,6 +5,7 @@ import {
 	manageableCronJob,
 	parseCronJobSection,
 } from "#lib/server/cron-job-form.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("CronJob");
@@ -12,7 +13,7 @@ const logger = new Logger("CronJob");
 export const actions = {
 	delete: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const found = await manageableCronJob(params.cronJobId, locals.permissions);
 		if ("error" in found) {
@@ -25,7 +26,7 @@ export const actions = {
 
 	update: async ({ params, request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const found = await manageableCronJob(params.cronJobId, locals.permissions);
 		if ("error" in found) {

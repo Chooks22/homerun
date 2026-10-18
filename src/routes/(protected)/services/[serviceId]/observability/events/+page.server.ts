@@ -1,14 +1,14 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { AppLogDTO } from "#lib/dto/app-log-dto.js";
 import { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { UptimeCheckDTO } from "#lib/dto/uptime-check-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	externalHostFor,
 	externalProbeSkipReason,
 } from "#lib/services/uptime/uptime-probe.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -61,7 +61,7 @@ export const load = async ({ params, parent, url }) => {
 export const actions = {
 	resolveOrphan: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -77,7 +77,7 @@ export const actions = {
 
 	setUptime: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -95,7 +95,7 @@ export const actions = {
 
 	clearHeartbeats: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -109,7 +109,7 @@ export const actions = {
 
 	clearErrors: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

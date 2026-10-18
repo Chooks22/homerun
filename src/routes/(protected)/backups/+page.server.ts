@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { BackupRunDTO } from "#lib/dto/backup-run-dto.js";
 import { JobDTO } from "#lib/dto/job-dto.js";
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
@@ -7,6 +7,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	cancelBackupRun,
 	enqueueBackupPrune,
@@ -14,7 +15,6 @@ import {
 } from "#lib/services/backup-queue.js";
 import { nextCronRun } from "#lib/services/cron/cron-expression.js";
 import { stackPath } from "#lib/stack-tree.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Backups");
 
@@ -89,7 +89,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	cancelRun: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const run = await BackupRunDTO.get(
 			String((await request.formData()).get("runId") ?? ""),
@@ -108,7 +108,7 @@ export const actions = {
 
 	prune: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const destinations = await S3DestinationDTO.list();
 		if (!destinations.some((destination) => destination.backupKeep)) {
@@ -126,7 +126,7 @@ export const actions = {
 
 	run: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const volumeId = (formData.get("volumeId") as string | null)?.trim();
@@ -147,7 +147,7 @@ export const actions = {
 
 	runAll: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const volumes = (await StorageVolumeDTO.list()).filter(
 			(volume) => volume.backupEnabled && volume.s3DestinationId,

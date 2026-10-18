@@ -1,12 +1,12 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { RedirectDTO } from "#lib/dto/redirect-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseRedirectInput } from "#lib/server/redirect-form.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	RedirectService,
 	redirectHost,
 } from "#lib/services/redirect.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Redirects");
 
@@ -24,7 +24,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	update: async ({ params, request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const found = await RedirectDTO.get(params.redirectId);

@@ -1,7 +1,8 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	newtFieldsError,
 	pangolinInputFromForm,
@@ -9,7 +10,6 @@ import {
 } from "#lib/server/validation/dns-settings-form.js";
 import { applyAndRebuild } from "#lib/server/validation/instance-settings-form.js";
 import { PangolinService } from "#lib/services/pangolin.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
 
@@ -47,7 +47,7 @@ export const load = async () => {
 export const actions = {
 	setEnabled: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const enabled = (await request.formData()).get("enabled") === "on";
 		const settings = await InstanceSettingsDTO.get();
@@ -59,7 +59,7 @@ export const actions = {
 
 	testPangolin: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const outcome = await testPangolinFromForm(
 			await request.formData(),
@@ -78,7 +78,7 @@ export const actions = {
 
 	updatePangolin: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const settings = await InstanceSettingsDTO.get();

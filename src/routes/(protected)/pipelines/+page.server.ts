@@ -1,15 +1,14 @@
-import { redirect } from "@sveltejs/kit";
 import { PipelineRunDTO } from "#lib/dto/pipeline-run-dto.js";
 import {
 	PIPELINE_FILTER_KEYS,
 	PIPELINE_SORT_KEYS,
 } from "#lib/pipelines/list.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	PipelineService,
 	STATS_WINDOW_DAYS,
 } from "#lib/services/pipeline.service.js";
-import { resolve } from "$app/paths";
 
 export const load = async ({ parent, url }) => {
 	const { preferences } = await parent();
@@ -29,7 +28,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	syncAll: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const jobIds = await PipelineService.enqueueSyncAll(locals.user.id);
 		return { jobId: jobIds[0] ?? null, queued: jobIds.length };

@@ -3,6 +3,7 @@ import { RepositoryDTO } from "#lib/dto/repository-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
 import { formatRates } from "#lib/pipelines/cost.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { PipelineService } from "#lib/services/pipeline.service.js";
 import { resolve } from "$app/paths";
 
@@ -33,7 +34,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	save: async ({ params, request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const repo = await RepositoryDTO.get(params.repositoryId);
 		if (!repo) {
@@ -55,7 +56,7 @@ export const actions = {
 	},
 	delete: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const repo = await RepositoryDTO.get(params.repositoryId);
 		if (!repo) {

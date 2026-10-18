@@ -1,6 +1,6 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { RegistryService } from "#lib/services/registry.service.js";
-import { resolve } from "$app/paths";
 
 function reason(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -18,7 +18,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const username = String((await request.formData()).get("username") ?? "")
 			.trim()
@@ -36,7 +36,7 @@ export const actions = {
 
 	revoke: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const id = String((await request.formData()).get("id") ?? "");
 		try {

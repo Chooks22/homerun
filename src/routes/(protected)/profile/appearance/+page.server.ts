@@ -1,6 +1,7 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { UserPreferencesDTO } from "#lib/dto/user-preferences-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	colorsSchema,
 	perPageSchema,
@@ -10,7 +11,6 @@ import {
 	themeSchema,
 	uiModeSchema,
 } from "#lib/server/validation/appearance.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Appearance");
 
@@ -18,7 +18,7 @@ export const actions = {
 	/** Saves the account's UI mode, or clears it to follow the instance default. */
 	updateUiMode: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = uiModeSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -37,7 +37,7 @@ export const actions = {
 	/** Saves the site-wide light/dark/system preference. */
 	updateTheme: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = themeSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -54,7 +54,7 @@ export const actions = {
 	/** Saves the preset that overrides theme, style and colors, or clears it. */
 	updatePreset: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = presetSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -71,7 +71,7 @@ export const actions = {
 	/** Saves the surface style panels and buttons are drawn in. */
 	updateSurface: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = surfaceSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -88,7 +88,7 @@ export const actions = {
 	/** Saves the palette, the custom accent colour, or the built-in default. */
 	updateColors: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = colorsSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -112,7 +112,7 @@ export const actions = {
 	/** Saves whether page tabs sit above the page or in a column beside it. */
 	updateTabLayout: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = tabLayoutSchema.safeParse(
 			Object.fromEntries(await request.formData()),
@@ -129,7 +129,7 @@ export const actions = {
 	/** Saves the default page size every paginated list opens with. */
 	updatePerPage: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const parsed = perPageSchema.safeParse(
 			Object.fromEntries(await request.formData()),

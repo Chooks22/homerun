@@ -2,6 +2,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { loginWallOptions } from "#lib/server/login-wall-options.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseWorkstationPreset } from "#lib/server/workstation-form.js";
 import { workstationHosts } from "#lib/server/workstation-presets.js";
 import {
@@ -27,7 +28,7 @@ export const load = async ({ locals, parent }) => {
 export const actions = {
 	create: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const result = parseWorkstationPreset(await request.formData());
 		if ("error" in result) {

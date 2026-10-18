@@ -1,8 +1,9 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { DnsConnectionDTO } from "#lib/dto/dns-connection-dto.js";
 import { DomainDTO } from "#lib/dto/domain-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	parseDomainForm,
 	parseRecordForm,
@@ -22,7 +23,7 @@ async function actionDomain(
 	domainId: string,
 ): Promise<DomainDTO | null> {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	return await DomainDTO.get(domainId);
 }

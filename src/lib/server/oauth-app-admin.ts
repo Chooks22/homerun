@@ -1,6 +1,6 @@
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 /**
  * The registered app an IdP action works on. Write access to Users is
@@ -14,7 +14,7 @@ export async function adminApp(
 	appId: string,
 ): Promise<OauthClientDTO> {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	const app = await OauthClientDTO.get(appId);
 	if (!app) {

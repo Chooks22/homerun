@@ -39,9 +39,9 @@ one go, no plans, no severity tiers, out-of-scope findings go in `TODO.md`.
 - `CONTRIBUTING.md`, `AGENTS.md`, `.agents/notes/testing.md`,
   `.agents/skills/*/SKILL.md` and `tests/*/README.md` don't cite commands, flags
   or paths that no longer exist. Grep every `bun run <x>` they mention.
-- Run the cheap ones for real (`bun run check`, `bun run lint`, `bun run test`,
-  `bun run gen`) and read the output: warnings, noisy logs, deprecation notices
-  and slow steps are findings too.
+- Run the cheap ones for real (`bun run type-check`, `bun run lint`,
+  `bun run test`, `bun run gen`) and read the output: warnings, noisy logs,
+  deprecation notices and slow steps are findings too.
 
 ### 2. Fresh-clone setup works
 
@@ -76,8 +76,7 @@ one go, no plans, no severity tiers, out-of-scope findings go in `TODO.md`.
   from `package.json` or wired up.
 - `tsconfig*.json` include lists cover every TS file some gate should check;
   nothing falls between `svelte-check`'s scope and
-  `tsc --noEmit --project tsconfig.scripts.json` (both run inside
-  `bun run check`).
+  `bun check -p tsconfig.scripts.json` (both run inside `bun run type-check`).
 - `.vscode/extensions.json` and `settings.json` recommend the tools the repo
   actually uses.
 - Dependencies in `package.json` that nothing imports, and scripts nothing
@@ -99,9 +98,9 @@ one go, no plans, no severity tiers, out-of-scope findings go in `TODO.md`.
 
 ### 6. The inner loop is fast
 
-- Time `bun run check`, `bun run lint` and `bun run test`. Anything unreasonably
-  slow (a test with a real sleep, a check that runs twice, a sequential chain
-  that could be parallel) is a finding.
+- Time `bun run type-check`, `bun run lint` and `bun run test`. Anything
+  unreasonably slow (a test with a real sleep, a check that runs twice, a
+  sequential chain that could be parallel) is a finding.
 - Tests that are flaky or order-dependent: run `bun run test` twice and compare.
 
 ### 7. No Svelte file is too long to hold in your head
@@ -147,12 +146,12 @@ one go, no plans, no severity tiers, out-of-scope findings go in `TODO.md`.
   a formatter, restructuring CI) goes in `TODO.md` as one line with enough
   context to act on, then carry on.
 - Follow the repo conventions for anything you edit: no code comments except
-  JSDoc on functions, `bun run check` and `bun run lint` clean at the end.
+  JSDoc on functions, `bun run type-check` and `bun run lint` clean at the end.
 - Never run git write operations. Never print secrets from `.env`.
 
 ## Verify
 
-- `bun run check` and `bun run lint` exit 0.
+- `bun run type-check` and `bun run lint` exit 0.
 - Every command you changed or documented actually runs.
 - `bunx markdownlint-cli2` clean over every markdown file you touched.
 

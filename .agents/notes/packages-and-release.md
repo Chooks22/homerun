@@ -638,8 +638,9 @@ Three audiences, three places, keep them apart:
 - **No `svelte.config.js`.** SvelteKit's config lives in `vite.config.ts`'s
   `sveltekit({...})`. `tsconfig.json` extends `$app/tsconfig` with
   `"include": ["src", "tests", "*"]`, so tests and root config files are
-  type-checked by `bun run check`. There is no `experimental.instrumentation`
-  option any more: kit 3 loads `src/instrumentation.server.ts` on its own.
+  type-checked by `bun run type-check`. There is no
+  `experimental.instrumentation` option any more: kit 3 loads
+  `src/instrumentation.server.ts` on its own.
 - **Adapter.** `@sveltejs/adapter-bun` with
   `buildOptions: { compile: true, sourcemap: "none" }` still compiles one
   standalone `build/server` (`bun run start` runs it).

@@ -1,12 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { TraceSpanDTO } from "#lib/dto/trace-span-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { TracingService } from "#lib/services/tracing.service.js";
 import { OTEL_COLLECTOR_HOST, OTEL_HTTP_PORT } from "#lib/tracing/env.js";
 import { TRACE_FILTER_KEYS, TRACE_SORT_KEYS } from "#lib/tracing/list.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Tracing");
 
@@ -30,7 +30,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	settings: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

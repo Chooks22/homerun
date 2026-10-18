@@ -14,6 +14,7 @@ import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
 import { serviceDomainConflicts } from "#lib/server/hostname-owner.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	type CreateServiceInput,
 	createServiceSchema,
@@ -546,7 +547,7 @@ async function createServiceFromForm(
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -572,7 +573,7 @@ export const actions = {
 
 	createAndDeploy: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

@@ -1,8 +1,8 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { enqueueCoreServiceJob } from "#lib/services/core-service-queue.js";
 import { RegistryService } from "#lib/services/registry.service.js";
-import { resolve } from "$app/paths";
 
 export const load = () => ({
 	suggestedHost: config.baseDomain ? `registry.${config.baseDomain}` : "",
@@ -11,7 +11,7 @@ export const load = () => ({
 export const actions = {
 	setAuth: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const enabled = (await request.formData()).get("enabled") === "on";
 		const problem = await RegistryService.authProblem(enabled);
@@ -27,7 +27,7 @@ export const actions = {
 
 	setPublicHost: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const host = String((await request.formData()).get("publicHost") ?? "");
 		const problem = await RegistryService.publicHostProblem(host);

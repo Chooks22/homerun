@@ -6,6 +6,7 @@ import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import { normalizeEnvironmentName } from "#lib/release-channels.js";
 import { listIconLibrary } from "#lib/server/icon-library.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { updateGeneralSchema } from "#lib/server/validation/service.js";
 import { runtimeOptionsFrom } from "#lib/service-runtime.js";
 import { WorkloadDetachError } from "#lib/services/docker/workload-removal.js";
@@ -36,7 +37,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	delete: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -69,7 +70,7 @@ export const actions = {
 	},
 	updateIdentity: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -97,7 +98,7 @@ export const actions = {
 	},
 	moveStack: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -124,7 +125,7 @@ export const actions = {
 	},
 	saveAsTemplate: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -154,7 +155,7 @@ export const actions = {
 	},
 	update: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -196,7 +197,7 @@ export const actions = {
 	},
 	updateAutoRollback: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -212,7 +213,7 @@ export const actions = {
 	},
 	updateImageScan: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -228,7 +229,7 @@ export const actions = {
 	},
 	updateCron: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

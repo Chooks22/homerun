@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { NodeEnrollmentDTO } from "#lib/dto/node-enrollment-dto.js";
@@ -8,10 +8,10 @@ import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import { parseListQuery } from "#lib/server/list-query.js";
 import { enrollCommand } from "#lib/server/node-install-script.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { AgentClientService } from "#lib/services/agent-client.service.js";
 import { DockerService } from "#lib/services/docker.service.js";
 import { RemoteHostSettingsService } from "#lib/services/remote-host-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("RemoteHosts");
 
@@ -96,7 +96,7 @@ export const load = async ({ locals, parent, url }) => {
 export const actions = {
 	delete: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const hostId = formData.get("hostId") as string | null;
@@ -115,7 +115,7 @@ export const actions = {
 	},
 	enroll: async ({ request, locals, url }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const buildServer = formData.get("buildServer") === "on";
@@ -145,7 +145,7 @@ export const actions = {
 	},
 	revokeEnrollment: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const id = (await request.formData()).get("enrollmentId") as string | null;
 		const enrollment = id ? await NodeEnrollmentDTO.get(id) : null;
@@ -157,7 +157,7 @@ export const actions = {
 	},
 	removeNode: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const nodeId = (await request.formData()).get("nodeId") as string | null;
 		if (!nodeId) {

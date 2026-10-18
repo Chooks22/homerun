@@ -1,15 +1,15 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { HOST_ACCESS_MESSAGE, hostAccessChanged } from "#lib/host-access.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	parseBuildEnvKeys,
 	parseEnvVars,
 	parseSecretEnvKeys,
 	updateEnvFilesSchema,
 } from "#lib/server/validation/service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -20,7 +20,7 @@ export const load = ({ locals }) => ({
 export const actions = {
 	update: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -45,7 +45,7 @@ export const actions = {
 	},
 	updateEnvFiles: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

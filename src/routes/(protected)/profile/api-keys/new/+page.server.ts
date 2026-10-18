@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { Logger } from "#lib/logger.js";
 import {
 	API_KEY_EXPIRY_OPTIONS,
@@ -6,8 +6,8 @@ import {
 	permissionsFromForm,
 	toApiKeyPermissions,
 } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { auth } from "#lib/services/auth.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("ApiKeys");
 
@@ -18,7 +18,7 @@ export const load = ({ locals }) => ({
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const name = (formData.get("name") as string | null)?.trim() || "API key";

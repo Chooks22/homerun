@@ -232,7 +232,7 @@ CLI and installer were rewritten from Bun/TypeScript, and the standalone
 `cmd/agent/` was later merged into `cmd/worker` as its agent mode, see
 `packages-and-release.md`):
 `go vet ./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...` is
-the CLI's slice of `bun run check`,
+the CLI's slice of `bun run type-check`,
 `go test ./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...` the
 equivalent (`tests/unit/go/internal/cli/cli_test.go`), and
 `scripts/build-packages.ts` builds it with `go build` rather than
@@ -459,8 +459,8 @@ and the next apply would replace the service. Tests live under
 `terraform/provider/tests/` (external packages, the module's own tree):
 `terraform-plugin-testing`'s `resource.UnitTest` runs real `terraform`
 plan/apply/import/refresh against an in-memory fake API, skipped when
-`terraform` isn't on PATH. `bun run check`/`bun run test` and `go.yaml` run its
-vet, golangci-lint (through `go -C terraform/provider tool`, with
+`terraform` isn't on PATH. `bun run type-check`/`bun run test` and `go.yaml` run
+its vet, golangci-lint (through `go -C terraform/provider tool`, with
 `-modfile=../../tools/go/go.mod` and `--config ../../.golangci.yml`) and tests;
 `scripts/build-packages.ts` cross-compiles it as
 `dist/homerun-terraform-provider-<target>`, and every stable release publishes

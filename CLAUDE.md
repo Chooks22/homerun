@@ -21,7 +21,7 @@ Concretely:
   one instance and one user. Change the thing.
 - Breaking a migration, losing dev data, or needing a manual step is fine. Say
   so, move on.
-- The conventions below (types, DTOs, toasts, no comments, `bun run check`
+- The conventions below (types, DTOs, toasts, no comments, `bun run type-check`
   clean) still apply. Being fast isn't licence to leave the repo broken.
 - **End every turn that edited files with a suggested one-line commit message**,
   in a code block, conventional-commit style (`feat: ...`, `fix: ...`). One
@@ -106,7 +106,7 @@ bun run dev              # scripts/dev.ts: vite plus the Go job worker (cmd/work
 bun run build            # bun run gen && vite build
 bun run start            # ./build/server (the standalone binary adapter-bun compiles, serve the built app)
 bun run gen              # svelte-kit sync + regenerate openapi.json, tests/integration/support/openapi-types.ts, homerun.schema.json, the Terraform provider's spec.json and its registry docs from source, CI fails if the result isn't committed
-bun run check            # svelte-check --fail-on-warnings (no `--tsgo`: tsgo can't resolve `.svelte` files through `#lib` subpath imports), tsc over scripts/, go vet, and golangci-lint (`go tool -modfile=tools/go/go.mod`), the same two over the Terraform provider's own module (`go -C terraform/provider`), the whole gate in one command, see `.agents/notes/testing.md`
+bun run type-check            # svelte-check --fail-on-warnings (no `--tsgo`: tsgo can't resolve `.svelte` files through `#lib` subpath imports), bun check over scripts/, go vet, and golangci-lint (`go tool -modfile=tools/go/go.mod`), the same two over the Terraform provider's own module (`go -C terraform/provider`), the whole gate in one command, see `.agents/notes/testing.md`
 bun run lint             # markdownlint-cli2, scripts/lint-tailwind.ts (Tailwind class sorting) and oxlint --type-aware --deny-warnings (`.oxlintrc.json`; Biome's linter is off, suppress an oxlint rule with `// oxlint-disable-next-line <rule> -- <reason>`)
 bun run lint:fix         # the --fix half of all three
 bun run lint:ai          # agnix --strict over CLAUDE.md, AGENTS.md, .agents/ and .claude/ (`.agnix.toml` disables its prose heuristics), also a prek hook; agnix is a trusted dependency because its postinstall downloads the binary
@@ -132,8 +132,8 @@ handful of scripts that used to exist are now just the raw command, run directly
 instead of through a name: `bun run build:app` → `bun run build`;
 `bun run build:packages` → `bun scripts/build-packages.ts`;
 `check:app`/`check:go`/`check:scripts`/`check:packages`/`check:agent`/
-`check:cli`/`check:installer` → `bun run check` (or the scoped raw command, e.g.
-`go test ./internal/cli/...`, for one slice of it);
+`check:cli`/`check:installer` → `bun run type-check` (or the scoped raw command,
+e.g. `go test ./internal/cli/...`, for one slice of it);
 `lint:md`/`lint:ts`/`lint:tailwind`/every `lint:fix:*`/`format:*` →
 `bun run lint`/`lint:fix`/`format`; `test:unit`/`test:unit:app`/
 `test:unit:agent`/`test:unit:cli`/`test:unit:installer`/`test:go` →
@@ -160,8 +160,8 @@ libraries live under `internal/` (`internal/buildinfo`, the version stamped via
 download; `internal/homerun`, the CLI's config and API client;
 `internal/dockerapi`, a stdlib Docker Engine API client over the unix socket the
 worker drives). `go vet ./cmd/... ./internal/... ./tests/unit/go/...` plus
-`golangci-lint` over the same paths (part of `bun run check`) cover all of it in
-one pass; scope either to one sub-project by narrowing the path
+`golangci-lint` over the same paths (part of `bun run type-check`) cover all of
+it in one pass; scope either to one sub-project by narrowing the path
 (`./cmd/cli/... ./internal/cli/... ./tests/unit/go/internal/cli/...`, etc.). All
 three still compile via `scripts/build-packages.ts`
 (`bun scripts/build-packages.ts`), and because Go's `GOOS`/`GOARCH`
@@ -182,7 +182,7 @@ executable detail, not just prose, use them instead of re-deriving the steps by
 hand:
 
 - Skills (invoke directly, or they trigger on a matching request): `check-repo`
-  (the `bun run check`/`bun run lint`/unit-test/codegen gate above, as a
+  (the `bun run type-check`/`bun run lint`/unit-test/codegen gate above, as a
   runnable checklist), `new-dto-route` (schema → DTO → route, with the
   no-manual-typing/no-raw-Drizzle/toJSON rules below baked in),
   `new-docker-mixin` (adding a concern to `DockerService`'s mixin chain, with
@@ -276,7 +276,11 @@ that pattern for any new skill.
   code. Use `const { user } = await parent();` instead. **This does not apply to
   `actions`**, form action submissions don't go through the parent layout's
   `load` at all, so every action keeps its own explicit
-  `if (!locals.user) throw redirect(...)` guard.
+  `if (!locals.user) redirectToSignIn();` guard
+  (`#lib/server/sign-in-redirect.js`), never an inline
+  `redirect(302, resolve("auth/sign-in"))`: every typed `resolve()` call costs
+  the type checker about 100 ms, and 275 copies of that one made
+  `bun run type-check` twice as slow.
 - **A page made of tabs gets one real route (and one `+page.svelte` /
   `+page.server.ts`) per tab, not one big file with a client-side `activeTab`
   switch.** `services/[serviceId]/` is the reference shape: a `+layout.svelte`
@@ -301,7 +305,7 @@ that pattern for any new skill.
 - No unused variables or imports. No lint errors, anywhere in the repo,
   `bun run lint` must be clean before considering a change done.
 - **No type errors and no type-check warnings left after any change, anywhere in
-  the repo, not just the files touched, `bun run check` must exit clean (0
+  the repo, not just the files touched, `bun run type-check` must exit clean (0
   errors, 0 warnings, it fails on warnings too, see the note above) before
   considering a change done.** This isn't optional or best-effort: run it for
   real after every change and read what it reports, rather than assuming an

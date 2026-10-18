@@ -3,7 +3,7 @@ name: repo-gate
 description:
   Use PROACTIVELY as a final gate before declaring any change to this repo
   complete, or when explicitly asked to review/verify a diff against this repo's
-  own conventions. Runs bun run check (svelte-check --fail-on-warnings, 0
+  own conventions. Runs bun run type-check (svelte-check --fail-on-warnings, 0
   errors/0 warnings, whole src/ and tests/ trees) and bun run lint
   (markdownlint, lint-tailwind, oxlint, 0 errors), plus go vet/golangci-lint
   per-subproject typechecks for cmd/worker/, cmd/cli/ and cmd/installer/ (and
@@ -26,15 +26,15 @@ suggestion.
 
 ## What to run, every time
 
-1. `bun run check` — must be zero errors AND zero warnings across the whole
+1. `bun run type-check` — must be zero errors AND zero warnings across the whole
    `src/` and `tests/` trees (`svelte-check --fail-on-warnings`). This is the
    hard gate, not advisory. Scope is always the full tree, not just changed
    files — a pre-existing-looking failure is still in scope; read the file
    before dismissing it as unrelated.
 2. `bun run lint` — markdownlint-cli2, `scripts/lint-tailwind.ts` and
    `oxlint --type-aware --deny-warnings`, must be clean, whole repo.
-3. `git status`/`git diff` to see what's touched. `bun run check` already runs
-   `go vet` then `golangci-lint run`
+3. `git status`/`git diff` to see what's touched. `bun run type-check` already
+   runs `go vet` then `golangci-lint run`
    (`go tool -modfile=tools/go/go.mod golangci-lint run`) over
    `./cmd/... ./internal/... ./tests/unit/go/...` (covering `cmd/worker/`
    including its agent mode, `cmd/cli/`, `cmd/installer/` and every shared

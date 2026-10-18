@@ -1,15 +1,15 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { serviceDomain } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { canarySlug } from "#lib/release-channels.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { defaultHostname } from "#lib/service-domains.js";
 import { GitWebhookService } from "#lib/services/git-webhook.service.js";
 import {
 	ReleaseChannelError,
 	ReleaseChannelService,
 } from "#lib/services/release-channel.service.js";
-import { resolve } from "$app/paths";
 
 export const load = async ({ params }) => {
 	const svc = await ServiceDTO.get(params.serviceId);
@@ -31,7 +31,7 @@ export const load = async ({ params }) => {
 export const actions = {
 	updateChannels: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -70,7 +70,7 @@ export const actions = {
 
 	deploy: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

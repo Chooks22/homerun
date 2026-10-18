@@ -64,7 +64,7 @@ improvise a different shape.
 4. Add/extend a validation schema under `src/lib/server/validation/` if the
    route takes form input.
 5. Run the `check-repo` skill (or invoke the `repo-gate` agent) before reporting
-   the work as complete — `bun run check` and `bun run lint` must be clean,
+   the work as complete — `bun run type-check` and `bun run lint` must be clean,
    whole repo, not just the new files.
 
 Don't guess at markup conventions from general SvelteKit knowledge when an

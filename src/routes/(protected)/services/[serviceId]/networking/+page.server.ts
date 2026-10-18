@@ -1,8 +1,9 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	parsePublishedPortsField,
 	updatePortsSchema,
@@ -13,7 +14,6 @@ import {
 	ServiceSettingsError,
 	ServiceSettingsService,
 } from "#lib/services/service-settings.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -25,7 +25,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	updateCache: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -49,7 +49,7 @@ export const actions = {
 
 	updateDomains: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -113,7 +113,7 @@ export const actions = {
 
 	updateSsl: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -149,7 +149,7 @@ export const actions = {
 	// updatePortsSchema docstring).
 	updatePorts: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {
@@ -181,7 +181,7 @@ export const actions = {
 
 	updatePublishedPorts: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config, serviceDomain } from "#lib/config.js";
 import { ServiceDependencyDTO } from "#lib/dto/service-dependency-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
@@ -7,6 +7,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
 import { type ListQuery, parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	dependencyLayers,
 	dependencyMap,
@@ -23,7 +24,6 @@ import {
 } from "#lib/service-link.js";
 import { ServiceLifecycleService } from "#lib/services/service-lifecycle.service.js";
 import { uniqueSlug } from "#lib/slug.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -276,7 +276,7 @@ export const actions = {
 	 */
 	link: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const serviceId = formData.get("serviceId") as string | null;
@@ -358,7 +358,7 @@ export const actions = {
 	/** Moves a service into a stack, creating one when `newStackName` is given. */
 	group: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const serviceIds = formData.getAll("serviceId").map(String).filter(Boolean);
@@ -400,35 +400,35 @@ export const actions = {
 
 	bulk: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return runBulk(await request.formData(), locals.user.id);
 	},
 
 	delete: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return runSingle("delete", await request.formData(), locals.user.id);
 	},
 
 	restart: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return runSingle("restart", await request.formData(), locals.user.id);
 	},
 
 	start: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return runSingle("start", await request.formData(), locals.user.id);
 	},
 
 	stop: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return runSingle("stop", await request.formData(), locals.user.id);
 	},

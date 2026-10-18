@@ -3,13 +3,14 @@ import { isSmtpEnabled } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { APP_ONLY_HOME } from "#lib/permissions.js";
 import { setPasswordActions } from "#lib/server/set-password-actions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { AccountSecurityService } from "#lib/services/account-security.service.js";
 import { AppAccessService } from "#lib/services/app-access.service.js";
 import { resolve } from "$app/paths";
 
 export const load = async ({ locals }) => {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	if (!locals.appOnly) {
 		throw redirect(302, resolve(""));

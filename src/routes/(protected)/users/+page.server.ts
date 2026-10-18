@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config, isSmtpEnabled } from "#lib/config.js";
 import { InvitationDTO } from "#lib/dto/invitation-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
@@ -11,10 +11,10 @@ import {
 } from "#lib/permissions.js";
 import { brandedEmail } from "#lib/server/email-layout.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { AccountSetupService } from "#lib/services/account-setup.service.js";
 import { EmailService } from "#lib/services/email.service.js";
 import { UserService } from "#lib/services/user.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Users");
 
@@ -47,7 +47,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	cancelInvite: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const id = formData.get("id") as string;
@@ -57,7 +57,7 @@ export const actions = {
 
 	createDirect: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -101,7 +101,7 @@ export const actions = {
 
 	invite: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!isSmtpEnabled()) {
 			return fail(400, {
@@ -175,7 +175,7 @@ export const actions = {
 
 	removeUser: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -192,7 +192,7 @@ export const actions = {
 
 	setEmail: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -223,7 +223,7 @@ export const actions = {
 
 	setRole: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -250,7 +250,7 @@ export const actions = {
 
 	setPermissions: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

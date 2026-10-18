@@ -1,15 +1,15 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { S3DestinationDTO } from "#lib/dto/s3-destination-dto.js";
 import { Logger } from "#lib/logger.js";
 import { parseDestinationForm } from "#lib/server/backup-destination-form.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 const logger = new Logger("S3Destinations");
 
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const result = parseDestinationForm(await request.formData());

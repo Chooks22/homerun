@@ -1,5 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { StackDTO } from "#lib/dto/stack-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	StackSettingsError,
 	StackSettingsService,
@@ -28,7 +29,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

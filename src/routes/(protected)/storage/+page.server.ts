@@ -1,10 +1,10 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { CronService } from "#lib/services/cron.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Storage");
 
@@ -103,7 +103,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	delete: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const data = await request.formData();
 		const volumeId = data.get("volumeId") as string | null;
@@ -125,7 +125,7 @@ export const actions = {
 
 	bulk: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return runBulk(await request.formData(), locals.user.id);
 	},

@@ -5,6 +5,7 @@ import { GIT_CONNECT_RETURN_COOKIE } from "#lib/git-webhooks.js";
 import { Logger } from "#lib/logger.js";
 import { safeRedirectTarget } from "#lib/redirect-target.js";
 import { browserOrigin } from "#lib/server/canonical-origin.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { GitProviderService } from "#lib/services/git-provider.service.js";
 import { GitWebhookService } from "#lib/services/git-webhook.service.js";
 import { encryptSecret } from "#lib/services/secrets.js";
@@ -44,7 +45,7 @@ export const GET = async ({ cookies, params, locals, request, url }) => {
 		return await workstationSignIn(params.providerId, url, signInState);
 	}
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	const returnTo = safeRedirectTarget(
 		cookies.get(GIT_CONNECT_RETURN_COOKIE) ?? null,

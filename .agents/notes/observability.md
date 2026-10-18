@@ -179,8 +179,8 @@ the channel by endpoint, named by `browserDeviceName` and subscribed to
 `DEFAULT_BROWSER_EVENTS`. The service worker only handles `push` (shows the
 notification) and `notificationclick` (focuses a tab and navigates it, or opens
 one); it caches nothing. Its own `tsconfig.json` extends
-`$app/tsconfig/service-worker` (WebWorker lib) and `bun run check` runs `tsc`
-over it, since the root tsconfig excludes it.
+`$app/tsconfig/service-worker` (WebWorker lib) and `bun run type-check` runs
+`bun check` over it, since the root tsconfig excludes it.
 
 **No `web-push` dependency**: `src/lib/server/web-push.ts` does RFC 8291
 (`aes128gcm`, Web Crypto ECDH/HKDF/AES-GCM, one record) and RFC 8292 (an ES256

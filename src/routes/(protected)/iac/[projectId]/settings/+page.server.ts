@@ -1,12 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { IacProjectDTO } from "#lib/dto/iac-project-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { IacStateService } from "#lib/services/iac-state.service.js";
-import { resolve } from "$app/paths";
 
 export const actions = {
 	delete: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const project = await IacProjectDTO.get(params.projectId);
 		if (!project) {
@@ -18,7 +18,7 @@ export const actions = {
 
 	update: async ({ params, locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const project = await IacProjectDTO.get(params.projectId);
 		if (!project) {

@@ -1,9 +1,10 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config, serviceDomain } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { domainHosts, serviceHostnames } from "#lib/service-domains.js";
 import { DeploymentService } from "#lib/services/deploy.service.js";
 import {
@@ -11,7 +12,6 @@ import {
 	InstanceSettingsService,
 } from "#lib/services/instance-settings.service.js";
 import { certificateCovers } from "#lib/tls-certificate.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
 
@@ -54,7 +54,7 @@ export const load = async () => {
 /** The signed-in user's id, sending a signed-out caller to the sign-in page. */
 function signedInUserId(locals: App.Locals): string {
 	if (!locals.user) {
-		throw redirect(302, resolve("auth/sign-in"));
+		redirectToSignIn();
 	}
 	return locals.user.id;
 }

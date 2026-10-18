@@ -4,6 +4,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { StatusPageDTO } from "#lib/dto/status-page-dto.js";
 import { BEAT_WINDOW, UptimeCheckDTO } from "#lib/dto/uptime-check-dto.js";
 import { dashboardOrigin } from "#lib/server/canonical-origin.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { statusPageSchema } from "#lib/server/validation/status-page.js";
 import {
 	StatusPageSettingsError,
@@ -58,7 +59,7 @@ export const load = async ({ params, parent, request, url }) => {
 export const actions = {
 	update: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const page = await StatusPageDTO.get(params.statusPageId);
 		if (!page) {
@@ -90,7 +91,7 @@ export const actions = {
 
 	delete: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const page = await StatusPageDTO.get(params.statusPageId);
 		if (!page) {

@@ -3,6 +3,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { TemplateDTO } from "#lib/dto/template-dto.js";
 import { TemplateLinkDTO } from "#lib/dto/template-link-dto.js";
 import { can } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { getGitHubRepoInfo } from "#lib/services/github-repo.service.js";
 import {
 	quickDeployFromTemplate,
@@ -50,7 +51,7 @@ export const load = async ({ params, parent, url, locals }) => {
 export const actions = {
 	quickDeploy: async ({ params, request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

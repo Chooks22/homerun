@@ -74,7 +74,11 @@ location.
   runs. Use `const { user } = await parent();` instead.
 - This does **not** apply to `actions` — form submissions don't go through the
   parent layout's `load`, so every action still needs its own explicit
-  `if (!locals.user) throw redirect(...)` guard.
+  `if (!locals.user) redirectToSignIn();` guard
+  (`#lib/server/sign-in-redirect.js`), never an inline
+  `redirect(302, resolve("auth/sign-in"))`: every typed `resolve()` call costs
+  the type checker about 100 ms, and 275 copies of that one made
+  `bun run type-check` twice as slow.
 - Before returning a DTO instance (or array of them) from `load`, map it through
   `.toJSON()` — devalue (SvelteKit's serializer) can't serialize a class
   instance, and DTOs are server-only.

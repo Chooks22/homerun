@@ -5,6 +5,7 @@ import { StorageVolumeDTO } from "#lib/dto/storage-volume-dto.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
 import { parseCronJobForm } from "#lib/server/cron-job-form.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { resolve } from "$app/paths";
 
 const logger = new Logger("CronJob");
@@ -27,7 +28,7 @@ export const load = async ({ locals, parent }) => {
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

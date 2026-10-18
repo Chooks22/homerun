@@ -1,10 +1,11 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { ErrorEventDTO } from "#lib/dto/error-event-dto.js";
 import { ErrorIssueDTO } from "#lib/dto/error-issue-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { TraceSpanDTO } from "#lib/dto/trace-span-dto.js";
 import { frameLinks } from "#lib/error-tracking/frame-links.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { issueStatusFormSchema } from "#lib/server/validation/error-tracking.js";
 import { ErrorTrackingService } from "#lib/services/error-tracking.service.js";
 import { normalizeTraceId } from "#lib/tracing/list.js";
@@ -54,7 +55,7 @@ export const load = async ({ params, parent }) => {
 export const actions = {
 	status: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

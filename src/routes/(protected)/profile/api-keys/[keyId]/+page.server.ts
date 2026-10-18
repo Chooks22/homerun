@@ -1,6 +1,6 @@
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { listOwnApiKeys, updateApiKeyAction } from "#lib/server/api-keys.js";
-import { resolve } from "$app/paths";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 
 export const load = async ({ locals, params, request }) => {
 	const key = (await listOwnApiKeys(request.headers)).find(
@@ -15,7 +15,7 @@ export const load = async ({ locals, params, request }) => {
 export const actions = {
 	update: async ({ locals, params, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		return await updateApiKeyAction(
 			params.keyId,

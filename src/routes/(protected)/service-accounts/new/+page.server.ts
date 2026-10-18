@@ -1,5 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { intersectPermissions, permissionsFromForm } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { ServiceAccountService } from "#lib/services/service-account.service.js";
 import { resolve } from "$app/paths";
 
@@ -10,7 +11,7 @@ export const load = ({ locals }) => ({
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const name = String(formData.get("name") ?? "").trim();

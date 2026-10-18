@@ -1,13 +1,13 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { RedirectDTO } from "#lib/dto/redirect-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
 import { parseListQuery } from "#lib/server/list-query.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	RedirectService,
 	redirectHost,
 } from "#lib/services/redirect.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Redirects");
 
@@ -31,7 +31,7 @@ export const load = async ({ parent, url }) => {
 export const actions = {
 	delete: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const redirectId = formData.get("redirectId") as string | null;
@@ -54,7 +54,7 @@ export const actions = {
 	},
 	toggle: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const redirectId = formData.get("redirectId") as string | null;

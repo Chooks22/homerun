@@ -1,8 +1,8 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { ObjectStoreDTO } from "#lib/dto/object-store-dto.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseObjectStoreForm } from "#lib/server/validation/object-store.js";
 import { ObjectStorageService } from "#lib/services/object-storage.service.js";
-import { resolve } from "$app/paths";
 
 function reason(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);
@@ -19,7 +19,7 @@ export const load = async ({ params }) => {
 export const actions = {
 	delete: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store || store.kind === "garage") {
@@ -31,7 +31,7 @@ export const actions = {
 
 	test: async ({ params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store) {
@@ -49,7 +49,7 @@ export const actions = {
 
 	update: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const store = await ObjectStoreDTO.get(params.storeId);
 		if (!store || store.kind === "garage") {

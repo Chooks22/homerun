@@ -4,6 +4,7 @@ import { RepositoryDTO } from "#lib/dto/repository-dto.js";
 import { Logger } from "#lib/logger.js";
 import { isPipelineProvider } from "#lib/pipelines/providers.js";
 import { connectedGitProviders } from "#lib/server/git-connections.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { PipelineService } from "#lib/services/pipeline.service.js";
 import { resolve } from "$app/paths";
 
@@ -31,7 +32,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	watch: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const form = await request.formData();
 		const providerId = String(form.get("providerId") ?? "").trim();

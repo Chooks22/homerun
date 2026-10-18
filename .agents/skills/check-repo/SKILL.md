@@ -2,17 +2,17 @@
 name: check-repo
 description: >-
   Run this before considering any change to this repo done. Executes the real
-  gates this codebase enforces: bun run check (svelte-check --fail-on-warnings
-  over src/ and tests/, tsc over scripts/, plus go vet and golangci-lint over
-  every Go package under cmd/ and internal/, 0 errors AND 0 warnings) and bun
-  run lint (markdownlint-cli2, lint-tailwind.ts, oxlint --type-aware
-  --deny-warnings), plus the matching unit tests. Use whenever finishing an edit
-  to this codebase, before saying a change is "done", or after any change under
-  src/, cmd/, internal/, scripts/ or tests/.
+  gates this codebase enforces: bun run type-check (svelte-check
+  --fail-on-warnings over src/ and tests/, bun check over scripts/, plus go vet
+  and golangci-lint over every Go package under cmd/ and internal/, 0 errors AND
+  0 warnings) and bun run lint (markdownlint-cli2, lint-tailwind.ts, oxlint
+  --type-aware --deny-warnings), plus the matching unit tests. Use whenever
+  finishing an edit to this codebase, before saying a change is "done", or after
+  any change under src/, cmd/, internal/, scripts/ or tests/.
 allowed-tools:
-  Bash(bun run check), Bash(bun run lint), Bash(bun run lint:fix), Bash(bun run
-  test), Bash(bun run gen), Bash(go vet *), Bash(go test *), Bash(go tool *),
-  Bash(bunx biome check *), Bash(git diff *), Bash(git status *)
+  Bash(bun run type-check), Bash(bun run lint), Bash(bun run lint:fix), Bash(bun
+  run test), Bash(bun run gen), Bash(go vet *), Bash(go test *), Bash(go tool
+  *), Bash(bunx biome check *), Bash(git diff *), Bash(git status *)
 ---
 
 # check-repo
@@ -24,8 +24,8 @@ actually reading the failing file first.
 
 ## Steps
 
-1. **`bun run check`** — svelte-check (`--fail-on-warnings`, full `src/` and
-   `tests/` trees), `tsc --noEmit` over `scripts/` (its own tsconfig), then
+1. **`bun run type-check`** — svelte-check (`--fail-on-warnings`, full `src/`
+   and `tests/` trees), `bun check` over `scripts/` (its own tsconfig), then
    `go vet` and `golangci-lint run`
    (`go tool -modfile=tools/go/go.mod golangci-lint run`, the same pair CI's Go
    job runs) over `./cmd/... ./internal/... ./tests/unit/go/...` — every Go
@@ -59,9 +59,9 @@ actually reading the failing file first.
    (swap `cli` for `installer` or `worker`/`agent`) for one Go sub-project.
 
 5. **IDE diagnostics are not ground truth in this repo.** If an inline IDE error
-   looks suspicious or doesn't match what `bun run check` reports, trust
-   `bunx biome check <file>` and `bun run check` over the IDE — this repo has a
-   documented history of stale/phantom inline diagnostics.
+   looks suspicious or doesn't match what `bun run type-check` reports, trust
+   `bunx biome check <file>` and `bun run type-check` over the IDE — this repo
+   has a documented history of stale/phantom inline diagnostics.
 
 ## Reporting
 

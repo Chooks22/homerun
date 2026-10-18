@@ -108,8 +108,8 @@ standalone `cmd/agent/` any more), which fake the Docker client via a real
 interface instead (`tests/unit/go/internal/agent/fake_docker_test.go`).
 
 `tsconfig.json` (`include: ["src", "tests", "*"]`) type-checks `tests/` and the
-root config files as part of `svelte-check` (part of `bun run check`, which no
-longer passes `--tsgo`: tsgo can't resolve `.svelte` files through `#lib`
+root config files as part of `svelte-check` (part of `bun run type-check`, which
+no longer passes `--tsgo`: tsgo can't resolve `.svelte` files through `#lib`
 subpath imports), same as `src/`. Tests mock `$app/env` (not `$app/environment`)
 and `mock.module` specifiers use the `#lib/...js` form. It used to exclude
 `tests/` entirely, which meant ~115 test files had no type-checking gate at all;

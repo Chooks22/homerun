@@ -3,19 +3,19 @@ import { config } from "#lib/config.js";
 import { OauthClientDTO } from "#lib/dto/oauth-client-dto.js";
 import { Logger } from "#lib/logger.js";
 import { adminApp } from "#lib/server/oauth-app-admin.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { OauthAppService } from "#lib/services/oauth-app.service.js";
 import {
 	OAUTH_TEST_COOKIE,
 	OauthTestService,
 } from "#lib/services/oauth-test.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("OidcProvider");
 
 export const actions = {
 	toggle: async ({ locals, params }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const app = await OauthClientDTO.get(params.appId);
 		if (!app) {

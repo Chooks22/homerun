@@ -1,15 +1,15 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { environmentFormInput } from "#lib/environment-form.js";
 import { Logger } from "#lib/logger.js";
 import { ENVIRONMENT_PRESETS } from "#lib/release-channels.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	EnvironmentError,
 	EnvironmentService,
 } from "#lib/services/environment.service.js";
 import { PreviewService } from "#lib/services/preview.service.js";
 import { ReleaseChannelService } from "#lib/services/release-channel.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Environments");
 
@@ -61,7 +61,7 @@ async function environmentParent(serviceId: string) {
 export const actions = {
 	createEnvironment: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await environmentParent(params.serviceId);
 		if (!svc) {
@@ -96,7 +96,7 @@ export const actions = {
 
 	updateEnvironment: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await environmentParent(params.serviceId);
 		if (!svc) {
@@ -126,7 +126,7 @@ export const actions = {
 
 	deleteEnvironment: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await environmentParent(params.serviceId);
 		if (!svc) {

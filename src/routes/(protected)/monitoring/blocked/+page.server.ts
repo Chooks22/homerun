@@ -6,6 +6,7 @@ import { IpBanDTO } from "#lib/dto/ip-ban-dto.js";
 import { normalizeIp } from "#lib/ip-bans.js";
 import { Logger } from "#lib/logger.js";
 import { can, permissionDeniedMessage } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { IpBanService } from "#lib/services/ip-ban.service.js";
 import { resolve } from "$app/paths";
 
@@ -34,7 +35,7 @@ export const load = async ({ locals, parent }) => {
 export const actions = {
 	unban: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!can(locals.permissions, "settings", "write")) {
 			return fail(403, { error: permissionDeniedMessage("settings", "write") });

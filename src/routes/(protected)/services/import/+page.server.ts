@@ -8,6 +8,7 @@ import { StackDTO } from "#lib/dto/stack-dto.js";
 import { HOST_ACCESS_MESSAGE, hostAccessRequested } from "#lib/host-access.js";
 import { Logger } from "#lib/logger.js";
 import { can } from "#lib/permissions.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { CapacityService } from "#lib/services/capacity.service.js";
 import { ComposeImportService } from "#lib/services/compose-import.service.js";
 import { resolve } from "$app/paths";
@@ -60,7 +61,7 @@ function pickSelected(
 export const actions = {
 	preview: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const compose = (formData.get("compose") as string | null) ?? "";
@@ -77,7 +78,7 @@ export const actions = {
 
 	import: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const compose = (formData.get("compose") as string | null) ?? "";

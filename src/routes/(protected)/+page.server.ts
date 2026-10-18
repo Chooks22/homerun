@@ -1,4 +1,4 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { AppLogDTO } from "#lib/dto/app-log-dto.js";
 import { DeploymentDTO } from "#lib/dto/deployment-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
@@ -9,6 +9,7 @@ import { rangeStart } from "#lib/monitoring-ranges.js";
 import { can } from "#lib/permissions.js";
 import { describeReading } from "#lib/resource-thresholds.js";
 import { monitoringRequest } from "#lib/server/monitoring-request.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { CapacityService } from "#lib/services/capacity.service.js";
 import { MonitoringService } from "#lib/services/monitoring.service.js";
 import { isProbed } from "#lib/services/uptime/uptime-probe.js";
@@ -146,7 +147,7 @@ export const load = async ({ cookies, locals, parent, url }) => {
 export const actions = {
 	clearErrors: async ({ locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		if (!can(locals.permissions, "services", "write")) {
 			return fail(403, { error: "Needs write access to Services." });

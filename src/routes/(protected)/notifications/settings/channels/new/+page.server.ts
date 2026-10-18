@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { NotificationChannelDTO } from "#lib/dto/notification-channel-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	channelTargetFromForm,
 	notificationChannelSchema,
@@ -13,7 +14,7 @@ const logger = new Logger("NotificationChannels");
 export const actions = {
 	default: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const form = await request.formData();
 		const parsed = notificationChannelSchema.safeParse({

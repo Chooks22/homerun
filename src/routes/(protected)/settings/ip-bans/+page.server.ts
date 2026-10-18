@@ -1,15 +1,15 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import {
 	DEFAULT_IP_BAN_SETTINGS,
 	MAX_BAN_WINDOW_MINUTES,
 } from "#lib/ip-bans.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	InstanceSettingsError,
 	InstanceSettingsService,
 } from "#lib/services/instance-settings.service.js";
-import { resolve } from "$app/paths";
 
 export const load = async () => {
 	const settings = await InstanceSettingsDTO.get();
@@ -25,7 +25,7 @@ export const load = async () => {
 export const actions = {
 	updateIpBans: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const whole = (name: string) =>
@@ -52,7 +52,7 @@ export const actions = {
 	},
 	updateCrowdsec: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const url = String(formData.get("crowdsecUrl") ?? "").trim();

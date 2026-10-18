@@ -1,11 +1,11 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { updateComputeSchema } from "#lib/server/validation/service.js";
 import { errorPagesPublished } from "#lib/services/docker/error-pages.js";
 import { ScaleToZeroService } from "#lib/services/scale-to-zero.service.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("Services");
 
@@ -20,7 +20,7 @@ export const load = async () => {
 export const actions = {
 	updateCompute: async ({ request, params, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const svc = await ServiceDTO.get(params.serviceId);
 		if (!svc) {

@@ -1,9 +1,10 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { config } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { ResourceIncidentDTO } from "#lib/dto/resource-incident-dto.js";
 import { Logger } from "#lib/logger.js";
 import { passkeyRpId } from "#lib/security-policy.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	checkbox,
 	nullableText,
@@ -15,7 +16,6 @@ import {
 } from "#lib/services/instance-settings.service.js";
 import { isUiMode } from "#lib/ui-mode.js";
 import { isUpdateChannel } from "#lib/update-channel.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("InstanceSettings");
 
@@ -40,7 +40,7 @@ export const load = async ({ parent }) => {
 export const actions = {
 	updateCore: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		try {
@@ -69,7 +69,7 @@ export const actions = {
 
 	updateChannel: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const channel = formData.get("updateChannel");
@@ -89,7 +89,7 @@ export const actions = {
 
 	updateUiMode: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const mode = (await request.formData()).get("defaultUiMode");
 		if (!isUiMode(mode)) {
@@ -106,7 +106,7 @@ export const actions = {
 
 	updateResources: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		try {

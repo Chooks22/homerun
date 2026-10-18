@@ -1,15 +1,15 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { githubAppRegistration } from "#lib/github-app.js";
 import { can } from "#lib/permissions.js";
 import { browserOrigin } from "#lib/server/canonical-origin.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { GitProviderService } from "#lib/services/git-provider.service.js";
 import {
 	GitProviderConfigError,
 	GitProviderConfigService,
 } from "#lib/services/git-provider-config.service.js";
-import { resolve } from "$app/paths";
 
 const GITHUB_ORG_PATTERN = /^[a-z\d](?:[a-z\d-]{0,38})$/i;
 
@@ -37,7 +37,7 @@ export const load = async ({ parent, locals }) => {
 export const actions = {
 	createGithubApp: async ({ request, locals, url }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -69,7 +69,7 @@ export const actions = {
 
 	addProvider: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();
@@ -95,7 +95,7 @@ export const actions = {
 
 	deleteProvider: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 
 		const formData = await request.formData();

@@ -1,12 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { DnsConnectionDTO } from "#lib/dto/dns-connection-dto.js";
 import { Logger } from "#lib/logger.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseConnectionForm } from "#lib/server/validation/dns-forms.js";
 import {
 	DNS_PROVIDERS,
 	dnsProviderById,
 } from "#lib/services/dns-providers/index.js";
-import { resolve } from "$app/paths";
 
 const logger = new Logger("DNS");
 
@@ -26,7 +26,7 @@ export const load = async () => {
 export const actions = {
 	saveConnection: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const existing = await DnsConnectionDTO.get(
@@ -74,7 +74,7 @@ export const actions = {
 
 	testConnection: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const connection = await DnsConnectionDTO.get(
 			String((await request.formData()).get("connectionId") ?? ""),
@@ -99,7 +99,7 @@ export const actions = {
 
 	deleteConnection: async ({ locals, request }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const connection = await DnsConnectionDTO.get(
 			String((await request.formData()).get("connectionId") ?? ""),

@@ -1,11 +1,11 @@
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
 import { APP_VERSION } from "#lib/server/app-version.js";
 import { agentSetupCommands } from "#lib/server/node-install-script.js";
+import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import {
 	RemoteHostSettingsError,
 	RemoteHostSettingsService,
 } from "#lib/services/remote-host-settings.service.js";
-import { resolve } from "$app/paths";
 
 export const load = () => ({
 	agentCommands: agentSetupCommands(APP_VERSION),
@@ -14,7 +14,7 @@ export const load = () => ({
 export const actions = {
 	create: async ({ request, locals }) => {
 		if (!locals.user) {
-			throw redirect(302, resolve("auth/sign-in"));
+			redirectToSignIn();
 		}
 		const formData = await request.formData();
 		const field = (key: string) => formData.get(key) as string | null;
