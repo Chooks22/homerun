@@ -44,7 +44,7 @@
 		"@tailwindcss/typography": "0.5.20",
 		"@tailwindcss/vite": "4.3.3",
 		"@testing-library/svelte": "5.4.2",
-		"@types/bun": "1.4.2",
+		"@types/bun": "1.4.3",
 		"@types/dockerode": "4.0.1",
 		"@types/node": "26.6.5",
 		"@types/sanitize-html": "2.16.2",
