@@ -35,7 +35,7 @@
 		"@jridgewell/gen-mapping": "0.3.13",
 		"@kitql/helpers": "0.8.15",
 		"@lucide/svelte": "1.55.0",
-		"@playwright/test": "1.64.0",
+		"@playwright/test": "1.64.1",
 		"@sveltejs/adapter-bun": "1.0.0",
 		"@sveltejs/kit": "3.0.1",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",
