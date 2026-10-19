@@ -328,3 +328,92 @@ describe("ApiService.listTags", () => {
 		);
 	});
 });
+
+describe("ApiService.fetchImageConfig", () => {
+	const config = {
+		ExposedPorts: { "8080/tcp": {} },
+		Volumes: { "/data": {} },
+	};
+
+	test("follows a multi-arch index to this platform's config blob", async () => {
+		const arch = process.arch === "x64" ? "amd64" : process.arch;
+		route = ({ url }) => {
+			if (url.endsWith("/manifests/1.0")) {
+				return Response.json({
+					manifests: [
+						{
+							digest: "sha256:att",
+							platform: { architecture: "unknown", os: "unknown" },
+						},
+						{
+							digest: "sha256:other",
+							platform: { architecture: "s390x", os: "linux" },
+						},
+						{
+							digest: "sha256:mine",
+							platform: { architecture: arch, os: "linux" },
+						},
+					],
+				});
+			}
+			if (url.endsWith("/manifests/sha256:mine")) {
+				return Response.json({ config: { digest: "sha256:cfg" } });
+			}
+			if (url.endsWith("/blobs/sha256:cfg")) {
+				return Response.json({ config });
+			}
+			return new Response(null, { status: 404 });
+		};
+		expect(
+			await ApiService.fetchImageConfig("app", "1.0", "registry.example.com"),
+		).toEqual(config);
+	});
+
+	test("answers a token challenge and follows a blob redirect without it", async () => {
+		route = ({ headers, url }) => {
+			if (url.startsWith("https://auth.example.com/token")) {
+				return Response.json({ token: "tok" });
+			}
+			if (url.startsWith("https://cdn.example.com/")) {
+				return headers.Authorization
+					? new Response(null, { status: 400 })
+					: Response.json({ config });
+			}
+			if (!headers.Authorization) {
+				return challenge();
+			}
+			if (url.endsWith("/manifests/latest")) {
+				return Response.json({ config: { digest: "sha256:cfg" } });
+			}
+			return new Response(null, {
+				headers: { location: "https://cdn.example.com/blob" },
+				status: 307,
+			});
+		};
+		expect(
+			await ApiService.fetchImageConfig(
+				"team/app",
+				"latest",
+				"registry.example.com",
+			),
+		).toEqual(config);
+	});
+
+	test("null when the tag, its config or the blob is missing", async () => {
+		route = () => new Response(null, { status: 404 });
+		expect(
+			await ApiService.fetchImageConfig("app", "nope", "registry.example.com"),
+		).toBeNull();
+		route = ({ url }) =>
+			url.includes("/manifests/")
+				? Response.json({ config: { digest: "sha256:cfg" } })
+				: new Response(null, { status: 500 });
+		expect(
+			await ApiService.fetchImageConfig("app", "1.0", "registry.example.com"),
+		).toBeNull();
+		route = () => Response.json({ schemaVersion: 2 });
+		expect(
+			await ApiService.fetchImageConfig("app", "1.0", "registry.example.com"),
+		).toBeNull();
+	});
+});

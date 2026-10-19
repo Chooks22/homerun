@@ -10,6 +10,7 @@
 	import { onMount } from "svelte";
 	import Alert from "#lib/components/alert.svelte";
 	import TemplateIcon from "#lib/components/template-icon.svelte";
+	import type { DetectedConfig } from "#lib/image-config.js";
 	import { runtimeOptionsSummary } from "#lib/service-runtime.js";
 	import { stackScopedSlug } from "#lib/slug.js";
 	import { title } from "#lib/store/title.js";
@@ -57,6 +58,7 @@
 	);
 	let image = $derived(values?.image ?? data.template?.image ?? "");
 	let tag = $derived(values?.tag ?? data.template?.tag ?? "latest");
+	let detected = $state<DetectedConfig | null>(null);
 	let submittingAction = $state<"create" | "createAndDeploy" | null>(null);
 
 	function stepButtonClass(i: number): string {
@@ -201,20 +203,23 @@
           {errors}
           hidden={currentStep !== 0}
           {values}
+          bind:detected
           bind:image
           bind:slug
           bind:tag
         />
         <NetworkingStep
           {data}
+          {detected}
           {errors}
           hidden={currentStep !== 1}
           {image}
           {slug}
           {values}
         />
-        <EnvironmentStep {data} hidden={currentStep !== 2} />
+        <EnvironmentStep {data} {detected} hidden={currentStep !== 2} />
         <VolumesStep
+          {detected}
           {errors}
           hidden={currentStep !== 3}
           {image}

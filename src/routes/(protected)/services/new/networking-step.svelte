@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Network } from "@lucide/svelte";
+	import { untrack } from "svelte";
 	import AdvancedDisclosure from "#lib/components/advanced-disclosure.svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
@@ -10,6 +11,7 @@
 		Select as SelectRoot,
 		SelectTrigger,
 	} from "#lib/components/ui/select/index.js";
+	import { type DetectedConfig, primaryPort } from "#lib/image-config.js";
 	import { isDatabaseImage } from "#lib/service-link.js";
 	import { visibleIn } from "#lib/ui-mode.js";
 	import { errorClass, label } from "./field-classes";
@@ -17,6 +19,7 @@
 
 	interface Props {
 		data: WizardData;
+		detected: DetectedConfig | null;
 		errors?: Record<string, string[]>;
 		hidden: boolean;
 		image: string;
@@ -24,7 +27,8 @@
 		values?: Record<string, string>;
 	}
 
-	const { data, errors, hidden, image, slug, values }: Props = $props();
+	const { data, detected, errors, hidden, image, slug, values }: Props =
+		$props();
 
 	let containerPort = $derived(
 		values?.containerPort ?? String(data.template?.containerPort ?? ""),
@@ -40,6 +44,22 @@
 				? "both"
 				: "tcp",
 	);
+	let autoPort = "";
+
+	$effect(() => {
+		const found = primaryPort(detected);
+		untrack(() => {
+			if (!found || (containerPort !== "" && containerPort !== autoPort)) {
+				return;
+			}
+			containerPort = String(found.port);
+			autoPort = containerPort;
+			if (found.protocol === "udp") {
+				portProtocol = "udp";
+			}
+		});
+	});
+
 	// Datastores default to private : they're reached by their siblings over
 	// the stack network, and a public hostname for a Postgres is a mistake
 	// waiting to happen. A resubmit keeps whatever the user actually chose.

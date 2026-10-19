@@ -1,3 +1,4 @@
+import type { OciImageConfig } from "#lib/image-config.js";
 import type { RegistryTag } from "#lib/image-versions.js";
 import { Logger } from "#lib/logger.js";
 import {
@@ -47,6 +48,39 @@ const MANIFEST_ACCEPT = [
 	"application/vnd.oci.image.index.v1+json",
 ].join(", ");
 
+const ARCH_ALIASES: Record<string, string> = {
+	arm: "arm",
+	arm64: "arm64",
+	x64: "amd64",
+};
+
+interface RegistryManifest {
+	config?: { digest?: string };
+	manifests?: ManifestEntry[];
+}
+
+interface ManifestEntry {
+	digest: string;
+	platform?: { architecture?: string; os?: string };
+}
+
+/**
+ * The index entry matching this host's platform (linux on its own arch),
+ * else the first linux one that isn't an attestation, else the first.
+ */
+function pickPlatform(entries: ManifestEntry[]): ManifestEntry | null {
+	const arch = ARCH_ALIASES[process.arch] ?? process.arch;
+	const linux = entries.filter(
+		(e) => e.platform?.os === "linux" && e.platform.architecture !== "unknown",
+	);
+	return (
+		linux.find((e) => e.platform?.architecture === arch) ??
+		linux[0] ??
+		entries[0] ??
+		null
+	);
+}
+
 const DOCKER_HUB_API = "https://hub.docker.com/v2/repositories";
 const DOCKER_HUB_PAGE_SIZE = 100;
 const DOCKER_HUB_MAX_PAGES = 10;
@@ -74,13 +108,17 @@ class ApiServiceClass {
 	 */
 	async #registryFetch(
 		url: string,
-		init: { accept?: string; method: string },
+		init: { accept?: string; method: string; redirect?: RequestRedirect },
 		auth?: RegistryAuth,
 	): Promise<Response> {
 		const headers: Record<string, string> = init.accept
 			? { Accept: init.accept }
 			: {};
-		const res = await fetch(url, { headers, method: init.method });
+		const res = await fetch(url, {
+			headers,
+			method: init.method,
+			redirect: init.redirect,
+		});
 		if (res.status !== 401) {
 			return res;
 		}
@@ -93,7 +131,66 @@ class ApiServiceClass {
 		return fetch(url, {
 			headers: { ...headers, Authorization: `Bearer ${token}` },
 			method: init.method,
+			redirect: init.redirect,
 		});
+	}
+
+	/**
+	 * The OCI config of `image:tag` (exposed ports, volumes, env,
+	 * healthcheck, user, workdir, command), read straight from its registry:
+	 * the manifest, this host's platform entry when it's a multi-arch index,
+	 * then the config blob. No layer is downloaded. A blob redirect (S3, a
+	 * CDN) is followed without the registry's token, which those reject.
+	 * @returns null when the image, its platform or its config can't be found.
+	 * @throws on network failure.
+	 */
+	async fetchImageConfig(
+		image: string,
+		tag: string,
+		registryUrl?: string | null,
+		auth?: RegistryAuth,
+	): Promise<OciImageConfig | null> {
+		const { host, repo } = parseImageRef(image, registryUrl);
+		const base = `https://${host}/v2/${repo}`;
+		const manifest = await this.#registryJson<RegistryManifest>(
+			`${base}/manifests/${tag}`,
+			auth,
+		);
+		const entry = manifest?.manifests ? pickPlatform(manifest.manifests) : null;
+		const resolved = entry
+			? await this.#registryJson<RegistryManifest>(
+					`${base}/manifests/${entry.digest}`,
+					auth,
+				)
+			: manifest;
+		const digest = resolved?.config?.digest;
+		if (!digest) {
+			return null;
+		}
+		let res = await this.#registryFetch(
+			`${base}/blobs/${digest}`,
+			{ method: "GET", redirect: "manual" },
+			auth,
+		);
+		const location = res.headers.get("location");
+		if (res.status >= 300 && res.status < 400 && location) {
+			res = await fetch(new URL(location, base));
+		}
+		if (!res.ok) {
+			return null;
+		}
+		const blob = (await res.json()) as { config?: OciImageConfig | null };
+		return blob.config ?? null;
+	}
+
+	/** GETs a registry manifest as JSON, null on any non-2xx answer. */
+	async #registryJson<T>(url: string, auth?: RegistryAuth): Promise<T | null> {
+		const res = await this.#registryFetch(
+			url,
+			{ accept: MANIFEST_ACCEPT, method: "GET" },
+			auth,
+		);
+		return res.ok ? ((await res.json()) as T) : null;
 	}
 
 	/**

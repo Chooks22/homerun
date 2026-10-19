@@ -217,7 +217,9 @@ skips is hidden in a file, see [Configuration](configuration.md).
 2. The wizard walks five steps: basic info, networking (container port and
    whether it gets a public subdomain), environment variables, volumes (a new
    named volume, an existing one, or one already on this machine, mounted at a
-   path), and compute limits.
+   path), and compute limits. The port, volumes and environment variables the
+   image or Dockerfile declares are detected and filled in for you, see
+   [Services](services.md#detected-from-the-image-or-dockerfile).
 3. **Create and Deploy** drops you on the service's Overview tab with live
    progress, pull, create, start, streaming as it happens.
 4. Once it's running, it's reachable at `<slug>.<your base domain>` over TLS,

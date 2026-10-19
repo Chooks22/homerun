@@ -12,12 +12,14 @@
 		SelectTrigger,
 	} from "#lib/components/ui/select/index.js";
 	import { HOST_VOLUME_PREFIX } from "#lib/constants.js";
+	import type { DetectedConfig } from "#lib/image-config.js";
 	import { getUnknownHostVolumes } from "#lib/remote/docker-infra.remote.js";
 	import { dataPathFor } from "#lib/service-link.js";
 	import { errorClass, label } from "./field-classes";
 	import type { WizardVolume } from "./wizard-types";
 
 	interface Props {
+		detected: DetectedConfig | null;
 		errors?: Record<string, string[]>;
 		hidden: boolean;
 		image: string;
@@ -28,6 +30,7 @@
 	}
 
 	const {
+		detected,
 		errors,
 		hidden,
 		image,
@@ -82,6 +85,37 @@
 				defaultRow = volumeRows[0];
 			}
 			defaultPath = path ?? "";
+		});
+	});
+
+	let detectedRows: { path: string; row: VolumeRow }[] = [];
+
+	$effect(() => {
+		const paths = detected?.volumes ?? [];
+		untrack(() => {
+			for (const { path, row } of detectedRows) {
+				const untouched =
+					row.containerPath === path &&
+					row.volumeId === NEW_VOLUME &&
+					row.newName === "" &&
+					!row.readOnly;
+				if (untouched && volumeRows.includes(row) && !paths.includes(path)) {
+					volumeRows.splice(volumeRows.indexOf(row), 1);
+				}
+			}
+			detectedRows = detectedRows.filter(({ row }) => volumeRows.includes(row));
+			for (const path of paths) {
+				if (volumeRows.some((row) => row.containerPath === path)) {
+					continue;
+				}
+				volumeRows.push({
+					containerPath: path,
+					newName: "",
+					readOnly: false,
+					volumeId: NEW_VOLUME,
+				});
+				detectedRows.push({ path, row: volumeRows[volumeRows.length - 1] });
+			}
 		});
 	});
 

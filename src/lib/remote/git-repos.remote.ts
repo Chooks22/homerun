@@ -1,7 +1,9 @@
+import { posix } from "node:path";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 import { GitConnectionDTO } from "#lib/dto/git-connection-dto.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
+import { type DetectedConfig, parseDockerfile } from "#lib/image-config.js";
 import { Logger } from "#lib/logger.js";
 import { requirePermission, requireUser } from "#lib/server/remote-auth.js";
 import {
@@ -88,6 +90,40 @@ export const hasDockerfile = query(
 			repo,
 			ref,
 		);
+	},
+);
+
+export const detectDockerfileConfig = query(
+	z.object({
+		context: z.string(),
+		dockerfilePath: z.string(),
+		providerId: z.string(),
+		ref: z.string(),
+		repo: z.string(),
+	}),
+	async (input): Promise<DetectedConfig | null> => {
+		const user = requirePermission("services", "read");
+		const { connection, provider } = await resolveConnection(
+			input.providerId,
+			user.id,
+		);
+		const path = posix
+			.normalize(
+				posix.join(
+					input.context.trim() || ".",
+					input.dockerfilePath.trim() || "Dockerfile",
+				),
+			)
+			.replace(/^\/+/, "");
+		if (path.startsWith("..")) {
+			return null;
+		}
+		const text = await GitProviderService.readFile(provider, connection, {
+			path,
+			ref: input.ref,
+			repo: input.repo,
+		});
+		return text === null ? null : parseDockerfile(text);
 	},
 );
 

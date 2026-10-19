@@ -28,11 +28,14 @@
 	import { defaultHostname } from "#lib/service-domains.js";
 	import { stackScopedSlug } from "#lib/slug.js";
 	import { visibleIn } from "#lib/ui-mode.js";
+	import type { DetectedConfig } from "#lib/image-config.js";
+	import DetectedConfigPanel from "./detected-config-panel.svelte";
 	import type { WizardData } from "./wizard-types";
 	import { errorClass, label } from "./field-classes";
 
 	interface Props {
 		data: WizardData;
+		detected: DetectedConfig | null;
 		errors?: Record<string, string[]>;
 		hidden: boolean;
 		image: string;
@@ -43,6 +46,7 @@
 
 	let {
 		data,
+		detected = $bindable(),
 		errors,
 		hidden,
 		image = $bindable(),
@@ -240,6 +244,21 @@
         />
       </AdvancedDisclosure>
     {/if}
+
+    <DetectedConfigPanel
+      {buildSource}
+      {gitBuildContext}
+      {gitBuildMethod}
+      {gitDockerfilePath}
+      {gitProviderId}
+      {gitRef}
+      {gitRepo}
+      {image}
+      {registryUrl}
+      {registryUsername}
+      {tag}
+      bind:detected
+    />
   </div>
 </section>
 

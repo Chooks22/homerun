@@ -1,19 +1,28 @@
 <script lang="ts">
-	import { Plus, Trash2 } from "@lucide/svelte";
+	import { Plus, ScanSearch, Trash2 } from "@lucide/svelte";
 	import EnvPasteButton from "#lib/components/env-paste-button.svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import ServiceLinkPicker from "#lib/components/service-link-picker.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { mergeEnvRows, type ParsedEnvVar } from "#lib/env-parse.js";
+	import { type DetectedConfig, overridableEnv } from "#lib/image-config.js";
 	import type { WizardData } from "./wizard-types";
 
 	interface Props {
 		data: WizardData;
+		detected: DetectedConfig | null;
 		hidden: boolean;
 	}
 
-	const { data, hidden }: Props = $props();
+	const { data, detected, hidden }: Props = $props();
+
+	const detectedEnv = $derived(
+		Object.entries(overridableEnv(detected?.env ?? {})).map(([key, value]) => ({
+			key,
+			value,
+		})),
+	);
 
 	function envRowsFromTemplate(): ParsedEnvVar[] {
 		const entries = data.template
@@ -91,6 +100,18 @@
         Add variable
       </Button>
       <EnvPasteButton onImport={importEnvRows} />
+      {#if detectedEnv.length > 0}
+        <Button
+          class="h-auto p-0"
+          onclick={() => importEnvRows(detectedEnv)}
+          title={detectedEnv.map((row) => row.key).join(", ")}
+          variant="link"
+        >
+          <ScanSearch class="size-3.5" />
+          Import {detectedEnv.length} from the
+          {detected?.source === "dockerfile" ? "Dockerfile" : "image"}
+        </Button>
+      {/if}
       <ServiceLinkPicker
         onImport={importEnvRows}
         services={data.linkableServices}
