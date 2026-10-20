@@ -61,6 +61,12 @@ unresolved and you're notified. An ignored issue still counts its events but
 never notifies. The Errors section lists issues with a status filter and search,
 and resolves or ignores several at once.
 
+Switch the Errors section from **List** to **Board** to see the same issues as a
+board, one column per status. Drag a card to another column to resolve, ignore
+or reopen it, or use the buttons on the card (they work on a phone too). Each
+column shows its 50 most recently seen issues, with search and sort applied to
+all three; past that, the column links to the list filtered on its status.
+
 ![The Errors section's issue list, each issue with its event count, users affected and when it was last seen](images/error-tracking-issues.webp)
 
 ## Back to the source

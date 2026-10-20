@@ -11,6 +11,7 @@ const TABS = [
 	"/observability",
 	"/observability/events",
 	"/observability/errors",
+	"/observability/errors/board",
 	"/observability/traces",
 	"/observability/pipelines",
 	"/observability/health",

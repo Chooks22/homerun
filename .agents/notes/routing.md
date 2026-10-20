@@ -29,10 +29,12 @@ page**: its `+server.ts` is the SSE stream `live-log-viewer.svelte` fetches.
 **The entity a page shows is a path segment, never a query parameter.** A
 revision is `environments/revisions/[revisionId]` (the list only links to it),
 an error event is `observability/errors/[issueId]/[[eventId]]` (the bare issue
-URL shows the latest event). Each detail is its own route, so its load and
-markup aren't an `{#if}` branch inside the list page, and every link goes
-through `resolve()` with the route id, which is what makes svelte-check catch a
-stale path (the `/deployments` page's string-built
+URL shows the latest event; its sibling `observability/errors/board`, the
+issues' kanban view, is a static segment SvelteKit ranks above `[issueId]`, and
+an issue id is a UUID, so the two never collide). Each detail is its own route,
+so its load and markup aren't an `{#if}` branch inside the list page, and every
+link goes through `resolve()` with the route id, which is what makes
+svelte-check catch a stale path (the `/deployments` page's string-built
 `/services/:id/revisions?deployment=` link had pointed at a route that no longer
 existed). `[revisionId]` also accepts any deployment id of the revision and
 answers it with a 307 to the revision's own URL, so a caller holding only a

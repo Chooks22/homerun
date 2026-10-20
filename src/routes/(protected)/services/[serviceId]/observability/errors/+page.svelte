@@ -34,6 +34,7 @@
 	import { ViewMode } from "#lib/view-mode.svelte.js";
 	import { enhance, type SubmitFunction } from "$app/forms";
 	import { resolve } from "$app/paths";
+	import IssueViewsNav from "./issue-views-nav.svelte";
 	import SourceMapsPanel from "./source-maps-panel.svelte";
 
 	const { data } = $props();
@@ -183,6 +184,8 @@
       {/snippet}
     </EmptyState>
   {:else}
+    <IssueViewsNav serviceId={svc.id} />
+
     <section class="panel rounded-md">
       <PanelHeader
         description={data.project.enabled

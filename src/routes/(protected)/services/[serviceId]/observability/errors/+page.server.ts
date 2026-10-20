@@ -4,12 +4,10 @@ import { ErrorProjectDTO } from "#lib/dto/error-project-dto.js";
 import { ErrorSourceMapDTO } from "#lib/dto/error-source-map-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
+import { changeIssueStatus } from "#lib/server/error-issue-status.js";
 import { parseListQuery } from "#lib/server/list-query.js";
 import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
-import {
-	errorProjectSettingsSchema,
-	issueStatusFormSchema,
-} from "#lib/server/validation/error-tracking.js";
+import { errorProjectSettingsSchema } from "#lib/server/validation/error-tracking.js";
 import {
 	ErrorTrackingService,
 	EVENTS_KEPT_PER_ISSUE,
@@ -153,26 +151,13 @@ export const actions = {
 	},
 
 	status: async ({ request, params, locals }) => {
-		const svc = await ownService(params.serviceId, locals);
-		if (!svc) {
-			return fail(404, { error: "Service not found." });
+		if (!locals.user) {
+			redirectToSignIn();
 		}
-		const formData = await request.formData();
-		const result = issueStatusFormSchema.safeParse({
-			issueId: formData.getAll("issueId"),
-			status: formData.get("status"),
-		});
-		if (!result.success) {
-			return fail(400, { errors: result.error.flatten().fieldErrors });
-		}
-		const changed = await ErrorIssueDTO.setStatus(
-			svc.id,
-			result.data.issueId,
-			result.data.status,
+		return await changeIssueStatus(
+			params.serviceId,
+			await request.formData(),
+			locals.user.id,
 		);
-		logger.info(
-			`Error issues marked ${result.data.status}: service=${svc.id} count=${changed} user=${locals.user?.id}`,
-		);
-		return { changed, status: result.data.status };
 	},
 };
