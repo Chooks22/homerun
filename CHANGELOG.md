@@ -4,6 +4,8 @@
 
 ### Features
 
+- **errors:** kanban board view for issues (#129)
+  ([a89f604](https://github.com/orochibraru/homerun/commit/a89f604c68b856151ead8cde2813a6021f167c20))
 - **mcp:** let the Gemini app connect as a custom app (#128)
   ([1d497c8](https://github.com/orochibraru/homerun/commit/1d497c814b3c67395c15a628d87410f83a4b236d))
 - **swarm:** service placement constraints and preferences, and editable swarm
