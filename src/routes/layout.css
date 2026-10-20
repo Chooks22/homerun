@@ -162,12 +162,18 @@
 		"Space Grotesk Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text",
 		sans-serif;
 	--radius: 0.75rem;
-	--color-bg: oklch(from var(--color-accent) 0.965 0.012 calc(h + 45));
-	--color-surface: oklch(1 0 0 / 0.38);
-	--color-surface-2: oklch(1 0 0 / 0.32);
-	--color-surface-3: oklch(1 0 0 / 0.5);
-	--glass-fill: oklch(1 0 0 / 0.3);
-	--glass-fill-clear: oklch(1 0 0 / 0.16);
+	--color-bg: oklch(from var(--color-accent) 0.915 0.02 calc(h + 45));
+	--color-text: oklch(from var(--color-accent) 0.17 0.02 h);
+	--color-text-muted: oklch(from var(--color-accent) 0.36 0.035 h);
+	--color-text-subtle: oklch(from var(--color-accent) 0.42 0.035 h);
+	--foreground: var(--color-text);
+	--card-foreground: var(--color-text);
+	--muted-foreground: var(--color-text-muted);
+	--color-surface: oklch(1 0 0 / 0.55);
+	--color-surface-2: oklch(1 0 0 / 0.45);
+	--color-surface-3: oklch(1 0 0 / 0.65);
+	--glass-fill: oklch(1 0 0 / 0.72);
+	--glass-fill-clear: oklch(1 0 0 / 0.45);
 	--glass-sheen:
 		radial-gradient(
 			120% 80% at 15% -10%,
@@ -189,7 +195,7 @@
 		inset 0 0 16px 0 oklch(1 0 0 / 0.22);
 	--glass-control: oklch(1 0 0 / 0.26);
 	--glass-field-bg: oklch(1 0 0 / 0.72);
-	--glass-field-border: oklch(from var(--color-accent) 0.3 0.04 h / 0.3);
+	--glass-field-border: oklch(from var(--color-accent) 0.3 0.04 h / 0.42);
 	--glass-control-hover: oklch(1 0 0 / 0.42);
 	--glass-control-shadow:
 		var(--glass-rim), 0 0 0 0.5px oklch(0 0 0 / 0.08),
@@ -197,20 +203,21 @@
 	--panel-bg: var(--glass-fill);
 	--panel-bg-image: var(--glass-sheen);
 	--panel-backdrop: var(--glass-blur);
-	--panel-border-width: 0px;
-	--panel-border-color: transparent;
-	--color-border: oklch(from var(--color-accent) 0.3 0.03 h / 0.14);
-	--color-border-light: oklch(from var(--color-accent) 0.3 0.03 h / 0.22);
+	--panel-border-width: 1px;
+	--panel-border-color: oklch(from var(--color-accent) 0.3 0.04 h / 0.2);
+	--color-border: oklch(from var(--color-accent) 0.3 0.04 h / 0.26);
+	--color-border-light: oklch(from var(--color-accent) 0.3 0.04 h / 0.4);
 	--border: var(--color-border);
 	--input: oklch(1 0 0 / 0.55);
 	--panel-shadow:
-		var(--glass-rim), 0 0 0 0.5px oklch(0 0 0 / 0.06),
-		0 12px 36px -14px oklch(0 0 0 / 0.24), 0 2px 6px oklch(0 0 0 / 0.04);
+		var(--glass-rim), 0 12px 36px -14px oklch(0 0 0 / 0.3),
+		0 2px 6px oklch(0 0 0 / 0.06);
 	--panel-shadow-lg:
-		var(--glass-rim), 0 0 0 0.5px oklch(0 0 0 / 0.08),
+		var(--glass-rim),
+		0 0 0 1px oklch(from var(--color-accent) 0.3 0.04 h / 0.2),
 		0 30px 70px -20px oklch(0 0 0 / 0.38), 0 4px 12px oklch(0 0 0 / 0.06);
 	--panel-rule: oklch(1 0 0 / 0.5);
-	--popover: oklch(1 0 0 / 0.82);
+	--popover: oklch(1 0 0 / 0.9);
 	--page-bg-image:
 		radial-gradient(
 			60vmax 50vmax at 0% 0%,
@@ -233,13 +240,18 @@
 
 .dark[data-surface="glass"],
 .dark [data-surface="glass"] {
-	--color-ink: oklch(0.44 0.15 8);
-	--color-bg: oklch(from var(--color-accent) 0.15 0.025 h);
+	--color-ink: oklch(from var(--color-accent) min(l, 0.55) c h);
+	--color-bg: oklch(from var(--color-accent) 0.13 0.025 h);
+	--color-text: oklch(0.98 0.004 285);
+	--color-text-muted: oklch(from var(--color-accent) 0.84 0.025 h);
+	--color-text-subtle: oklch(from var(--color-accent) 0.76 0.025 h);
 	--color-surface: oklch(1 0 0 / 0.08);
 	--color-surface-2: oklch(1 0 0 / 0.08);
 	--color-surface-3: oklch(1 0 0 / 0.14);
-	--glass-fill: oklch(from var(--color-accent) 0.22 0.02 h / 0.36);
-	--glass-fill-clear: oklch(from var(--color-accent) 0.22 0.02 h / 0.2);
+	--glass-fill: oklch(from var(--color-accent) 0.25 0.024 h / 0.72);
+	--panel-border-width: 1px;
+	--panel-border-color: oklch(1 0 0 / 0.13);
+	--glass-fill-clear: oklch(from var(--color-accent) 0.22 0.02 h / 0.32);
 	--glass-sheen:
 		radial-gradient(
 			120% 80% at 15% -10%,
@@ -266,8 +278,8 @@
 	--glass-control-shadow:
 		var(--glass-rim), 0 0 0 0.5px oklch(0 0 0 / 0.5),
 		0 4px 14px -6px oklch(0 0 0 / 0.55);
-	--color-border: oklch(1 0 0 / 0.1);
-	--color-border-light: oklch(1 0 0 / 0.18);
+	--color-border: oklch(1 0 0 / 0.18);
+	--color-border-light: oklch(1 0 0 / 0.3);
 	--input: oklch(1 0 0 / 0.14);
 	--panel-shadow:
 		var(--glass-rim), 0 0 0 0.5px oklch(0 0 0 / 0.55),
@@ -275,7 +287,7 @@
 	--panel-shadow-lg:
 		var(--glass-rim), 0 0 0 0.5px oklch(0 0 0 / 0.65),
 		0 30px 70px -16px oklch(0 0 0 / 0.85);
-	--panel-rule: oklch(1 0 0 / 0.1);
+	--panel-rule: oklch(1 0 0 / 0.14);
 	--popover: oklch(from var(--color-accent) 0.2 0.02 h / 0.86);
 	--page-bg-image:
 		radial-gradient(
@@ -306,7 +318,7 @@
 }
 
 [data-surface="glass"] [data-slot="app-frame"] {
-	background-color: oklch(1 0 0 / 0.1);
+	background-color: oklch(1 0 0 / 0.06);
 	background-image: none;
 	backdrop-filter: blur(3px) saturate(150%);
 	-webkit-backdrop-filter: blur(3px) saturate(150%);
