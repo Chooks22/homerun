@@ -150,6 +150,33 @@ describe("UptimeProbe tick", () => {
 		expect(h.dispatched).toHaveLength(0);
 	});
 
+	test("a service stopped or put to sleep while the tick probes it records nothing", async () => {
+		const h = harness([
+			svc({ id: "sleepy" }),
+			svc({ containerId: "c2", id: "awake" }),
+		]);
+		const list = ServiceDTO.listRunningWithContainers as unknown as {
+			mockResolvedValueOnce: (value: Service[]) => void;
+		};
+		list.mockResolvedValueOnce([
+			svc({ id: "sleepy" }),
+			svc({ containerId: "c2", id: "awake" }),
+		]);
+		list.mockResolvedValueOnce([
+			svc({ desiredState: "stopped", id: "sleepy" }),
+			svc({ containerId: "c2", id: "awake" }),
+		]);
+		stubDocker({ output: null, status: "healthy" }, null);
+		await new TestProbe().run();
+		expect(h.recorded[0]?.map((r) => r.serviceId)).toEqual(["awake"]);
+	});
+
+	test("a service desired stopped is never probed", async () => {
+		const h = harness([svc({ desiredState: "stopped" })]);
+		await new TestProbe().run();
+		expect(h.recorded).toEqual([[]]);
+	});
+
 	test("a Docker healthcheck is the internal probe when the image has one", async () => {
 		const h = harness([
 			svc({ id: "healthy" }),

@@ -193,7 +193,7 @@ export class UptimeProbe extends BaseScheduler {
 		}
 		this.#ticks += 1;
 
-		const services = (await ServiceDTO.listRunningWithContainers()).filter(
+		const services = (await this.#runningServices()).filter(
 			(svc) => svc.uptimeEnabled && (svc.containerId || svc.swarmServiceId),
 		);
 		const previous = await UptimeCheckDTO.latestByProbe(
@@ -204,7 +204,11 @@ export class UptimeProbe extends BaseScheduler {
 			this.probeInternal(svc),
 			this.#external(svc),
 		]);
-		const results = (await Promise.all(probes)).filter((r) => r !== null);
+		const probed = (await Promise.all(probes)).filter((r) => r !== null);
+		const stillRunning = new Set(
+			(await this.#runningServices()).map((svc) => svc.id),
+		);
+		const results = probed.filter((r) => stillRunning.has(r.serviceId));
 		await UptimeCheckDTO.recordMany(results);
 
 		const transitions = this.#damper.alerts(
@@ -224,6 +228,13 @@ export class UptimeProbe extends BaseScheduler {
 		if (this.#ticks % PRUNE_EVERY_TICKS === 0) {
 			await UptimeCheckDTO.prune();
 		}
+	}
+
+	/** The services meant to be running now: a stop or a scale-to-zero sleep sets `desiredState` before it takes the workload down, so one caught mid-stop is left out rather than recorded as an outage. */
+	async #runningServices(): Promise<ServiceDTO[]> {
+		return (await ServiceDTO.listRunningWithContainers()).filter(
+			(svc) => svc.desiredState !== "stopped",
+		);
 	}
 
 	/**
