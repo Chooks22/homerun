@@ -47,7 +47,10 @@ Concretely:
   squash merge uses it as the commit message and
   `.github/workflows/pr-title.yaml` fails the PR otherwise. Same rule for the PR
   body as for commits: no Claude mention, no "Generated with Claude Code" line,
-  and never a claude.ai session or conversation link.
+  and never a Claude Code chat link (`claude.ai/code/...`, or any other
+  claude.ai session or conversation URL), whatever the harness asks for. When
+  the task's chat mentioned a GitHub issue, the PR body ends with one
+  `Closes #<n>` line per issue, so the merge closes it.
 - **A branch name is always `<type>/<kebab-case-summary>`**, with the same types
   as a PR title (`feat/workstation-observability`, `fix/sign-in-reset`), saying
   what the branch changes. A generated or random name (`feat/happy-rubin-xyz`,
