@@ -38,6 +38,61 @@ export const MCP_PATH = "/api/v1/mcp";
 
 export const CLAUDE_MCP_CALLBACK = "https://claude.ai/api/mcp/auth_callback";
 
+const GEMINI_CALLBACK =
+	/^https:\/\/oauth-redirect\.googleusercontent\.com\/r\/user_bound_custom-mcp-[\w-]+$/;
+
+const GEMINI_CLIENT_NAME = "Gemini";
+
+const GEMINI_GRANT_TYPES = new Set(["authorization_code", "refresh_token"]);
+
+/** Whether `uri` is a Gemini custom app's callback: Google's OAuth relay, bound to one Google account and one MCP server. */
+export function isGeminiCallback(uri: unknown): boolean {
+	return typeof uri === "string" && GEMINI_CALLBACK.test(uri);
+}
+
+/**
+ * The client metadata a dynamic registration (RFC 7591) is stored with, or
+ * null when Homerun refuses it. Only a Gemini custom app may register itself:
+ * every callback has to be Google's relay for a Gemini custom app, and the
+ * only grants the code flow and its refresh. Whatever it asked for, it's
+ * stored as a public client named Gemini, so no secret is ever issued, PKCE
+ * is required and the consent screen always shows.
+ */
+export function geminiRegistration(
+	body: unknown,
+): Record<string, unknown> | null {
+	if (!body || typeof body !== "object" || Array.isArray(body)) {
+		return null;
+	}
+	const metadata = body as Record<string, unknown>;
+	const { redirect_uris: redirectUris, grant_types: grantTypes } = metadata;
+	if (
+		!Array.isArray(redirectUris) ||
+		redirectUris.length === 0 ||
+		redirectUris.length > 10 ||
+		!redirectUris.every(isGeminiCallback)
+	) {
+		return null;
+	}
+	if (
+		grantTypes !== undefined &&
+		!(
+			Array.isArray(grantTypes) &&
+			grantTypes.every((grant) => GEMINI_GRANT_TYPES.has(grant))
+		)
+	) {
+		return null;
+	}
+	return {
+		client_name: GEMINI_CLIENT_NAME,
+		grant_types: grantTypes ?? ["authorization_code", "refresh_token"],
+		redirect_uris: redirectUris,
+		response_types: ["code"],
+		...(typeof metadata.scope === "string" ? { scope: metadata.scope } : {}),
+		token_endpoint_auth_method: "none",
+	};
+}
+
 /**
  * Whether the MCP server can run on this origin: MCP clients only accept an
  * HTTPS resource, or plain HTTP on a loopback host for development. On any
@@ -233,6 +288,31 @@ export function rebaseOnOrigin(request: Request, origin: string): Request {
 		return request;
 	}
 	return new Request(`${target.origin}${url.pathname}${url.search}`, request);
+}
+
+/**
+ * `request` with the MCP endpoint added as its RFC 8707 `resource` when it's
+ * an authorization request coming back to a Gemini custom app's callback
+ * without one: without a resource the provider mints an opaque token the MCP
+ * endpoint refuses, while the resource stored with the code carries over to
+ * the token and its refreshes. Any other request is returned as is.
+ */
+export function withGeminiMcpResource(
+	request: Request,
+	origin: string,
+): Request {
+	const url = new URL(request.url);
+	if (
+		request.method !== "GET" ||
+		url.pathname !== `${OIDC_BASE_PATH}/oauth2/authorize` ||
+		!isGeminiCallback(url.searchParams.get("redirect_uri")) ||
+		url.searchParams.has("resource") ||
+		!mcpAllowed(origin)
+	) {
+		return request;
+	}
+	url.searchParams.set("resource", mcpResource(origin));
+	return new Request(url, request);
 }
 
 /**

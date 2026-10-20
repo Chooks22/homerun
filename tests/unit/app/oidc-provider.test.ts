@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	callbackUrlProblem,
 	environmentProblem,
+	geminiRegistration,
+	isGeminiCallback,
 	matchesCallback,
 	mcpAllowed,
 	mcpResource,
@@ -13,6 +15,7 @@ import {
 	rebaseOnOrigin,
 	registeredCallbacks,
 	tokenRequestCredentials,
+	withGeminiMcpResource,
 } from "../../../src/lib/oidc-provider";
 
 const ada = {
@@ -262,5 +265,100 @@ describe("environmentProblem", () => {
 				redirectUris: ["http://localhost:3000/callback"],
 			}),
 		).toBeNull();
+	});
+});
+
+const GEMINI_CALLBACK =
+	"https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-1234567890-homerun_example_com";
+
+describe("isGeminiCallback", () => {
+	test("accepts Google's relay for a Gemini custom app", () => {
+		expect(isGeminiCallback(GEMINI_CALLBACK)).toBe(true);
+	});
+
+	test("refuses anything else", () => {
+		for (const uri of [
+			"https://evil.example/callback",
+			"https://oauth-redirect.googleusercontent.com/r/some-other-project",
+			`${GEMINI_CALLBACK}?next=https://evil.example`,
+			`${GEMINI_CALLBACK}/../../evil`,
+			"https://oauth-redirect.googleusercontent.com.evil.example/r/user_bound_custom-mcp-1",
+			42,
+		]) {
+			expect(isGeminiCallback(uri)).toBe(false);
+		}
+	});
+});
+
+describe("geminiRegistration", () => {
+	test("stores a Gemini custom app as a public client, whatever it asked for", () => {
+		expect(
+			geminiRegistration({
+				client_name: "Totally Homerun",
+				grant_types: ["authorization_code", "refresh_token"],
+				redirect_uris: [GEMINI_CALLBACK],
+				scope: "openid offline_access",
+				token_endpoint_auth_method: "client_secret_basic",
+			}),
+		).toEqual({
+			client_name: "Gemini",
+			grant_types: ["authorization_code", "refresh_token"],
+			redirect_uris: [GEMINI_CALLBACK],
+			response_types: ["code"],
+			scope: "openid offline_access",
+			token_endpoint_auth_method: "none",
+		});
+	});
+
+	test("refuses any other callback, grant or body", () => {
+		for (const body of [
+			null,
+			[],
+			{ redirect_uris: [] },
+			{ redirect_uris: [GEMINI_CALLBACK, "https://evil.example/cb"] },
+			{
+				grant_types: ["client_credentials"],
+				redirect_uris: [GEMINI_CALLBACK],
+			},
+			{ redirect_uris: Array(11).fill(GEMINI_CALLBACK) },
+		]) {
+			expect(geminiRegistration(body)).toBeNull();
+		}
+	});
+});
+
+describe("withGeminiMcpResource", () => {
+	const origin = "https://homerun.example.com";
+	const authorize = (query: string) =>
+		new Request(`${origin}/api/v1/auth/oauth2/authorize?${query}`);
+	const gemini = `client_id=abc&redirect_uri=${encodeURIComponent(GEMINI_CALLBACK)}&scope=openid`;
+
+	test("adds the MCP endpoint as the resource of Gemini's authorization request", () => {
+		const url = new URL(withGeminiMcpResource(authorize(gemini), origin).url);
+		expect(url.searchParams.get("resource")).toBe(
+			"https://homerun.example.com/api/v1/mcp",
+		);
+		expect(url.searchParams.get("client_id")).toBe("abc");
+	});
+
+	test("keeps a resource Gemini sent itself", () => {
+		const request = authorize(`${gemini}&resource=https%3A%2F%2Fother.example`);
+		expect(withGeminiMcpResource(request, origin)).toBe(request);
+	});
+
+	test("leaves other apps' authorization requests alone", () => {
+		const request = authorize(
+			"client_id=abc&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb",
+		);
+		expect(withGeminiMcpResource(request, origin)).toBe(request);
+	});
+
+	test("does nothing where the MCP server can't run", () => {
+		const request = new Request(
+			`http://192.168.1.10:3000/api/v1/auth/oauth2/authorize?${gemini}`,
+		);
+		expect(withGeminiMcpResource(request, "http://192.168.1.10:3000")).toBe(
+			request,
+		);
 	});
 });

@@ -2,6 +2,7 @@ import { config } from "#lib/config.js";
 import { OauthClientEnvironmentDTO } from "#lib/dto/oauth-client-environment-dto.js";
 import { OauthClientSecretDTO } from "#lib/dto/oauth-client-secret-dto.js";
 import {
+	geminiRegistration,
 	matchesCallback,
 	OIDC_BASE_PATH,
 	oidcTestCallback,
@@ -9,6 +10,8 @@ import {
 } from "#lib/oidc-provider.js";
 
 export const OIDC_TOKEN_PATH = `${OIDC_BASE_PATH}/oauth2/token`;
+
+export const OIDC_REGISTER_PATH = `${OIDC_BASE_PATH}/oauth2/register`;
 
 function reject(status: number, error: string, description: string): Response {
 	return Response.json(
@@ -25,6 +28,41 @@ function corsHeaders(origin: string): Record<string, string> {
 		"access-control-max-age": "600",
 		vary: "Origin",
 	};
+}
+
+/**
+ * Narrows dynamic client registration to Gemini custom apps before the
+ * provider sees it: a registration with any other callback is refused, and
+ * an accepted one is rewritten to a public client named Gemini (see
+ * `geminiRegistration`), so nothing on the internet can get itself a client
+ * secret. Returns the request to hand on, or the refusal.
+ */
+export async function guardRegistration(
+	request: Request,
+): Promise<Request | Response> {
+	if (request.method !== "POST") {
+		return reject(405, "invalid_request", "Registration is a POST.");
+	}
+	const body: unknown = await request
+		.clone()
+		.json()
+		.catch(() => null);
+	const metadata = geminiRegistration(body);
+	if (!metadata) {
+		return reject(
+			400,
+			"invalid_client_metadata",
+			"Only a Gemini custom app can register itself. Register any other client under IDP in Homerun's dashboard.",
+		);
+	}
+	const headers = new Headers(request.headers);
+	headers.delete("content-length");
+	headers.set("content-type", "application/json");
+	return new Request(request.url, {
+		body: JSON.stringify(metadata),
+		headers,
+		method: "POST",
+	});
 }
 
 /**

@@ -97,7 +97,9 @@ describe("MCP server", () => {
 			registration_endpoint?: string;
 		};
 		expect(resourceBody.authorization_servers).toEqual([serverBody.issuer]);
-		expect(serverBody.registration_endpoint).toBeUndefined();
+		expect(serverBody.registration_endpoint).toBe(
+			`${origin}/api/v1/auth/oauth2/register`,
+		);
 		expect(serverBody.client_id_metadata_document_supported).toBe(true);
 	});
 
@@ -222,6 +224,33 @@ describe("MCP server", () => {
 			},
 		);
 		expect(registered.status).toBeGreaterThanOrEqual(400);
+	});
+
+	test("a Gemini custom app registers itself as a public client", async () => {
+		const { origin } = integrationContext();
+		const callback =
+			"https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-1234567890-homerun_test";
+		const registered = await nativeFetch(
+			`${origin}/api/v1/auth/oauth2/register`,
+			{
+				body: JSON.stringify({
+					client_name: "Not Gemini",
+					grant_types: ["authorization_code", "refresh_token"],
+					redirect_uris: [callback],
+					response_types: ["code"],
+					token_endpoint_auth_method: "client_secret_basic",
+				}),
+				headers: { "content-type": "application/json" },
+				method: "POST",
+			},
+		);
+		expect(registered.status).toBe(201);
+		const client = (await registered.json()) as Record<string, unknown>;
+		expect(client.client_id).toBeString();
+		expect(client.client_secret).toBeUndefined();
+		expect(client.client_name).toBe("Gemini");
+		expect(client.token_endpoint_auth_method).toBe("none");
+		expect(client.redirect_uris).toEqual([callback]);
 	});
 
 	test("a metadata document URL on a private address is refused, never fetched", async () => {

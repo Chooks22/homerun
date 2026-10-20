@@ -1277,9 +1277,20 @@ else as an API key. Real, tested finding: better-auth's own `auth.api.verifyJWT`
 can't be used, it always enforces an audience of the base URL, which no access
 token has. An anonymous call gets a 401 with
 `WWW-Authenticate: Bearer resource_metadata=".../.well-known/oauth-protected-resource/api/v1/mcp"`.
-**No dynamic registration, but CIMD.** RFC 7591 registration stays off: it
+**Dynamic registration for Gemini only, and CIMD.** Open RFC 7591 registration
 stored a client ID and secret for anything on the internet, with only a consent
-screen in front. Client ID Metadata Documents (the MCP spec's registration
+screen in front. It's on now (`allowDynamicClientRegistration` +
+`allowUnauthenticatedClientRegistration` on `mcp()`) because the Gemini app's
+custom apps can only register that way (their callback is per Google account,
+`https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-<id>-<host>`,
+so an admin can't pre-register it), but `guardRegistration`
+(`oidc-client-guard.ts`, run from `hooks.server.ts`) refuses any registration
+whose callbacks aren't all Gemini's and rewrites an accepted one to a public
+client named Gemini (`geminiRegistration` in `oidc-provider.ts`): better-auth
+would otherwise issue a secret to whoever asked for `client_secret_basic`.
+Gemini sends no `resource`, so `withGeminiMcpResource` adds the MCP URL to its
+authorize requests; without it the provider mints an opaque token the MCP
+endpoint refuses. Client ID Metadata Documents (the MCP spec's registration
 method) are on through the official `@better-auth/cimd` plugin, registered next
 to `mcp()` in `oidcProviderPlugins` with the `mcp-2026-07-28` metadata profile
 and the plugin's own `@better-auth/cimd/node` transport, which resolves DNS

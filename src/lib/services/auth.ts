@@ -100,9 +100,12 @@ function tokenAuthOptions(provider: {
  * don't accept EdDSA) with keys kept in the `jwks` table, and
  * `mcp` (better-auth's OAuth provider bound to the MCP endpoint as a protected
  * resource) serves authorize/token/userinfo/discovery under the auth base
- * path. Clients can't register themselves: an admin creates each one under
+ * path. Clients don't register themselves: an admin creates each one under
  * Authentication → Sign in with Homerun (a claude.ai connector included) and hands its ID and
- * secret over, so nothing Homerun didn't issue can even ask for a token.
+ * secret over. The two exceptions are both public, so no secret is ever
+ * issued to a stranger: an MCP client identified by its metadata document
+ * (`cimd`), and a Gemini custom app, the one client dynamic registration is
+ * open to (`guardRegistration` in `hooks.server.ts` refuses every other).
  * MCP only accepts an HTTPS origin (or loopback HTTP), so on any other one the
  * plain `oauthProvider` serves "Sign in with Homerun" without it: `mcp()`
  * throws on such an origin, which took the whole auth layer, and every
@@ -148,7 +151,12 @@ function oidcProviderPlugins(origin: string | undefined) {
 		}),
 		...(mcpAllowed(origin)
 			? [
-					mcp({ ...provider, resource: mcpResource(origin) }),
+					mcp({
+						...provider,
+						allowDynamicClientRegistration: true,
+						allowUnauthenticatedClientRegistration: true,
+						resource: mcpResource(origin),
+					}),
 					cimd({
 						fetchClientMetadataResource,
 						metadataProfile: "mcp-2026-07-28",
