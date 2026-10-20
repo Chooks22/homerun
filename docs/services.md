@@ -10,35 +10,47 @@ deploy later from the Overview tab yourself.
 
 ![The Deploy a Service wizard](images/deploy.webp)
 
-## Detected from the image or Dockerfile
+## Detected from the image, Dockerfile or manifest
 
 As soon as you type an image (or pick a repository to build), the wizard reads
-what the image declares and shows it under the source fields: exposed ports,
-volumes, environment variables, healthcheck, user, working directory, entrypoint
-and command. For an image, that's its config, read from the registry without
-pulling any layers, or from this machine when the registry can't be reached. For
-a git build with the Dockerfile method, it's the Dockerfile itself, fetched
-through the connected git provider: the final stage, plus whatever it inherits
-from earlier stages, with `ARG`/`ENV` defaults expanded. A stage built from an
-external base image only reports what the Dockerfile adds, not the base image's
-own settings.
+what it declares and shows it under the source fields: exposed ports, volumes,
+environment variables, healthcheck, user, working directory, entrypoint and
+command.
+
+- **An image**: its config, read from the registry without pulling any layers,
+  or from this machine when the registry can't be reached.
+- **A git repository**: its [Homerun Manifest](manifest.md) (`.homerun.json`,
+  `.homerun.yaml` or `.homerun.yml`, looked up next to the build context first,
+  then at the root, the same way a deploy does) laid over its Dockerfile. **The
+  manifest wins** for the port, protocol, environment, healthcheck, user,
+  command and entrypoint it sets, and its build method, context and Dockerfile
+  path decide which Dockerfile is read (none, for a build method other than a
+  Dockerfile). Its other keys are listed as applied on deploy. A manifest that
+  doesn't validate shows its problems, since every deploy would fail on them.
+  The Dockerfile is its final stage, plus whatever it inherits from earlier
+  stages, with `ARG`/`ENV` defaults expanded; a stage built from an external
+  base image only reports what the Dockerfile adds. The repository is read the
+  same way a deploy reads it, so a public one works without a connected git
+  provider.
 
 What it fills in for you:
 
-- **Container port**: the first exposed TCP port (UDP when that's all there is),
-  unless you, a template or a previous submit already set one.
+- **Container port**: the manifest's `containerPort`, else the first exposed TCP
+  port (UDP when that's all there is), unless you, a template or a previous
+  submit already set one.
 - **Volumes**: one new named volume per declared `VOLUME` path not already in
   the list. Change the source or the path and it stays yours; switch to another
   image and the untouched ones are swapped out.
-- **Environment variables**: an **Import from the image/Dockerfile** link in the
-  Environment step adds the declared variables as editable rows, skipping the
-  base-image plumbing (`PATH`, `HOME`, `LANG`, `*_VERSION`, and so on). It's a
-  button, not automatic, because an imported value becomes an override that no
-  longer follows the image when it changes.
+- **Environment variables**: an **Import from** link in the Environment step
+  adds the declared variables as editable rows, skipping the base-image plumbing
+  (`PATH`, `HOME`, `LANG`, `*_VERSION`, and so on). It's a button, not
+  automatic, because an imported value becomes an override that no longer
+  follows the image when it changes.
 
 Healthcheck, user, working directory, entrypoint and command are shown for
-reference only: the container already gets them from the image, so there's
-nothing to copy. Override them on the service's tabs after it's created.
+reference only: the container already gets them from the image, and a manifest's
+are applied on every deploy, so there's nothing to copy. Override them on the
+service's tabs after it's created.
 
 ## The services list
 

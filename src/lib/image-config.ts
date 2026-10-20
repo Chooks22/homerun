@@ -1,6 +1,14 @@
+import type { ManifestInput } from "#lib/server/manifest.js";
+
 export interface DetectedPort {
 	port: number;
-	protocol: "tcp" | "udp";
+	protocol: "both" | "tcp" | "udp";
+}
+
+export interface DetectedManifest {
+	errors: string[];
+	keys: string[];
+	path: string;
 }
 
 export interface DetectedConfig {
@@ -8,8 +16,9 @@ export interface DetectedConfig {
 	entrypoint: string[] | null;
 	env: Record<string, string>;
 	healthcheck: string | null;
+	manifest: DetectedManifest | null;
 	ports: DetectedPort[];
-	source: "dockerfile" | "image";
+	source: "dockerfile" | "image" | "manifest";
 	user: string | null;
 	volumes: string[];
 	workdir: string | null;
@@ -26,7 +35,7 @@ export interface OciImageConfig {
 	WorkingDir?: string | null;
 }
 
-type StageConfig = Omit<DetectedConfig, "source"> & {
+type StageConfig = Omit<DetectedConfig, "manifest" | "source"> & {
 	ownCommand: boolean;
 	vars: Record<string, string>;
 };
@@ -354,7 +363,7 @@ function finish(
 	source: DetectedConfig["source"],
 ): DetectedConfig {
 	const { ownCommand: _own, vars: _vars, ...config } = stage;
-	return { ...config, source };
+	return { ...config, manifest: null, source };
 }
 
 /**
@@ -443,14 +452,14 @@ export function overridableEnv(
 	);
 }
 
-/** The port to route to: the first TCP one, else the first exposed at all. */
+/** The port to route to: the first one carrying TCP (the manifest's, when it sets one), else the first at all. */
 export function primaryPort(
 	config: DetectedConfig | null,
 ): DetectedPort | null {
 	if (!config || config.ports.length === 0) {
 		return null;
 	}
-	return config.ports.find((p) => p.protocol === "tcp") ?? config.ports[0];
+	return config.ports.find((p) => p.protocol !== "udp") ?? config.ports[0];
 }
 
 /** Whether `config` found anything worth showing. */
@@ -459,7 +468,8 @@ export function hasDetected(
 ): config is DetectedConfig {
 	return (
 		!!config &&
-		(config.ports.length > 0 ||
+		(!!config.manifest ||
+			config.ports.length > 0 ||
 			config.volumes.length > 0 ||
 			Object.keys(config.env).length > 0 ||
 			!!config.healthcheck ||
@@ -468,4 +478,73 @@ export function hasDetected(
 			!!config.command ||
 			!!config.entrypoint)
 	);
+}
+
+const MANIFEST_APPLIED_KEYS = new Set([
+	"command",
+	"containerPort",
+	"entrypoint",
+	"envVars",
+	"healthcheckCommand",
+	"healthcheckDisabled",
+	"portProtocol",
+	"runAsUser",
+]);
+
+/**
+ * Lays a repository's Homerun Manifest over what its Dockerfile declares
+ * (or over nothing, when there's no Dockerfile to read): the manifest wins
+ * for the port, env, healthcheck, user, command and entrypoint it sets, the
+ * way it does on every deploy. Its other keys are listed in
+ * `manifest.keys` as applied on deploy; a manifest that didn't validate
+ * contributes only its errors.
+ */
+export function withManifest(
+	base: DetectedConfig | null,
+	file: { errors: string[]; manifest: ManifestInput | null; path: string },
+): DetectedConfig {
+	const config: DetectedConfig = base
+		? { ...base, env: { ...base.env }, ports: [...base.ports] }
+		: { ...finish(emptyStage(), "manifest") };
+	const manifest = file.manifest ?? {};
+	config.manifest = {
+		errors: file.errors,
+		keys: Object.keys(manifest).filter(
+			(key) => !MANIFEST_APPLIED_KEYS.has(key),
+		),
+		path: file.path,
+	};
+	if (manifest.containerPort) {
+		const protocol = manifest.portProtocol ?? "tcp";
+		config.ports = [
+			{ port: manifest.containerPort, protocol },
+			...config.ports.filter((p) => p.port !== manifest.containerPort),
+		];
+	} else if (manifest.portProtocol && config.ports.length > 0) {
+		config.ports[0] = { ...config.ports[0], protocol: manifest.portProtocol };
+	}
+	config.env = { ...config.env, ...manifest.envVars };
+	if (manifest.healthcheckDisabled) {
+		config.healthcheck = "NONE";
+	} else if (manifest.healthcheckCommand) {
+		config.healthcheck = manifest.healthcheckCommand;
+	}
+	config.user = manifest.runAsUser || config.user;
+	config.command = manifest.command?.length ? manifest.command : config.command;
+	config.entrypoint = manifest.entrypoint?.length
+		? manifest.entrypoint
+		: config.entrypoint;
+	return config;
+}
+
+/** Where `config` came from, for a label: "the image", "the Dockerfile", ".homerun.json and the Dockerfile". */
+export function detectedFrom(config: DetectedConfig): string {
+	const base =
+		config.source === "manifest"
+			? null
+			: config.source === "dockerfile"
+				? "the Dockerfile"
+				: "the image";
+	const manifest = config.manifest?.path.split("/").pop() ?? null;
+	return [manifest, base].filter(Boolean).join(" and ");
 }

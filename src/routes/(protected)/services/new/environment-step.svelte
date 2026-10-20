@@ -6,7 +6,11 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { mergeEnvRows, type ParsedEnvVar } from "#lib/env-parse.js";
-	import { type DetectedConfig, overridableEnv } from "#lib/image-config.js";
+	import {
+		type DetectedConfig,
+		detectedFrom,
+		overridableEnv,
+	} from "#lib/image-config.js";
 	import type { WizardData } from "./wizard-types";
 
 	interface Props {
@@ -108,8 +112,8 @@
           variant="link"
         >
           <ScanSearch class="size-3.5" />
-          Import {detectedEnv.length} from the
-          {detected?.source === "dockerfile" ? "Dockerfile" : "image"}
+          Import {detectedEnv.length} from
+          {detected ? detectedFrom(detected) : ""}
         </Button>
       {/if}
       <ServiceLinkPicker

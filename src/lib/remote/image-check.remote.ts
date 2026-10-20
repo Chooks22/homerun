@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BUILD_METHODS } from "#lib/build-methods.js";
 import {
 	configFromImage,
 	type DetectedConfig,
@@ -8,6 +9,7 @@ import { Logger } from "#lib/logger.js";
 import { requirePermission } from "#lib/server/remote-auth.js";
 import { ApiService } from "#lib/services/api.service.js";
 import { DockerService } from "#lib/services/docker.service.js";
+import { ManifestService } from "#lib/services/manifest.service.js";
 import { query } from "$app/server";
 
 export interface ImageCheck {
@@ -81,5 +83,19 @@ export const inspectImageConfig = query(
 			.get<{ Config?: OciImageConfig | null }>("v1/images/inspect", { ref })
 			.catch(() => null);
 		return local?.Config ? configFromImage(local.Config) : null;
+	},
+);
+
+export const detectRepoConfig = query(
+	z.object({
+		context: z.string(),
+		dockerfilePath: z.string(),
+		gitUrl: z.string().trim().min(1),
+		method: z.enum(BUILD_METHODS),
+		ref: z.string().trim().min(1),
+	}),
+	async (input): Promise<DetectedConfig | null> => {
+		const user = requirePermission("services", "read");
+		return await ManifestService.detectConfig(input, user.id);
 	},
 );

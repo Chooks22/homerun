@@ -70,6 +70,11 @@ paths, the preview policy and the rest come from the parent service, so a pull
 request can neither open its own preview's login wall nor claim a production
 hostname.
 
+**When creating a service** from a repository, the wizard reads the manifest the
+same way, before anything is deployed: it fills in the port and shows the rest,
+over whatever the Dockerfile declares, see
+[Services](services.md#detected-from-the-image-dockerfile-or-manifest).
+
 ## With the CLI or the API
 
 ```sh

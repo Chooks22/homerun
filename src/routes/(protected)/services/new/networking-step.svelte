@@ -54,8 +54,8 @@
 			}
 			containerPort = String(found.port);
 			autoPort = containerPort;
-			if (found.protocol === "udp") {
-				portProtocol = "udp";
+			if (found.protocol !== "tcp") {
+				portProtocol = found.protocol;
 			}
 		});
 	});

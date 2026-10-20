@@ -1,9 +1,15 @@
 <script lang="ts">
 	import { ScanSearch } from "@lucide/svelte";
 	import type { BuildMethod } from "#lib/build-methods.js";
-	import { type DetectedConfig, hasDetected } from "#lib/image-config.js";
-	import { detectDockerfileConfig } from "#lib/remote/git-repos.remote.js";
-	import { inspectImageConfig } from "#lib/remote/image-check.remote.js";
+	import {
+		type DetectedConfig,
+		detectedFrom,
+		hasDetected,
+	} from "#lib/image-config.js";
+	import {
+		detectRepoConfig,
+		inspectImageConfig,
+	} from "#lib/remote/image-check.remote.js";
 
 	const DEBOUNCE_MS = 600;
 
@@ -13,9 +19,8 @@
 		gitBuildContext: string;
 		gitBuildMethod: BuildMethod;
 		gitDockerfilePath: string;
-		gitProviderId: string;
 		gitRef: string;
-		gitRepo: string;
+		gitUrl: string;
 		image: string;
 		registryUrl: string;
 		registryUsername: string;
@@ -28,9 +33,8 @@
 		gitBuildContext,
 		gitBuildMethod,
 		gitDockerfilePath,
-		gitProviderId,
 		gitRef,
-		gitRepo,
+		gitUrl,
 		image,
 		registryUrl,
 		registryUsername,
@@ -45,17 +49,17 @@
 			const args = { image, registryUrl, registryUsername, tag };
 			return image.trim() ? () => inspectImageConfig(args) : null;
 		}
-		if (gitBuildMethod !== "dockerfile" || !gitProviderId || !gitRepo) {
+		if (!(gitUrl.trim() && gitRef.trim())) {
 			return null;
 		}
 		const args = {
 			context: gitBuildContext,
 			dockerfilePath: gitDockerfilePath,
-			providerId: gitProviderId,
+			gitUrl,
+			method: gitBuildMethod,
 			ref: gitRef,
-			repo: gitRepo,
 		};
-		return () => detectDockerfileConfig(args);
+		return () => detectRepoConfig(args);
 	}
 
 	$effect(() => {
@@ -117,20 +121,37 @@
 		if (detected.command) {
 			rows.push({ label: "Command", value: detected.command.join(" ") });
 		}
+		if (detected.manifest?.keys.length) {
+			rows.push({
+				label: "On deploy",
+				value: detected.manifest.keys.join(", "),
+			});
+		}
 		return rows;
 	});
 </script>
 
 {#if loading && !detected}
   <p class="text-xs text-text-subtle">
-    {buildSource === "image" ? "Reading the image's config…" : "Reading the Dockerfile…"}
+    {buildSource === "image" ? "Reading the image's config…" : "Reading the repository…"}
   </p>
 {:else if facts.length > 0}
   <div class="rounded-md border border-border bg-surface-2 p-3 text-xs">
     <p class="flex items-center gap-1.5 font-medium text-text">
       <ScanSearch class="size-3.5" />
-      Detected from the {detected?.source === "dockerfile" ? "Dockerfile" : "image"}
+      Detected from {detected ? detectedFrom(detected) : ""}
     </p>
+    {#if detected?.manifest?.errors.length}
+      <div class="mt-2 text-amber-700 dark:text-amber-400">
+        {detected.manifest.path} isn't a valid Homerun Manifest, so deploys
+        will fail until it's fixed:
+        <ul class="ml-4 list-disc">
+          {#each detected.manifest.errors as problem (problem)}
+            <li>{problem}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
     <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
       {#each facts as fact (fact.label)}
         <dt class="text-text-muted">{fact.label}</dt>
@@ -139,8 +160,14 @@
     </dl>
     <p class="mt-2 text-text-subtle">
       The port and volumes are filled in on their steps, and the env can be
-      imported on the Environment step. The rest already applies from the
-      image; override any of it on the service's tabs.
+      imported on the Environment step.
+      {#if detected?.manifest}
+        {detected.manifest.path} is applied again on every deploy and wins
+        for the keys it sets.
+      {:else}
+        The rest already applies from the image; override any of it on the
+        service's tabs.
+      {/if}
     </p>
   </div>
 {/if}

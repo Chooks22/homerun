@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
 	configFromImage,
+	detectedFrom,
 	hasDetected,
 	overridableEnv,
 	parseDockerfile,
 	primaryPort,
+	withManifest,
 } from "#lib/image-config.js";
 
 const MULTI_STAGE = `# syntax=docker/dockerfile:1
@@ -120,5 +122,58 @@ describe("configFromImage", () => {
 	test("an empty config", () => {
 		expect(hasDetected(configFromImage(null))).toBe(false);
 		expect(primaryPort(configFromImage({}))).toBeNull();
+	});
+});
+
+describe("withManifest", () => {
+	const dockerfile = parseDockerfile(
+		'FROM a\nEXPOSE 8080\nENV MODE=dev KEEP=1\nUSER app\nCMD ["serve"]\n',
+	);
+
+	test("the manifest wins for what it sets and lists the rest", () => {
+		const config = withManifest(dockerfile, {
+			errors: [],
+			manifest: {
+				containerPort: 3000,
+				envVars: { MODE: "prod" },
+				healthcheckCommand: "curl -f localhost:3000",
+				memoryLimitMb: 512,
+				runAsUser: "1000",
+			},
+			path: "apps/web/.homerun.json",
+		});
+		expect(primaryPort(config)).toEqual({ port: 3000, protocol: "tcp" });
+		expect(config.ports).toHaveLength(2);
+		expect(config.env).toEqual({ KEEP: "1", MODE: "prod" });
+		expect(config.healthcheck).toBe("curl -f localhost:3000");
+		expect(config.user).toBe("1000");
+		expect(config.command).toEqual(["serve"]);
+		expect(config.manifest).toEqual({
+			errors: [],
+			keys: ["memoryLimitMb"],
+			path: "apps/web/.homerun.json",
+		});
+		expect(detectedFrom(config)).toBe(".homerun.json and the Dockerfile");
+	});
+
+	test("a manifest alone, and an invalid one", () => {
+		const alone = withManifest(null, {
+			errors: [],
+			manifest: { healthcheckDisabled: true, portProtocol: "both" },
+			path: ".homerun.yaml",
+		});
+		expect(alone.healthcheck).toBe("NONE");
+		expect(alone.ports).toEqual([]);
+		expect(detectedFrom(alone)).toBe(".homerun.yaml");
+		const broken = withManifest(dockerfile, {
+			errors: ["containerPort: too big"],
+			manifest: null,
+			path: ".homerun.json",
+		});
+		expect(hasDetected(broken)).toBe(true);
+		expect(broken.manifest?.errors).toEqual(["containerPort: too big"]);
+		expect(broken.ports).toEqual(dockerfile.ports);
+		expect(detectedFrom(dockerfile)).toBe("the Dockerfile");
+		expect(detectedFrom(configFromImage({}))).toBe("the image");
 	});
 });

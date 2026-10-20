@@ -7,6 +7,9 @@ When done delete the entry, no bloat.
 
 ## Small
 
+- [ ] CLAUDE.md and the check-repo skill say `bun run type-check`, but the
+      package.json script is `typecheck`; make them agree
+
 - [ ] Backup destination capacity: on an SFTP or WebDAV box with automatic
       snapshots, `rclone about` reports used as live files only, so the size
       shown is used + free and space held by snapshots is invisible; say so on

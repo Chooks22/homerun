@@ -250,9 +250,8 @@
       {gitBuildContext}
       {gitBuildMethod}
       {gitDockerfilePath}
-      {gitProviderId}
       {gitRef}
-      {gitRepo}
+      {gitUrl}
       {image}
       {registryUrl}
       {registryUsername}

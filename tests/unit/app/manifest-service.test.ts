@@ -217,3 +217,67 @@ describe("ManifestService.readFromRepo", () => {
 		);
 	});
 });
+
+describe("ManifestService.detectConfig", () => {
+	const source = {
+		context: "apps/web",
+		dockerfilePath: "",
+		gitUrl: "https://git.example.com/acme/web.git",
+		method: "dockerfile" as const,
+		ref: "main",
+	};
+
+	function files(found: Record<string, string>) {
+		post.mockImplementation((async (_path: string, body: unknown) => {
+			const { paths } = body as { paths: string[] };
+			const path = paths.find((p) => p in found) ?? "";
+			return { commit: "abc", content: found[path] ?? "", path };
+		}) as unknown as typeof WorkerClient.post);
+	}
+
+	test("the manifest picks the Dockerfile and wins over it", async () => {
+		files({
+			"apps/web/.homerun.json": JSON.stringify({
+				containerPort: 3000,
+				gitDockerfilePath: "docker/Dockerfile.prod",
+			}),
+			"apps/web/docker/Dockerfile.prod": "FROM a\nEXPOSE 8080\nVOLUME /data\n",
+		});
+		const config = await ManifestService.detectConfig(source, "u1");
+		expect(config?.ports.map((p) => p.port)).toEqual([3000, 8080]);
+		expect(config?.volumes).toEqual(["/data"]);
+		expect(config?.manifest?.path).toBe("apps/web/.homerun.json");
+		expect(post).toHaveBeenCalledTimes(2);
+	});
+
+	test("no Dockerfile read for another build method, nor one outside the repo", async () => {
+		files({ ".homerun.yaml": "gitBuildMethod: railpack\nreplicas: 2\n" });
+		const config = await ManifestService.detectConfig(source, "u1");
+		expect(config?.source).toBe("manifest");
+		expect(config?.manifest?.keys).toEqual(["gitBuildMethod", "replicas"]);
+		expect(post).toHaveBeenCalledTimes(1);
+		post.mockClear();
+		files({});
+		expect(
+			await ManifestService.detectConfig(
+				{ ...source, context: "../..", dockerfilePath: "x" },
+				"u1",
+			),
+		).toBeNull();
+		expect(post).toHaveBeenCalledTimes(1);
+	});
+
+	test("a Dockerfile alone, an invalid manifest and an unreadable repository", async () => {
+		files({ "apps/web/Dockerfile": "FROM a\nEXPOSE 80\n" });
+		expect(
+			(await ManifestService.detectConfig(source, "u1"))?.manifest,
+		).toBeNull();
+		files({ ".homerun.json": "{ nope" });
+		const broken = await ManifestService.detectConfig(source, "u1");
+		expect(broken?.manifest?.errors[0]).toContain("isn't valid JSON");
+		post.mockImplementation((async () => {
+			throw new Error("clone failed");
+		}) as unknown as typeof WorkerClient.post);
+		expect(await ManifestService.detectConfig(source, "u1")).toBeNull();
+	});
+});
