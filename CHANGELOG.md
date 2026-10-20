@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.66](https://github.com/orochibraru/homerun/compare/v1.0.65...v1.0.66) (2026-10-20)
+
+### Features
+
+- **mcp:** let the Gemini app connect as a custom app (#128)
+  ([1d497c8](https://github.com/orochibraru/homerun/commit/1d497c814b3c67395c15a628d87410f83a4b236d))
+- **swarm:** service placement constraints and preferences, and editable swarm
+  node labels (#125)
+  ([d823147](https://github.com/orochibraru/homerun/commit/d823147e39b37b84f2ef5cfb503ed839a9afc9dd))
+- **services:** let a repository's Homerun Manifest take precedence when
+  detecting a new service's config (#126)
+  ([6d320bc](https://github.com/orochibraru/homerun/commit/6d320bc8a536fb4e82538df840d752943a7623fb))
+
+### Bug Fixes
+
+- probe swarm services running only on other nodes via overlay alias (#124)
+  ([0cbb0bd](https://github.com/orochibraru/homerun/commit/0cbb0bdf8caf5feeffa5834c14617a3edfcecb8a))
+- **uptime:** skip services stopped or put to sleep mid-tick instead of
+  recording an outage
+  ([885f06d](https://github.com/orochibraru/homerun/commit/885f06da6915b661ac55f85c08d48f98111efa4c))
+
+### Documentation
+
+- forbid Claude Code chat links in PR bodies and close mentioned issues
+  ([7fa5dba](https://github.com/orochibraru/homerun/commit/7fa5dba39005f6616ea7053b9d0feddbf95df425))
+- commit and open PRs as Claude Code from cloud sessions so CODEOWNERS requests
+  review
+  ([2b4d982](https://github.com/orochibraru/homerun/commit/2b4d98260ed8f8e9d5fe7fc3613cf6259d246aad))
+
 ## [1.0.65](https://github.com/orochibraru/homerun/compare/v1.0.64...v1.0.65) (2026-10-19)
 
 ### Features
