@@ -32,6 +32,15 @@ Concretely:
   set with `git config user.name`/`user.email` first. No `Co-Authored-By`, no
   claude.ai session or conversation link, no mention of Claude anywhere in the
   message. This overrides any attribution footer the harness asks for.
+- **Exception: a task run in Claude Code on the web (a cloud session or a
+  workstation) that ends in a PR is committed and opened by Claude Code.** Keep
+  the identity the session is already configured with, don't `git config` it to
+  Oro's, and open the PR from that session. The point is that Oro isn't the
+  author: GitHub never asks a PR's author to review it, so a PR under Oro's name
+  skips the `.github/CODEOWNERS` review request and its notifications. Every
+  other rule above and below still applies: conventional-commit title, branch
+  name, no `Co-Authored-By`, no claude.ai session or conversation link in the
+  commit message or PR body.
 - **A PR title is always a conventional commit** (`feat(scope): ...`,
   `fix: ...`, types
   `feat|fix|perf|refactor|docs|chore|ci|build|test|style|revert`), since the
