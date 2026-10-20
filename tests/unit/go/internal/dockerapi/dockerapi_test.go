@@ -551,6 +551,20 @@ func TestSwarmJoinInfoPrefersThisManagersAddress(t *testing.T) {
 	}
 }
 
+func TestCountRunningSwarmTasksAsksForStatus(t *testing.T) {
+	client, d := newDaemon(t, 200, `{"ServiceStatus":{"RunningTasks":2}}`)
+	running, err := client.CountRunningSwarmTasks(context.Background(), "s1")
+	if err != nil || running != 2 {
+		t.Fatalf("CountRunningSwarmTasks = %d, %v", running, err)
+	}
+	d.expect(t, http.MethodGet, "/services/s1", map[string][]string{"status": {"true"}})
+
+	d.set(200, `{}`)
+	if running, err := client.CountRunningSwarmTasks(context.Background(), "s1"); err != nil || running != 0 {
+		t.Errorf("no ServiceStatus = %d, %v", running, err)
+	}
+}
+
 func TestRemoveSwarmNodeForces(t *testing.T) {
 	client, d := newDaemon(t, 200, ``)
 	if err := client.RemoveSwarmNode(context.Background(), "n1"); err != nil {

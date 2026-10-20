@@ -276,6 +276,7 @@ describe("UptimeProbe tick", () => {
 		track(
 			spyOn(DockerService, "getRunningTaskContainerId").mockResolvedValue(null),
 		);
+		track(spyOn(DockerService, "countRunningSwarmTasks").mockResolvedValue(0));
 		const verify: boolean[] = [];
 		globalThis.fetch = (async (
 			_url: string,
@@ -293,7 +294,7 @@ describe("UptimeProbe tick", () => {
 		expect(verify).toEqual([true, false]);
 		expect(h.recorded[0]).toEqual([
 			expect.objectContaining({
-				detail: "No running task on this node.",
+				detail: "No running task on any node.",
 				kind: "internal",
 				ok: false,
 			}),
@@ -316,6 +317,7 @@ describe("UptimeProbe tick", () => {
 		track(
 			spyOn(DockerService, "getRunningTaskContainerId").mockResolvedValue(null),
 		);
+		track(spyOn(DockerService, "countRunningSwarmTasks").mockResolvedValue(0));
 		let calls = 0;
 		globalThis.fetch = (async () => {
 			calls += 1;
@@ -326,7 +328,7 @@ describe("UptimeProbe tick", () => {
 
 		expect(h.recorded[0]).toEqual([
 			expect.objectContaining({
-				detail: "No running task on this node.",
+				detail: "No running task on any node.",
 				kind: "internal",
 				ok: false,
 			}),
@@ -347,11 +349,12 @@ describe("UptimeProbe tick", () => {
 		track(
 			spyOn(DockerService, "getRunningTaskContainerId").mockResolvedValue(null),
 		);
+		track(spyOn(DockerService, "countRunningSwarmTasks").mockResolvedValue(0));
 		await new TestProbe().run();
 		expect(h.recorded).toEqual([
 			[
 				expect.objectContaining({
-					detail: "No running task on this node.",
+					detail: "No running task on any node.",
 					kind: "internal",
 					ok: false,
 				}),
@@ -387,6 +390,60 @@ describe("UptimeProbe tick", () => {
 		expect(urls).toEqual(["http://it-tools:8080/"]);
 		expect(h.recorded[0]).toEqual([
 			expect.objectContaining({ kind: "internal", ok: true }),
+		]);
+	});
+
+	test("a swarm service running only on other nodes is probed by its overlay alias", async () => {
+		const h = harness([
+			svc({ containerId: null, slug: "it-tools", swarmServiceId: "sw" }),
+		]);
+		track(
+			spyOn(DockerService, "getRunningTaskContainerId").mockResolvedValue(null),
+		);
+		track(spyOn(DockerService, "countRunningSwarmTasks").mockResolvedValue(2));
+		const urls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			urls.push(url);
+			return new Response("", { status: 200 });
+		}) as unknown as typeof fetch;
+
+		await new TestProbe().run();
+
+		expect(urls).toEqual(["http://it-tools:8080/"]);
+		expect(h.recorded[0]).toEqual([
+			expect.objectContaining({ kind: "internal", ok: true }),
+		]);
+	});
+
+	test("a remote swarm service with a healthcheck is up while a task runs", async () => {
+		const h = harness([
+			svc({
+				containerId: null,
+				healthcheckCommand: "true",
+				healthcheckDisabled: false,
+				swarmServiceId: "sw",
+			}),
+		]);
+		track(
+			spyOn(DockerService, "getRunningTaskContainerId").mockResolvedValue(null),
+		);
+		track(spyOn(DockerService, "countRunningSwarmTasks").mockResolvedValue(1));
+		let fetched = false;
+		globalThis.fetch = (async () => {
+			fetched = true;
+			return new Response("", { status: 200 });
+		}) as unknown as typeof fetch;
+
+		await new TestProbe().run();
+
+		expect(fetched).toBe(false);
+		expect(h.recorded[0]).toEqual([
+			expect.objectContaining({
+				detail: "Healthcheck enforced by swarm · 1 task running on other nodes",
+				kind: "internal",
+				ok: true,
+				target: "swarm healthcheck",
+			}),
 		]);
 	});
 

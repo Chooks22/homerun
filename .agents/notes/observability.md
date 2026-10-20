@@ -352,11 +352,17 @@ service's running task on this node (`getRunningTaskContainerId`) for the
 healthcheck, and aims TCP/HTTP at the overlay alias `<slug>:<port>` rather than
 a container IP. That only resolves because `enableSwarmMode` attaches this app's
 own container to the overlay (re-asserted on every boot by `CoreServicesWatch`).
-No running task on this node records a failure. For that attach to be
-idempotent, the worker's `/v1/containers/{id}/connect` passes the daemon's
-status through (403 already attached, 404 missing) instead of a blanket 500,
-which had also made every re-assert after the first fail on Traefik's
-already-attached overlay.
+A service whose replicas all run on worker nodes has no task container here, so
+`#remoteSwarmProbe` takes over: no running task anywhere
+(`countRunningSwarmTasks`) is a failure; a service with its own healthcheck
+command counts as up while a task runs, since swarm replaces an unhealthy task
+and the remote container's health can't be read from the manager; anything else
+is probed over the overlay alias like a local task. It used to record "No
+running task on this node." as a failure, so a service pinned to workers showed
+down on the Overview while answering fine. For that attach to be idempotent, the
+worker's `/v1/containers/{id}/connect` passes the daemon's status through (403
+already attached, 404 missing) instead of a blanket 500, which had also made
+every re-assert after the first fail on Traefik's already-attached overlay.
 
 **The internal probe isn't always HTTP**, and
 `internalProbeMethod(image, hasHealthcheck)` picks between three, in this order:

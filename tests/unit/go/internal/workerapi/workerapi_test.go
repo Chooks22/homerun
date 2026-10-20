@@ -270,6 +270,18 @@ func TestASwarmServiceScaledToZeroIsStopped(t *testing.T) {
 	}
 }
 
+func TestRunningTaskCountComesFromTheDaemonsOwnStatus(t *testing.T) {
+	api := newAPI(t, &fakeDaemon{bodies: map[string]string{
+		"/services/s1": `{"ServiceStatus":{"RunningTasks":3,"DesiredTasks":3}}`,
+	}})
+	if _, body := call(t, api, http.MethodGet, "/v1/swarm/services/s1/running-tasks/count", false); !strings.Contains(body, `"count":3`) {
+		t.Fatalf("want the daemon's RunningTasks, got %s", body)
+	}
+	if status, _ := call(t, api, http.MethodGet, "/v1/swarm/services/gone/running-tasks/count", false); status != http.StatusNotFound {
+		t.Fatalf("a missing service must read as 404, got %d", status)
+	}
+}
+
 func TestLogsAreDemuxedBeforeTheyLeaveTheWorker(t *testing.T) {
 	framed := "\x01\x00\x00\x00\x00\x00\x00\x06hello\n" + "\x02\x00\x00\x00\x00\x00\x00\x06world\n"
 	api := newAPI(t, &fakeDaemon{bodies: map[string]string{"/containers/c1/logs": framed}})
