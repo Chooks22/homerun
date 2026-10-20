@@ -573,6 +573,22 @@ func TestRemoveSwarmNodeForces(t *testing.T) {
 	d.expect(t, http.MethodDelete, "/nodes/n1", map[string][]string{"force": {"true"}})
 }
 
+func TestSetSwarmNodeLabelsKeepsTheRestOfTheSpec(t *testing.T) {
+	client, d := newDaemon(t, 200, `{"Spec":{"Availability":"active","Labels":{"old":"x"},"Role":"worker"},"Version":{"Index":12}}`)
+	if err := client.SetSwarmNodeLabels(context.Background(), "n1", map[string]string{"env": "staging"}); err != nil {
+		t.Fatal(err)
+	}
+	got := d.expect(t, http.MethodPost, "/nodes/n1/update", map[string][]string{"version": {"12"}})
+	var spec map[string]any
+	if err := json.Unmarshal(got.body, &spec); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{"Availability": "active", "Labels": map[string]any{"env": "staging"}, "Role": "worker"}
+	if !reflect.DeepEqual(spec, want) {
+		t.Errorf("spec = %v, want %v", spec, want)
+	}
+}
+
 func TestSwarmServiceSendsRegistryAuthToWorkers(t *testing.T) {
 	ctx := context.Background()
 	auth := &dockerapi.AuthConfig{Password: "pw", ServerAddress: "ghcr.io", Username: "me"}

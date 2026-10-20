@@ -3,6 +3,7 @@ import type { AuthPathsMode } from "#lib/path-patterns.js";
 import type { PublishedPort } from "#lib/published-ports.js";
 import type { Service } from "#lib/server/db/schema.js";
 import type { runtimeOptionsFrom } from "#lib/service-runtime.js";
+import { swarmPlacementFrom } from "#lib/swarm-placement.js";
 import type { PullPolicy } from "#lib/types.js";
 
 /** Fields a caller supplies to insert a new service row. */
@@ -177,6 +178,7 @@ export type ServiceUpdateInput = Partial<
 		| "requiredStatusChecks"
 		| "restartPolicy"
 		| "slug"
+		| "swarmPlacement"
 		| "swarmServiceId"
 		| "tracesEnabled"
 		| "repositoryId"
@@ -230,6 +232,7 @@ export const NEW_SERVICE_STATE_COLUMNS: Pick<
 	| "requiredStatusChecks"
 	| "scaleToZeroMinutes"
 	| "sleepingSince"
+	| "swarmPlacement"
 	| "swarmServiceId"
 	| "wokenAt"
 > = {
@@ -248,6 +251,7 @@ export const NEW_SERVICE_STATE_COLUMNS: Pick<
 	requiredStatusChecks: [],
 	scaleToZeroMinutes: null,
 	sleepingSince: null,
+	swarmPlacement: swarmPlacementFrom(null),
 	swarmServiceId: null,
 	wokenAt: null,
 };

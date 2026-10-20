@@ -22829,6 +22829,33 @@
 												},
 												"type": "array"
 											},
+											"swarmPlacement": {
+												"additionalProperties": false,
+												"description": "Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over",
+												"properties": {
+													"constraints": {
+														"items": {
+															"type": "string"
+														},
+														"type": "array"
+													},
+													"preferences": {
+														"items": {
+															"type": "string"
+														},
+														"type": "array"
+													},
+													"roles": {
+														"items": {
+															"enum": ["manager", "worker"],
+															"type": "string"
+														},
+														"type": "array"
+													}
+												},
+												"required": ["constraints", "preferences", "roles"],
+												"type": "object"
+											},
 											"swarmServiceId": {
 												"type": ["string", "null"]
 											},
@@ -23069,6 +23096,7 @@
 											"requiredStatusChecks",
 											"pullPolicy",
 											"replicas",
+											"swarmPlacement",
 											"scaleToZeroMinutes",
 											"sleepingSince",
 											"wokenAt",
@@ -23750,6 +23778,39 @@
 												},
 												"type": "array"
 											},
+											"swarmPlacement": {
+												"additionalProperties": false,
+												"description": "Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over.",
+												"properties": {
+													"constraints": {
+														"default": [],
+														"items": {
+															"type": "string"
+														},
+														"maxItems": 50,
+														"type": "array"
+													},
+													"preferences": {
+														"default": [],
+														"items": {
+															"type": "string"
+														},
+														"maxItems": 20,
+														"type": "array"
+													},
+													"roles": {
+														"default": ["manager", "worker"],
+														"items": {
+															"enum": ["manager", "worker"],
+															"type": "string"
+														},
+														"minItems": 1,
+														"type": "array"
+													}
+												},
+												"required": ["constraints", "preferences", "roles"],
+												"type": "object"
+											},
 											"tag": {
 												"minLength": 1,
 												"type": "string"
@@ -24394,6 +24455,39 @@
 													"type": "string"
 												},
 												"type": "array"
+											},
+											"swarmPlacement": {
+												"additionalProperties": false,
+												"description": "Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over.",
+												"properties": {
+													"constraints": {
+														"default": [],
+														"items": {
+															"type": "string"
+														},
+														"maxItems": 50,
+														"type": "array"
+													},
+													"preferences": {
+														"default": [],
+														"items": {
+															"type": "string"
+														},
+														"maxItems": 20,
+														"type": "array"
+													},
+													"roles": {
+														"default": ["manager", "worker"],
+														"items": {
+															"enum": ["manager", "worker"],
+															"type": "string"
+														},
+														"minItems": 1,
+														"type": "array"
+													}
+												},
+												"required": ["constraints", "preferences", "roles"],
+												"type": "object"
 											},
 											"tag": {
 												"minLength": 1,
@@ -25051,6 +25145,33 @@
 											},
 											"type": "array"
 										},
+										"swarmPlacement": {
+											"additionalProperties": false,
+											"description": "Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over",
+											"properties": {
+												"constraints": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
+												"preferences": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
+												"roles": {
+													"items": {
+														"enum": ["manager", "worker"],
+														"type": "string"
+													},
+													"type": "array"
+												}
+											},
+											"required": ["constraints", "preferences", "roles"],
+											"type": "object"
+										},
 										"swarmServiceId": {
 											"type": ["string", "null"]
 										},
@@ -25291,6 +25412,7 @@
 										"requiredStatusChecks",
 										"pullPolicy",
 										"replicas",
+										"swarmPlacement",
 										"scaleToZeroMinutes",
 										"sleepingSince",
 										"wokenAt",
@@ -26196,6 +26318,33 @@
 											},
 											"type": "array"
 										},
+										"swarmPlacement": {
+											"additionalProperties": false,
+											"description": "Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over",
+											"properties": {
+												"constraints": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
+												"preferences": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
+												"roles": {
+													"items": {
+														"enum": ["manager", "worker"],
+														"type": "string"
+													},
+													"type": "array"
+												}
+											},
+											"required": ["constraints", "preferences", "roles"],
+											"type": "object"
+										},
 										"swarmServiceId": {
 											"type": ["string", "null"]
 										},
@@ -26436,6 +26585,7 @@
 										"requiredStatusChecks",
 										"pullPolicy",
 										"replicas",
+										"swarmPlacement",
 										"scaleToZeroMinutes",
 										"sleepingSince",
 										"wokenAt",
@@ -27137,6 +27287,39 @@
 										},
 										"type": "array"
 									},
+									"swarmPlacement": {
+										"additionalProperties": false,
+										"description": "Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over.",
+										"properties": {
+											"constraints": {
+												"default": [],
+												"items": {
+													"type": "string"
+												},
+												"maxItems": 50,
+												"type": "array"
+											},
+											"preferences": {
+												"default": [],
+												"items": {
+													"type": "string"
+												},
+												"maxItems": 20,
+												"type": "array"
+											},
+											"roles": {
+												"default": ["manager", "worker"],
+												"items": {
+													"enum": ["manager", "worker"],
+													"type": "string"
+												},
+												"minItems": 1,
+												"type": "array"
+											}
+										},
+										"required": ["constraints", "preferences", "roles"],
+										"type": "object"
+									},
 									"tag": {
 										"minLength": 1,
 										"type": "string"
@@ -27785,6 +27968,33 @@
 											},
 											"type": "array"
 										},
+										"swarmPlacement": {
+											"additionalProperties": false,
+											"description": "Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over",
+											"properties": {
+												"constraints": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
+												"preferences": {
+													"items": {
+														"type": "string"
+													},
+													"type": "array"
+												},
+												"roles": {
+													"items": {
+														"enum": ["manager", "worker"],
+														"type": "string"
+													},
+													"type": "array"
+												}
+											},
+											"required": ["constraints", "preferences", "roles"],
+											"type": "object"
+										},
 										"swarmServiceId": {
 											"type": ["string", "null"]
 										},
@@ -28025,6 +28235,7 @@
 										"requiredStatusChecks",
 										"pullPolicy",
 										"replicas",
+										"swarmPlacement",
 										"scaleToZeroMinutes",
 										"sleepingSince",
 										"wokenAt",
@@ -28624,6 +28835,32 @@
 														}
 													]
 												},
+												"placement": {
+													"additionalProperties": false,
+													"properties": {
+														"constraints": {
+															"items": {
+																"type": "string"
+															},
+															"type": "array"
+														},
+														"preferences": {
+															"items": {
+																"type": "string"
+															},
+															"type": "array"
+														},
+														"roles": {
+															"items": {
+																"enum": ["manager", "worker"],
+																"type": "string"
+															},
+															"type": "array"
+														}
+													},
+													"required": ["constraints", "preferences", "roles"],
+													"type": "object"
+												},
 												"replicas": {
 													"maximum": 9007199254740991,
 													"minimum": -9007199254740991,
@@ -28636,6 +28873,7 @@
 											"required": [
 												"cpuLimit",
 												"memoryLimitMb",
+												"placement",
 												"replicas",
 												"restartPolicy"
 											],

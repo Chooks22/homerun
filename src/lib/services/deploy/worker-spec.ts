@@ -363,6 +363,7 @@ function workloadSpec(ctx: WorkerSpecContext, workload: WorkloadPlan) {
 				template: swarmServiceTemplate({
 					...shared,
 					networkMode: workload.networkMode,
+					placement: svc.toJSON().swarmPlacement,
 					replicas: workload.replicas,
 				}),
 			};

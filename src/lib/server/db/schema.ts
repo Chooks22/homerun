@@ -48,6 +48,7 @@ import type { PublishedPort } from "#lib/published-ports.js";
 import type { ResourceKind, Threshold } from "#lib/resource-thresholds.js";
 import type { BackupRunKind, RevisionConfig } from "#lib/revision-config.js";
 import type { Preset, SurfaceStyle } from "#lib/surfaces.js";
+import type { SwarmPlacement } from "#lib/swarm-placement.js";
 import type { TabLayout } from "#lib/tab-layout.js";
 import type {
 	ContainerStatus,
@@ -1346,6 +1347,14 @@ export const service = pgTable(
 		// = "swarm") : ignored entirely in standalone mode, always 1 container.
 		// Editable on the Compute tab.
 		replicas: integer("replicas").default(1).notNull(),
+		swarmPlacement: jsonb("swarm_placement")
+			.$type<SwarmPlacement>()
+			.default({
+				constraints: [],
+				preferences: [],
+				roles: ["manager", "worker"],
+			})
+			.notNull(),
 		scaleToZeroMinutes: integer("scale_to_zero_minutes"),
 		sleepingSince: timestamp("sleeping_since", { mode: "date" }),
 		wokenAt: timestamp("woken_at", { mode: "date" }),

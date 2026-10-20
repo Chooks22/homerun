@@ -86,6 +86,27 @@ and memory use. A replica scheduled on another node shows its state but no
 usage, since Homerun only talks to this host's Docker daemon. The resource graph
 below the list records the sum over the replicas running here.
 
+**Placement**: with more than one node, the same **Replicas** section on
+**Container → Compute** controls where a service's replicas may run, following
+Docker's
+[service placement](https://docs.docker.com/engine/swarm/services/#control-service-placement):
+
+- **Node roles**: manager, worker or both (the default). Only one checked adds
+  `node.role==manager` or `node.role==worker`, so you can keep critical services
+  on the manager and everything else off it.
+- **Placement constraints**: one `key==value` or `key!=value` per line, matched
+  against node labels (`env==staging` becomes `node.labels.env==staging`). Every
+  line has to hold.
+- **Spread across**: node label keys, one per line (`zone` becomes
+  `spread=node.labels.zone`): replicas are spread evenly over that label's
+  values, in order.
+
+Node labels are edited on `/remote-hosts` → **Swarm nodes** (the pencil on each
+row), no `docker node update` needed. A replica no node satisfies stays pending,
+and the deploy waits for it like any other update that never gets healthy.
+Placement changes take effect on the next deploy. The same settings are
+`swarmPlacement` on the REST API's service update.
+
 **Adding a node**: on `/remote-hosts`, **Add a server** with the swarm node role
 hands you a one-time command to run on the new machine, see
 [Adding a server with one command](remote-hosts-and-agent.md#adding-a-server-with-one-command).

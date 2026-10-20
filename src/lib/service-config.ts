@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AUTH_PATHS_MODES } from "#lib/path-patterns.js";
 import { deployEnvironment } from "#lib/release-channels.js";
 import type { Service } from "#lib/server/db/schema.js";
+import { swarmPlacementFrom } from "#lib/swarm-placement.js";
 
 const argv = z.array(z.string()).nullable();
 
@@ -9,6 +10,11 @@ export const serviceConfigSchema = z.object({
 	compute: z.object({
 		cpuLimit: z.string().nullable(),
 		memoryLimitMb: z.number().int().nullable(),
+		placement: z.object({
+			constraints: z.array(z.string()),
+			preferences: z.array(z.string()),
+			roles: z.array(z.enum(["manager", "worker"])),
+		}),
 		replicas: z.number().int(),
 		restartPolicy: z.string(),
 	}),
@@ -173,6 +179,7 @@ export function serviceConfig(
 		compute: {
 			cpuLimit: row.cpuLimit,
 			memoryLimitMb: row.memoryLimitMb,
+			placement: swarmPlacementFrom(row.swarmPlacement),
 			replicas: row.replicas,
 			restartPolicy: row.restartPolicy,
 		},

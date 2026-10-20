@@ -16,6 +16,11 @@ import { environmentNameField } from "#lib/server/validation/environment-name.js
 import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
 import { splitShellWords } from "#lib/shell-words.js";
+import {
+	normalizePlacementConstraint,
+	normalizePlacementPreference,
+	placementLines,
+} from "#lib/swarm-placement.js";
 
 // Optional numeric fields that come from a plain <input>: an empty field
 // still submits as "" in FormData, and z.coerce.number() turns "" into 0
@@ -190,7 +195,68 @@ export const updateComputeSchema = baseServiceSchema
 				.min(SCALE_TO_ZERO_MIN_MINUTES)
 				.max(SCALE_TO_ZERO_MAX_MINUTES),
 		),
-	});
+		placementConstraints: z.string().optional(),
+		placementManager: z.literal("on").optional(),
+		placementPreferences: z.string().optional(),
+		placementWorker: z.literal("on").optional(),
+	})
+	.transform(
+		(
+			{
+				placementConstraints,
+				placementManager,
+				placementPreferences,
+				placementWorker,
+				...input
+			},
+			ctx,
+		) => {
+			if (placementConstraints === undefined) {
+				return { ...input, swarmPlacement: undefined };
+			}
+			const roles = [
+				...(placementManager ? (["manager"] as const) : []),
+				...(placementWorker ? (["worker"] as const) : []),
+			];
+			if (roles.length === 0) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Pick at least one node role.",
+					path: ["placementRoles"],
+				});
+			}
+			const constraints: string[] = [];
+			for (const line of placementLines(placementConstraints)) {
+				const constraint = normalizePlacementConstraint(line);
+				if (!constraint) {
+					ctx.addIssue({
+						code: "custom",
+						message: `"${line}" isn't a key==value or key!=value constraint.`,
+						path: ["placementConstraints"],
+					});
+					continue;
+				}
+				constraints.push(constraint);
+			}
+			const preferences: string[] = [];
+			for (const line of placementLines(placementPreferences ?? "")) {
+				const key = normalizePlacementPreference(line);
+				if (!key) {
+					ctx.addIssue({
+						code: "custom",
+						message: `"${line}" isn't a node label key.`,
+						path: ["placementPreferences"],
+					});
+					continue;
+				}
+				preferences.push(key);
+			}
+			return {
+				...input,
+				swarmPlacement: { constraints, preferences, roles },
+			};
+		},
+	);
 export type UpdateComputeInput = z.infer<typeof updateComputeSchema>;
 
 // Backs the Networking tab's "Network" section : container port, which

@@ -1,0 +1,1 @@
+ALTER TABLE "service" ADD COLUMN "swarm_placement" jsonb DEFAULT '{"constraints":[],"preferences":[],"roles":["manager","worker"]}'::jsonb NOT NULL;

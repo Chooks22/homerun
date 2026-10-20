@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { Crown, Trash2, X } from "@lucide/svelte";
+	import { Crown, Pencil, Trash2, X } from "@lucide/svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import type { NodeEnrollmentSummary } from "#lib/dto/node-enrollment-dto.js";
 	import type { SwarmNodeInfo } from "#lib/services/docker.service.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
+	import NodeLabelsDialog from "./node-labels-dialog.svelte";
 
 	const {
 		enrollments,
@@ -16,6 +17,16 @@
 	let confirmOpen = $state(false);
 	let pendingNode = $state("");
 	let pendingForm: HTMLFormElement | null = null;
+	let labelsOpen = $state(false);
+	let labelsNodeId = $state<string | null>(null);
+	const labelsNode = $derived(
+		nodes.find((node) => node.id === labelsNodeId) ?? null,
+	);
+
+	function editLabels(nodeId: string) {
+		labelsNodeId = nodeId;
+		labelsOpen = true;
+	}
 
 	function requestRemove(event: MouseEvent, hostname: string) {
 		pendingForm = (event.currentTarget as HTMLElement).closest("form");
@@ -88,6 +99,7 @@
             <th class="px-4 py-2 font-medium">State</th>
             <th class="px-4 py-2 font-medium">Address</th>
             <th class="px-4 py-2 font-medium">Resources</th>
+            <th class="px-4 py-2 font-medium">Labels</th>
             <th class="px-4 py-2"></th>
           </tr>
         </thead>
@@ -123,30 +135,54 @@
               <td class="text-text-muted px-4 py-2 text-xs">
                 {node.cpus} CPU, {gigabytes(node.memoryBytes)}, {node.architecture}
               </td>
-              <td class="px-4 py-2 text-right">
-                {#if node.role !== "manager"}
-                  <form
-                    action="?/removeNode"
-                    method="POST"
-                    use:enhance={enhanceToast({
-                      error: "Couldn't remove the node.",
-                      loading: `Removing ${node.hostname}`,
-                      success: `${node.hostname} removed from the swarm.`,
-                    })}
-                  >
-                    <input name="nodeId" type="hidden" value={node.id} />
-                    <Button
-                      class="text-red-500 hover:bg-red-500/10 hover:text-red-500"
-                      onclick={(e) => requestRemove(e, node.hostname)}
-                      size="icon-sm"
-                      title="Remove from the swarm"
-                      type="button"
-                      variant="ghost"
+              <td class="px-4 py-2">
+                <div class="flex flex-wrap items-center gap-1">
+                  {#each Object.entries(node.labels) as [key, value] (key)}
+                    <span
+                      class="border-border text-text-muted rounded border px-1.5 py-0.5 font-mono text-xs"
                     >
-                      <Trash2 class="size-4" />
-                    </Button>
-                  </form>
-                {/if}
+                      {key}={value}
+                    </span>
+                  {:else}
+                    <span class="text-text-subtle text-xs">None</span>
+                  {/each}
+                </div>
+              </td>
+              <td class="px-4 py-2 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <Button
+                    onclick={() => editLabels(node.id)}
+                    size="icon-sm"
+                    title="Edit labels"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Pencil class="size-4" />
+                  </Button>
+                  {#if node.role !== "manager"}
+                    <form
+                      action="?/removeNode"
+                      method="POST"
+                      use:enhance={enhanceToast({
+                        error: "Couldn't remove the node.",
+                        loading: `Removing ${node.hostname}`,
+                        success: `${node.hostname} removed from the swarm.`,
+                      })}
+                    >
+                      <input name="nodeId" type="hidden" value={node.id} />
+                      <Button
+                        class="text-red-500 hover:bg-red-500/10 hover:text-red-500"
+                        onclick={(e) => requestRemove(e, node.hostname)}
+                        size="icon-sm"
+                        title="Remove from the swarm"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 class="size-4" />
+                      </Button>
+                    </form>
+                  {/if}
+                </div>
               </td>
             </tr>
           {/each}
@@ -155,6 +191,8 @@
     </div>
   </section>
 {/if}
+
+<NodeLabelsDialog node={labelsNode} bind:open={labelsOpen} />
 
 <ConfirmDialog
   bind:open={confirmOpen}

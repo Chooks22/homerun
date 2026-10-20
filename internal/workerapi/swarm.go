@@ -17,6 +17,7 @@ func (s *Server) mountSwarm(r chi.Router) {
 	r.Post("/v1/swarm/init", httpapi.H(s.initSwarm))
 	r.Get("/v1/swarm/nodes", httpapi.H(s.listSwarmNodes))
 	r.Delete("/v1/swarm/nodes/{id}", httpapi.H(s.removeSwarmNode))
+	r.Put("/v1/swarm/nodes/{id}/labels", httpapi.H(s.setSwarmNodeLabels))
 	r.Get("/v1/swarm/join", httpapi.H(s.swarmJoin))
 	r.Post("/v1/swarm/overlay", httpapi.H(s.ensureOverlay))
 	r.Post("/v1/swarm/services", httpapi.H(s.createSwarmService))
@@ -286,6 +287,20 @@ func (s *Server) removeSwarmService(w http.ResponseWriter, r *http.Request) erro
 // removeSwarmNode forcibly removes a node from the swarm.
 func (s *Server) removeSwarmNode(w http.ResponseWriter, r *http.Request) error {
 	if err := s.docker.RemoveSwarmNode(r.Context(), chi.URLParam(r, "id")); err != nil {
+		return err
+	}
+	return httpapi.Answer(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// setSwarmNodeLabels replaces a node's labels with the body's `labels` map.
+func (s *Server) setSwarmNodeLabels(w http.ResponseWriter, r *http.Request) error {
+	var body struct {
+		Labels map[string]string `json:"labels"`
+	}
+	if !httpapi.DecodeJSON(w, r, &body) {
+		return nil
+	}
+	if err := s.docker.SetSwarmNodeLabels(r.Context(), chi.URLParam(r, "id"), body.Labels); err != nil {
 		return err
 	}
 	return httpapi.Answer(w, http.StatusOK, map[string]bool{"ok": true})

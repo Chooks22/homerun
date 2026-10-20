@@ -13940,6 +13940,12 @@ export interface operations {
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
 						stripPathDomains: string[];
+						/** @description Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over */
+						swarmPlacement: {
+							constraints: string[];
+							preferences: string[];
+							roles: ("manager" | "worker")[];
+						};
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -14206,6 +14212,20 @@ export interface operations {
 							stackId?: string;
 							/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
 							stripPathDomains?: string[];
+							/** @description Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over. */
+							swarmPlacement?: {
+								/** @default [] */
+								constraints: string[];
+								/** @default [] */
+								preferences: string[];
+								/**
+								 * @default [
+								 *       "manager",
+								 *       "worker"
+								 *     ]
+								 */
+								roles: ("manager" | "worker")[];
+							};
 							tag?: string;
 							/** @description When a domain this change adds (or the default hostname a slug or stack change moves) is already routed by another service or a redirect, take it from there instead of answering 409: the other service loses it and keeps serving it until its own next deploy, the redirect is disabled, and this service is redeployed. The dashboard, core services, status pages and workstations are never taken over. */
 							takeOverDomains?: boolean;
@@ -14373,6 +14393,20 @@ export interface operations {
 							stackId?: string | null;
 							/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
 							stripPathDomains?: string[];
+							/** @description Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over. */
+							swarmPlacement?: {
+								/** @default [] */
+								constraints: string[];
+								/** @default [] */
+								preferences: string[];
+								/**
+								 * @default [
+								 *       "manager",
+								 *       "worker"
+								 *     ]
+								 */
+								roles: ("manager" | "worker")[];
+							};
 							tag?: string;
 							/** @description When a domain this change adds (or the default hostname a slug or stack change moves) is already routed by another service or a redirect, take it from there instead of answering 409: the other service loses it and keeps serving it until its own next deploy, the redirect is disabled, and this service is redeployed. The dashboard, core services, status pages and workstations are never taken over. */
 							takeOverDomains?: boolean;
@@ -14569,6 +14603,12 @@ export interface operations {
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
 						stripPathDomains: string[];
+						/** @description Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over */
+						swarmPlacement: {
+							constraints: string[];
+							preferences: string[];
+							roles: ("manager" | "worker")[];
+						};
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -14877,6 +14917,12 @@ export interface operations {
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
 						stripPathDomains: string[];
+						/** @description Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over */
+						swarmPlacement: {
+							constraints: string[];
+							preferences: string[];
+							roles: ("manager" | "worker")[];
+						};
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -15206,6 +15252,20 @@ export interface operations {
 					stackId?: string | null;
 					/** @description The domains with a path whose prefix is stripped before the request reaches the container. */
 					stripPathDomains?: string[];
+					/** @description Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over. */
+					swarmPlacement?: {
+						/** @default [] */
+						constraints: string[];
+						/** @default [] */
+						preferences: string[];
+						/**
+						 * @default [
+						 *       "manager",
+						 *       "worker"
+						 *     ]
+						 */
+						roles: ("manager" | "worker")[];
+					};
 					tag?: string;
 					/** @description When a domain this change adds (or the default hostname a slug or stack change moves) is already routed by another service or a redirect, take it from there instead of answering 409: the other service loses it and keeps serving it until its own next deploy, the redirect is disabled, and this service is redeployed. The dashboard, core services, status pages and workstations are never taken over. */
 					takeOverDomains?: boolean;
@@ -15400,6 +15460,12 @@ export interface operations {
 						stackId: string | null;
 						/** @description The custom domains with a path whose prefix is stripped before the request reaches the container */
 						stripPathDomains: string[];
+						/** @description Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over */
+						swarmPlacement: {
+							constraints: string[];
+							preferences: string[];
+							roles: ("manager" | "worker")[];
+						};
 						swarmServiceId: string | null;
 						tag: string;
 						tracesEnabled: boolean;
@@ -15744,6 +15810,11 @@ export interface operations {
 						compute: {
 							cpuLimit: string | null;
 							memoryLimitMb: number | null;
+							placement: {
+								constraints: string[];
+								preferences: string[];
+								roles: ("manager" | "worker")[];
+							};
 							replicas: number;
 							restartPolicy: string;
 						};

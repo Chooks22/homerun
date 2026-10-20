@@ -193,6 +193,16 @@ export const serviceResponse = z.object({
 	requiredStatusChecks: z.array(z.string()),
 	pullPolicy: z.enum(["always", "missing", "never"]),
 	replicas: z.number().int(),
+	swarmPlacement: z
+		.object({
+			constraints: z.array(z.string()),
+			preferences: z.array(z.string()),
+			roles: z.array(z.enum(["manager", "worker"])),
+		})
+		.meta({
+			description:
+				"Swarm mode only: node roles allowed to run the replicas, node label constraints (key==value, key!=value) and node label keys replicas are spread over",
+		}),
 	scaleToZeroMinutes: z.number().int().nullable().meta({
 		description:
 			"Minutes without a request before the service is stopped until the next one, null when it never sleeps",

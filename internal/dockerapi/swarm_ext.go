@@ -55,8 +55,9 @@ type SwarmNode struct {
 		Leader bool `json:"Leader"`
 	} `json:"ManagerStatus,omitempty"`
 	Spec struct {
-		Availability string `json:"Availability"`
-		Role         string `json:"Role"`
+		Availability string            `json:"Availability"`
+		Labels       map[string]string `json:"Labels"`
+		Role         string            `json:"Role"`
 	} `json:"Spec"`
 	Status struct {
 		Addr  string `json:"Addr"`
@@ -107,6 +108,29 @@ func (c *Client) SwarmJoinInfo(ctx context.Context) (*SwarmJoin, error) {
 // still believes it's joined until someone runs `docker swarm leave` on it.
 func (c *Client) RemoveSwarmNode(ctx context.Context, id string) error {
 	return c.Call(ctx, http.MethodDelete, "/nodes/"+url.PathEscape(id), url.Values{"force": {"true"}}, nil)
+}
+
+// SetSwarmNodeLabels replaces a node's labels, the ones placement constraints
+// and preferences read as `node.labels.<key>`, keeping the rest of its spec.
+func (c *Client) SetSwarmNodeLabels(ctx context.Context, id string, labels map[string]string) error {
+	var inspected struct {
+		Spec    map[string]any `json:"Spec"`
+		Version struct {
+			Index int64 `json:"Index"`
+		} `json:"Version"`
+	}
+	if err := c.decode(ctx, http.MethodGet, "/nodes/"+url.PathEscape(id), nil, nil, &inspected); err != nil {
+		return err
+	}
+	if inspected.Spec == nil {
+		inspected.Spec = map[string]any{}
+	}
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	inspected.Spec["Labels"] = labels
+	return c.Call(ctx, http.MethodPost, "/nodes/"+url.PathEscape(id)+"/update",
+		url.Values{"version": {strconv.FormatInt(inspected.Version.Index, 10)}}, inspected.Spec)
 }
 
 // InitSwarm turns this daemon into a single-node swarm manager. A daemon

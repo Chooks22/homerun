@@ -2,6 +2,10 @@ import { config } from "#lib/config.js";
 import { Logger } from "#lib/logger.js";
 import type { AuthPathsMode } from "#lib/path-patterns.js";
 import type { PublishedPort } from "#lib/published-ports.js";
+import {
+	type SwarmPlacement,
+	swarmPlacementSpec,
+} from "#lib/swarm-placement.js";
 import type { ContainerStatus } from "#lib/types.js";
 import type { BaseDockerService, Constructor } from "./base.ts";
 import type { RegistryAuth, VolumeMountParams } from "./containers.ts";
@@ -196,6 +200,7 @@ export function swarmServiceTemplate(params: CreateSwarmServiceParams) {
 			RestartPolicy: {
 				Condition: swarmRestartCondition(params.restartPolicy),
 			},
+			Placement: swarmPlacementSpec(params.placement),
 		},
 	};
 }
@@ -219,7 +224,11 @@ interface RawSwarmNode {
 	};
 	ID?: string;
 	ManagerStatus?: { Leader?: boolean } | null;
-	Spec?: { Availability?: string; Role?: string };
+	Spec?: {
+		Availability?: string;
+		Labels?: Record<string, string> | null;
+		Role?: string;
+	};
 	Status?: { Addr?: string; State?: string };
 }
 
@@ -232,6 +241,7 @@ export interface SwarmNodeInfo {
 	engineVersion: string;
 	hostname: string;
 	id: string;
+	labels: Record<string, string>;
 	leader: boolean;
 	memoryBytes: number;
 	role: string;
@@ -250,6 +260,7 @@ export function toSwarmNodeInfo(node: RawSwarmNode): SwarmNodeInfo {
 		engineVersion: description.Engine?.EngineVersion ?? "",
 		hostname: description.Hostname ?? node.ID ?? "",
 		id: node.ID ?? "",
+		labels: node.Spec?.Labels ?? {},
 		leader: node.ManagerStatus?.Leader ?? false,
 		memoryBytes: resources.MemoryBytes ?? 0,
 		role: node.Spec?.Role ?? "",
@@ -304,6 +315,7 @@ export interface CreateSwarmServiceParams {
 	healthcheckCommand?: string | null;
 	runtime?: ContainerRuntimeParams;
 	stackSlug?: string | null;
+	placement?: SwarmPlacement | null;
 	replicas: number;
 	restartPolicy: string;
 	serviceId: string;
@@ -462,6 +474,21 @@ export function DockerSwarmMixin<TBase extends Constructor<BaseDockerService>>(
 				`/v1/swarm/nodes/${encodeURIComponent(nodeId)}`,
 			);
 			logger.info(`Swarm node removed: ${nodeId}`);
+		}
+
+		/**
+		 * Replaces a swarm node's labels, the ones service placement
+		 * constraints and spread preferences match against.
+		 */
+		async setSwarmNodeLabels(
+			nodeId: string,
+			labels: Record<string, string>,
+		): Promise<void> {
+			await this.worker.put<{ ok: boolean }>(
+				`/v1/swarm/nodes/${encodeURIComponent(nodeId)}/labels`,
+				{ labels },
+			);
+			logger.info(`Swarm node labels set: ${nodeId}`);
 		}
 
 		/**

@@ -12,6 +12,7 @@ import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { AgentClientService } from "#lib/services/agent-client.service.js";
 import { DockerService } from "#lib/services/docker.service.js";
 import { RemoteHostSettingsService } from "#lib/services/remote-host-settings.service.js";
+import { parseNodeLabels } from "#lib/swarm-placement.js";
 
 const logger = new Logger("RemoteHosts");
 
@@ -171,6 +172,35 @@ export const actions = {
 			});
 		}
 		logger.info(`Swarm node removed: node=${nodeId} user=${locals.user.id}`);
+		return { success: true };
+	},
+	setNodeLabels: async ({ request, locals }) => {
+		if (!locals.user) {
+			redirectToSignIn();
+		}
+		const formData = await request.formData();
+		const nodeId = formData.get("nodeId") as string | null;
+		if (!nodeId) {
+			return fail(400, { error: "Missing node id." });
+		}
+		let labels: Record<string, string>;
+		try {
+			labels = parseNodeLabels((formData.get("labels") as string | null) ?? "");
+		} catch (error) {
+			return fail(400, {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+		try {
+			await DockerService.setSwarmNodeLabels(nodeId, labels);
+		} catch (error) {
+			return fail(502, {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+		logger.info(
+			`Swarm node labels set: node=${nodeId} labels=${Object.keys(labels).length} user=${locals.user.id}`,
+		);
 		return { success: true };
 	},
 };

@@ -48,6 +48,7 @@ export const actions = {
 			cpuLimit: input.cpuLimit || null,
 			memoryLimitMb: input.memoryLimitMb ?? null,
 			replicas: input.replicas ?? 1,
+			...(input.swarmPlacement && { swarmPlacement: input.swarmPlacement }),
 			scaleToZeroMinutes: input.scaleToZeroEnabled
 				? (input.scaleToZeroMinutes ?? null)
 				: null,

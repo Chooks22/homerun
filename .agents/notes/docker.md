@@ -576,6 +576,20 @@ privileged and devices (no swarm API), per-stack networks (everything shares the
 overlay), terminal/stats/pre-backup on remote replicas. The Settings → Docker
 page lists these.
 
+**Placement** (`service.swarmPlacement`, jsonb
+`{ roles, constraints, preferences }`, `src/lib/swarm-placement.ts`): edited on
+Container → Compute next to replicas and through the API's `swarmPlacement`.
+`swarmPlacementSpec` maps it onto `TaskTemplate.Placement`: a single role adds
+`node.role==<role>`, each `key==value`/`key!=value` becomes a `node.labels.`
+constraint, each preference key a `spread=node.labels.<key>`; the default (both
+roles, nothing else) leaves `Placement` unset. Constraints and preferences are
+stored normalized (no spacing, no `node.labels.` prefix). The Go worker passes
+`TaskTemplate` through untouched, and `rollOutSwarm` sends the whole spec, so
+clearing placement clears it on the next deploy. Node labels are set from Remote
+Hosts → Swarm nodes: `DockerService.setSwarmNodeLabels` → the worker's
+`PUT /v1/swarm/nodes/{id}/labels` → `dockerapi.SetSwarmNodeLabels`, which
+re-reads the node spec and version and replaces only `Labels`.
+
 **Per-replica stats.** `DockerSwarmMixin.listSwarmReplicas(swarmServiceId)`
 lists the service's tasks (slot, node hostname, state, container id) and samples
 each local task container with `sampleContainerStats`; a task on another node

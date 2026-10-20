@@ -214,7 +214,11 @@ describe("toSwarmNodeInfo", () => {
 				},
 				ID: "n1",
 				ManagerStatus: { Leader: true },
-				Spec: { Availability: "active", Role: "manager" },
+				Spec: {
+					Availability: "active",
+					Labels: { env: "prod" },
+					Role: "manager",
+				},
 				Status: { Addr: "10.0.0.1", State: "ready" },
 			}),
 		).toEqual({
@@ -225,12 +229,14 @@ describe("toSwarmNodeInfo", () => {
 			engineVersion: "27.0",
 			hostname: "box",
 			id: "n1",
+			labels: { env: "prod" },
 			leader: true,
 			memoryBytes: 2 * 1024 ** 3,
 			role: "manager",
 			state: "ready",
 		});
 		expect(toSwarmNodeInfo({}).hostname).toBe("");
+		expect(toSwarmNodeInfo({}).labels).toEqual({});
 	});
 });
 

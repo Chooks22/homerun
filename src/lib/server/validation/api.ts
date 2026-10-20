@@ -14,6 +14,11 @@ import {
 import { environmentNameField } from "#lib/server/validation/environment-name.js";
 import { isDomainEntry, normalizeDomain } from "#lib/service-domains.js";
 import { isRunAsUser } from "#lib/service-runtime.js";
+import {
+	normalizePlacementConstraint,
+	normalizePlacementPreference,
+	SWARM_NODE_ROLES,
+} from "#lib/swarm-placement.js";
 import { UPDATE_CHANNELS } from "#lib/update-channel.js";
 
 const buildEnvKeysField = z.array(
@@ -190,6 +195,39 @@ const serviceSettingsFields = {
 		)
 		.optional(),
 	replicas: z.number().int().min(0).max(50).optional(),
+	swarmPlacement: z
+		.object({
+			constraints: z
+				.array(
+					z
+						.string()
+						.refine((value) => normalizePlacementConstraint(value) !== null, {
+							message: "Use key==value or key!=value.",
+						})
+						.overwrite((value) => normalizePlacementConstraint(value) ?? value),
+				)
+				.max(50)
+				.default([]),
+			preferences: z
+				.array(
+					z
+						.string()
+						.refine((value) => normalizePlacementPreference(value) !== null, {
+							message: "Use a node label key.",
+						})
+						.overwrite((value) => normalizePlacementPreference(value) ?? value),
+				)
+				.max(20)
+				.default([]),
+			roles: z
+				.array(z.enum(SWARM_NODE_ROLES))
+				.min(1)
+				.default([...SWARM_NODE_ROLES]),
+		})
+		.optional()
+		.describe(
+			"Swarm mode only: which node roles may run the replicas, constraints on node labels (key==value, key!=value) that must all hold, and node label keys to spread replicas over.",
+		),
 	scaleToZeroMinutes: z
 		.number()
 		.int()

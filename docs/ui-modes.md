@@ -62,8 +62,8 @@ Every tab stays. Inside them, simple mode hides:
 - **Networking**: the network mode sits behind a collapsed **Advanced** section,
   and **Response cache** and **Published ports** are hidden.
 - **Container**: **Runtime** (entrypoint, command, labels, capabilities,
-  devices…). On a swarm instance, **Replicas** sits behind a collapsed
-  **Advanced** section on **Compute**.
+  devices…). On a swarm instance, **Replicas** and placement sit behind a
+  collapsed **Advanced** section on **Compute**.
 - **Security**: **Blocked paths** and the login wall's path rules. The login
   wall itself and image scanning stay.
 

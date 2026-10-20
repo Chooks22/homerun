@@ -39,8 +39,11 @@ server. Homerun and the other nodes reach the server at its default route's
 address; pass `--address=<ip>` when that's the wrong interface.
 
 In swarm mode, the **Swarm nodes** table lists every node with its state,
-address and resources. Removing a worker there moves its replicas to the other
-nodes; run `docker swarm leave` on it afterwards.
+address, resources and labels. The pencil on a row edits that node's labels
+(`key=value` per line), which a service's placement constraints and spread
+preferences match against, see [Swarm mode](swarm-mode.md). Removing a worker
+there moves its replicas to the other nodes; run `docker swarm leave` on it
+afterwards.
 
 Homerun doesn't add or remove servers by itself when load changes: you add
 capacity with the command above.

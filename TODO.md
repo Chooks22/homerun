@@ -24,6 +24,10 @@ When done delete the entry, no bloat.
       destination forever; offer to delete them when a volume is deleted, or
       list them as orphans on the destination's page
 
+- [ ] IaC: the Terraform provider and HCL generator don't carry a service's
+      `swarmPlacement` yet (an object attribute, which `iac/resources.ts`'s
+      attribute kinds can't express); add it so drift and import see placement
+
 ## Medium
 
 - [ ] Pipelines: expose watched repositories, their CI runs and stats in the
