@@ -439,6 +439,17 @@
 	border-color: oklch(1 0 0 / 0.4);
 }
 
+[data-surface="glass"] [data-slot="switch"]:not([data-state="checked"]) {
+	background-color: oklch(from var(--color-accent) 0.3 0.04 h / 0.22);
+	border-color: oklch(from var(--color-accent) 0.3 0.04 h / 0.42);
+}
+
+.dark [data-surface="glass"] [data-slot="switch"]:not([data-state="checked"]),
+.dark[data-surface="glass"] [data-slot="switch"]:not([data-state="checked"]) {
+	background-color: oklch(1 0 0 / 0.16);
+	border-color: oklch(1 0 0 / 0.4);
+}
+
 [data-surface="glass"]
 	:is(
 		input:not(
