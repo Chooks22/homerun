@@ -9,13 +9,16 @@ const logger = new Logger("IpBans");
 
 export const fallback = async ({ request }) => {
 	const host = forwardedHost(request.headers);
-	await IpBanService.recordBlockedHit(request.headers, host).catch((err) =>
-		logger.error("Couldn't record a blocked request", err),
-	);
 	const { disrespectMode, meanMode } = (await InstanceSettingsDTO.get()).ipBans;
 	const path = (request.headers.get("x-replaced-path") ?? "").split("?")[0];
 	const bait =
 		meanMode || disrespectMode ? baitFor(path ?? "", disrespectMode) : null;
+	const rant = !bait && disrespectMode ? `${insult()}\n` : null;
+	const junk = bait?.body ?? rant;
+	const baitBytes = junk ? new Blob([junk]).size : 0;
+	await IpBanService.recordBlockedHit(request.headers, host, baitBytes).catch(
+		(err) => logger.error("Couldn't record a blocked request", err),
+	);
 	if (bait) {
 		return new Response(bait.body, {
 			headers: {
@@ -24,8 +27,8 @@ export const fallback = async ({ request }) => {
 			},
 		});
 	}
-	if (disrespectMode) {
-		return new Response(`${insult()}\n`, {
+	if (rant) {
+		return new Response(rant, {
 			headers: { "content-type": "text/plain; charset=utf-8" },
 			status: 403,
 		});

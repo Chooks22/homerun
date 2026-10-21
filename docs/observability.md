@@ -1,13 +1,15 @@
 # Observability
 
 The **Observability** tab is where a service tells you how it's doing. It has
-six sections: **Monitoring**, its traffic, response time, error rate, uptime and
-resource use over a range; **Events**, its uptime probes, live logs, failed
+seven sections: **Monitoring**, its traffic, response time, error rate, uptime
+and resource use over a range; **Events**, its uptime probes, live logs, failed
 deploys and the errors Homerun logged about it; **Errors**, the exceptions your
 app reports (see [Error tracking](error-tracking.md)); **Traces**, its
 OpenTelemetry traces (see [Tracing](tracing.md)); **Pipelines**, the CI runs of
-the repository linked to it (see [Pipelines](pipelines.md)); and **Health**, the
-healthcheck the running container was created with (see
+the repository linked to it (see [Pipelines](pipelines.md)); **Blocked IPs**,
+the addresses its blocked paths turned away (see
+[Blocked paths and IP bans](blocked-paths-and-ip-bans.md#blocked-request-stats));
+and **Health**, the healthcheck the running container was created with (see
 [Services](services.md#health)).
 
 ## Monitoring

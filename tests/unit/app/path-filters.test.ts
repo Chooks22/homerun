@@ -10,6 +10,7 @@ const {
 	PATH_PATTERN_PRESETS,
 	parsePathPatterns,
 	authPathsProblem,
+	matchingPathPattern,
 	pathFiltersChanged,
 	pathPatternProblem,
 	pathPatternRegex,
@@ -138,6 +139,22 @@ describe("path patterns", () => {
 				},
 			),
 		).toBe(false);
+	});
+});
+
+describe("matchingPathPattern", () => {
+	test("names the first pattern a path falls under, query string ignored", () => {
+		const patterns = ["/admin", ".env*", "*.sql"];
+		expect(matchingPathPattern(patterns, "/admin/users?x=1")).toBe("/admin");
+		expect(matchingPathPattern(patterns, "/app/.env.local")).toBe(".env*");
+		expect(matchingPathPattern(patterns, "/backup/DUMP.SQL")).toBe("*.sql");
+	});
+
+	test("null when nothing matches or there's no path", () => {
+		expect(matchingPathPattern(["/admin"], "/blog/admin")).toBeNull();
+		expect(matchingPathPattern([".git"], "/.github")).toBeNull();
+		expect(matchingPathPattern(["/admin"], null)).toBeNull();
+		expect(matchingPathPattern([], "/admin")).toBeNull();
 	});
 });
 

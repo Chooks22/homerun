@@ -1450,6 +1450,16 @@ account's repos and checks for a `Dockerfile` at a given ref through
 functions below; both go through `GitProviderService.listRepos`/`hasDockerfile`,
 which branch per-kind the same way `endpoints()` does.
 
+Each provider has its own page, `/git-providers/[providerId]`
+(`+layout.server.ts` loads the provider and the viewer's own connection):
+**Connection** is the bare tab (connect/reconnect/disconnect, callback URL),
+**Settings** is write-only and calls `GitProviderConfigService.update`/`remove`
+(rename, base URL, client id/secret, enable/disable, delete); the list page has
+no delete any more. Reconnecting is just the connect route again, with
+`returnTo` pointing back at the provider's page: the callback's
+`GitConnectionDTO.upsert` replaces the token pair and username in place, then
+`GitWebhookService.retryAfterReconnect` re-registers webhooks that failed.
+
 **GitHub is registered as a GitHub App through the manifest flow, never by
 pasting credentials** (`src/lib/github-app.ts`). The `createGithubApp` action
 picks the provider id up front and returns `githubAppRegistration(...)`: a form

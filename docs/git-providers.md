@@ -40,6 +40,21 @@ added for you. **Use a clone URL instead** is still there for any other repo.
 Tokens are stored encrypted, refreshed automatically when the provider issues
 short-lived ones, and disconnecting removes them.
 
+## A provider's own page
+
+Click a provider to open its page. **Connection** shows which account you're
+connected as and since when, with **Connect**, **Reconnect** and **Disconnect**;
+GitLab, Gitea and Bitbucket providers also show the callback URL there.
+**Reconnect** (also on the list) runs the provider's consent screen again and
+replaces your token: use it when repos go missing, a webhook can't be added, or
+to switch to another account on that provider. **Settings** (write access only)
+renames the provider, changes a GitLab or Gitea base URL and an OAuth app's
+client id and secret (leave the secret empty to keep it), and holds the danger
+zone: **Disable** keeps everyone's connections but stops anyone connecting or
+reconnecting, **Delete** removes the provider and every connection to it. A
+GitHub App renamed here keeps its own name on GitHub, and deleting the provider
+doesn't delete the app there.
+
 Cloning itself is provider-agnostic, so any public HTTPS git URL works with no
 provider connected at all.
 
