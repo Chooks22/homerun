@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.68](https://github.com/orochibraru/homerun/compare/v1.0.67...v1.0.68) (2026-10-21)
+
+### Features
+
+- add git provider management and blocked request observability (#140)
+  ([19972a5](https://github.com/orochibraru/homerun/commit/19972a5d6d6a4e1802d3cbf04ffd930a0408089c))
+
 ## [1.0.67](https://github.com/orochibraru/homerun/compare/v1.0.66...v1.0.67) (2026-10-21)
 
 ### Features
