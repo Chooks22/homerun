@@ -49,11 +49,13 @@ type Host = NonNullable<Awaited<ReturnType<typeof RemoteHostDTO.get>>>;
 
 const restorers: { mockRestore: () => void }[] = [];
 const originalDir = config.traefik.dynamicConfigDir;
+const originalOrigin = config.auth.origin;
 const realFetch = globalThis.fetch;
 let pangolinSync: ReturnType<typeof spyOn>;
 let pangolinDelete: ReturnType<typeof spyOn>;
 
 beforeEach(() => {
+	config.auth.origin = undefined;
 	pangolinSync = spyOn(PangolinService, "syncDnsRecord").mockResolvedValue(
 		null,
 	);
@@ -77,6 +79,7 @@ afterEach(() => {
 		spy.mockRestore();
 	}
 	config.traefik.dynamicConfigDir = originalDir;
+	config.auth.origin = originalOrigin;
 	globalThis.fetch = realFetch;
 });
 
