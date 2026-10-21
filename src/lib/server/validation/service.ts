@@ -32,6 +32,12 @@ const optionalNumber = (schema: z.ZodNumber | z.ZodCoercedNumber) =>
 		schema.optional(),
 	);
 
+const formBoolean = () =>
+	z
+		.enum(["on", ""])
+		.default("")
+		.transform((val) => val === "on");
+
 const buildTargetField = z
 	.string()
 	.trim()
@@ -187,7 +193,7 @@ export const updateComputeSchema = baseServiceSchema
 		replicas: true,
 	})
 	.extend({
-		scaleToZeroEnabled: z.literal("on").optional(),
+		scaleToZeroEnabled: formBoolean(),
 		scaleToZeroMinutes: optionalNumber(
 			z.coerce
 				.number()
@@ -196,9 +202,9 @@ export const updateComputeSchema = baseServiceSchema
 				.max(SCALE_TO_ZERO_MAX_MINUTES),
 		),
 		placementConstraints: z.string().optional(),
-		placementManager: z.literal("on").optional(),
+		placementManager: formBoolean(),
 		placementPreferences: z.string().optional(),
-		placementWorker: z.literal("on").optional(),
+		placementWorker: formBoolean(),
 	})
 	.transform(
 		(
