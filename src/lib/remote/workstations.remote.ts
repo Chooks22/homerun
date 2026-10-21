@@ -17,6 +17,10 @@ import type { ContainerSample } from "#lib/services/docker/containers.js";
 import { GitProviderService } from "#lib/services/git-provider.service.js";
 import { type EditorExtension, searchOpenVsx } from "#lib/services/open-vsx.js";
 import {
+	fetchSyncedEditor,
+	type SyncedEditor,
+} from "#lib/services/vscode-settings-sync.js";
+import {
 	WorkstationService,
 	type WorkstationView,
 } from "#lib/services/workstation.service.js";
@@ -106,6 +110,42 @@ export const searchEditorExtensions = query(
 		}
 	},
 );
+
+export const importSettingsSync = command(async (): Promise<SyncedEditor> => {
+	const user = requirePermission("workstations", "read");
+	const settings = await InstanceSettingsDTO.get();
+	const providers = settings.gitProviders.filter(
+		(p) => p.enabled && p.kind === "github" && !p.baseUrl,
+	);
+	const connections = await Promise.all(
+		providers.map(async (provider) => ({
+			connection: await GitConnectionDTO.getForUserAndProvider(
+				user.id,
+				provider.id,
+			),
+			provider,
+		})),
+	);
+	const linked = connections.find((entry) => entry.connection);
+	const token = linked?.connection
+		? await GitProviderService.accessToken(linked.provider, linked.connection)
+		: null;
+	if (!token) {
+		error(
+			400,
+			"Connect a github.com account under Git providers to import from Settings Sync.",
+		);
+	}
+	try {
+		return await fetchSyncedEditor(token);
+	} catch (err) {
+		logger.warn(`Settings Sync import failed: user=${user.id}`, err);
+		error(
+			502,
+			err instanceof Error ? err.message : "Couldn't reach Settings Sync.",
+		);
+	}
+});
 
 export const workstationLiveStats = query(
 	z.string(),

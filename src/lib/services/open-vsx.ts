@@ -29,6 +29,28 @@ const searchResponseSchema = z.object({
 });
 
 /**
+ * Whether Open VSX publishes `id` (`publisher.name`). An unreachable registry
+ * counts as yes, so a network blip doesn't drop an extension the install
+ * would have found.
+ */
+export async function openVsxHas(id: string): Promise<boolean> {
+	const dot = id.indexOf(".");
+	const url = new URL(
+		`/api/${encodeURIComponent(id.slice(0, dot))}/${encodeURIComponent(id.slice(dot + 1))}`,
+		OPEN_VSX_URL,
+	);
+	try {
+		const response = await fetch(url, {
+			method: "HEAD",
+			signal: AbortSignal.timeout(10_000),
+		});
+		return response.status !== 404;
+	} catch {
+		return true;
+	}
+}
+
+/**
  * Searches Open VSX, the registry code-server installs extensions from, most
  * relevant first.
  *

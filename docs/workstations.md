@@ -104,6 +104,14 @@ it in (see [dev container configs](#repository-dev-container-configs)):
   (`<home>/.local/share/code-server/User/settings.json`), or openvscode-server's
   machine settings (`<home>/.openvscode-server/data/Machine/settings.json`).
   Leave it empty to keep what you change from the IDE.
+- **Import from Settings Sync** (the Editor panel's header button): reads what
+  VS Code's Settings Sync holds for your github.com account, the one connected
+  under Git providers. Its extensions are added to **Extensions**, skipping
+  builtin and turned-off ones; any Open VSX doesn't publish (Remote SSH, Copilot
+  and other Microsoft-only extensions) are named and left out. Its user
+  `settings.json` is merged into **Settings**, synced keys winning. Nothing is
+  saved until you save the panel. Only works when VS Code syncs to a GitHub
+  account, not a Microsoft one.
 - **Git**: pick one of your connected [git providers](git-providers.md). Its
   token goes into the git credential store (`<home>/.git-credentials`, replacing
   only that host's line, with `credential.helper store`), so `git push` and
