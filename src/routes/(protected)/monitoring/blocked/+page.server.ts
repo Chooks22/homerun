@@ -3,7 +3,7 @@ import { config } from "#lib/config.js";
 import { BlockedHitDTO } from "#lib/dto/blocked-hit-dto.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { IpBanDTO } from "#lib/dto/ip-ban-dto.js";
-import { normalizeIp } from "#lib/ip-bans.js";
+import { BLOCKED_STATS_DAYS, bannableIp, normalizeIp } from "#lib/ip-bans.js";
 import { Logger } from "#lib/logger.js";
 import { can, permissionDeniedMessage } from "#lib/permissions.js";
 import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
@@ -18,16 +18,23 @@ export const load = async ({ locals, parent }) => {
 		throw redirect(302, resolve("/(protected)/monitoring"));
 	}
 	const settings = (await InstanceSettingsDTO.get()).ipBans;
-	const [bans, counting] = await Promise.all([
+	const [bans, counting, summary] = await Promise.all([
 		IpBanDTO.listActive(),
 		BlockedHitDTO.addressesSince(
 			new Date(Date.now() - settings.windowMinutes * 60_000),
 		),
+		BlockedHitDTO.summarySince(
+			new Date(Date.now() - BLOCKED_STATS_DAYS * 86_400_000),
+		),
 	]);
 	return {
 		bans: bans.map((ban) => ban.toJSON()),
-		counting,
+		counting: settings.enabled
+			? counting.filter((address) => bannableIp(address.ip))
+			: [],
 		ipBans: settings,
+		statsDays: BLOCKED_STATS_DAYS,
+		summary,
 		published: Boolean(config.traefik.dynamicConfigDir),
 	};
 };

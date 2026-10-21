@@ -127,6 +127,22 @@ export function pathPatternRegex(pattern: string): string {
 	return `${anchored ? "^/" : "(?:^|/)"}${body}(?:/|$)`;
 }
 
+/** The first of `patterns` that `path` (query string and all) falls under, null when none does. */
+export function matchingPathPattern(
+	patterns: string[],
+	path: string | null,
+): string | null {
+	const pathname = path?.split("?")[0];
+	if (!pathname) {
+		return null;
+	}
+	return (
+		patterns.find((pattern) =>
+			new RegExp(pathPatternRegex(pattern), "i").test(pathname),
+		) ?? null
+	);
+}
+
 /** One case-insensitive Go regular expression matching any of `patterns`, for a Traefik `PathRegexp` rule. */
 export function pathPatternsRegex(patterns: string[]): string {
 	return `(?i)${patterns.map(pathPatternRegex).join("|")}`;

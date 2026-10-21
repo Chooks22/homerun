@@ -7,6 +7,9 @@ When done delete the entry, no bloat.
 
 ## Small
 
+- [ ] Git providers: the Add provider form (and the GitHub App manifest flow)
+      still sits on top of the list; move it to `/git-providers/new`
+
 - [ ] CLAUDE.md and the check-repo skill say `bun run type-check`, but the
       package.json script is `typecheck`; make them agree
 

@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { GitBranch, Link2, Plus, Trash2, Unlink } from "@lucide/svelte";
+	import { GitBranch, Link2, Plus, RefreshCw, Unlink } from "@lucide/svelte";
 	import { onMount, tick } from "svelte";
 	import { toast } from "svelte-sonner";
-	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
 	import CopyBox from "#lib/components/copy-box.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import EntityList from "#lib/components/entity-list.svelte";
@@ -53,6 +52,10 @@
 				!data.connectedProviderIds.includes(provider.id)
 					? callbackUrlFor(provider.id)
 					: null,
+			enabled: provider.enabled,
+			href: resolve("/(protected)/git-providers/[providerId]", {
+				providerId: provider.id,
+			}),
 			id: provider.id,
 			name: provider.name,
 			subtitle: `${provider.kind}${provider.baseUrl ? ` · ${provider.baseUrl}` : ""}`,
@@ -86,16 +89,6 @@
 		githubAppForm?.submit();
 	}
 
-	let deleteDialogOpen = $state(false);
-	let pendingDeleteName = $state("");
-	let pendingDeleteForm: HTMLFormElement | null = null;
-
-	function requestDelete(e: MouseEvent, name: string) {
-		pendingDeleteForm = (e.currentTarget as HTMLElement).closest("form");
-		pendingDeleteName = name;
-		deleteDialogOpen = true;
-	}
-
 	function callbackUrlFor(providerId: string): string {
 		if (typeof window === "undefined") {
 			return "";
@@ -120,7 +113,11 @@
 {/snippet}
 
 {#snippet badge(provider: ProviderRow)}
-  {#if provider.connected}
+  {#if !provider.enabled}
+    <span class="bg-surface-2 text-text-subtle shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold">
+      Disabled
+    </span>
+  {:else if provider.connected}
     <span class="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-emerald-600 dark:text-emerald-400">
       Connected
     </span>
@@ -129,6 +126,12 @@
 
 {#snippet actions(provider: ProviderRow)}
   {#if provider.connected}
+    {#if provider.enabled}
+      <Button href={`/api/v1/git-providers/${provider.id}/connect`} size="sm" variant="outline">
+        <RefreshCw class="size-4" />
+        Reconnect
+      </Button>
+    {/if}
     <Button
       onclick={() => handleDisconnect(provider.id)}
       size="sm"
@@ -138,26 +141,11 @@
       <Unlink class="size-4" />
       Disconnect
     </Button>
-  {:else}
+  {:else if provider.enabled}
     <Button href={`/api/v1/git-providers/${provider.id}/connect`} size="sm">
       <Link2 class="size-4" />
       Connect
     </Button>
-  {/if}
-  {#if data.canWrite}
-    <form action="?/deleteProvider" method="POST">
-      <input name="id" type="hidden" value={provider.id}>
-      <Button
-        class="text-red-500 hover:bg-red-500/10 hover:text-red-500"
-        onclick={(e) => requestDelete(e, provider.name)}
-        size="icon-sm"
-        title="Delete"
-        type="button"
-        variant="ghost"
-      >
-        <Trash2 class="size-4" />
-      </Button>
-    </form>
   {/if}
 {/snippet}
 
@@ -320,11 +308,3 @@
     <EntityList {actions} {badge} {details} items={rows} {media} {view} />
   {/if}
 </div>
-
-<ConfirmDialog
-  bind:open={deleteDialogOpen}
-  confirmLabel="Delete"
-  description={`Delete "${pendingDeleteName}"? Anyone connected to it loses that connection.`}
-  onConfirm={() => pendingDeleteForm?.requestSubmit()}
-  title="Delete git provider"
-/>

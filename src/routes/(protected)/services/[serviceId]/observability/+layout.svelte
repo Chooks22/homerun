@@ -5,6 +5,7 @@
 		Bug,
 		HeartPulse,
 		ListChecks,
+		ShieldBan,
 		Workflow,
 	} from "@lucide/svelte";
 	import ErrorBoundary from "#lib/components/error-boundary.svelte";
@@ -56,6 +57,14 @@
 			icon: Workflow,
 			id: "service/observability/pipelines",
 			label: "Pipelines",
+		},
+		{
+			href: resolve("/(protected)/services/[serviceId]/observability/blocked", {
+				serviceId: data.service.id,
+			}),
+			icon: ShieldBan,
+			id: "service/observability/blocked",
+			label: "Blocked IPs",
 		},
 		{
 			href: resolve("/(protected)/services/[serviceId]/observability/health", {

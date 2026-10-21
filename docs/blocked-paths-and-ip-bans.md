@@ -72,6 +72,19 @@ The rule and the [CrowdSec](#crowdsec) push can also be set from Terraform with
 `homerun_ip_ban_settings`, see
 [Infrastructure as code](infrastructure-as-code.md#resources).
 
+### Blocked request stats
+
+**Monitoring → Blocked IPs** opens on a **Summary** of the last 7 days across
+every service, and each service's **Observability → Blocked IPs** has the same
+summary for that service alone, above the addresses that hit it (marked
+**Banned** when they are): how many addresses were blocked and how many requests
+they made, the blocked-path pattern hit most and its share, how much
+[Mean and Disrespect mode](#mean-mode-and-disrespect-mode) junk went back (fake
+files and insults, in bytes), and the share of blocked requests that got junk
+instead of a 403. Every request a blocked path turns away counts, bans on or
+off, except from an address that's already banned (Traefik refuses those before
+they reach a blocked path). Requests are kept for 7 days.
+
 ### Mean mode and Disrespect mode
 
 Two more toggles on **Settings → IP bans**, both off by default, change what a

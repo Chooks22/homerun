@@ -6,14 +6,15 @@ import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { IpBanDTO } from "#lib/dto/ip-ban-dto.js";
 import {
 	BANS_FILE,
+	BLOCKED_HIT_RETENTION_MS,
 	banExpiry,
 	bannableIp,
 	bansConfig,
 	clientIpFrom,
-	MAX_BAN_WINDOW_MINUTES,
 	shouldBan,
 } from "#lib/ip-bans.js";
 import { Logger } from "#lib/logger.js";
+import { matchingPathPattern } from "#lib/path-patterns.js";
 import { CrowdsecService } from "./crowdsec.service.ts";
 import { dashboardHostFrom } from "./docker/dashboard.ts";
 import {
@@ -22,36 +23,49 @@ import {
 } from "./docker/error-pages.ts";
 import { NotificationChannelService } from "./notification-channel.service.ts";
 import { ipBanMessage } from "./notification-messages.ts";
+import { serviceForHost } from "./service-for-host.ts";
 
 /** Counts requests to services' blocked paths per client address and bans the ones that keep trying, through a Traefik file-provider router. */
 class IpBanServiceClass {
 	private readonly logger = new Logger("IpBans");
 
 	/**
-	 * Counts one request a blocked-paths router sent to the blocked page and
+	 * Records one request a blocked-paths router sent to the blocked page,
+	 * with the service and pattern it hit and the bait bytes it got back, and
 	 * bans its client address once it crosses the instance's threshold (see
 	 * `shouldBan`), rewriting the bans file. Only a request carrying Traefik's
 	 * proof header is believed, since the page is reachable without going
-	 * through Traefik; and nothing is recorded for a request that can't lead
-	 * to a ban (bans off, an address that's never banned, one already
-	 * banned), which caps the rows per address at the threshold.
+	 * through Traefik. Every such request is kept for the blocked-requests
+	 * stats; only bans being on and a bannable address lead on to a ban.
 	 */
-	async recordBlockedHit(headers: Headers, host: string | null): Promise<void> {
+	async recordBlockedHit(
+		headers: Headers,
+		host: string | null,
+		baitBytes: number,
+	): Promise<void> {
 		if (
 			!validBlockedProof(headers.get(BLOCKED_PROOF_HEADER), config.auth.secret)
 		) {
 			return;
 		}
 		const ip = clientIpFrom(headers);
-		const settings = (await InstanceSettingsDTO.get()).ipBans;
-		if (
-			!(ip && settings.enabled && bannableIp(ip)) ||
-			(await IpBanDTO.isBanned(ip))
-		) {
+		if (!ip || (await IpBanDTO.isBanned(ip))) {
 			return;
 		}
 		const path = headers.get("x-replaced-path")?.slice(0, 500) ?? null;
-		await BlockedHitDTO.record({ host, ip, path });
+		const service = host ? await serviceForHost(host) : null;
+		await BlockedHitDTO.record({
+			baitBytes,
+			host,
+			ip,
+			path,
+			pattern: matchingPathPattern(service?.blockedPaths ?? [], path),
+			serviceId: service?.id ?? null,
+		});
+		const settings = (await InstanceSettingsDTO.get()).ipBans;
+		if (!(settings.enabled && bannableIp(ip))) {
+			return;
+		}
 		const now = new Date();
 		const hits = await BlockedHitDTO.countSince(
 			ip,
@@ -94,11 +108,11 @@ class IpBanServiceClass {
 		return removed;
 	}
 
-	/** Drops expired bans (rewriting the bans file when any went) and blocked requests older than the longest ban window. */
+	/** Drops expired bans (rewriting the bans file when any went) and blocked requests older than the stats keep them. */
 	async prune(): Promise<void> {
 		const now = new Date();
 		await BlockedHitDTO.deleteBefore(
-			new Date(now.getTime() - MAX_BAN_WINDOW_MINUTES * 60_000),
+			new Date(now.getTime() - BLOCKED_HIT_RETENTION_MS),
 		);
 		if ((await IpBanDTO.deleteExpired(now)) > 0) {
 			await this.sync();

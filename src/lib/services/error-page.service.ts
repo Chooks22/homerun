@@ -1,7 +1,5 @@
-import { serviceDomain } from "#lib/config.js";
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
-import { ServiceDTO } from "#lib/dto/service-dto.js";
-import { StackDTO } from "#lib/dto/stack-dto.js";
+import type { ServiceDTO } from "#lib/dto/service-dto.js";
 import {
 	ERROR_PAGE_HEADER,
 	type ErrorPageKind,
@@ -10,11 +8,11 @@ import {
 	renderErrorPage,
 } from "#lib/error-pages.js";
 import { wakeRedirectTarget } from "#lib/scale-to-zero.js";
-import { domainHosts, serviceHostnames } from "#lib/service-domains.js";
 import {
 	ScaleToZeroService,
 	WAKE_GRACE_MS,
 } from "#lib/services/scale-to-zero.service.js";
+import { serviceForHost } from "#lib/services/service-for-host.js";
 
 const WAKE_HOLD_MS = 25_000;
 
@@ -49,7 +47,7 @@ class ErrorPageServiceClass {
 		const settings = (await InstanceSettingsDTO.get()).errorPages;
 		const owner =
 			!preview && host && (status === 404 || status >= 502)
-				? await this.#serviceForHost(host)
+				? await serviceForHost(host)
 				: null;
 		const waking = owner
 			? await this.#wakeResponse(owner, status, request, settings)
@@ -133,27 +131,6 @@ class ErrorPageServiceClass {
 			},
 			status,
 		});
-	}
-
-	/** The service, deployed or not, that routes `host`, or null when none does. */
-	async #serviceForHost(host: string): Promise<ServiceDTO | null> {
-		const [services, stacks] = await Promise.all([
-			ServiceDTO.list(),
-			StackDTO.list(),
-		]);
-		const stackSlugs = new Map(stacks.map((stack) => [stack.id, stack.slug]));
-		return (
-			services.find((entry) => {
-				const row = entry.toJSON();
-				return domainHosts(
-					serviceHostnames(
-						row,
-						row.stackId ? stackSlugs.get(row.stackId) : null,
-						serviceDomain(),
-					),
-				).includes(host);
-			}) ?? null
-		);
 	}
 }
 

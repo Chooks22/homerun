@@ -685,14 +685,24 @@ export const ipBan = pgTable("ip_ban", {
 export const blockedHit = pgTable(
 	"blocked_hit",
 	{
+		baitBytes: integer("bait_bytes").notNull().default(0),
 		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 		host: text("host"),
 		id: serial("id").primaryKey(),
 		ip: text("ip").notNull(),
 		path: text("path"),
+		pattern: text("pattern"),
+		serviceId: text("service_id").references(() => service.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("blockedHit_ip_createdAt_idx").on(table.ip, table.createdAt),
+		index("blockedHit_createdAt_idx").on(table.createdAt),
+		index("blockedHit_serviceId_createdAt_idx").on(
+			table.serviceId,
+			table.createdAt,
+		),
 	],
 );
 

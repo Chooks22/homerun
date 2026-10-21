@@ -132,6 +132,14 @@ export class GitConnectionDTO extends BaseDTO<GitConnection> {
 	get refreshTokenEnc(): string | null {
 		return this.row.refreshTokenEnc;
 	}
+	/** When the user first connected this provider. */
+	get createdAt(): Date {
+		return this.row.createdAt;
+	}
+	/** When the connection last changed: a reconnect or a token refresh. */
+	get updatedAt(): Date {
+		return this.row.updatedAt;
+	}
 	/** When the access token expires, null when it doesn't. */
 	get expiresAt(): Date | null {
 		return this.row.expiresAt;

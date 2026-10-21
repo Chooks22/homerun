@@ -4,6 +4,10 @@ export const BANS_ROUTER_PRIORITY = 2_000_000_000;
 
 export const MAX_BAN_WINDOW_MINUTES = 1440;
 
+export const BLOCKED_STATS_DAYS = 7;
+
+export const BLOCKED_HIT_RETENTION_MS = BLOCKED_STATS_DAYS * 86_400_000;
+
 export interface IpBanSettings {
 	disrespectMode: boolean;
 	durationHours: number;

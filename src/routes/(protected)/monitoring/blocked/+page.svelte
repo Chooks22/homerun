@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Ban, Radar, Undo2 } from "@lucide/svelte";
+	import BlockedSummary from "#lib/components/blocked-summary.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -28,6 +29,13 @@
       </a>
     </p>
   {/if}
+
+  <BlockedSummary
+    baiting={data.ipBans.meanMode || data.ipBans.disrespectMode}
+    bans={data.bans.length}
+    days={data.statsDays}
+    summary={data.summary}
+  />
 
   <section class="panel rounded-md">
     <PanelHeader

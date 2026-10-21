@@ -1401,25 +1401,35 @@ network: Docker's gateway is in it, and docker-proxy hands IPv6 visitors of a
 published port over from the gateway, so anyone could name their own address.
 Newt's address can change (a swarm task restarting); the trust is reapplied on
 every `syncNewt` (worker boot, settings save), and a stale one only means the
-tunnel is counted, never banned. Nothing is inserted for a request that can't
-lead to a ban (no proof, bans off, an address `bannableIp` refuses, one already
-banned), so `blocked_hit` rows per address are capped by the threshold. **Mean
-mode and Disrespect mode** (`ipBans.meanMode`/`disrespectMode`, the jsonb so no
-migration) only change the blocked handler's answer, after the hit is recorded:
-`baitFor` (`src/lib/bait.ts`, pure) matches Traefik's `X-Replaced-Path` (the
-original path `replacePath` keeps) against secret-shaped paths and returns a
-fake file served `200`, with random realistic secrets, or insults under
-Disrespect; a non-bait path under Disrespect gets a plain-text insult `403`,
-otherwise the usual blocked page. No trickle/tarpit: a slow response would hold
-Bun's own connections open, so the junk for an archive is a fixed 512 KiB.
-`bannableIp` refuses private, loopback, link-local, CGNAT, multicast and
-unspecified ranges (a Pangolin tunnel or Docker network) and Cloudflare's
-published edge ranges (`CLOUDFLARE_RANGES`, banning an edge bans everyone behind
-it; never trust `CF-Connecting-IP`, a client can send it). A ban is an `ip_ban`
-row; `IpBanService.sync()` rewrites `homerun-bans.yml` (JSON) with one router,
+tunnel is counted, never banned. Every request with the proof is inserted (bans
+off and addresses `bannableIp` refuses included; an address already banned
+isn't, Traefik turns it away first), with the `serviceId` that routes its host
+(`serviceForHost`, shared with the error pages), the blocked-path `pattern` it
+matched (`matchingPathPattern`) and the `baitBytes` it got back (Mean/Disrespect
+junk, insults included). Only bans on and a bannable address go on to
+`countSince`/`shouldBan`. Rows are kept `BLOCKED_STATS_DAYS` (7) for
+`BlockedHitDTO.summarySince` (addresses, requests, top pattern, bait responses
+and bytes, instance-wide or per service), the Summary panel
+(`blocked-summary.svelte`) on Monitoring → Blocked IPs and on a service's
+Observability → Blocked IPs tab; Being counted filters to bannable addresses.
+Uncapped per address now: an unbannable flood (a Cloudflare edge) grows the
+table for 7 days. **Mean mode and Disrespect mode**
+(`ipBans.meanMode`/`disrespectMode`, the jsonb so no migration) only change the
+blocked handler's answer, after the hit is recorded: `baitFor`
+(`src/lib/bait.ts`, pure) matches Traefik's `X-Replaced-Path` (the original path
+`replacePath` keeps) against secret-shaped paths and returns a fake file served
+`200`, with random realistic secrets, or insults under Disrespect; a non-bait
+path under Disrespect gets a plain-text insult `403`, otherwise the usual
+blocked page. No trickle/tarpit: a slow response would hold Bun's own
+connections open, so the junk for an archive is a fixed 512 KiB. `bannableIp`
+refuses private, loopback, link-local, CGNAT, multicast and unspecified ranges
+(a Pangolin tunnel or Docker network) and Cloudflare's published edge ranges
+(`CLOUDFLARE_RANGES`, banning an edge bans everyone behind it; never trust
+`CF-Connecting-IP`, a client can send it). A ban is an `ip_ban` row;
+`IpBanService.sync()` rewrites `homerun-bans.yml` (JSON) with one router,
 `ClientIP(a) || …` minus the dashboard host, priority 2e9 (under Traefik's
 32-bit max), `ipAllowList` deny, `noop@internal`, removed when nobody is banned.
-`IpBanScheduler` lifts expired bans and drops hits older than a day every
+`IpBanScheduler` lifts expired bans and drops hits older than 7 days every
 minute; boot and settings saves resync. Settings live in
 `instance_settings.ip_bans` (`withIpBanDefaults`, on, 10 hits / 10 min / 24 h),
 edited under Settings → IP bans; the bans (with Unban) and the addresses being

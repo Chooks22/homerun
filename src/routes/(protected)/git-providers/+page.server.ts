@@ -92,19 +92,4 @@ export const actions = {
 		}
 		return { added: true };
 	},
-
-	deleteProvider: async ({ request, locals }) => {
-		if (!locals.user) {
-			redirectToSignIn();
-		}
-
-		const formData = await request.formData();
-		const id = formData.get("id") as string | null;
-		if (!id) {
-			return fail(400, { error: "Missing provider id." });
-		}
-
-		await GitProviderConfigService.remove(id, locals.user.id);
-		return { deleted: true };
-	},
 };
