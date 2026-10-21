@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.67](https://github.com/orochibraru/homerun/compare/v1.0.66...v1.0.67) (2026-10-21)
+
+### Features
+
+- **workstations:** import editor extensions and settings from VS Code Settings
+  Sync (#138)
+  ([516e1e8](https://github.com/orochibraru/homerun/commit/516e1e8e541c14a9a4f2283e3cc609ef8e7d678d))
+
+### Bug Fixes
+
+- add false value check for boolean form values (#132)
+  ([2f11196](https://github.com/orochibraru/homerun/commit/2f11196327ba7cf207a0b0cf6d4b4a1bb0f724a6))
+- **test:** stop unit tests reading .env and pin the auth origin in workstation
+  tests (#137)
+  ([7ecf332](https://github.com/orochibraru/homerun/commit/7ecf3320ce1cac30533502f15c24a1a045cd1097))
+- **theme:** make an unchecked switch visible on the glass surface (#134)
+  ([a72b135](https://github.com/orochibraru/homerun/commit/a72b1358185d3b165c0ee7d7e962d258400ea9d4))
+
 ## [1.0.66](https://github.com/orochibraru/homerun/compare/v1.0.65...v1.0.66) (2026-10-20)
 
 ### Features
