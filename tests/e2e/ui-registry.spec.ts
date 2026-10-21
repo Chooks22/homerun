@@ -37,17 +37,23 @@ test.describe
 			).toBeVisible();
 			await expect(page.getByText("Nothing in the registry yet")).toBeVisible();
 
-			await page.locator(`a[href="/registry/tokens"]`).click();
+			await page
+				.locator(`[data-slot="tab-nav"] a[href="/registry/tokens"]`)
+				.click();
 			await expect(page).toHaveURL(/\/registry\/tokens$/);
 			await expect(page.getByText("No tokens yet")).toBeVisible();
 
-			await page.locator(`a[href="/registry/credentials"]`).click();
+			await page
+				.locator(`[data-slot="tab-nav"] a[href="/registry/credentials"]`)
+				.click();
 			await expect(page).toHaveURL(/\/registry\/credentials$/);
 			await expect(
 				page.getByRole("heading", { name: "Stored credentials" }),
 			).toBeVisible();
 
-			await page.locator(`a[href="/registry/settings"]`).click();
+			await page
+				.locator(`[data-slot="tab-nav"] a[href="/registry/settings"]`)
+				.click();
 			await expect(page).toHaveURL(/\/registry\/settings$/);
 			await expect(
 				page.getByRole("heading", { name: "Require authentication" }),

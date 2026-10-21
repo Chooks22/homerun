@@ -7,6 +7,10 @@ When done delete the entry, no bloat.
 
 ## Small
 
+- [ ] Mobile: `SectionNav` subtabs (container, environments, observability,
+      bucket, run pages) are still a scrolling strip below `md`; give them the
+      same nav-card hub `TabNav` got
+
 - [ ] Git providers: the Add provider form (and the GitHub App manifest flow)
       still sits on top of the list; move it to `/git-providers/new`
 

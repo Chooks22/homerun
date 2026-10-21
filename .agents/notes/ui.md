@@ -554,3 +554,23 @@ profile menu and the sidebar's version badge (`compact`), and each self-loading
 panel at the place it's used (host resources, resource usage, replica stats, the
 job queue). A new panel that loads its own data gets wrapped the same way where
 it's used. Load errors are still `+error.svelte`'s job.
+
+## Mobile shell (below `md`)
+
+Below 768px the protected layout behaves like a native app instead of a shrunk
+desktop. `mobile-tab-bar.svelte` is a bottom bar (Home, Services, Deploys,
+Alerts with the unread badge from the same remote query the bell polls, Menu),
+filtered through `mayVisit`; the header's bell is hidden there since Alerts
+replaces it. Menu opens `mobile-drawer.svelte`: a left drawer that flies in,
+scales and shifts the app frame behind it, and closes on scrim tap, Escape or a
+leftward swipe past 80px.
+
+`TabNav` turns a page whose tabs are all routes into a nav-card hub: at the
+first tab's bare path (no query string) it shows one card per tab and hides the
+page under it, and every other tab gets a "‹ Sections" back row instead of the
+strip. The first tab shares the hub's path, so its card links to `?view=tab`;
+any query string (pagination too) means "show the page, not the hub".
+`NavTab.description` is the card's one-line summary, set only from data the
+layout already loads (the service layout does). Tabs driven by `onSelect` keep
+the strip. All of it is CSS-switched (`max-md:`/`md:hidden`), no `MediaQuery`,
+so SSR renders the right shape with no flash.
