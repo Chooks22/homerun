@@ -309,7 +309,8 @@ export const shots: ShotModule = {
 				await expect(
 					checks
 						.first()
-						.or(page.getByText(/No checks have reported|Couldn't read checks/)),
+						.or(page.getByText(/No checks have reported|Couldn't read checks/))
+						.first(),
 				).toBeVisible({ timeout: 20_000 });
 				const count = await checks.count();
 				if (count > 0) {
