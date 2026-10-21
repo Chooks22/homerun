@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronLeft, ChevronRight } from "@lucide/svelte";
 	import { type Component, type Snippet, untrack } from "svelte";
 	import ErrorBoundary from "#lib/components/error-boundary.svelte";
 	import { useSubNav } from "#lib/sub-nav.svelte.js";
@@ -12,6 +13,8 @@
 		label: string;
 		/** Small amber dot next to the label : a field on this tab needs attention (e.g. Settings' setup-issue highlight) even while it's not the active tab. */
 		hasWarning?: boolean;
+		/** One-line summary under the label on the mobile nav-card hub, from data the layout already loads. */
+		description?: string;
 	}
 
 	const {
@@ -51,6 +54,20 @@
 			}
 		};
 	});
+
+	const routed = $derived(
+		tabs.length > 1 && tabs.every((tab) => tab.href !== undefined),
+	);
+	const hubHref = $derived(tabs[0]?.href?.split(/[?#]/)[0] ?? "");
+	const atHub = $derived(
+		routed && page.url.pathname === hubHref && page.url.search === "",
+	);
+	const activeTab = $derived(tabs.find((tab) => tab.id === active));
+
+	/** The hub card's link: the first tab shares the hub's path, so it opens with a query string that tells the two apart. */
+	function cardHref(tab: NavTab, index: number): string {
+		return index === 0 ? `${hubHref}?view=tab` : (tab.href ?? "");
+	}
 
 	let strip = $state<HTMLDivElement>();
 
@@ -93,7 +110,7 @@
 
 <div
   bind:this={strip}
-  class="mb-5 overflow-x-auto {beside ? 'md:hidden' : ''}"
+  class="mb-5 overflow-x-auto {routed ? 'max-md:hidden' : ''} {beside ? 'md:hidden' : ''}"
   data-slot="tab-nav"
 >
   <div class="bg-surface-2 inline-flex min-w-max gap-1 rounded-lg p-1">
@@ -122,8 +139,49 @@
   </div>
 </div>
 
+{#if atHub}
+  <nav class="grid grid-cols-2 gap-2.5 md:hidden" aria-label="Sections" data-slot="tab-hub">
+    {#each tabs as tab, index (tab.id)}
+      {@const TabIcon = tab.icon}
+      <a
+        class="border-border bg-surface active:bg-surface-2 relative flex min-h-24 flex-col justify-between gap-3 rounded-2xl border p-3.5 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 {tabs.length % 2 === 1 && index === tabs.length - 1 ? 'col-span-2' : ''}"
+        href={cardHref(tab, index)}
+      >
+        <span class="bg-accent-light text-accent flex size-9 items-center justify-center rounded-xl">
+          {#if TabIcon}<TabIcon class="size-4.5" />{:else}<ChevronRight class="size-4.5" />{/if}
+        </span>
+        <span class="flex flex-col gap-0.5">
+          <span class="text-text text-sm leading-snug font-semibold">{tab.label}</span>
+          {#if tab.description}
+            <span class="text-xs {tab.hasWarning ? 'text-amber-600 dark:text-amber-400' : 'text-text-subtle'}">{tab.description}</span>
+          {/if}
+        </span>
+        {#if tab.hasWarning}
+          <span class="absolute top-3.5 right-3.5 size-2 rounded-full bg-amber-400" title="Needs attention"></span>
+        {/if}
+      </a>
+    {/each}
+  </nav>
+{:else if routed}
+  <div class="-mt-1 mb-4 flex items-center gap-2 md:hidden" data-slot="tab-back">
+    <a
+      class="text-accent -ml-2 flex min-h-11 items-center gap-0.5 rounded-lg pr-2 pl-1 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      href={hubHref}
+    >
+      <ChevronLeft class="size-5" />
+      Sections
+    </a>
+    {#if activeTab}
+      <span class="text-text-subtle" aria-hidden="true">/</span>
+      <span class="text-text truncate text-sm font-semibold">{activeTab.label}</span>
+    {/if}
+  </div>
+{/if}
+
 {#if children}
-  <ErrorBoundary title="This tab hit an error while rendering.">
-    {@render children()}
-  </ErrorBoundary>
+  <div class={atHub ? "max-md:hidden" : "contents"}>
+    <ErrorBoundary title="This tab hit an error while rendering.">
+      {@render children()}
+    </ErrorBoundary>
+  </div>
 {/if}

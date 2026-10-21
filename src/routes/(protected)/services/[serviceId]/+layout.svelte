@@ -62,6 +62,9 @@
 			href: resolve("/(protected)/services/[serviceId]/environments", {
 				serviceId: svc.id,
 			}),
+			description: data.lastDeployedAt
+				? `Deployed ${timeAgo(data.lastDeployedAt)}`
+				: undefined,
 			icon: Layers,
 			id: "environments",
 			label: "Environments & Deployments",
@@ -76,6 +79,10 @@
 			href: resolve("/(protected)/services/[serviceId]/observability", {
 				serviceId: svc.id,
 			}),
+			description:
+				data.openErrors > 0
+					? `${data.openErrors} open ${data.openErrors === 1 ? "error" : "errors"}`
+					: undefined,
 			hasWarning: data.openErrors > 0,
 			icon: FileText,
 			id: "observability",
@@ -95,6 +102,7 @@
 			href: resolve("/(protected)/services/[serviceId]/networking", {
 				serviceId: svc.id,
 			}),
+			description: publicDomains[0] ?? "Not publicly routed",
 			icon: Network,
 			id: "networking",
 			label: "Networking",

@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { ChevronRight, Menu, Plus, X } from "@lucide/svelte";
+	import { ChevronRight, Plus } from "@lucide/svelte";
 	import { modeStorageKey, setMode } from "mode-watcher";
 	import { type Component, onMount, tick } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
-	import { fly, slide } from "svelte/transition";
+	import { slide } from "svelte/transition";
 	import AppVersion from "#lib/components/app-version.svelte";
 	import BrandMark from "#lib/components/brand-mark.svelte";
 	import Breadcrumbs from "#lib/components/breadcrumbs.svelte";
 	import ErrorBoundary from "#lib/components/error-boundary.svelte";
 	import GlobalSearch from "#lib/components/global-search.svelte";
+	import MobileDrawer from "#lib/components/mobile-drawer.svelte";
+	import MobileTabBar from "#lib/components/mobile-tab-bar.svelte";
 	import NotificationBell from "#lib/components/notification-bell.svelte";
 	import ProfileMenu from "#lib/components/profile-menu.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -235,7 +237,7 @@
 </svelte:head>
 
 <!-- Fills the full viewport : there's no global navbar above this. -->
-<div class="flex h-dvh overflow-hidden p-2 md:gap-2">
+<div class="flex h-dvh overflow-hidden md:gap-2 md:p-2">
   <a
     class="bg-ink text-ink-foreground fixed top-4 left-4 z-60 rounded-md px-3 py-2 text-sm font-medium not-focus:sr-only"
     href="#main-content"
@@ -265,78 +267,32 @@
     </ErrorBoundary>
   </aside>
 
-  <!-- ── Mobile sidebar overlay ────────────────────────────────── -->
-  {#if sidebarOpen}
-    <button
-      aria-label="Close sidebar"
-      class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
-      onclick={closeSidebar}
-      tabindex="-1"
-      type="button"
-    >
-    </button>
-
-    <div
-      class="panel-strong fixed top-0 left-0 z-50 flex h-dvh w-72 flex-col border-r border-border md:hidden"
-      aria-label="Navigation"
-      aria-modal="true"
-      role="dialog"
-      transition:fly={{ duration: 240, opacity: 1, x: -280 }}
-    >
-      <div class="border-border flex items-center justify-between border-b py-1 pr-2">
-        <BrandMark class="px-3 py-2.5" />
-        <Button
-          aria-label="Close sidebar"
-          onclick={closeSidebar}
-          size="icon-sm"
-          variant="ghost"
-          bind:ref={sidebarClose}
-        >
-          <X class="size-5" />
-        </Button>
-      </div>
-      <nav class="flex-1 overflow-y-auto px-2.5 pt-1 pb-4">
-        {@render navGroups(navItemGroups, () => {
-          sidebarOpen = false;
-        })}
-      </nav>
+  <MobileDrawer bind:closeButton={sidebarClose} onClose={closeSidebar} open={sidebarOpen}>
+    {#if can(data.permissions, "services", "write")}
+      <Button class="mt-1 w-full" href={resolve('services/new')} onclick={() => (sidebarOpen = false)}><Plus class="size-4" />Deploy a service</Button>
+    {/if}
+    {@render navGroups(navItemGroups, () => {
+      sidebarOpen = false;
+    })}
+    {#snippet footer()}
       <ErrorBoundary compact>
-      <AppVersion admin={can(data.permissions, "settings", "write")} />
-    </ErrorBoundary>
-    </div>
-  {/if}
+        <AppVersion admin={can(data.permissions, "settings", "write")} />
+      </ErrorBoundary>
+    {/snippet}
+  </MobileDrawer>
 
   <!-- ── Main content ───────────────────────────────────────────── -->
   <div
-    class="panel flex flex-1 flex-col overflow-hidden rounded-xl md:order-3"
+    class="panel flex flex-1 flex-col overflow-hidden transition-[translate,scale,border-radius] duration-380 ease-snap max-md:border-0 md:order-3 md:rounded-xl {sidebarOpen ? 'max-md:translate-x-6 max-md:scale-[0.94] max-md:rounded-2xl' : ''}"
     data-slot="app-frame"
     inert={sidebarOpen && !desktop.current}
   >
-    <!-- Sticky header, every page, both breakpoints : hamburger (mobile
-         only) + page title on the left, notifications + account menu on
-         the right. -->
+    <!-- Sticky header, every page, both breakpoints : page title on the
+         left, notifications + account menu on the right. -->
     <header
       class="border-border sticky top-0 z-30 flex h-12 shrink-0 items-center gap-1.5 border-b px-2 sm:gap-2 sm:px-3 md:px-5"
       data-slot="app-header"
     >
-      <Button
-        aria-expanded={sidebarOpen}
-        aria-label="Toggle sidebar"
-        class="md:hidden"
-        onclick={() => {
-          sidebarOpen = !sidebarOpen;
-          void tick().then(() => sidebarClose?.focus());
-        }}
-        bind:ref={sidebarToggle}
-        size="icon-sm"
-        variant="ghost"
-      >
-        {#if sidebarOpen}
-          <X class="size-5" />
-        {:else}
-          <Menu class="size-5" />
-        {/if}
-      </Button>
       <Breadcrumbs roots={allNavItems} />
       {#if data.readOnly}
         <span
@@ -349,9 +305,11 @@
       <ErrorBoundary compact>
         <GlobalSearch permissions={data.permissions} />
       </ErrorBoundary>
-      <ErrorBoundary compact>
-        <NotificationBell />
-      </ErrorBoundary>
+      <div class="hidden md:contents">
+        <ErrorBoundary compact>
+          <NotificationBell />
+        </ErrorBoundary>
+      </div>
       <ErrorBoundary compact>
         <ProfileMenu uiMode={data.uiMode} user={data.user} />
       </ErrorBoundary>
@@ -363,6 +321,17 @@
         {@render children()}
       </ErrorBoundary>
     </main>
+    <ErrorBoundary compact>
+      <MobileTabBar
+        bind:menuButton={sidebarToggle}
+        menuOpen={sidebarOpen}
+        onMenu={() => {
+          sidebarOpen = true;
+          void tick().then(() => sidebarClose?.focus());
+        }}
+        permissions={data.permissions}
+      />
+    </ErrorBoundary>
   </div>
   {#if sectionTabs}
     <aside
