@@ -35,6 +35,7 @@ import type {
 } from "#lib/image-scan.js";
 import type { ImageUpdateState } from "#lib/image-versions.js";
 import type { IpBanSettings } from "#lib/ip-bans.js";
+import type { IpIntel } from "#lib/ip-intel.js";
 import type { ObjectStoreKind } from "#lib/object-storage.js";
 import type { AuthPathsMode } from "#lib/path-patterns.js";
 import type { Permissions, Role } from "#lib/permissions.js";
@@ -678,8 +679,10 @@ export const ipBan = pgTable("ip_ban", {
 	createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 	expiresAt: timestamp("expires_at", { mode: "date" }),
 	host: text("host"),
+	intel: jsonb("intel").$type<IpIntel>(),
 	ip: text("ip").primaryKey(),
 	reason: text("reason").notNull(),
+	userAgent: text("user_agent"),
 });
 
 export const blockedHit = pgTable(
@@ -695,6 +698,7 @@ export const blockedHit = pgTable(
 		serviceId: text("service_id").references(() => service.id, {
 			onDelete: "set null",
 		}),
+		userAgent: text("user_agent"),
 	},
 	(table) => [
 		index("blockedHit_ip_createdAt_idx").on(table.ip, table.createdAt),

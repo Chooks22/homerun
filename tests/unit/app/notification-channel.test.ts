@@ -498,9 +498,22 @@ describe("ipBanMessage", () => {
 			{
 				expiresAt: new Date("2026-10-06T12:00:00Z"),
 				host: "app.example.com",
+				intel: {
+					abuseEmail: "abuse@example.net",
+					asName: "EXAMPLE-AS - Example Hosting, NL",
+					asn: 64500,
+					country: "NL",
+					hostname: "scanner.example.net",
+					lookedUpAt: "2026-10-05T12:00:01Z",
+					network: "203.0.113.0/24",
+					networkName: "EXAMPLE-NET",
+					org: "Example Hosting",
+					registry: "ripencc",
+				},
 				ip: "203.0.113.7",
 				origin: "https://homerun.example.com",
 				reason: "10 blocked requests in 10 min, last /wp-login.php",
+				userAgent: "zgrab/0.x",
 			},
 			"2026-10-05T12:00:00Z",
 		);
@@ -515,6 +528,13 @@ describe("ipBanMessage", () => {
 			{ name: "Address", value: "203.0.113.7" },
 			{ name: "Until", value: "2026-10-06T12:00:00.000Z" },
 			{ name: "Host", value: "app.example.com" },
+			{
+				name: "Network",
+				value:
+					"AS64500 EXAMPLE-AS - Example Hosting, NL · NL · scanner.example.net",
+			},
+			{ name: "Abuse contact", value: "abuse@example.net" },
+			{ name: "User agent", value: "zgrab/0.x" },
 		]);
 		expect(isFailureEvent("security.ip_banned")).toBe(true);
 	});
@@ -524,9 +544,11 @@ describe("ipBanMessage", () => {
 			{
 				expiresAt: null,
 				host: null,
+				intel: null,
 				ip: "198.51.100.1",
 				origin: null,
 				reason: "r",
+				userAgent: null,
 			},
 			"2026-10-05T12:00:00Z",
 		);

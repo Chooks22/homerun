@@ -283,14 +283,14 @@
 
   <!-- ── Main content ───────────────────────────────────────────── -->
   <div
-    class="panel flex flex-1 flex-col overflow-hidden transition-[translate,scale,border-radius] duration-380 ease-snap max-md:border-0 md:order-3 md:rounded-xl {sidebarOpen ? 'max-md:translate-x-6 max-md:scale-[0.94] max-md:rounded-2xl' : ''}"
+    class="panel flex flex-1 flex-col overflow-hidden transition-[translate,scale,border-radius] duration-380 ease-snap max-md:border-0 md:order-3 md:rounded-xl {sidebarOpen ? 'max-md:scale-[0.94] max-md:rounded-2xl' : ''}"
     data-slot="app-frame"
     inert={sidebarOpen && !desktop.current}
   >
     <!-- Sticky header, every page, both breakpoints : page title on the
          left, notifications + account menu on the right. -->
     <header
-      class="border-border sticky top-0 z-30 flex h-12 shrink-0 items-center gap-1.5 border-b px-2 sm:gap-2 sm:px-3 md:px-5"
+      class="border-border sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b px-4 max-md:bg-bg/86 max-md:backdrop-blur-lg sm:px-3 md:h-12 md:px-5"
       data-slot="app-header"
     >
       <Breadcrumbs roots={allNavItems} />

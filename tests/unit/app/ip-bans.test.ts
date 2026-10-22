@@ -14,11 +14,11 @@ import {
 } from "../../../src/lib/ip-bans";
 
 describe("IP ban settings", () => {
-	test("nothing stored gives the defaults: on, 10 hits in 10 minutes, 24 hours", () => {
+	test("nothing stored gives the defaults: on, 10 hits in 10 minutes, banned for good", () => {
 		expect(withIpBanDefaults(null)).toEqual(DEFAULT_IP_BAN_SETTINGS);
 		expect(DEFAULT_IP_BAN_SETTINGS).toEqual({
 			disrespectMode: false,
-			durationHours: 24,
+			durationHours: 0,
 			enabled: true,
 			meanMode: false,
 			threshold: 10,
@@ -30,7 +30,7 @@ describe("IP ban settings", () => {
 		expect(
 			withIpBanDefaults({
 				disrespectMode: true,
-				durationHours: 0,
+				durationHours: 24,
 				enabled: false,
 				meanMode: true,
 				threshold: 3,
@@ -38,7 +38,7 @@ describe("IP ban settings", () => {
 			}),
 		).toEqual({
 			disrespectMode: true,
-			durationHours: 0,
+			durationHours: 24,
 			enabled: false,
 			meanMode: true,
 			threshold: 3,
@@ -55,12 +55,13 @@ describe("IP ban settings", () => {
 
 	test("a ban ends after its duration, or never at 0 hours", () => {
 		const now = new Date("2026-10-05T12:00:00Z");
-		expect(banExpiry(DEFAULT_IP_BAN_SETTINGS, now)?.toISOString()).toBe(
-			"2026-10-06T12:00:00.000Z",
-		);
 		expect(
-			banExpiry({ ...DEFAULT_IP_BAN_SETTINGS, durationHours: 0 }, now),
-		).toBeNull();
+			banExpiry(
+				{ ...DEFAULT_IP_BAN_SETTINGS, durationHours: 24 },
+				now,
+			)?.toISOString(),
+		).toBe("2026-10-06T12:00:00.000Z");
+		expect(banExpiry(DEFAULT_IP_BAN_SETTINGS, now)).toBeNull();
 	});
 });
 

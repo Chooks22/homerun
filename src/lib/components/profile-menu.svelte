@@ -65,17 +65,17 @@
       <button
         {...props}
         aria-label="Account menu"
-        class="{headerControlClass} w-9 sm:w-8"
+        class="{headerControlClass} w-10 sm:w-8"
         type="button"
       >
         {#if user?.image}
           <img
             alt={user.name ?? ""}
-            class="size-5 rounded-full object-cover"
+            class="ring-border size-8 rounded-full object-cover ring-1 sm:size-5 sm:ring-0"
             src={user.image}
           />
         {:else}
-          <span class="bg-accent text-bg flex size-5 items-center justify-center rounded-full text-[0.625rem] font-semibold">
+          <span class="bg-accent text-bg flex size-8 items-center justify-center rounded-full text-sm font-semibold sm:size-5 sm:text-[0.625rem]">
             {userInitial}
           </span>
         {/if}

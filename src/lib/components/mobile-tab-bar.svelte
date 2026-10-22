@@ -67,13 +67,13 @@
 	}
 
 	const itemClass =
-		"group flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-medium outline-none transition-colors duration-150 focus-visible:text-text";
+		"group flex min-h-13 flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] outline-none transition-colors duration-150 focus-visible:text-text";
 	const pillClass =
-		"relative flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200";
+		"relative flex h-7.5 w-14 items-center justify-center rounded-full transition-[background-color,scale] duration-200 ease-snap group-active:scale-90";
 </script>
 
 <nav
-  class="panel-strong border-border flex shrink-0 items-stretch border-t px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] md:hidden"
+  class="border-border bg-bg/92 flex shrink-0 items-stretch border-t px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden"
   aria-label="Primary"
   data-slot="mobile-tab-bar"
 >
@@ -81,15 +81,15 @@
     {@const active = isActive(item)}
     {@const Icon = item.icon}
     <a
-      class="{itemClass} {active ? 'text-accent font-semibold' : 'text-text-muted'}"
+      class="{itemClass} {active ? 'text-accent font-semibold' : 'text-text-muted font-medium'}"
       aria-current={active ? "page" : undefined}
       href={item.href}
     >
-      <span class="{pillClass} {active ? 'bg-accent-light' : 'group-active:bg-surface-2'}">
-        <Icon class="size-5" />
+      <span class="{pillClass} {active ? 'bg-accent/15' : ''}">
+        <Icon class="size-5.5" />
         {#if item.label === "Alerts" && unreadCount > 0}
           <span
-            class="bg-ink text-ink-foreground absolute -top-0.5 right-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none font-bold"
+            class="bg-accent text-bg ring-bg absolute -top-0.5 right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none font-bold ring-2"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
@@ -99,15 +99,15 @@
     </a>
   {/each}
   <button
-    class="{itemClass} {menuOpen ? 'text-accent font-semibold' : 'text-text-muted'}"
+    class="{itemClass} {menuOpen ? 'text-accent font-semibold' : 'text-text-muted font-medium'}"
     aria-expanded={menuOpen}
     aria-label="Open menu"
     bind:this={menuButton}
     onclick={onMenu}
     type="button"
   >
-    <span class="{pillClass} {menuOpen ? 'bg-accent-light' : 'group-active:bg-surface-2'}">
-      <Menu class="size-5" />
+    <span class="{pillClass} {menuOpen ? 'bg-accent/15' : ''}">
+      <Menu class="size-5.5" />
     </span>
     Menu
   </button>

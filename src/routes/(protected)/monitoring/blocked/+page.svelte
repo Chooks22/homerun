@@ -5,6 +5,7 @@
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { formatDate, timeAgo } from "#lib/formatting.js";
+	import { intelSummary } from "#lib/ip-intel.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
@@ -61,6 +62,29 @@
                 <p class="text-text-muted mt-0.5 truncate text-xs">
                   {ban.reason}{ban.host ? ` on ${ban.host}` : ""}
                 </p>
+                <p class="text-text-muted mt-0.5 truncate text-xs">
+                  {#if !ban.intel}
+                    Looking up who this is…
+                  {:else}
+                    {intelSummary(ban.intel) ?? "Nothing known about this address"}{ban.intel.networkName ? ` · ${ban.intel.networkName}` : ""}{ban.intel.network ? ` (${ban.intel.network})` : ""}
+                  {/if}
+                </p>
+                {#if ban.intel?.abuseEmail}
+                  <p class="text-text-muted mt-0.5 truncate text-xs">
+                    Abuse contact:
+                    <a
+                      class="text-accent hover:underline"
+                      href={`mailto:${ban.intel.abuseEmail}`}
+                    >
+                      {ban.intel.abuseEmail}
+                    </a>
+                  </p>
+                {/if}
+                {#if ban.userAgent}
+                  <p class="text-text-subtle mt-0.5 truncate font-mono text-xs" title={ban.userAgent}>
+                    {ban.userAgent}
+                  </p>
+                {/if}
                 <p class="text-text-subtle mt-0.5 text-xs">
                   banned {timeAgo(ban.createdAt)} ·
                   {ban.expiresAt
@@ -120,6 +144,9 @@
                 </td>
                 <td class="text-text-muted hidden px-4 py-3 font-mono text-xs break-all md:table-cell">
                   {address.host ?? ""}{address.path ?? ""}
+                  {#if address.userAgent}
+                    <span class="text-text-subtle block">{address.userAgent}</span>
+                  {/if}
                 </td>
                 <td class="text-text-muted px-4 py-3" title={new Date(address.lastAt).toLocaleString()}>
                   {timeAgo(address.lastAt)}

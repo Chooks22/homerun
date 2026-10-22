@@ -9,6 +9,7 @@ import {
 	lte,
 	or,
 } from "drizzle-orm";
+import type { IpIntel } from "#lib/ip-intel.js";
 import { db } from "#lib/server/db/lib.js";
 import { type IpBan, ipBan } from "#lib/server/db/schema.js";
 import { BaseDTO } from "./base-dto";
@@ -56,6 +57,7 @@ export class IpBanDTO extends BaseDTO<IpBan> {
 		host: string | null;
 		ip: string;
 		reason: string;
+		userAgent: string | null;
 	}): Promise<boolean> {
 		const now = new Date();
 		const written = await db
@@ -68,6 +70,30 @@ export class IpBanDTO extends BaseDTO<IpBan> {
 			})
 			.returning({ ip: ipBan.ip });
 		return written.length > 0;
+	}
+
+	/** Stores what a lookup found out about `ip`'s ban. */
+	static async setIntel(ip: string, intel: IpIntel): Promise<void> {
+		await db.update(ipBan).set({ intel }).where(eq(ipBan.ip, ip));
+	}
+
+	/** Addresses banned at `now` that haven't been looked up yet, oldest ban first, at most `limit`. */
+	static async unidentifiedIps(
+		limit: number,
+		now = new Date(),
+	): Promise<string[]> {
+		const rows = await db
+			.select({ ip: ipBan.ip })
+			.from(ipBan)
+			.where(
+				and(
+					isNull(ipBan.intel),
+					or(isNull(ipBan.expiresAt), gt(ipBan.expiresAt, now)),
+				),
+			)
+			.orderBy(asc(ipBan.createdAt))
+			.limit(limit);
+		return rows.map((row) => row.ip);
 	}
 
 	/** Lifts the ban on `ip`. Returns whether there was one. */
