@@ -78,6 +78,11 @@
 		title.set("Dashboard");
 	});
 
+	const statCards = [
+		{ dot: "bg-accent", key: "totalServices", label: "Services" },
+		{ dot: "bg-emerald-500", key: "running", label: "Running" },
+	] as const;
+
 	function statusDot(status: ContainerStatus): string {
 		if (status === "running") {
 			return "bg-emerald-500";
@@ -90,19 +95,6 @@
 		}
 		return "bg-amber-500";
 	}
-
-	const statCards = $derived([
-		{
-			dot: "bg-accent",
-			label: "Services",
-			value: String(data.stats.totalServices),
-		},
-		{
-			dot: "bg-emerald-500",
-			label: "Running",
-			value: String(data.stats.running),
-		},
-	]);
 </script>
 
 <div class="p-5 md:p-6">
@@ -178,12 +170,13 @@
     </div>
   {/if}
 
-  {#if data.overCapacity.length > 0}
+  {#await data.overCapacity then overCapacity}
+  {#if overCapacity.length > 0}
     <div class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-2.5 text-xs">
       <CircleX class="size-3.5 shrink-0 text-red-500" />
       <p class="min-w-0 flex-1 text-red-700 dark:text-red-300">
         <span class="font-medium">Server past its hard resource limit:</span>
-        {data.overCapacity.join(", ")}. New services are refused until usage
+        {overCapacity.join(", ")}. New services are refused until usage
         drops back.
       </p>
       {#if data.readsSettings}
@@ -194,18 +187,20 @@
       {/if}
     </div>
   {/if}
+  {/await}
 
-  {#if data.uptimeDown.length > 0}
+  {#await data.overview then overview}
+  {#if overview.uptimeDown.length > 0}
     <div class="mb-4 rounded-xl border border-red-400/40 bg-red-500/10">
       <div class="flex items-center gap-2 border-b border-red-400/30 px-4 py-2.5">
         <CircleX class="size-3.5 text-red-500" />
         <span class="text-sm font-medium text-red-600 dark:text-red-400">
-          {data.uptimeDown.length}
-          {data.uptimeDown.length === 1 ? "probe is" : "probes are"} failing
+          {overview.uptimeDown.length}
+          {overview.uptimeDown.length === 1 ? "probe is" : "probes are"} failing
         </span>
       </div>
       <div class="divide-y divide-red-400/20">
-        {#each data.uptimeDown as check (check.serviceId + check.kind)}
+        {#each overview.uptimeDown as check (check.serviceId + check.kind)}
           <a
             class="flex items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-red-500/10"
             href="{resolve('services')}/{check.serviceId}/observability/events"
@@ -222,8 +217,10 @@
       </div>
     </div>
   {/if}
+  {/await}
 
-  {#if data.frontPageTemplates.length > 0}
+  {#await data.frontPageTemplates then frontPageTemplates}
+  {#if frontPageTemplates.length > 0}
     <section class="panel mb-4 rounded-xl">
       <div class="panel-head">
         <h2 class="eyebrow flex items-center gap-1.5">
@@ -236,7 +233,7 @@
         >Browse all templates</a>
       </div>
       <div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        {#each data.frontPageTemplates as template (template.id)}
+        {#each frontPageTemplates as template (template.id)}
           <div class="border-border flex flex-col gap-3 rounded-lg border p-3">
             <a
               class="flex min-w-0 flex-1 items-start gap-3"
@@ -289,6 +286,7 @@
       </div>
     </section>
   {/if}
+  {/await}
 
   <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
     <div class="panel divide-border flex divide-x rounded-xl">
@@ -298,7 +296,13 @@
             <span class="size-1.5 rounded-full {card.dot}"></span>
             {card.label}
           </p>
-          <p class="metric mt-2">{card.value}</p>
+          {#await data.overview}
+            <Skeleton class="mt-2 h-7 w-10" />
+          {:then overview}
+            <p class="metric mt-2">{overview.stats[card.key]}</p>
+          {:catch}
+            <p class="metric text-text-subtle mt-2">–</p>
+          {/await}
         </div>
       {/each}
     </div>
@@ -342,7 +346,14 @@
         >View all</a>
       </div>
 
-      {#if data.recentDeployments.length === 0}
+      {#await data.overview}
+        <div class="space-y-2 p-4">
+          <Skeleton class="h-9 w-full" />
+          <Skeleton class="h-9 w-full" />
+          <Skeleton class="h-9 w-2/3" />
+        </div>
+      {:then overview}
+      {#if overview.recentDeployments.length === 0}
         <div class="flex flex-col items-center justify-center px-4 py-10 text-center">
           <Server class="text-text-subtle mb-2 size-5" />
           <p class="text-text-muted text-xs">No deployments yet</p>
@@ -352,7 +363,7 @@
         </div>
       {:else}
         <div class="divide-border divide-y">
-          {#each data.recentDeployments as dep (dep.id)}
+          {#each overview.recentDeployments as dep (dep.id)}
             <a
               class="hover:bg-surface-2 flex items-start gap-3 px-4 py-2.5 transition-colors"
               href="{resolve('services')}/{dep.serviceId}"
@@ -394,6 +405,11 @@
           {/each}
         </div>
       {/if}
+      {:catch}
+        <p class="text-text-muted px-4 py-6 text-center text-xs">
+          Couldn't load recent deployments.
+        </p>
+      {/await}
     </div>
 
     <div class="panel rounded-xl">
@@ -403,7 +419,8 @@
           Recent errors
         </h2>
         <div class="flex items-center gap-3">
-          {#if data.recentErrors.length > 0}
+          {#await data.overview then overview}
+          {#if overview.recentErrors.length > 0}
             <form
               action="?/clearErrors"
               method="POST"
@@ -428,6 +445,7 @@
               </button>
             </form>
           {/if}
+          {/await}
           {#if data.readsSystem}
             <a
               class="text-accent text-xs font-medium hover:underline"
@@ -436,13 +454,19 @@
           {/if}
         </div>
       </div>
-      {#if data.recentErrors.length === 0}
+      {#await data.overview}
+        <div class="space-y-2 p-4">
+          <Skeleton class="h-9 w-full" />
+          <Skeleton class="h-9 w-2/3" />
+        </div>
+      {:then overview}
+      {#if overview.recentErrors.length === 0}
         <p class="text-text-muted px-4 py-6 text-center text-xs">
           Nothing logged at warn or error level.
         </p>
       {:else}
         <div class="divide-border divide-y">
-          {#each data.recentErrors as entry (entry.id)}
+          {#each overview.recentErrors as entry (entry.id)}
             {@const href = entry.serviceId
               ? `${resolve('services')}/${entry.serviceId}/observability/events`
               : resolve('system-logs')}
@@ -471,6 +495,11 @@
           {/each}
         </div>
       {/if}
+      {:catch}
+        <p class="text-text-muted px-4 py-6 text-center text-xs">
+          Couldn't load recent errors.
+        </p>
+      {/await}
     </div>
 
     <div class="panel rounded-xl">
@@ -492,7 +521,8 @@
           <Plus class="text-text-subtle size-3.5 shrink-0" />
         </a>
 
-        {#if data.stats.totalServices > 0}
+        {#await data.overview then overview}
+        {#if overview.stats.totalServices > 0}
           <a
             class="hover:bg-surface-2 group/qa flex items-center gap-3 px-3.5 py-2.5 transition-colors"
             href={resolve('services')}
@@ -507,6 +537,7 @@
             <ArrowRight class="text-text-subtle size-3.5 shrink-0" />
           </a>
         {/if}
+        {/await}
       </div>
     </div>
   </div>
