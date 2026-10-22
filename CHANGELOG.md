@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.69](https://github.com/orochibraru/homerun/compare/v1.0.68...v1.0.69) (2026-10-22)
+
+### Features
+
+- permanent IP bans with network/abuse lookup, mobile shell polish (#144)
+  ([4fdc3f9](https://github.com/orochibraru/homerun/commit/4fdc3f9f255f8a877579ccd3adbc9d1ec425e24f))
+- mobile-first shell with bottom tab bar and drawer navigation (#142)
+  ([dfbc38b](https://github.com/orochibraru/homerun/commit/dfbc38b295039857f9529779ba9fc75d376ae9ef))
+
 ## [1.0.68](https://github.com/orochibraru/homerun/compare/v1.0.67...v1.0.68) (2026-10-21)
 
 ### Features
