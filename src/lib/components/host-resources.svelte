@@ -1,12 +1,23 @@
+<script lang="ts" module>
+	import type { SystemStats } from "#lib/services/system-stats.service.js";
+
+	const seen: { last: SystemStats | null } = { last: null };
+</script>
+
 <script lang="ts">
 	import { Cpu, HardDrive, MemoryStick } from "@lucide/svelte";
 	import { onMount } from "svelte";
-	import Skeleton from "#lib/components/skeleton.svelte";
 	import { getSystemStats } from "#lib/remote/system-stats.remote.js";
 
 	const POLL_MS = 5000;
 
 	const stats = getSystemStats();
+
+	$effect(() => {
+		if (stats.ready) {
+			seen.last = stats.current;
+		}
+	});
 
 	onMount(() => {
 		const timer = setInterval(() => {
@@ -52,46 +63,39 @@
   </div>
 {/snippet}
 
-{#snippet meterSkeleton()}
-  <div class="min-w-0 flex-1 px-4 py-3">
-    <div class="flex items-center justify-between">
-      <Skeleton class="h-3 w-12" />
-      <Skeleton class="h-4 w-10" />
-    </div>
-    <Skeleton class="mt-2 h-0.75 w-full" />
-    <Skeleton class="mt-1.5 h-3 w-20" />
-  </div>
-{/snippet}
-
 <div class="panel overflow-hidden rounded-xl">
   {#if stats.error}
     <p class="text-text-muted px-4 py-3 text-xs">Host resource stats are unavailable right now.</p>
-  {:else if stats.ready}
-    {@const s = stats.current}
+  {:else}
+    {@const s = stats.ready ? stats.current : seen.last}
     <div class="divide-border flex flex-col divide-y sm:flex-row sm:divide-x sm:divide-y-0">
       {@render meter(
         "CPU",
         Cpu,
-        `${s.cpuPercent.toFixed(0)}%`,
-        s.cpuPercent,
+        `${(s?.cpuPercent ?? 0).toFixed(0)}%`,
+        s?.cpuPercent ?? 0,
       )}
       {@render meter(
         "RAM",
         MemoryStick,
-        `${(s.memUsedMb / 1024).toFixed(1)} / ${(s.memTotalMb / 1024).toFixed(1)} GB`,
-        pct(s.memUsedMb, s.memTotalMb),
+        s
+          ? `${(s.memUsedMb / 1024).toFixed(1)} / ${(s.memTotalMb / 1024).toFixed(1)} GB`
+          : "– / – GB",
+        s ? pct(s.memUsedMb, s.memTotalMb) : 0,
       )}
       {@render meter(
         "Disk",
         HardDrive,
-        s.diskUsedGb !== null && s.diskTotalGb !== null
-          ? `${s.diskUsedGb.toFixed(0)} / ${s.diskTotalGb.toFixed(0)} GB`
-          : "unavailable",
-        pct(s.diskUsedGb ?? 0, s.diskTotalGb ?? 0),
+        !s
+          ? "– / – GB"
+          : s.diskUsedGb !== null && s.diskTotalGb !== null
+            ? `${s.diskUsedGb.toFixed(0)} / ${s.diskTotalGb.toFixed(0)} GB`
+            : "unavailable",
+        s ? pct(s.diskUsedGb ?? 0, s.diskTotalGb ?? 0) : 0,
       )}
     </div>
 
-    {#if s.gpu}
+    {#if s?.gpu}
       <div class="border-border border-t px-4 py-3">
         <div class="flex items-baseline justify-between gap-2">
           <span class="eyebrow truncate">GPU · {s.gpu.name}</span>
@@ -113,11 +117,5 @@
         </div>
       </div>
     {/if}
-  {:else}
-    <div class="divide-border flex flex-col divide-y sm:flex-row sm:divide-x sm:divide-y-0">
-      {@render meterSkeleton()}
-      {@render meterSkeleton()}
-      {@render meterSkeleton()}
-    </div>
   {/if}
 </div>

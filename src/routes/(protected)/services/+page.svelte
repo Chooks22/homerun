@@ -4,10 +4,21 @@
 	import Skeleton from "#lib/components/skeleton.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { title } from "#lib/store/title.js";
+	import { Streamed } from "#lib/streamed.svelte.js";
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 	import ServicesList from "./services-list.svelte";
 
 	const { data } = $props();
+
+	const facets = new Streamed(
+		() => `services:facets:${data.user.id}`,
+		() => data.facets,
+	);
+	const listing = new Streamed(
+		() => `services:${data.user.id}:${page.url.search}`,
+		() => data.listing,
+	);
 
 	onMount(() => title.set("Services"));
 </script>
@@ -31,24 +42,25 @@
     </div>
   </div>
 
-  {#await data.listing}
+  {#if listing.current}
+    <ServicesList
+      facets={facets.current}
+      filtered={data.filtered}
+      listing={listing.current}
+      page={data.page}
+      perPage={data.perPage}
+      serviceDomain={data.serviceDomain}
+    />
+  {:else if listing.failed}
+    <div class="border-border/70 text-text-muted rounded-md border border-dashed py-16 text-center text-sm">
+      Couldn't load the services.
+    </div>
+  {:else}
     <div aria-busy="true" class="space-y-3">
       <Skeleton class="h-9 w-full" />
       {#each { length: data.treeView ? 4 : 6 }, i (i)}
         <Skeleton class="h-14 w-full" />
       {/each}
     </div>
-  {:then listing}
-    <ServicesList
-      filtered={data.filtered}
-      listing={listing}
-      page={data.page}
-      perPage={data.perPage}
-      serviceDomain={data.serviceDomain}
-    />
-  {:catch}
-    <div class="border-border/70 text-text-muted rounded-md border border-dashed py-16 text-center text-sm">
-      Couldn't load the services.
-    </div>
-  {/await}
+  {/if}
 </div>
