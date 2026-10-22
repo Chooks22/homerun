@@ -13,6 +13,7 @@ import {
 	clientIpFrom,
 	shouldBan,
 } from "#lib/ip-bans.js";
+import type { IpIntel } from "#lib/ip-intel.js";
 import { Logger } from "#lib/logger.js";
 import { matchingPathPattern } from "#lib/path-patterns.js";
 import { CrowdsecService } from "./crowdsec.service.ts";
@@ -21,6 +22,7 @@ import {
 	BLOCKED_PROOF_HEADER,
 	validBlockedProof,
 } from "./docker/error-pages.ts";
+import { IpIntelService } from "./ip-intel.service.ts";
 import { NotificationChannelService } from "./notification-channel.service.ts";
 import { ipBanMessage } from "./notification-messages.ts";
 import { serviceForHost } from "./service-for-host.ts";
@@ -53,6 +55,7 @@ class IpBanServiceClass {
 			return;
 		}
 		const path = headers.get("x-replaced-path")?.slice(0, 500) ?? null;
+		const userAgent = headers.get("user-agent")?.slice(0, 500) || null;
 		const service = host ? await serviceForHost(host) : null;
 		await BlockedHitDTO.record({
 			baitBytes,
@@ -61,6 +64,7 @@ class IpBanServiceClass {
 			path,
 			pattern: matchingPathPattern(service?.blockedPaths ?? [], path),
 			serviceId: service?.id ?? null,
+			userAgent,
 		});
 		const settings = (await InstanceSettingsDTO.get()).ipBans;
 		if (!(settings.enabled && bannableIp(ip))) {
@@ -76,26 +80,45 @@ class IpBanServiceClass {
 		}
 		const expiresAt = banExpiry(settings, now);
 		const reason = `${hits} blocked requests in ${settings.windowMinutes} min${path ? `, last ${path}` : ""}`;
-		const banned = await IpBanDTO.ban({ expiresAt, host, ip, reason });
+		const banned = await IpBanDTO.ban({
+			expiresAt,
+			host,
+			ip,
+			reason,
+			userAgent,
+		});
 		if (banned) {
 			this.logger.warn(
 				`Banned ${ip} after ${hits} blocked requests${host ? ` on ${host}` : ""}`,
 			);
 			await this.sync();
 			void CrowdsecService.ban(ip, settings.durationHours, reason);
-			NotificationChannelService.notify(
-				ipBanMessage(
-					{
-						expiresAt,
-						host,
-						ip,
-						origin: config.auth.origin ?? null,
-						reason,
-					},
-					now.toISOString(),
+			void this.identify(ip).then((intel) =>
+				NotificationChannelService.notify(
+					ipBanMessage(
+						{
+							expiresAt,
+							host,
+							intel,
+							ip,
+							origin: config.auth.origin ?? null,
+							reason,
+							userAgent,
+						},
+						now.toISOString(),
+					),
 				),
 			);
 		}
+	}
+
+	/** Looks up who is behind banned address `ip` and stores it on the ban. Never throws: a failed lookup still stores what it found. */
+	async identify(ip: string): Promise<IpIntel> {
+		const intel = await IpIntelService.lookup(ip);
+		await IpBanDTO.setIntel(ip, intel).catch((err) =>
+			this.logger.error(`Couldn't store what's known about ${ip}`, err),
+		);
+		return intel;
 	}
 
 	/** Lifts the ban on `ip`, rewrites the bans file and deletes the address's CrowdSec decisions. Returns whether there was a ban here. */
@@ -108,9 +131,12 @@ class IpBanServiceClass {
 		return removed;
 	}
 
-	/** Drops expired bans (rewriting the bans file when any went) and blocked requests older than the stats keep them. */
+	/** Drops expired bans (rewriting the bans file when any went) and blocked requests older than the stats keep them, and looks up a few bans nobody looked up yet. */
 	async prune(): Promise<void> {
 		const now = new Date();
+		await Promise.all(
+			(await IpBanDTO.unidentifiedIps(5, now)).map((ip) => this.identify(ip)),
+		);
 		await BlockedHitDTO.deleteBefore(
 			new Date(now.getTime() - BLOCKED_HIT_RETENTION_MS),
 		);

@@ -19,7 +19,7 @@ export interface IpBanSettings {
 
 export const DEFAULT_IP_BAN_SETTINGS: IpBanSettings = {
 	disrespectMode: false,
-	durationHours: 24,
+	durationHours: 0,
 	enabled: true,
 	meanMode: false,
 	threshold: 10,
@@ -144,7 +144,8 @@ const NEVER_BANNED_RANGES = [
 	"ff00::/8",
 ];
 
-function ipv6Value(ip: string): bigint | null {
+/** `ip` as a 128-bit integer, an embedded IPv4 tail and `::` expanded, or null when it isn't an IPv6 address. */
+export function ipv6Value(ip: string): bigint | null {
 	if (!isIpv6(ip)) {
 		return null;
 	}

@@ -55,15 +55,22 @@ rule, on by default:
 
 - **Blocked requests**: how many it takes (10 by default),
 - **Within**: in how many minutes (10 by default, up to a day),
-- **Ban for**: how many hours the ban lasts (24 by default, 0 for good).
+- **Ban for**: how many hours the ban lasts (0, for good, by default).
 
 **Monitoring → Blocked IPs** (admins) lists the banned addresses, why and until
-when, each with an **Unban** button, and under **Being counted** every address
-that requested a blocked path within the window but isn't banned yet: how many
-requests it made against the threshold, the last host and path it asked for, and
-when. Expired bans are lifted within a minute. Turning bans off keeps blocking
-the paths and only stops new bans; bans already in place stay until they expire
-or you lift them.
+when, who is behind each one and the user agent it sent, each with an **Unban**
+button, and under **Being counted** every address that requested a blocked path
+within the window but isn't banned yet: how many requests it made against the
+threshold, the last host and path it asked for, and when. Expired bans are
+lifted within a minute. Turning bans off keeps blocking the paths and only stops
+new bans; bans already in place stay until they expire or you lift them.
+
+Right after a ban, Homerun looks up who is behind the address: its reverse DNS
+name, the network (AS) announcing it and its country through Team Cymru's DNS
+service, and the network's owner and abuse contact over RDAP (`rdap.org`). The
+result shows on Blocked IPs and in the ban's notification; a lookup that fails
+leaves those fields blank. Bans placed before this existed are looked up a few a
+minute. Reporting a scanner to its abuse contact is up to you.
 
 The dashboard's own address is never blocked by a ban, so a banned admin can
 still sign in and lift it.

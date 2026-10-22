@@ -22,6 +22,7 @@ export interface BlockedAddress {
 	ip: string;
 	lastAt: Date;
 	path: string | null;
+	userAgent: string | null;
 }
 
 /** What blocked requests added up to within a window. */
@@ -46,6 +47,7 @@ export class BlockedHitDTO extends BaseDTO<BlockedHit> {
 		path: string | null;
 		pattern: string | null;
 		serviceId: string | null;
+		userAgent: string | null;
 	}): Promise<void> {
 		await db.insert(blockedHit).values({ ...input, createdAt: new Date() });
 	}
@@ -85,6 +87,9 @@ export class BlockedHitDTO extends BaseDTO<BlockedHit> {
 				path: sql<
 					string | null
 				>`(array_agg(${blockedHit.path} order by ${blockedHit.createdAt} desc))[1]`,
+				userAgent: sql<
+					string | null
+				>`(array_agg(${blockedHit.userAgent} order by ${blockedHit.createdAt} desc))[1]`,
 			})
 			.from(blockedHit)
 			.where(BlockedHitDTO.#window(since, serviceId))

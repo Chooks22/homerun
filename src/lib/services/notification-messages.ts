@@ -12,6 +12,7 @@ import type {
 	ImageUpdateAvailable,
 	ImageUpdateTrial,
 } from "#lib/image-versions.js";
+import { type IpIntel, intelSummary } from "#lib/ip-intel.js";
 import {
 	deployEvent,
 	deployStartedEvent,
@@ -327,9 +328,11 @@ export function backupCapacityMessage(
 export interface IpBanMessageInput {
 	expiresAt: Date | null;
 	host: string | null;
+	intel: IpIntel | null;
 	ip: string;
 	origin: string | null;
 	reason: string;
+	userAgent: string | null;
 }
 
 /** Builds the notification channel message for an address banned for hitting blocked paths. */
@@ -346,6 +349,16 @@ export function ipBanMessage(
 	];
 	if (input.host) {
 		fields.push({ name: "Host", value: input.host });
+	}
+	const network = intelSummary(input.intel);
+	if (network) {
+		fields.push({ name: "Network", value: network });
+	}
+	if (input.intel?.abuseEmail) {
+		fields.push({ name: "Abuse contact", value: input.intel.abuseEmail });
+	}
+	if (input.userAgent) {
+		fields.push({ name: "User agent", value: input.userAgent });
 	}
 	return {
 		detail: input.reason,

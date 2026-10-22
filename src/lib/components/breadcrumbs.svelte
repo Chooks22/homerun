@@ -113,7 +113,7 @@
           <ChevronRight class="text-text-subtle hidden size-3.5 shrink-0 sm:block" />
         {/if}
         {#if last}
-          <span aria-current="page" class="text-text truncate font-medium">
+          <span aria-current="page" class="text-text truncate text-xl font-semibold tracking-tight sm:text-sm sm:font-medium sm:tracking-normal">
             {crumb.label}
           </span>
         {:else}

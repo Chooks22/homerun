@@ -561,9 +561,10 @@ Below 768px the protected layout behaves like a native app instead of a shrunk
 desktop. `mobile-tab-bar.svelte` is a bottom bar (Home, Services, Deploys,
 Alerts with the unread badge from the same remote query the bell polls, Menu),
 filtered through `mayVisit`; the header's bell is hidden there since Alerts
-replaces it. Menu opens `mobile-drawer.svelte`: a left drawer that flies in,
-scales and shifts the app frame behind it, and closes on scrim tap, Escape or a
-leftward swipe past 80px.
+replaces it. Menu opens `mobile-drawer.svelte`: a custom bottom sheet (not the
+vaul `ui/drawer`), 97% opaque so the page behind doesn't bleed through, that
+flies up, scales the app frame behind it, and closes on scrim tap, Escape or a
+downward swipe past 100px while its nav is scrolled to the top.
 
 `TabNav` turns a page whose tabs are all routes into a nav-card hub: at the
 first tab's bare path (no query string) it shows one card per tab and hides the
