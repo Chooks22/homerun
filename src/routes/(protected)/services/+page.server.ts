@@ -2,19 +2,13 @@ import { fail } from "@sveltejs/kit";
 import { config, serviceDomain } from "#lib/config.js";
 import { ServiceDependencyDTO } from "#lib/dto/service-dependency-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
-import { ServiceGitDTO } from "#lib/dto/service-git-dto.js";
 import { StackDTO } from "#lib/dto/stack-dto.js";
 import { BASE_SORTS, sortKeysOf } from "#lib/list-sorts.js";
 import { Logger } from "#lib/logger.js";
-import { type ListQuery, parseListQuery } from "#lib/server/list-query.js";
+import { parseListQuery } from "#lib/server/list-query.js";
+import { loadServiceListing } from "#lib/server/service-listing.js";
 import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
-import {
-	dependencyLayers,
-	dependencyMap,
-	mergeDependencies,
-	toGraphService,
-	toPreviewRow,
-} from "#lib/service-graph.js";
+import { dependencyLayers } from "#lib/service-graph.js";
 import {
 	buildLinkEnv,
 	defaultUrlKey,
@@ -79,24 +73,6 @@ const OP_PAST_TENSE: Record<BulkOp, string> = {
 	start: "started",
 	stop: "stopped",
 };
-
-async function loadServices(query: ListQuery) {
-	const paged = await ServiceDTO.listWithStackNamesPaged(query);
-	const previews = await ServiceGitDTO.listPreviewsOf(
-		paged.items.map((r) => r.service.id),
-	);
-
-	return {
-		services: paged.items.map((r) => ({
-			...r.service.toJSON(),
-			previews: (previews.get(r.service.id) ?? []).map((p) =>
-				toPreviewRow(p.toJSON()),
-			),
-			stackName: r.stackName,
-		})),
-		total: paged.total,
-	};
-}
 
 async function runOp(
 	op: BulkOp,
@@ -219,49 +195,14 @@ export const load = async ({ parent, url }) => {
 		preferences.perPage,
 	);
 	const treeView = url.searchParams.get("view") === "tree";
-	const [{ services, total }, facets, stacks, everything] = await Promise.all([
-		loadServices(query),
-		ServiceDTO.listFilterFacets(),
-		StackDTO.list(),
-		treeView ? ServiceDTO.list() : null,
-	]);
-
-	const roots = (everything ?? []).filter(
-		(svc) => !svc.toJSON().previewParentId,
-	);
 	return {
 		baseDomain: config.baseDomain,
-		serviceDomain: serviceDomain(),
-		facets,
 		filtered: query.active,
+		listing: loadServiceListing(query, treeView),
 		page: query.page,
 		perPage: query.perPage,
-		stacks: stacks.map((p) => ({
-			id: p.id,
-			name: p.name,
-			parentId: p.parentId,
-			slug: p.slug,
-		})),
-		services,
-		total,
-		tree: everything && {
-			deps: Object.fromEntries(
-				mergeDependencies(
-					dependencyMap(
-						roots.map((svc) => ({
-							envVars: svc.envVars,
-							id: svc.id,
-							slug: svc.slug,
-						})),
-					),
-					await ServiceDependencyDTO.map(),
-				),
-			),
-			previews: everything
-				.filter((svc) => svc.toJSON().previewParentId)
-				.map((svc) => toPreviewRow(svc.toJSON())),
-			services: roots.map((svc) => toGraphService(svc.toJSON())),
-		},
+		serviceDomain: serviceDomain(),
+		treeView,
 	};
 };
 

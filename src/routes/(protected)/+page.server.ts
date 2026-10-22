@@ -69,28 +69,27 @@ async function todaysMonitoring(services: ServiceDTO[], zone: string) {
 	};
 }
 
-export const load = async ({ cookies, locals, parent, url }) => {
-	// (protected)/+layout.server.ts already redirects unauthenticated users
-	// before this load runs : parent() gives the already-guaranteed user.
-	const { uiMode } = await parent();
-
-	const readsServices = can(locals.permissions, "services");
-	const [services, recentDeployments, uptime, hardBreaches, templates] =
-		await Promise.all([
-			readsServices ? ServiceDTO.list() : [],
+/** The dashboard's service-derived panels : counts, recent deploys and errors, failing probes. */
+async function overview(
+	pending: Promise<ServiceDTO[]>,
+	readsServices: boolean,
+	readsSystem: boolean,
+) {
+	const [services, recentDeployments, uptime, recentErrors] = await Promise.all(
+		[
+			pending,
 			readsServices ? DeploymentDTO.listRecent() : [],
 			readsServices ? UptimeCheckDTO.latest() : [],
-			CapacityService.hardBreaches(),
-			uiMode === "simple" && can(locals.permissions, "services", "write")
-				? frontPageTemplates()
-				: [],
-		]);
-	const recentErrors = can(locals.permissions, "system")
-		? await AppLogDTO.listRecent(5)
-		: await AppLogDTO.listRecentForServices(
-				services.map((svc) => svc.id),
-				5,
-			);
+			readsSystem
+				? AppLogDTO.listRecent(5)
+				: pending.then((rows) =>
+						AppLogDTO.listRecentForServices(
+							rows.map((svc) => svc.id),
+							5,
+						),
+					),
+		],
+	);
 	const serviceNames = new Map(services.map((svc) => [svc.id, svc.name]));
 	const probed = new Set(
 		services.filter((svc) => isProbed(svc.toJSON())).map((svc) => svc.id),
@@ -98,14 +97,6 @@ export const load = async ({ cookies, locals, parent, url }) => {
 	const live = uptime.filter((check) => probed.has(check.serviceId));
 
 	return {
-		frontPageTemplates: templates,
-		readsSettings: can(locals.permissions, "settings"),
-		readsSystem: can(locals.permissions, "system"),
-		monitoring: todaysMonitoring(
-			services,
-			monitoringRequest(url, cookies).zone,
-		),
-		overCapacity: hardBreaches.map(describeReading),
 		recentDeployments: recentDeployments.map((r) => ({
 			...r.deployment.toJSON(),
 			serviceName: r.serviceName,
@@ -129,8 +120,6 @@ export const load = async ({ cookies, locals, parent, url }) => {
 			running: services.filter((s) => s.currentStatus === "running").length,
 			totalServices: services.length,
 		},
-		// One row per failing probe, newest first : the dashboard shows what's
-		// down, not a roll-call of everything that's fine.
 		uptimeDown: live
 			.filter((check) => !check.ok)
 			.map((check) => ({
@@ -141,6 +130,31 @@ export const load = async ({ cookies, locals, parent, url }) => {
 				target: check.target,
 			})),
 		uptimeProbes: live.length,
+	};
+}
+
+export const load = async ({ cookies, locals, parent, url }) => {
+	const { uiMode } = await parent();
+
+	const readsServices = can(locals.permissions, "services");
+	const readsSystem = can(locals.permissions, "system");
+	const services = readsServices
+		? ServiceDTO.list()
+		: Promise.resolve<ServiceDTO[]>([]);
+	const zone = monitoringRequest(url, cookies).zone;
+
+	return {
+		frontPageTemplates:
+			uiMode === "simple" && can(locals.permissions, "services", "write")
+				? frontPageTemplates()
+				: Promise.resolve([]),
+		monitoring: services.then((rows) => todaysMonitoring(rows, zone)),
+		overCapacity: CapacityService.hardBreaches().then((breaches) =>
+			breaches.map(describeReading),
+		),
+		overview: overview(services, readsServices, readsSystem),
+		readsSettings: can(locals.permissions, "settings"),
+		readsSystem,
 	};
 };
 
