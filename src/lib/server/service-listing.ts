@@ -29,11 +29,10 @@ async function loadServices(query: ListQuery) {
 	};
 }
 
-/** The services page's list, one page of `query`, (or, with `treeView`, its dependency tree), plus the filter facets and stacks it groups by. */
+/** The services page's list, one page of `query`, (or, with `treeView`, its dependency tree), plus the stacks it groups by. */
 export async function loadServiceListing(query: ListQuery, treeView: boolean) {
-	const [{ services, total }, facets, stacks, everything] = await Promise.all([
+	const [{ services, total }, stacks, everything] = await Promise.all([
 		loadServices(query),
-		ServiceDTO.listFilterFacets(),
 		StackDTO.list(),
 		treeView ? ServiceDTO.list() : null,
 	]);
@@ -42,7 +41,6 @@ export async function loadServiceListing(query: ListQuery, treeView: boolean) {
 		(svc) => !svc.toJSON().previewParentId,
 	);
 	return {
-		facets,
 		stacks: stacks.map((p) => ({
 			id: p.id,
 			name: p.name,
@@ -73,3 +71,7 @@ export async function loadServiceListing(query: ListQuery, treeView: boolean) {
 }
 
 export type ServiceListing = Awaited<ReturnType<typeof loadServiceListing>>;
+
+export type ServiceFacets = Awaited<
+	ReturnType<typeof ServiceDTO.listFilterFacets>
+>;

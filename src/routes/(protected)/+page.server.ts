@@ -69,68 +69,63 @@ async function todaysMonitoring(services: ServiceDTO[], zone: string) {
 	};
 }
 
-/** The dashboard's service-derived panels : counts, recent deploys and errors, failing probes. */
-async function overview(
+/** The last few deployments across every service, newest first. */
+async function recentDeployments() {
+	return (await DeploymentDTO.listRecent()).map((r) => ({
+		...r.deployment.toJSON(),
+		serviceName: r.serviceName,
+		serviceSlug: r.serviceSlug,
+	}));
+}
+
+/** The latest warn/error log lines: instance-wide with `system` access, else only the caller's services'. */
+async function recentErrors(
 	pending: Promise<ServiceDTO[]>,
-	readsServices: boolean,
 	readsSystem: boolean,
 ) {
-	const [services, recentDeployments, uptime, recentErrors] = await Promise.all(
-		[
-			pending,
-			readsServices ? DeploymentDTO.listRecent() : [],
-			readsServices ? UptimeCheckDTO.latest() : [],
-			readsSystem
-				? AppLogDTO.listRecent(5)
-				: pending.then((rows) =>
-						AppLogDTO.listRecentForServices(
-							rows.map((svc) => svc.id),
-							5,
-						),
-					),
-		],
-	);
+	const services = await pending;
+	const logs = readsSystem
+		? await AppLogDTO.listRecent(5)
+		: await AppLogDTO.listRecentForServices(
+				services.map((svc) => svc.id),
+				5,
+			);
+	const serviceNames = new Map(services.map((svc) => [svc.id, svc.name]));
+	return logs.map((log) => {
+		const row = log.toJSON();
+		return {
+			createdAt: row.createdAt,
+			id: row.id,
+			level: row.level,
+			message: row.message,
+			scope: row.scope,
+			serviceId: row.serviceId,
+			serviceName: row.serviceId
+				? (serviceNames.get(row.serviceId) ?? null)
+				: null,
+		};
+	});
+}
+
+/** One row per failing probe of a probed service, newest first : what's down, not a roll-call of what's fine. */
+async function uptimeDown(pending: Promise<ServiceDTO[]>) {
+	const [services, uptime] = await Promise.all([
+		pending,
+		UptimeCheckDTO.latest(),
+	]);
 	const serviceNames = new Map(services.map((svc) => [svc.id, svc.name]));
 	const probed = new Set(
 		services.filter((svc) => isProbed(svc.toJSON())).map((svc) => svc.id),
 	);
-	const live = uptime.filter((check) => probed.has(check.serviceId));
-
-	return {
-		recentDeployments: recentDeployments.map((r) => ({
-			...r.deployment.toJSON(),
-			serviceName: r.serviceName,
-			serviceSlug: r.serviceSlug,
-		})),
-		recentErrors: recentErrors.map((log) => {
-			const row = log.toJSON();
-			return {
-				createdAt: row.createdAt,
-				id: row.id,
-				level: row.level,
-				message: row.message,
-				scope: row.scope,
-				serviceId: row.serviceId,
-				serviceName: row.serviceId
-					? (serviceNames.get(row.serviceId) ?? null)
-					: null,
-			};
-		}),
-		stats: {
-			running: services.filter((s) => s.currentStatus === "running").length,
-			totalServices: services.length,
-		},
-		uptimeDown: live
-			.filter((check) => !check.ok)
-			.map((check) => ({
-				detail: check.detail,
-				kind: check.kind,
-				serviceId: check.serviceId,
-				serviceName: serviceNames.get(check.serviceId) ?? "Unknown service",
-				target: check.target,
-			})),
-		uptimeProbes: live.length,
-	};
+	return uptime
+		.filter((check) => probed.has(check.serviceId) && !check.ok)
+		.map((check) => ({
+			detail: check.detail,
+			kind: check.kind,
+			serviceId: check.serviceId,
+			serviceName: serviceNames.get(check.serviceId) ?? "Unknown service",
+			target: check.target,
+		}));
 }
 
 export const load = async ({ cookies, locals, parent, url }) => {
@@ -152,9 +147,17 @@ export const load = async ({ cookies, locals, parent, url }) => {
 		overCapacity: CapacityService.hardBreaches().then((breaches) =>
 			breaches.map(describeReading),
 		),
-		overview: overview(services, readsServices, readsSystem),
 		readsSettings: can(locals.permissions, "settings"),
 		readsSystem,
+		recentDeployments: readsServices
+			? recentDeployments()
+			: Promise.resolve([]),
+		recentErrors: recentErrors(services, readsSystem),
+		stats: services.then((rows) => ({
+			running: rows.filter((s) => s.currentStatus === "running").length,
+			totalServices: rows.length,
+		})),
+		uptimeDown: readsServices ? uptimeDown(services) : Promise.resolve([]),
 	};
 };
 

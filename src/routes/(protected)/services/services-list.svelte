@@ -33,7 +33,10 @@
 	import { ListSelection } from "#lib/list-selection.svelte.js";
 	import { BASE_SORTS } from "#lib/list-sorts.js";
 	import { syncServiceStatuses } from "#lib/remote/service-status.remote.js";
-	import type { ServiceListing } from "#lib/server/service-listing.js";
+	import type {
+		ServiceFacets,
+		ServiceListing,
+	} from "#lib/server/service-listing.js";
 	import {
 		SERVICE_ACTION_LABELS,
 		type ServiceAction,
@@ -53,6 +56,7 @@
 	import ServiceRowActions from "./service-row-actions.svelte";
 
 	interface Props {
+		facets: ServiceFacets | undefined;
 		filtered: boolean;
 		listing: ServiceListing;
 		page: number;
@@ -61,6 +65,7 @@
 	}
 
 	const {
+		facets,
 		filtered,
 		listing: data,
 		page,
@@ -79,7 +84,7 @@
 			icon: Activity,
 			key: "status",
 			label: "Status",
-			options: data.facets.statuses.map((status) => ({
+			options: (facets?.statuses ?? []).map((status) => ({
 				label: SERVICE_STATUS_CONFIG[status as ContainerStatus].label,
 				value: status,
 			})),
@@ -88,7 +93,7 @@
 			icon: Layers,
 			key: "stack",
 			label: "Stack",
-			options: data.facets.stacks.map((name) => ({
+			options: (facets?.stacks ?? []).map((name) => ({
 				icon: Layers,
 				label: name,
 				value: name,

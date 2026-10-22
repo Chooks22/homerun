@@ -197,6 +197,7 @@ export const load = async ({ parent, url }) => {
 	const treeView = url.searchParams.get("view") === "tree";
 	return {
 		baseDomain: config.baseDomain,
+		facets: ServiceDTO.listFilterFacets(),
 		filtered: query.active,
 		listing: loadServiceListing(query, treeView),
 		page: query.page,
