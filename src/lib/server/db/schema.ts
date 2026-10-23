@@ -53,6 +53,7 @@ import type { SwarmPlacement } from "#lib/swarm-placement.js";
 import type { TabLayout } from "#lib/tab-layout.js";
 import type {
 	ContainerStatus,
+	DeferGate,
 	JobStage,
 	JobStatus,
 	JobType,
@@ -535,6 +536,7 @@ export const remoteHost = pgTable(
 		kind: text("kind", { enum: ["docker", "agent"] })
 			.default("docker")
 			.notNull(),
+		maxConcurrentBuilds: integer("max_concurrent_builds"),
 		name: text("name").notNull(),
 		// AES-256-GCM ciphertext, same scheme as service.registryPasswordEnc
 		// : only set when dockerHost uses TLS-secured tcp://.
@@ -799,6 +801,9 @@ export const registryToken = pgTable(
 // service.registryPasswordEnc.
 export const instanceSettings = pgTable("instance_settings", {
 	authCheckUrl: text("auth_check_url"),
+	buildConcurrency: integer("build_concurrency"),
+	buildOnHost: boolean("build_on_host"),
+	defaultBuildServer: text("default_build_server"),
 	authCrossSubdomainCookies: boolean("auth_cross_subdomain_cookies"),
 	authOrigin: text("auth_origin"),
 	baseDomain: text("base_domain"),
@@ -1161,6 +1166,7 @@ export const service = pgTable(
 			() => remoteHost.id,
 			{ onDelete: "set null" },
 		),
+		buildServerAny: boolean("build_server_any").default(false).notNull(),
 		// "image" (bring-your-own, the original/default) | "git" (clone +
 		// build a Dockerfile locally : see internal/jobs/deploy/build.go).
 		// When "git", `image`/`tag` are overwritten after each successful
@@ -2033,8 +2039,11 @@ export const job = pgTable(
 	"job",
 	{
 		attempts: integer("attempts").default(0).notNull(),
+		buildHostId: text("build_host_id"),
 		createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 		dedupeKey: text("dedupe_key"),
+		deferredFor: text("deferred_for").$type<DeferGate>(),
+		deferredSince: timestamp("deferred_since", { mode: "date" }),
 		dependsOnJobId: text("depends_on_job_id"),
 		error: text("error"),
 		exclusive: boolean("exclusive").default(false).notNull(),

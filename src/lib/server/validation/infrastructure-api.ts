@@ -4,6 +4,7 @@ import { isDomainName, isTarget } from "#lib/server/validation/dns-forms.js";
 import type { WorkstationSettings } from "#lib/server/workstation-form.js";
 import { DOMAIN_RE } from "#lib/service-domains.js";
 import { DNS_RECORD_TYPES } from "#lib/services/dns-providers/types.js";
+import { settings } from "#lib/settings.js";
 import {
 	AUTO_STOP_MODES,
 	DEFAULT_WORKSTATION_HOME,
@@ -30,6 +31,16 @@ export const remoteHostApiBody = z.object({
 			"The Docker daemon (kind docker): tcp://host:2376 or ssh://user@host.",
 		),
 	kind: z.enum(["docker", "agent"]).default("docker"),
+	maxConcurrentBuilds: z
+		.number()
+		.int()
+		.min(0)
+		.max(settings.docker.maxBuildConcurrency)
+		.nullable()
+		.optional()
+		.describe(
+			"How many builds run on it at once, 0 for no limit. Null follows the instance's buildConcurrency.",
+		),
 	name: text.min(1).max(100),
 	tlsCa: secret("TLS CA certificate (PEM) for a tcp:// daemon."),
 	tlsCert: secret("TLS client certificate (PEM) for a tcp:// daemon."),

@@ -196,15 +196,18 @@ in-process pipeline did.
 ## Deploys run in the Go worker (`deploy/worker-spec.ts`, `internal/jobs/deploy`)
 
 `deploy.service.ts`'s `prepareWorkerDeploy` is the `deploy` job's whole prepare
-step (see "The stage protocol" in `worker.md`): resolves the config (a
-rollback's revision and restored config, the config snapshot, the `DeployPlan`,
-the volumes), waits on required status checks for a git build (below), and
-returns `deployWorkerSpec`'s spec — everything `internal/jobs/deploy`'s `Run`
-needs and nothing it has to look up itself (network names, labels, env, registry
-auth, remote host connections, retention lists, all resolved app-side). The Go
-side pulls or builds the image (gating on the image scan, below), then starts
-the container or swarm service, health-gated the same way the old TS pipeline
-was (see "Creating and starting the container" in `docker.md`).
+step (see "The stage protocol" in `worker.md`): first, before it touches the
+deployment or the service, a fresh git build passes its gates (`#passGates`:
+required status checks, below, then a build slot, see Build servers in
+`docker.md`), each of which defers the job back to the queue instead of waiting
+in-process; then it resolves the config (a rollback's revision and restored
+config, the config snapshot, the `DeployPlan`, the volumes) and returns
+`deployWorkerSpec`'s spec — everything `internal/jobs/deploy`'s `Run` needs and
+nothing it has to look up itself (network names, labels, env, registry auth,
+remote host connections, retention lists, all resolved app-side). The Go side
+pulls or builds the image (gating on the image scan, below), then starts the
+container or swarm service, health-gated the same way the old TS pipeline was
+(see "Creating and starting the container" in `docker.md`).
 `finalizeWorkerDeploy` is the finalize step: records the built commit, the
 service's new image, the scan history, then either success (service and
 deployment running, superseded health cleared, DNS synced, health watch armed,
@@ -238,19 +241,25 @@ spec, since they never answer HTTP.
 
 ## Required status checks (`src/lib/status-checks.ts`, `StatusCheckService`, `deploy/status-check-step.ts`)
 
-`service.requireStatusChecks` + `requiredStatusChecks` gate a git build. In
-`deploy/worker-spec.ts`'s `buildSpec`, before the spec hands the git build over
-to the Go worker, `enforceStatusChecks` resolves the branch to a SHA through the
-provider API, logs it, writes `gitCommit`/`gitRef` on the deployment and runs
-`waitForChecks`, all still on the TS/prepare side (see "Deploys run in the Go
-worker" above) since it needs the git-provider tables. Everything
-provider-shaped is pure in `src/lib/status-checks.ts`, covered by
-`tests/unit/app/status-checks.test.ts` with a fake fetch: `repoPathFromGitUrl`
-(https, scp-style, nested GitLab groups, a self-hosted base path),
-`providerApiBase` (also what `git-provider.service.ts` `endpoints()` uses now),
-the per-provider paths (`commitsPath`, `checkSources`) and mappers into
-`CheckResult {name, state: pending|success|failure}`, and `StatusCheckClient`
-(fetch injectable, like `MirrorRegistryClient`).
+`service.requireStatusChecks` + `requiredStatusChecks` gate a git build.
+`deploy/status-check-step.ts`'s `gateStatusChecks` is the first gate of
+`prepareWorkerDeploy`, before it changes anything: on the first claim it
+resolves the branch to a SHA through the provider API, logs it and writes
+`gitCommit`/`gitRef` on the deployment (the pin), then runs one `checkRound`.
+Pending (or a transient API error) throws `JobDeferredError` with gate
+`"status-checks"`: the job goes back in the queue for `STATUS_CHECK_POLL_MS`
+(20s) holding no in-process slot, and the next claim re-reads the pinned SHA
+from the deployment and measures the wait from `job.deferred_since`. A job
+deferred for its build slot (`deferred_for = "build-slot"`) already passed and
+reuses the pinned commit without asking the provider again. The passed commit
+reaches the spec as `WorkerSpecContext.checkedCommit`. It stays on the TS side
+since it needs the git-provider tables. Everything provider-shaped is pure in
+`src/lib/status-checks.ts`, covered by `tests/unit/app/status-checks.test.ts`
+with a fake fetch: `repoPathFromGitUrl` (https, scp-style, nested GitLab groups,
+a self-hosted base path), `providerApiBase` (also what `git-provider.service.ts`
+`endpoints()` uses now), the per-provider paths (`commitsPath`, `checkSources`)
+and mappers into `CheckResult {name, state: pending|success|failure}`, and
+`StatusCheckClient` (fetch injectable, like `MirrorRegistryClient`).
 
 - GitHub: `commits?sha=<ref>&per_page=1` for the SHA, then check runs
   (`filter=latest`; not completed is pending, `success`/`neutral`/`skipped`
@@ -268,17 +277,19 @@ the per-provider paths (`commitsPath`, `checkSources`) and mappers into
 `evaluateChecks(required, results, graceExpired)` fails on any failed required
 check, waits on pending ones, and treats a required check with no result as
 pending until everything else on the commit has finished **and**
-`STATUS_CHECK_GRACE_MS` (3 min) passed, then as failed. `waitForChecks` polls
-every 20s for up to 30 min (clock and sleep injectable), logs only when the
-summary changes, retries transient API errors, rethrows permanent ones
-(`StatusCheckApiError.permanent`: 401/403/404/422), and stops when `isCancelled`
-sees the deployment row `failed`/`stopped` or the service gone.
+`STATUS_CHECK_GRACE_MS` (3 min) passed, then as failed. `checkRound` is one
+round of that, `waitedMs` into the wait: pass, fail, pending, timeout (30 min,
+`STATUS_CHECK_TIMEOUT_MS`) or retry on a transient API error, rethrowing
+permanent ones (`StatusCheckApiError.permanent`: 401/403/404/422). The gate logs
+a "waiting" line only when it differs from the log's last line. Cancelling a
+deploy waiting on its checks cancels its queued job, so it's never claimed
+again.
 
 Any failure throws `StatusChecksFailedError`, which `#recordFailure` recognises:
 the service status is re-synced from Docker instead of being set to `failed`
 (the previous revision is still running, untouched), and
 `notifyStatusChecksFailed` sends `build_checks_failed` + `build.checks_failed`
-instead of the generic build failure (nothing on cancellation). Credentials
+instead of the generic build failure. Credentials
 (`StatusCheckService.targetFor`): the provider configured for the URL's host
 plus the service owner's connection, else a token embedded in the clone URL,
 else unauthenticated for a well-known host (`inferProviderKind`). The checked

@@ -1,6 +1,11 @@
 import { fail } from "@sveltejs/kit";
 import { buildCacheChoice } from "#lib/build-cache.js";
+import {
+	type BuildServerChoice,
+	buildServerChoice,
+} from "#lib/build-servers.js";
 import { BuildCacheRegistryDTO } from "#lib/dto/build-cache-registry-dto.js";
+import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { ServiceDTO } from "#lib/dto/service-dto.js";
 import { Logger } from "#lib/logger.js";
@@ -22,11 +27,13 @@ const logger = new Logger("Services");
 export const load = async ({ parent, params }) => {
 	const { user } = await parent();
 	const svc = await ServiceDTO.get(params.serviceId);
-	const [gitProviders, cacheRegistries, buildServers] = await Promise.all([
-		connectedGitProviders(user.id),
-		BuildCacheRegistryDTO.list(),
-		RemoteHostDTO.listBuildServers(),
-	]);
+	const [gitProviders, cacheRegistries, buildServers, settings] =
+		await Promise.all([
+			connectedGitProviders(user.id),
+			BuildCacheRegistryDTO.list(),
+			RemoteHostDTO.listBuildServers(),
+			InstanceSettingsDTO.get(),
+		]);
 
 	const previewParentId = svc?.toJSON().previewParentId;
 	const previewParent = previewParentId
@@ -43,7 +50,9 @@ export const load = async ({ parent, params }) => {
 			: null,
 		pushWebhook: svc ? await GitWebhookService.describe(svc) : null,
 		buildCacheRegistries: cacheRegistries.map((r) => r.toJSON()),
+		buildOnHost: settings.buildOnHost,
 		buildServers: buildServers.map((r) => r.toJSON()),
+		defaultBuildServer: settings.defaultBuildServer,
 		connectedGitProviders: gitProviders,
 	};
 };
@@ -101,30 +110,23 @@ function watchPathsPatch(
 	return Object.keys(errors).length > 0 ? { errors } : { patch };
 }
 
-interface BuildTargets {
-	buildCacheRegistryId: string | null;
-	buildServerRemoteHostId: string | null;
-}
-
 /**
- * Validates the chosen build server exists, returning field errors or
- * null. No cache registry is needed: without one the built image is streamed
- * back to this host. Both remote-host kinds (docker and agent) are real build servers,
- * see the worker's git-build step (internal/jobs) :
- * real, tested-in-review bug this replaced, a stale "docker only" leftover
- * from before that integration.
+ * Validates a pinned build server exists, returning field errors or null.
+ * This host and any free build server need no check, and no cache registry
+ * is needed: without one the built image is streamed back to this host. Both
+ * remote-host kinds (docker and agent) are real build servers, see the
+ * worker's git-build step (internal/jobs).
  */
 async function checkBuildServer(
-	targets: BuildTargets,
+	choice: BuildServerChoice,
 ): Promise<Record<string, string[]> | null> {
-	const { buildServerRemoteHostId } = targets;
-	if (!buildServerRemoteHostId) {
+	const hostId = choice.buildServerRemoteHostId;
+	if (!hostId) {
 		return null;
 	}
-
-	const buildServer = await RemoteHostDTO.get(buildServerRemoteHostId);
-	if (!buildServer) {
-		return { buildServerRemoteHostId: ["That build server wasn't found."] };
+	const host = await RemoteHostDTO.get(hostId);
+	if (!host) {
+		return { buildServer: ["That build server wasn't found."] };
 	}
 	return null;
 }
@@ -191,11 +193,8 @@ export const actions = {
 		}
 		const input = result.data;
 		const isGitBuild = input.buildSource === "git";
-		const buildServerRemoteHostId = isGitBuild
-			? input.buildServerRemoteHostId || null
-			: null;
+		const buildServer = buildServerChoice(input);
 		const buildCache = buildCacheChoice(input);
-		const { buildCacheRegistryId } = buildCache;
 
 		const checks = statusCheckPatch(formData, isGitBuild);
 		if (
@@ -220,10 +219,7 @@ export const actions = {
 			});
 		}
 
-		const buildServerError = await checkBuildServer({
-			buildCacheRegistryId,
-			buildServerRemoteHostId,
-		});
+		const buildServerError = await checkBuildServer(buildServer);
 		if (buildServerError) {
 			return fail(400, {
 				errors: buildServerError,
@@ -240,7 +236,7 @@ export const actions = {
 		const previousBuildSource = svc.buildSource;
 		await svc.update({
 			...buildCache,
-			buildServerRemoteHostId,
+			...buildServer,
 			...checks,
 			...gitTriggerPatch(formData, isGitBuild),
 			...watchPaths.patch,

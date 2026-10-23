@@ -37,6 +37,8 @@ resource "homerun_remote_host" "example" {
 - `kind` (String) docker (a Docker daemon at docker_host) or agent (a Homerun
   Agent at agent_url). Changing it replaces the resource. Defaults to
   `"docker"`.
+- `max_concurrent_builds` (Number) How many builds run on it at once, 0 for no
+  limit. Unset follows the instance's build_concurrency.
 - `tls_ca` (String, Sensitive) Write-only: the API never returns it, so
   Terraform can't detect a change made outside it.
 - `tls_cert` (String, Sensitive) Write-only: the API never returns it, so

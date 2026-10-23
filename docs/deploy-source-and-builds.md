@@ -159,9 +159,11 @@ section change that:
   takes the host alone.
 
 - **Build server**, a second machine that compiles the image instead of this
-  one, see [Build servers](remote-hosts-and-agent.md). With a cache registry the
-  built image is published there and pulled back; without one it's streamed
-  straight back from the build server (`docker save` into `docker load`).
+  one, or **Any free build server** to take the least busy one each deploy, see
+  [Build servers](remote-hosts-and-agent.md#picking-a-build-server-and-limiting-builds).
+  With a cache registry the built image is published there and pulled back;
+  without one it's streamed straight back from the build server (`docker save`
+  into `docker load`).
 
   A build server doesn't need the same CPU architecture as this host. The image
   is always built for this host's platform: an `arm64` build server building for

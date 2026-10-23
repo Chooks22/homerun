@@ -504,6 +504,34 @@ export class InstanceSettingsDTO extends BaseDTO<InstanceSettings> {
 		await this.persist({ retainedImagesPerService: count });
 	}
 
+	/** How many builds each build server runs at once unless it sets its own limit, 0 (the default) for no limit. */
+	get buildConcurrency(): number {
+		return this.row.buildConcurrency ?? 0;
+	}
+
+	/** Whether git builds may run on this host while build servers are registered, on unless explicitly disabled. */
+	get buildOnHost(): boolean {
+		return this.row.buildOnHost ?? true;
+	}
+
+	/** The build server a new git service starts with: a host id, `settings.docker.anyBuildServer`, or empty for this host. */
+	get defaultBuildServer(): string {
+		return this.row.defaultBuildServer ?? "";
+	}
+
+	/** Persists the build server defaults. */
+	async updateBuildServers(input: {
+		buildConcurrency: number;
+		buildOnHost: boolean;
+		defaultBuildServer: string;
+	}): Promise<void> {
+		await this.persist({
+			buildConcurrency: input.buildConcurrency,
+			buildOnHost: input.buildOnHost,
+			defaultBuildServer: input.defaultBuildServer || null,
+		});
+	}
+
 	/** The deploy block policy as one value, for `evaluateScanPolicy`. */
 	get imageScanBlockPolicy(): ScanBlockPolicy {
 		return {

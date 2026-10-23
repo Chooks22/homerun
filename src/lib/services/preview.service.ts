@@ -155,6 +155,7 @@ export function mirroredSettings(parent: ServiceDTO) {
 		buildCacheRegistryId: parent.buildCacheRegistryId,
 		buildCacheBuiltin: parent.buildCacheBuiltin,
 		buildEnvKeys: parent.buildEnvKeys,
+		buildServerAny: parent.toJSON().buildServerAny,
 		buildServerRemoteHostId: parent.buildServerRemoteHostId,
 		category: parent.category,
 		containerPort: parent.containerPort,

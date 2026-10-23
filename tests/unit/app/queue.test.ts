@@ -12,6 +12,7 @@ import { restoreStubs, stub } from "../support/stub";
 
 interface FakeJob {
 	attempts: number;
+	defer: ReturnType<typeof mock>;
 	executorError: string | null;
 	executorResult: Record<string, unknown> | null;
 	handOff: ReturnType<typeof mock>;
@@ -27,6 +28,7 @@ interface FakeJob {
 function fakeJob(overrides: Partial<FakeJob> = {}): FakeJob {
 	return {
 		attempts: 1,
+		defer: mock(async () => undefined),
 		executorError: null,
 		executorResult: null,
 		handOff: mock(async () => undefined),
@@ -78,6 +80,9 @@ const { QueueService } = await import(
 );
 const { JobWorker } = await import("../../../src/lib/services/queue/worker");
 const { JobDTO } = await import("../../../src/lib/dto/job-dto");
+const { JobDeferredError } = await import(
+	"../../../src/lib/services/queue/deferred"
+);
 
 type EnqueuedJob = Awaited<ReturnType<typeof QueueService.enqueue>>;
 
@@ -277,6 +282,21 @@ describe("JobWorker, Go-executed job types", () => {
 
 		expect(entry.handOff).not.toHaveBeenCalled();
 		expect(entry.scheduleRetry.mock.calls[0]?.[0]).toBe("volume is gone");
+	});
+
+	test("a deferring prepare puts the job back in the queue without spending an attempt", async () => {
+		const entry = fakeJob({ attempts: 1, maxAttempts: 1, type: "backup" });
+		const runAt = new Date(Date.now() + 5000);
+		prepare.mockRejectedValueOnce(
+			new JobDeferredError("server full", "build-slot", runAt),
+		);
+
+		await JobWorker.runJob(entry as never);
+
+		expect(entry.defer).toHaveBeenCalledWith(runAt, "build-slot");
+		expect(entry.handOff).not.toHaveBeenCalled();
+		expect(entry.scheduleRetry).not.toHaveBeenCalled();
+		expect(entry.markFailed).not.toHaveBeenCalled();
 	});
 
 	test("finalize gets the executor's outcome and its result marks the job succeeded", async () => {

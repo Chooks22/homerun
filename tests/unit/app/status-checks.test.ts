@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	type CheckResult,
 	type CheckTarget,
+	checkRound,
 	evaluateChecks,
 	inferProviderKind,
 	mapBitbucketStatuses,
@@ -15,7 +16,6 @@ import {
 	repoPathFromGitUrl,
 	StatusCheckApiError,
 	StatusCheckClient,
-	waitForChecks,
 } from "../../../src/lib/status-checks";
 
 const SHA = "a".repeat(40);
@@ -356,102 +356,83 @@ describe("StatusCheckClient", () => {
 	});
 });
 
-function clock() {
-	let now = 0;
-	return {
-		now: () => now,
-		sleep: (ms: number) => {
-			now += ms;
-			return Promise.resolve();
-		},
-	};
-}
-
-describe("waitForChecks", () => {
+describe("checkRound", () => {
 	const base = {
 		graceMs: 60_000,
-		isCancelled: () => Promise.resolve(false),
-		pollMs: 10_000,
 		required: ["build"],
 		timeoutMs: 120_000,
+		waitedMs: 0,
 	};
+	const checks =
+		(...results: CheckResult[]) =>
+		() =>
+			Promise.resolve(results);
 
-	test("waits through pending polls, logging only changes, then passes", async () => {
-		const polls = [
-			[result("build", "pending")],
-			[result("build", "pending")],
-			[result("build", "success")],
-		];
-		const lines: string[] = [];
-		const outcome = await waitForChecks({
+	test("passes, fails or stays pending on what the provider reports", async () => {
+		const pass = await checkRound({
 			...base,
-			...clock(),
-			fetchChecks: () => Promise.resolve(polls.shift() ?? []),
-			log: (line) => {
-				lines.push(line);
-				return Promise.resolve();
-			},
+			fetchChecks: checks(result("build", "success")),
 		});
-		expect(outcome.outcome).toBe("pass");
-		expect(lines).toEqual(["Waiting for status checks: still running: build"]);
+		expect(pass.outcome).toBe("pass");
+		const fail = await checkRound({
+			...base,
+			fetchChecks: checks(result("build", "failure")),
+		});
+		expect(fail.outcome).toBe("fail");
+		const pending = await checkRound({
+			...base,
+			fetchChecks: checks(result("build", "pending")),
+		});
+		expect(pending.outcome).toBe("pending");
 	});
 
-	test("times out with the last evaluation when checks never finish", async () => {
-		const outcome = await waitForChecks({
+	test("times out with the evaluation once the wait is over", async () => {
+		const round = await checkRound({
 			...base,
-			...clock(),
-			fetchChecks: () => Promise.resolve([result("build", "pending")]),
-			log: () => Promise.resolve(),
+			fetchChecks: checks(result("build", "pending")),
+			waitedMs: 120_000,
 		});
-		expect(outcome.outcome).toBe("timeout");
-		expect(outcome.evaluation.pending).toEqual(["build"]);
+		expect(round).toMatchObject({
+			evaluation: { pending: ["build"] },
+			outcome: "timeout",
+		});
 	});
 
-	test("a check that never reports fails once the grace period is over", async () => {
-		const outcome = await waitForChecks({
+	test("a check that never reports fails only once the grace period is over", async () => {
+		const early = await checkRound({
 			...base,
-			...clock(),
-			fetchChecks: () => Promise.resolve([result("lint", "success")]),
-			log: () => Promise.resolve(),
+			fetchChecks: checks(result("lint", "success")),
 		});
-		expect(outcome.outcome).toBe("fail");
-		expect(outcome.evaluation.missing).toEqual(["build"]);
+		expect(early.outcome).toBe("pending");
+		const late = await checkRound({
+			...base,
+			fetchChecks: checks(result("lint", "success")),
+			waitedMs: 60_000,
+		});
+		expect(late).toMatchObject({
+			evaluation: { missing: ["build"] },
+			outcome: "fail",
+		});
 	});
 
-	test("transient API errors are retried, permanent ones end the wait", async () => {
-		let attempts = 0;
-		const outcome = await waitForChecks({
-			...base,
-			...clock(),
-			fetchChecks: () => {
-				attempts += 1;
-				return attempts === 1
-					? Promise.reject(new StatusCheckApiError("bad gateway", 502))
-					: Promise.resolve([result("build", "failure")]);
-			},
-			log: () => Promise.resolve(),
+	test("transient API errors retry until the wait is over, permanent ones throw", async () => {
+		const flaky = () =>
+			Promise.reject(new StatusCheckApiError("bad gateway", 502));
+		expect(await checkRound({ ...base, fetchChecks: flaky })).toEqual({
+			outcome: "retry",
+			reason: "bad gateway",
 		});
-		expect(outcome.outcome).toBe("fail");
-		expect(attempts).toBe(2);
-
+		const late = await checkRound({
+			...base,
+			fetchChecks: flaky,
+			waitedMs: 120_000,
+		});
+		expect(late.outcome).toBe("timeout");
 		await expect(
-			waitForChecks({
+			checkRound({
 				...base,
-				...clock(),
 				fetchChecks: () => Promise.reject(new StatusCheckApiError("nope", 401)),
-				log: () => Promise.resolve(),
 			}),
 		).rejects.toBeInstanceOf(StatusCheckApiError);
-	});
-
-	test("stops when the deploy is cancelled", async () => {
-		const outcome = await waitForChecks({
-			...base,
-			...clock(),
-			fetchChecks: () => Promise.resolve([result("build", "pending")]),
-			isCancelled: () => Promise.resolve(true),
-			log: () => Promise.resolve(),
-		});
-		expect(outcome.outcome).toBe("cancelled");
 	});
 });

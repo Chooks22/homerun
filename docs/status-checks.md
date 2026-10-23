@@ -20,8 +20,9 @@ commit:
   goes ahead, pinned to that commit even if the branch moved in the meantime,
   whether it builds on this host, a Docker connection or a Homerun Agent;
 - any selected check failed or was cancelled: the deploy stops before cloning;
-- checks still running: the deploy waits, polling every 20 seconds and logging
-  changes into the deployment log, for up to 30 minutes, then gives up;
+- checks still running: the deploy waits in the queue, looking again every 20
+  seconds and logging changes into the deployment log, for up to 30 minutes,
+  then gives up. It doesn't take a build server's build slot until they pass;
 - a selected check that never reports, once everything else on the commit has
   finished, is treated as failed after a 3 minute grace period.
 

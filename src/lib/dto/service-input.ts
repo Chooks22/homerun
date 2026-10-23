@@ -1,4 +1,5 @@
 import type { BuildMethod } from "#lib/build-methods.js";
+import type { BuildServerChoice } from "#lib/build-servers.js";
 import type { AuthPathsMode } from "#lib/path-patterns.js";
 import type { PublishedPort } from "#lib/published-ports.js";
 import type { Service } from "#lib/server/db/schema.js";
@@ -16,6 +17,7 @@ export interface NewServiceInput {
 	uptimeEnabled?: boolean;
 	buildCacheRegistryId?: string | null;
 	buildCacheBuiltin?: boolean;
+	buildServerAny?: boolean;
 	buildServerRemoteHostId?: string | null;
 	buildSource?: "image" | "git";
 	containerPort: number;
@@ -85,6 +87,7 @@ export type ServiceUpdateInput = Partial<
 		| "autoRollback"
 		| "buildCacheRegistryId"
 		| "buildCacheBuiltin"
+		| "buildServerAny"
 		| "buildServerRemoteHostId"
 		| "buildSource"
 		| "containerId"
@@ -265,5 +268,32 @@ export function buildMethodColumns(input: NewServiceInput) {
 		gitBuildContext: input.gitBuildContext ?? null,
 		gitBuildMethod: input.gitBuildMethod ?? "dockerfile",
 		gitDockerfilePath: input.gitDockerfilePath ?? null,
+	} satisfies Partial<Service>;
+}
+
+/** Where a new service's image comes from : registry coordinates, the git-build fields and the build server it builds on, all optional with a default. */
+export function newServiceBuildColumns(
+	input: NewServiceInput,
+	buildServer: BuildServerChoice,
+) {
+	return {
+		...buildServer,
+		buildCacheRegistryId: input.buildCacheRegistryId ?? null,
+		buildCacheBuiltin: input.buildCacheBuiltin ?? false,
+		buildSource: input.buildSource ?? "image",
+		...buildMethodColumns(input),
+		gitRef: input.gitRef ?? null,
+		gitUrl: input.gitUrl ?? null,
+		gitProviderId: input.gitProviderId ?? null,
+		gitRepo: input.gitRepo ?? null,
+		autoDeployOnPush: input.autoDeployOnPush ?? false,
+		gitIgnorePaths: input.gitIgnorePaths ?? [],
+		gitWatchPaths: input.gitWatchPaths ?? [],
+		gitWebhookId: null,
+		gitWebhookSecretEnc: null,
+		gitWebhookError: null,
+		registryPasswordEnc: input.registryPasswordEnc ?? null,
+		registryUrl: input.registryUrl ?? null,
+		registryUsername: input.registryUsername ?? null,
 	} satisfies Partial<Service>;
 }

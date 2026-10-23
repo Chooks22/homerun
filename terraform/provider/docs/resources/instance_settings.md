@@ -35,10 +35,16 @@ resource "homerun_instance_settings" "example" {
 - `auth_cross_subdomain_cookies` (Boolean)
 - `base_domain` (String) Each service gets a subdomain of it, named after its
   slug. A bare hostname.
+- `build_concurrency` (Number) How many builds each build server runs at once
+  unless it sets its own limit, 0 for no limit.
+- `build_on_host` (Boolean) Whether git builds may run on this host while build
+  servers are registered.
 - `cpu_hard_threshold` (Number) A usage percentage that alerts, 1 to 100.
 - `cpu_soft_threshold` (Number) A usage percentage that alerts, 1 to 100.
 - `dashboard_url` (String) The dashboard's URL, an origin with no path or
   trailing slash. Left unset, it's derived from base_domain.
+- `default_build_server` (String) The build server a new git service starts
+  with: a remote host id, `any`, or empty for this host.
 - `default_ui_mode` (String) simple or advanced.
 - `disk_hard_threshold` (Number) A usage percentage that alerts, 1 to 100.
 - `disk_soft_threshold` (Number) A usage percentage that alerts, 1 to 100.

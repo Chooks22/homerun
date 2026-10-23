@@ -90,6 +90,18 @@ export const IAC_SETTINGS_RESOURCES: IacResource[] = [
 			setting("imageScanBlockFixableOnly", "bool"),
 			setting("imageScanRequired", "bool"),
 			setting("retainedImagesPerService", "int"),
+			setting("buildConcurrency", "int", {
+				description:
+					"How many builds each build server runs at once unless it sets its own limit, 0 for no limit.",
+			}),
+			setting("buildOnHost", "bool", {
+				description:
+					"Whether git builds may run on this host while build servers are registered.",
+			}),
+			setting("defaultBuildServer", "string", {
+				description:
+					"The build server a new git service starts with: a remote host id, `any`, or empty for this host.",
+			}),
 			setting("traefikAcmeEmail", "string"),
 			setting("traefikCertResolver", "string"),
 			setting("traefikDynamicConfigDir", "string"),

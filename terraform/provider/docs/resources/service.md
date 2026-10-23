@@ -56,6 +56,8 @@ resource "homerun_service" "example" {
   Defaults to `false`.
 - `build_cache_registry_id` (String)
 - `build_env_keys` (List of String)
+- `build_server_any` (Boolean) Build on whichever build server has a free slot
+  instead of build_server_remote_host_id. Defaults to `false`.
 - `build_server_remote_host_id` (String)
 - `build_source` (String) image or git. Defaults to `"image"`.
 - `cap_add` (List of String)

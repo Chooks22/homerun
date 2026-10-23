@@ -2,6 +2,7 @@ import { JobDTO } from "#lib/dto/job-dto.js";
 import { APP_VERSION } from "#lib/server/app-version.js";
 import { BaseScheduler } from "../cron/base-scheduler.ts";
 import { closeCancelledDeploys } from "./cancelled-deploys.ts";
+import { JobDeferredError } from "./deferred.ts";
 import { jobHandlers } from "./handlers.ts";
 import { STALE_JOB_MS } from "./stale.ts";
 import { workerJobs } from "./worker-jobs/index.ts";
@@ -104,7 +105,8 @@ class JobWorkerClass extends BaseScheduler {
 	 * Runs a freshly claimed job. A Go-executed type (`workerJobs`) only has its
 	 * `prepare` step run here and is handed to the Go worker; anything else
 	 * runs through its in-process handler (`jobHandlers`) and is marked
-	 * succeeded with its result. Failures go to `#recordFailure`. Never throws.
+	 * succeeded with its result. A `JobDeferredError` puts it back in the
+	 * queue; other failures go to `#recordFailure`. Never throws.
 	 */
 	async runJob(entry: JobDTO): Promise<void> {
 		try {
@@ -125,6 +127,13 @@ class JobWorkerClass extends BaseScheduler {
 			await entry.markSucceeded(result);
 			this.logger.info(`Job succeeded: type=${entry.type} job=${entry.id}`);
 		} catch (err) {
+			if (err instanceof JobDeferredError) {
+				await entry.defer(err.runAt, err.gate);
+				this.logger.debug(
+					`Job deferred to ${err.runAt.toISOString()}: type=${entry.type} job=${entry.id} : ${err.message}`,
+				);
+				return;
+			}
 			await this.#recordFailure(entry, err);
 		}
 	}

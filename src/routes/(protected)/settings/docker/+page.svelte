@@ -23,6 +23,7 @@
 	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
+	import BuildServersPanel from "./build-servers-panel.svelte";
 
 	const { data } = $props();
 
@@ -220,6 +221,13 @@
       </div>
     </form>
   </section>
+
+  <BuildServersPanel
+    buildConcurrency={data.settings.buildConcurrency ?? 0}
+    buildOnHost={data.settings.buildOnHost ?? true}
+    defaultBuildServer={data.settings.defaultBuildServer ?? ""}
+    servers={data.buildServers}
+  />
 
   <section class="panel rounded-md">
     <PanelHeader title="Orchestration">

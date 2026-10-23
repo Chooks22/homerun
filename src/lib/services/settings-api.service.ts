@@ -78,6 +78,9 @@ class SettingsApiServiceClass {
 			authCheckUrl: row.authCheckUrl,
 			authCrossSubdomainCookies: row.authCrossSubdomainCookies,
 			baseDomain: row.baseDomain,
+			buildConcurrency: settings.buildConcurrency,
+			buildOnHost: settings.buildOnHost,
+			defaultBuildServer: settings.defaultBuildServer,
 			dashboardUrl: row.authOrigin,
 			defaultUiMode: row.defaultUiMode ?? DEFAULT_UI_MODE,
 			dockerNetworkName: row.dockerNetworkName,
@@ -123,6 +126,7 @@ class SettingsApiServiceClass {
 		await this.#patchResources(settings, body, userId);
 		await this.#patchDocker(settings, body, userId);
 		await this.#patchImageScan(settings, body, userId);
+		await this.#patchBuildServers(settings, body, userId);
 		if (body.retainedImagesPerService !== undefined) {
 			await InstanceSettingsService.saveRetainedImages(
 				body.retainedImagesPerService,
@@ -243,6 +247,33 @@ class SettingsApiServiceClass {
 			const value = fields[name];
 			return value === undefined ? null : String(value);
 		}, userId);
+	}
+
+	/** The build server defaults, the fields not sent keeping their stored values. */
+	async #patchBuildServers(
+		settings: InstanceSettingsDTO,
+		body: InstanceSettingsBody,
+		userId: string,
+	): Promise<void> {
+		if (
+			!sends(body, ["buildConcurrency", "buildOnHost", "defaultBuildServer"])
+		) {
+			return;
+		}
+		await InstanceSettingsService.saveBuildServers(
+			{
+				buildConcurrency: pick(
+					body.buildConcurrency,
+					settings.buildConcurrency,
+				),
+				buildOnHost: pick(body.buildOnHost, settings.buildOnHost),
+				defaultBuildServer: pick(
+					body.defaultBuildServer,
+					settings.defaultBuildServer,
+				),
+			},
+			userId,
+		);
 	}
 
 	/** The image scanning policy, the fields the body leaves out at their stored value. */

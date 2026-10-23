@@ -1,3 +1,4 @@
+import { isBuildConcurrency } from "#lib/build-servers.js";
 import { serviceDomain } from "#lib/config.js";
 import {
 	type InstanceSettingsDockerInput,
@@ -5,6 +6,7 @@ import {
 	type InstanceSettingsSmtpInput,
 	type InstanceSettingsTraefikInput,
 } from "#lib/dto/instance-settings-dto.js";
+import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { errorPageTextsFromForm, isHexColor } from "#lib/error-pages.js";
 import type { BlockSeverity } from "#lib/image-scan.js";
 import { type IpBanSettings, MAX_BAN_WINDOW_MINUTES } from "#lib/ip-bans.js";
@@ -15,6 +17,7 @@ import { MAX_RETAINED_IMAGES, MIN_RETAINED_IMAGES } from "#lib/revisions.js";
 import { normalizeBaseDomain } from "#lib/server/validation/base-domain.js";
 import { applyAndRebuild } from "#lib/server/validation/instance-settings-form.js";
 import { isDnsLabel } from "#lib/service-domains.js";
+import { settings } from "#lib/settings.js";
 import { inspectCertificate } from "#lib/tls-certificate.js";
 import { CrowdsecService } from "./crowdsec.service.ts";
 import { markStaleServiceDns } from "./dns.service.ts";
@@ -23,6 +26,15 @@ import { DockerService } from "./docker.service.ts";
 const logger = new Logger("InstanceSettings");
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TRAILING_SLASHES_RE = /\/+$/;
+
+/** Whether `pick` is a build server pick that exists: this host (empty), any free build server, or a registered host. */
+async function isKnownBuildServerPick(pick: string): Promise<boolean> {
+	if (pick === "" || pick === settings.docker.anyBuildServer) {
+		return true;
+	}
+	const host = await RemoteHostDTO.get(pick);
+	return host !== null;
+}
 
 /** An instance settings change refused for the caller's input; nothing was saved. */
 export class InstanceSettingsError extends Error {}
@@ -149,6 +161,38 @@ class InstanceSettingsServiceClass {
 		await settings.updateImageScan(input);
 		logger.info(
 			`Image scanning updated: enabled=${input.imageScanEnabled} block=${input.imageScanBlockSeverity ?? "off"} fixableOnly=${input.imageScanBlockFixableOnly} required=${input.imageScanRequired} user=${userId}`,
+		);
+	}
+
+	/**
+	 * Saves the build server defaults: the concurrent-build limit, whether git
+	 * builds may run on this host, and the build server new services start
+	 * with.
+	 *
+	 * @throws {InstanceSettingsError} When the limit is out of range or the
+	 *   default build server doesn't exist.
+	 */
+	async saveBuildServers(
+		input: {
+			buildConcurrency: number;
+			buildOnHost: boolean;
+			defaultBuildServer: string;
+		},
+		userId: string,
+	): Promise<void> {
+		if (!isBuildConcurrency(input.buildConcurrency)) {
+			throw new InstanceSettingsError(
+				`Concurrent builds must be between 0 (no limit) and ${settings.docker.maxBuildConcurrency}.`,
+			);
+		}
+		const pick = input.defaultBuildServer;
+		if (!(await isKnownBuildServerPick(pick))) {
+			throw new InstanceSettingsError("That build server wasn't found.");
+		}
+		const instance = await InstanceSettingsDTO.get();
+		await instance.updateBuildServers(input);
+		logger.info(
+			`Build server settings updated: concurrency=${input.buildConcurrency} buildOnHost=${input.buildOnHost} default=${pick || "host"} user=${userId}`,
 		);
 	}
 

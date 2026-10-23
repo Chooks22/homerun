@@ -1,4 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
+import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { Logger } from "#lib/logger.js";
 import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
@@ -38,7 +39,12 @@ export const load = async ({ params, parent }) => {
 		}
 	}
 
-	return { agentStatus, host: host.toJSON() };
+	const settings = await InstanceSettingsDTO.get();
+	return {
+		agentStatus,
+		buildConcurrency: settings.buildConcurrency,
+		host: host.toJSON(),
+	};
 };
 
 export const actions = {
@@ -53,6 +59,30 @@ export const actions = {
 		await RemoteHostSettingsService.remove(host);
 		logger.info(`Remote host deleted: host=${host.id} user=${locals.user.id}`);
 		throw redirect(302, resolve("remote-hosts"));
+	},
+
+	updateBuilds: async ({ request, params, locals }) => {
+		if (!locals.user) {
+			return redirectToSignIn();
+		}
+		const host = await RemoteHostDTO.get(params.hostId);
+		if (!host) {
+			return fail(404, { error: "Remote host not found." });
+		}
+		const value = String(
+			(await request.formData()).get("maxConcurrentBuilds") ?? "",
+		).trim();
+		try {
+			await RemoteHostSettingsService.update(host, {
+				maxConcurrentBuilds: value === "" ? null : Number(value),
+			});
+		} catch (err) {
+			if (err instanceof RemoteHostSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
+		}
+		return { success: true };
 	},
 
 	update: async ({ request, params, locals }) => {
