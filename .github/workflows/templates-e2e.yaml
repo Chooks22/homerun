@@ -121,11 +121,17 @@ jobs:
         env:
           REGISTRY_PASSWORD: ${{ secrets.registry_password }}
         run: |
-          if [ -n "$REGISTRY_PASSWORD" ]; then
-            echo "$REGISTRY_PASSWORD" | docker login docker.io -u orochibraru --password-stdin
-          else
+          if [ -z "$REGISTRY_PASSWORD" ]; then
             echo "No registry secret: pulling anonymously."
+            exit 0
           fi
+          for attempt in 1 2 3; do
+            if echo "$REGISTRY_PASSWORD" | docker login docker.io -u orochibraru --password-stdin; then
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+          echo "::warning::Docker Hub login failed three times: pulling anonymously."
 
       - name: Seed the infrastructure images from Docker Hub mirrors
         run: |

@@ -1,3 +1,4 @@
+import { buildTargetAttributes } from "#lib/iac/resources-build.js";
 import {
 	IAC_IDENTITY_RESOURCES,
 	loginWallAttributes,
@@ -139,14 +140,7 @@ const serviceAttributes: IacAttribute[] = [
 	}),
 	attr("requireStatusChecks", "bool", off),
 	attr("requiredStatusChecks", "strings"),
-	attr("buildCacheBuiltin", "bool", {
-		...off,
-		description: "Use the built-in registry as the build cache.",
-	}),
-	attr("buildCacheRegistryId", "string", {
-		ref: "homerun_build_cache_registry",
-	}),
-	attr("buildServerRemoteHostId", "string"),
+	...buildTargetAttributes(attr),
 	attr("envVars", "stringMap", { sensitive: true }),
 	attr("secretEnvKeys", "strings"),
 	attr("buildEnvKeys", "strings"),

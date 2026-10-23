@@ -60,6 +60,7 @@ export const serviceResponse = z.object({
 	}),
 	buildCacheBuiltin: z.boolean(),
 	buildCacheRegistryId: z.string().nullable(),
+	buildServerAny: z.boolean(),
 	buildServerRemoteHostId: z.string().nullable(),
 	buildSource: z.enum(["image", "git"]),
 	channelBranch: z.string().nullable(),

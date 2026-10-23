@@ -42,6 +42,10 @@ function remoteHostResource(attr: AttributeFactory): IacResource {
 				...secret,
 				description: "Checked against the agent before it's saved.",
 			}),
+			attr("maxConcurrentBuilds", "int", {
+				description:
+					"How many builds run on it at once, 0 for no limit. Unset follows the instance's build_concurrency.",
+			}),
 			attr("agentTokenSet", "bool", readOnly),
 			attr("tlsCaSet", "bool", readOnly),
 			attr("tlsCertSet", "bool", readOnly),

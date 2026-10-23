@@ -61,10 +61,11 @@ import {
 	localScanTarget,
 	type ScanTarget,
 } from "./scan-targets.ts";
-import { enforceStatusChecks } from "./status-check-step.ts";
 
 export interface WorkerSpecContext {
 	dep: DeploymentDTO;
+	/** The commit the required status checks passed on, which the build checks out. */
+	checkedCommit?: string | null;
 	/** The commit the repository's manifest was read at, which the build checks out unless status checks pinned another. */
 	manifestCommit?: string | null;
 	mounts: ServiceMounts;
@@ -198,10 +199,10 @@ function buildServerSpec(server: BuildServer) {
 }
 
 /**
- * The git build part of the spec: required status checks first (they block
- * here, in the app, until they settle, then pin the commit the build checks
- * out), the provider credential, where it builds, the cache registry and the
- * scan targets for the image it ends up with.
+ * The git build part of the spec: the commit to check out (the one the
+ * required status checks passed on, else the manifest's), the provider
+ * credential, where it builds, the cache registry and the scan targets for
+ * the image it ends up with.
  */
 async function buildSpec(
 	ctx: WorkerSpecContext,
@@ -209,9 +210,6 @@ async function buildSpec(
 	policy: ScanPolicy,
 ) {
 	const { svc } = ctx;
-	const commit = svc.toJSON().requireStatusChecks
-		? await enforceStatusChecks(ctx, plan.git)
-		: null;
 	const built = {
 		image: `homerun-build-${svc.slug}`,
 		tag: Date.now().toString(36),
@@ -231,7 +229,7 @@ async function buildSpec(
 					svc.buildEnvKeys.includes(key),
 				),
 			),
-			commit: commit ?? ctx.manifestCommit ?? "",
+			commit: ctx.checkedCommit ?? ctx.manifestCommit ?? "",
 			credential: await resolveGitCredential(plan.git.gitUrl, ctx.userId),
 			git: plan.git,
 			noCache: ctx.noCache,
@@ -387,14 +385,13 @@ function knownRelease(image: ImagePlan): string | null {
 /**
  * Resolves everything the homerun worker needs to run a deploy: the image
  * source (a pull with its scan gate and mirror, a rollback's revision, or a git
- * build after its status checks), the workload's create body or swarm spec
+ * build at the commit its status checks passed on), the workload's create body or swarm spec
  * with Traefik labels and runtime options, the service's env vars and env
  * files, the readiness inputs and healthchecks, and the Docker network and
  * socket paths. Secrets (registry passwords, git tokens, env values) go in it
  * as is: the job stores the spec encrypted.
  *
- * @throws `StatusChecksFailedError` when required status checks block the
- *   build, or anything a credential or mirror lookup throws.
+ * @throws Anything a credential or mirror lookup throws.
  */
 export async function deployWorkerSpec(
 	ctx: WorkerSpecContext,

@@ -7,6 +7,9 @@ import type { InstanceSettings } from "#lib/server/db/schema.js";
 export function blankInstanceSettings(id: string, now: Date): InstanceSettings {
 	return {
 		authCheckUrl: null,
+		buildConcurrency: null,
+		buildOnHost: null,
+		defaultBuildServer: null,
 		authCrossSubdomainCookies: null,
 		authOrigin: null,
 		baseDomain: null,

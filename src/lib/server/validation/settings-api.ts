@@ -28,6 +28,20 @@ export const instanceSettingsApiBody = z.object({
 	baseDomain: nullableText.describe(
 		"Services get <slug>.<baseDomain>. A bare hostname.",
 	),
+	buildConcurrency: whole.describe(
+		"How many builds each build server runs at once unless it sets its own limit, 0 to 64, 0 for no limit.",
+	),
+	buildOnHost: z
+		.boolean()
+		.optional()
+		.describe(
+			"Whether git builds may run on this host while build servers are registered. Off sends every build to a build server.",
+		),
+	defaultBuildServer: text
+		.optional()
+		.describe(
+			"The build server a new git service starts with: a remote host id, `any` for any free build server, or empty for this host.",
+		),
 	serviceSubdomain: nullableText.describe(
 		"One DNS label services' default hostnames go under, <slug>.<serviceSubdomain>.<baseDomain>, like workstations under dev. Null keeps <slug>.<baseDomain>.",
 	),

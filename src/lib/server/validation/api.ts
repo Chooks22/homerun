@@ -126,6 +126,12 @@ const serviceSettingsFields = {
 		.describe(
 			"envVars keys also passed to a git build: as build args for a Dockerfile or Bake, as build env for Nixpacks, Railpack and buildpacks.",
 		),
+	buildServerAny: z
+		.boolean()
+		.optional()
+		.describe(
+			"Build on whichever build server has a free slot instead of buildServerRemoteHostId.",
+		),
 	buildServerRemoteHostId: z.string().nullable().optional(),
 	category: z.string().nullable().optional(),
 	channelBranch: z.string().trim().nullable().optional(),

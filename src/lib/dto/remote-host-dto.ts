@@ -1,4 +1,5 @@
 import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
+import type { BuildServerChoice } from "#lib/build-servers.js";
 import { db } from "#lib/server/db/lib.js";
 import { type RemoteHost, remoteHost } from "#lib/server/db/schema.js";
 import {
@@ -12,6 +13,7 @@ import { WorkerClient } from "#lib/server/worker-client.js";
 import type { AgentConnection } from "#lib/services/agent-client.service.js";
 import type { RemoteHostConnection } from "#lib/services/docker.service.js";
 import { decryptSecret } from "#lib/services/secrets.js";
+import { settings } from "#lib/settings.js";
 import { BaseDTO } from "./base-dto";
 import { InstanceSettingsDTO } from "./instance-settings-dto";
 
@@ -20,6 +22,7 @@ export interface NewRemoteHostInput {
 	agentUrl?: string | null;
 	dockerHost?: string | null;
 	kind?: RemoteHost["kind"];
+	maxConcurrentBuilds?: number | null;
 	name: string;
 	tlsCaEnc?: string | null;
 	tlsCertEnc?: string | null;
@@ -34,6 +37,7 @@ export type RemoteHostUpdateInput = Partial<
 		| "agentUrl"
 		| "dockerHost"
 		| "kind"
+		| "maxConcurrentBuilds"
 		| "name"
 		| "sshHost"
 		| "sshHostKey"
@@ -129,6 +133,34 @@ export class RemoteHostDTO extends BaseDTO<RemoteHost> {
 	}
 
 	/**
+	 * The build server columns a new service starts with: the ones it was
+	 * given, else for a git build the instance's default (any free build
+	 * server, or a host that still exists), else this host.
+	 */
+	static async newServiceBuildServer(input: {
+		buildServerAny?: boolean;
+		buildServerRemoteHostId?: string | null;
+		buildSource?: string;
+	}): Promise<BuildServerChoice> {
+		const given =
+			input.buildServerAny !== undefined ||
+			input.buildServerRemoteHostId !== undefined;
+		if (given || input.buildSource !== "git") {
+			return {
+				buildServerAny: input.buildServerAny ?? false,
+				buildServerRemoteHostId: input.buildServerRemoteHostId ?? null,
+			};
+		}
+		const instance = await InstanceSettingsDTO.get();
+		const pick = instance.defaultBuildServer;
+		if (pick === settings.docker.anyBuildServer) {
+			return { buildServerAny: true, buildServerRemoteHostId: null };
+		}
+		const host = pick ? await RemoteHostDTO.get(pick) : null;
+		return { buildServerAny: false, buildServerRemoteHostId: host?.id ?? null };
+	}
+
+	/**
 	 * Up to `limit` hosts whose name, Docker host or agent URL
 	 * matches `q`, newest first, for global search.
 	 */
@@ -162,6 +194,7 @@ export class RemoteHostDTO extends BaseDTO<RemoteHost> {
 			dockerHost: input.dockerHost ?? null,
 			id: crypto.randomUUID(),
 			kind,
+			maxConcurrentBuilds: input.maxConcurrentBuilds ?? null,
 			name: input.name,
 			sshHost: null,
 			sshHostKey: null,
@@ -267,6 +300,10 @@ export class RemoteHostDTO extends BaseDTO<RemoteHost> {
 	/** The Docker daemon address for a docker-kind host, null for agents. */
 	get dockerHost(): string | null {
 		return this.row.dockerHost;
+	}
+	/** This host's own concurrent-build limit, null to follow the instance default. */
+	get maxConcurrentBuilds(): number | null {
+		return this.row.maxConcurrentBuilds;
 	}
 	/** Whether the host is a raw Docker daemon or a Homerun Agent. */
 	get kind(): RemoteHost["kind"] {

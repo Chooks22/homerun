@@ -1,4 +1,5 @@
 import { fail } from "@sveltejs/kit";
+import { RemoteHostDTO } from "#lib/dto/remote-host-dto.js";
 import { isBlockSeverity } from "#lib/image-scan.js";
 import { Logger } from "#lib/logger.js";
 import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
@@ -11,9 +12,16 @@ import {
 
 const logger = new Logger("InstanceSettings");
 
-export const load = async () => ({
-	swarmUnavailableReason: await DockerService.swarmModeUnavailableReason(),
-});
+export const load = async () => {
+	const [swarmUnavailableReason, servers] = await Promise.all([
+		DockerService.swarmModeUnavailableReason(),
+		RemoteHostDTO.listBuildServers(),
+	]);
+	return {
+		buildServers: servers.map((s) => ({ id: s.id, name: s.name })),
+		swarmUnavailableReason,
+	};
+};
 
 export const actions = {
 	updateDocker: async ({ request, locals }) => {
@@ -51,6 +59,29 @@ export const actions = {
 			locals.user.id,
 		);
 		return { savedSection: "imageScan", success: true };
+	},
+
+	updateBuildServers: async ({ request, locals }) => {
+		if (!locals.user) {
+			return redirectToSignIn();
+		}
+		const formData = await request.formData();
+		try {
+			await InstanceSettingsService.saveBuildServers(
+				{
+					buildConcurrency: Number(formData.get("buildConcurrency")),
+					buildOnHost: formData.get("buildOnHost") === "on",
+					defaultBuildServer: String(formData.get("defaultBuildServer") ?? ""),
+				},
+				locals.user.id,
+			);
+		} catch (err) {
+			if (err instanceof InstanceSettingsError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
+		}
+		return { savedSection: "buildServers", success: true };
 	},
 
 	updateRetainedImages: async ({ request, locals }) => {

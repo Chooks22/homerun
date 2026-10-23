@@ -284,7 +284,6 @@ export const updateSourceSchema = baseServiceSchema
 	.pick({
 		autoDeployOnPush: true,
 		buildCacheRegistryId: true,
-		buildServerRemoteHostId: true,
 		buildSource: true,
 		gitBakeFile: true,
 		gitBuildTarget: true,
@@ -301,6 +300,7 @@ export const updateSourceSchema = baseServiceSchema
 		registryUsername: true,
 		tag: true,
 	})
+	.extend({ buildServer: z.string().optional() })
 	.superRefine(requireImageOrGitUrl);
 export type UpdateSourceInput = z.infer<typeof updateSourceSchema>;
 

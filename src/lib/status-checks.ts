@@ -623,27 +623,20 @@ export class StatusCheckClient {
 	}
 }
 
-export interface WaitForChecksOptions {
+export type CheckRound =
+	| {
+			evaluation: CheckEvaluation;
+			outcome: "pass" | "fail" | "pending" | "timeout";
+	  }
+	| { outcome: "retry"; reason: string };
+
+export interface CheckRoundOptions {
 	fetchChecks: () => Promise<CheckResult[]>;
 	graceMs: number;
-	isCancelled: () => Promise<boolean>;
-	log: (line: string) => Promise<void>;
-	now?: () => number;
-	pollMs: number;
 	required: string[];
-	sleep?: (ms: number) => Promise<void>;
 	timeoutMs: number;
+	waitedMs: number;
 }
-
-export interface WaitForChecksResult {
-	evaluation: CheckEvaluation;
-	outcome: "pass" | "fail" | "timeout" | "cancelled";
-}
-
-const defaultSleep = (ms: number) =>
-	new Promise<void>((resolve) => {
-		setTimeout(resolve, ms);
-	});
 
 function emptyEvaluation(required: string[]): CheckEvaluation {
 	return {
@@ -656,71 +649,42 @@ function emptyEvaluation(required: string[]): CheckEvaluation {
 }
 
 /**
- * Fetches and evaluates checks once. Transient errors are logged and yield null
- * so the caller retries.
+ * Fetches and evaluates a commit's checks once, `waitedMs` into the wait for
+ * them: passed, failed (a check that never reported fails once the grace
+ * period is over), still pending, timed out, or "retry" when the provider
+ * API failed transiently and the wait isn't over yet.
  *
- * @throws StatusCheckApiError When the error is permanent.
+ * @throws StatusCheckApiError When the provider API fails permanently.
  */
-async function pollOnce(
-	options: WaitForChecksOptions,
-	graceExpired: boolean,
-): Promise<CheckEvaluation | null> {
+export async function checkRound(
+	options: CheckRoundOptions,
+): Promise<CheckRound> {
+	const timedOut = options.waitedMs >= options.timeoutMs;
+	let results: CheckResult[];
 	try {
-		return evaluateChecks(
-			options.required,
-			await options.fetchChecks(),
-			graceExpired,
-		);
+		results = await options.fetchChecks();
 	} catch (err) {
 		if (err instanceof StatusCheckApiError && err.permanent) {
 			throw err;
 		}
-		await options.log(
-			`Couldn't read status checks (${err instanceof Error ? err.message : String(err)}), retrying.`,
-		);
-		return null;
+		if (timedOut) {
+			return {
+				evaluation: emptyEvaluation(options.required),
+				outcome: "timeout",
+			};
+		}
+		return {
+			outcome: "retry",
+			reason: err instanceof Error ? err.message : String(err),
+		};
 	}
-}
-
-/**
- * Polls a commit's checks until every required one passes, one fails (or goes
- * missing past the grace period), the timeout elapses, or the build is
- * cancelled, writing a log line whenever the summary changes.
- *
- * @throws StatusCheckApiError When the provider API fails permanently.
- */
-export async function waitForChecks(
-	options: WaitForChecksOptions,
-): Promise<WaitForChecksResult> {
-	const now = options.now ?? Date.now;
-	const sleep = options.sleep ?? defaultSleep;
-	const started = now();
-	let evaluation = emptyEvaluation(options.required);
-	let lastSummary = "";
-	for (;;) {
-		const elapsed = now() - started;
-		// oxlint-disable-next-line no-await-in-loop -- polling is sequential by definition
-		const polled = await pollOnce(options, elapsed >= options.graceMs);
-		if (polled) {
-			evaluation = polled;
-			if (polled.outcome !== "pending") {
-				return { evaluation, outcome: polled.outcome };
-			}
-			const summary = describeEvaluation(polled);
-			if (summary !== lastSummary) {
-				lastSummary = summary;
-				// oxlint-disable-next-line no-await-in-loop -- status checks are polled one round at a time
-				await options.log(`Waiting for status checks: ${summary}`);
-			}
-		}
-		if (elapsed >= options.timeoutMs) {
-			return { evaluation, outcome: "timeout" };
-		}
-		// oxlint-disable-next-line no-await-in-loop -- status checks are polled one round at a time
-		if (await options.isCancelled()) {
-			return { evaluation, outcome: "cancelled" };
-		}
-		// oxlint-disable-next-line no-await-in-loop -- status checks are polled one round at a time
-		await sleep(options.pollMs);
+	const evaluation = evaluateChecks(
+		options.required,
+		results,
+		options.waitedMs >= options.graceMs,
+	);
+	if (evaluation.outcome === "pending" && timedOut) {
+		return { evaluation, outcome: "timeout" };
 	}
+	return { evaluation, outcome: evaluation.outcome };
 }

@@ -157,6 +157,11 @@ function derivedColumns(
 	if (fields.buildCacheBuiltin) {
 		columns.buildCacheRegistryId = null;
 	}
+	if (fields.buildServerAny) {
+		columns.buildServerRemoteHostId = null;
+	} else if (fields.buildServerRemoteHostId) {
+		columns.buildServerAny = false;
+	}
 	if (fields.updateCheckEnabled === false) {
 		columns.updateCheck = null;
 	}

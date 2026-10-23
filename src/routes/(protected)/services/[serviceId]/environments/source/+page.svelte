@@ -3,6 +3,7 @@
 	import { onMount } from "svelte";
 	import { BUILTIN_BUILD_CACHE } from "#lib/build-cache.js";
 	import { isBuildMethod } from "#lib/build-methods.js";
+	import { buildServerPick } from "#lib/build-servers.js";
 	import AdvancedDisclosure from "#lib/components/advanced-disclosure.svelte";
 	import CheckBox from "#lib/components/check-box.svelte";
 	import GitBuildFields from "#lib/components/git-build-fields.svelte";
@@ -20,6 +21,7 @@
 		SelectTrigger,
 	} from "#lib/components/ui/select/index.js";
 	import { isDeployed } from "#lib/service-state.js";
+	import { settings } from "#lib/settings.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { visibleIn } from "#lib/ui-mode.js";
@@ -38,36 +40,57 @@
 	const label = "block mb-1.5 text-sm font-medium text-text";
 	const errorClass = "mt-1.5 text-xs text-red-500";
 
+	function startingBuildServerPick(): string {
+		if (svc.buildSource === "git") {
+			return buildServerPick(svc);
+		}
+		const pick = data.defaultBuildServer;
+		const isAny = pick === settings.docker.anyBuildServer;
+		const isRegistered = data.buildServers.some((r) => r.id === pick);
+		return isAny || isRegistered ? pick : "";
+	}
+
+	const buildDefaults = $derived({
+		buildCacheRegistryId: svc.buildCacheBuiltin
+			? BUILTIN_BUILD_CACHE
+			: (svc.buildCacheRegistryId ?? ""),
+		buildServer: startingBuildServerPick(),
+		buildSource: svc.buildSource,
+	});
+	const gitDefaults = $derived({
+		autoDeployOnPush: svc.autoDeployOnPush ? "on" : "",
+		gitBakeFile: svc.gitBakeFile ?? "",
+		gitBuildContext: svc.gitBuildContext ?? "",
+		gitBuildMethod: svc.gitBuildMethod,
+		gitBuildTarget: svc.gitBuildTarget ?? "",
+		gitDockerfilePath: svc.gitDockerfilePath ?? "",
+		gitIgnorePaths: svc.gitIgnorePaths.join("\n"),
+		gitProviderId: svc.gitProviderId ?? "",
+		gitRef: svc.gitRef ?? "main",
+		gitRepo: svc.gitRepo ?? "",
+		gitUrl: svc.gitUrl ?? "",
+		gitWatchPaths: svc.gitWatchPaths.join("\n"),
+	});
+	const imageDefaults = $derived({
+		image: svc.image,
+		registryUrl: svc.registryUrl ?? "",
+		registryUsername: svc.registryUsername ?? "",
+		tag: svc.tag,
+	});
 	const values = $derived(
 		(form?.values as Record<string, string> | undefined) ?? {
-			buildCacheRegistryId: svc.buildCacheBuiltin
-				? BUILTIN_BUILD_CACHE
-				: (svc.buildCacheRegistryId ?? ""),
-			buildServerRemoteHostId: svc.buildServerRemoteHostId ?? "",
-			buildSource: svc.buildSource,
-			gitBakeFile: svc.gitBakeFile ?? "",
-			gitBuildTarget: svc.gitBuildTarget ?? "",
-			gitBuildContext: svc.gitBuildContext ?? "",
-			gitBuildMethod: svc.gitBuildMethod,
-			gitDockerfilePath: svc.gitDockerfilePath ?? "",
-			gitIgnorePaths: svc.gitIgnorePaths.join("\n"),
-			gitWatchPaths: svc.gitWatchPaths.join("\n"),
-			autoDeployOnPush: svc.autoDeployOnPush ? "on" : "",
-			gitProviderId: svc.gitProviderId ?? "",
-			gitRef: svc.gitRef ?? "main",
-			gitRepo: svc.gitRepo ?? "",
-			gitUrl: svc.gitUrl ?? "",
-			image: svc.image,
-			registryUrl: svc.registryUrl ?? "",
-			registryUsername: svc.registryUsername ?? "",
-			tag: svc.tag,
+			...buildDefaults,
+			...gitDefaults,
+			...imageDefaults,
 		},
 	);
 	let buildCacheRegistryId = $derived(values.buildCacheRegistryId ?? "");
-	let buildServerRemoteHostId = $derived(values.buildServerRemoteHostId ?? "");
-	const buildServerLabel = $derived(
-		data.buildServers.find((r) => r.id === buildServerRemoteHostId)?.name ??
-			"Build on deploy target",
+	let buildServer = $derived(values.buildServer ?? "");
+	const pickedServerName = $derived(
+		data.buildServers.find((r) => r.id === buildServer)?.name,
+	);
+	const buildsAnywhere = $derived(
+		buildServer === settings.docker.anyBuildServer || !data.buildOnHost,
 	);
 	const errors = $derived(form?.errors as Record<string, string[]> | undefined);
 
@@ -276,7 +299,7 @@
           bind:buildCacheRegistryId
         />
         <div>
-          <label class={label} for="buildServerRemoteHostId">
+          <label class={label} for="buildServer">
             Build server
           </label>
           {#if data.buildServers.length === 0}
@@ -291,26 +314,40 @@
               as one to build there instead of the deploy target.
             </p>
           {:else}
-            <SelectRoot
-              name="buildServerRemoteHostId"
-              type="single"
-              bind:value={buildServerRemoteHostId}
-            >
-              <SelectTrigger id="buildServerRemoteHostId">
-                {buildServerLabel}
+            <SelectRoot name="buildServer" type="single" bind:value={buildServer}>
+              <SelectTrigger id="buildServer">
+                {#if pickedServerName}
+                  {pickedServerName}
+                {:else if buildsAnywhere}
+                  Any free build server
+                {:else}
+                  Build on deploy target
+                {/if}
               </SelectTrigger>
               <SelectContent>
-                <SelectItem label="Build on deploy target" value="" />
+                {#if data.buildOnHost}
+                  <SelectItem label="Build on deploy target" value="" />
+                {/if}
+                <SelectItem
+                  label="Any free build server"
+                  value={settings.docker.anyBuildServer}
+                />
                 {#each data.buildServers as host (host.id)}
                   <SelectItem label={host.name} value={host.id} />
                 {/each}
               </SelectContent>
             </SelectRoot>
             <p class="text-text-subtle mt-1.5 text-xs">
-              With a build cache registry above, the built image is published
-              there and pulled back onto this host. Without one it's streamed
-              straight back from the build server instead.
+              "Any free build server" picks the least busy one with a free
+              build slot each deploy{#if !data.buildOnHost}, and builds don't
+                run on this host{/if}. With a build cache registry above, the
+              built image is published there and pulled back onto this host.
+              Without one it's streamed straight back from the build server
+              instead.
             </p>
+            {#if errors?.buildServer}
+              <p class={errorClass}>{errors.buildServer[0]}</p>
+            {/if}
           {/if}
         </div>
       </AdvancedDisclosure>

@@ -2,12 +2,13 @@
 	import { ChevronDown, ChevronLeft, Server, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import ConfirmDialog from "#lib/components/confirm-dialog.svelte";
-	import { labelClass as label } from "#lib/components/form-styles.js";
 	import PanelHeader from "#lib/components/panel-header.svelte";
 	import SaveButton from "#lib/components/save-button.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { Label } from "#lib/components/ui/label/index.js";
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { settings } from "#lib/settings.js";
 	import { title } from "#lib/store/title.js";
 	import { enhanceToast } from "#lib/toast.js";
 	import { enhance } from "$app/forms";
@@ -19,6 +20,7 @@
 
 	let showTls = $state(false);
 	let submitting = $state(false);
+	let savingBuilds = $state(false);
 	let deleteDialogOpen = $state(false);
 	let deleteForm: HTMLFormElement | undefined = $state();
 </script>
@@ -83,13 +85,13 @@
         <p class="text-sm text-red-500">{form.error}</p>
       {/if}
       <div>
-        <label class={label} for="name">Name</label>
+        <Label class="mb-1.5" for="name">Name</Label>
         <Input id="name" name="name" required type="text" value={data.host.name} />
       </div>
 
       {#if data.host.kind === "agent"}
         <div>
-          <label class={label} for="agentUrl">Agent URL</label>
+          <Label class="mb-1.5" for="agentUrl">Agent URL</Label>
           <Input
             class=""
             id="agentUrl"
@@ -104,7 +106,7 @@
           </p>
         </div>
         <div>
-          <label class={label} for="agentToken">Agent token</label>
+          <Label class="mb-1.5" for="agentToken">Agent token</Label>
           <Input
             class=""
             id="agentToken"
@@ -119,7 +121,7 @@
         </div>
       {:else}
         <div>
-          <label class={label} for="dockerHost">Docker host</label>
+          <Label class="mb-1.5" for="dockerHost">Docker host</Label>
           <Input
             class=""
             id="dockerHost"
@@ -152,7 +154,7 @@
         {#if showTls}
           <div class="space-y-3">
             <div>
-              <label class={label} for="tlsCa">CA certificate</label>
+              <Label class="mb-1.5" for="tlsCa">CA certificate</Label>
               <Textarea
                 class="resize-none"
                 id="tlsCa"
@@ -162,7 +164,7 @@
               />
             </div>
             <div>
-              <label class={label} for="tlsCert">Client certificate</label>
+              <Label class="mb-1.5" for="tlsCert">Client certificate</Label>
               <Textarea
                 class="resize-none"
                 id="tlsCert"
@@ -172,7 +174,7 @@
               />
             </div>
             <div>
-              <label class={label} for="tlsKey">Client key</label>
+              <Label class="mb-1.5" for="tlsKey">Client key</Label>
               <Textarea
                 class="resize-none"
                 id="tlsKey"
@@ -184,6 +186,49 @@
           </div>
         {/if}
       {/if}
+    </form>
+  </section>
+
+  <section class="panel mb-6 rounded-md">
+    <PanelHeader title="Builds">
+      {#snippet trailing()}
+        <SaveButton form="remote-host-builds" pending={savingBuilds} />
+      {/snippet}
+    </PanelHeader>
+    <form
+      id="remote-host-builds"
+      class="space-y-4 p-5"
+      action="?/updateBuilds"
+      method="POST"
+      use:enhance={enhanceToast({
+        error: "Couldn't save the build limit.",
+        loading: "Saving the build limit",
+        onSettled: () => {
+          savingBuilds = false;
+        },
+        onStart: () => {
+          savingBuilds = true;
+        },
+        success: "Build limit saved.",
+      })}
+    >
+      <div>
+        <Label class="mb-1.5" for="maxConcurrentBuilds">Concurrent builds</Label>
+        <Input
+          id="maxConcurrentBuilds"
+          max={settings.docker.maxBuildConcurrency}
+          min={0}
+          name="maxConcurrentBuilds"
+          placeholder={`${data.buildConcurrency || "No limit"} (instance default)`}
+          type="number"
+          value={data.host.maxConcurrentBuilds ?? ""}
+        />
+        <p class="mt-1.5 text-xs text-text-subtle">
+          How many git builds run on this server at once, 0 for no limit. Leave
+          blank to follow the default on
+          <a class="underline" href={resolve('settings/docker')}>Settings → Docker</a>.
+        </p>
+      </div>
     </form>
   </section>
 

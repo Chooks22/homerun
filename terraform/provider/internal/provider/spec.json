@@ -409,6 +409,13 @@
 					"tf": "build_server_remote_host_id"
 				},
 				{
+					"kind": "bool",
+					"name": "buildServerAny",
+					"tf": "build_server_any",
+					"default": false,
+					"description": "Build on whichever build server has a free slot instead of build_server_remote_host_id."
+				},
+				{
 					"kind": "stringMap",
 					"name": "envVars",
 					"tf": "env_vars",
@@ -1846,6 +1853,24 @@
 					"tf": "retained_images_per_service"
 				},
 				{
+					"kind": "int",
+					"name": "buildConcurrency",
+					"tf": "build_concurrency",
+					"description": "How many builds each build server runs at once unless it sets its own limit, 0 for no limit."
+				},
+				{
+					"kind": "bool",
+					"name": "buildOnHost",
+					"tf": "build_on_host",
+					"description": "Whether git builds may run on this host while build servers are registered."
+				},
+				{
+					"kind": "string",
+					"name": "defaultBuildServer",
+					"tf": "default_build_server",
+					"description": "The build server a new git service starts with: a remote host id, `any`, or empty for this host."
+				},
+				{
 					"kind": "string",
 					"name": "traefikAcmeEmail",
 					"tf": "traefik_acme_email"
@@ -2244,6 +2269,12 @@
 					"sensitive": true,
 					"writeOnly": true,
 					"description": "Checked against the agent before it's saved."
+				},
+				{
+					"kind": "int",
+					"name": "maxConcurrentBuilds",
+					"tf": "max_concurrent_builds",
+					"description": "How many builds run on it at once, 0 for no limit. Unset follows the instance's build_concurrency."
 				},
 				{
 					"kind": "bool",

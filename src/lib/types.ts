@@ -20,6 +20,8 @@ export type JobStatus =
 
 export type JobStage = "prepare" | "execute" | "finalize" | "finalizing";
 
+export type DeferGate = "status-checks" | "build-slot";
+
 export type JobType =
 	| "backup"
 	| "backup_prune"

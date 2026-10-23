@@ -112,6 +112,34 @@ and as the Terraform provider's `homerun_remote_host`, see
 socket/Homerun Agent) once you have more than a couple registered, plus a pager
 if you have more than a page's worth, searched/paginated server-side.
 
+## Picking a build server and limiting builds
+
+A git service's **Build server** (its Environments & Deployments → Source
+section) is this host, one pinned build server, or **Any free build server**:
+each deploy then takes the least busy registered server that has a free build
+slot, picking at random between equally busy ones.
+
+**Settings → Docker → Build servers** sets the defaults:
+
+- **Concurrent builds per server**, how many git builds one server runs at once,
+  0 for no limit (the default). A server overrides it with its own **Concurrent
+  builds** on its `/remote-hosts` page; leave that blank to follow the default.
+  A deploy that finds its server (or, with Any free build server, every server)
+  full goes back in the queue, says so in its log, and tries again every few
+  seconds until a slot frees, holding nothing while it waits. After 30 minutes
+  without one it fails, and the running version keeps running. Once it has a
+  slot it holds it until the deploy finishes.
+- **Default for new services**, the build server a new git service starts with:
+  this host, any free build server, or one server. Existing services keep
+  theirs.
+- **Build on this host**. Turned off, a git build that would run here goes to
+  the least busy build server instead, and the Source picker drops the "Build on
+  deploy target" choice. With no build server registered, builds still run here.
+
+The same settings are `buildConcurrency`, `defaultBuildServer` and `buildOnHost`
+on `/api/v1/instance/settings`, `maxConcurrentBuilds` on a remote host and
+`buildServerAny` on a service.
+
 ## Getting the image back here
 
 The built image only exists on the build server's own daemon, so it has to reach
