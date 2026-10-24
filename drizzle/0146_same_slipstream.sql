@@ -1,0 +1,1 @@
+ALTER TABLE "domain" ADD COLUMN "dns_challenge" boolean DEFAULT false NOT NULL;

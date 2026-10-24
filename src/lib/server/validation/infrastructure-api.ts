@@ -61,6 +61,12 @@ export const domainApiBody = z.object({
 	connectionId: nullableText.describe(
 		"The DNS connection the domain's zone lives in.",
 	),
+	dnsChallenge: z
+		.boolean()
+		.default(false)
+		.describe(
+			"Issue its certificates through an ACME DNS-01 challenge solved with its connection, one wildcard for the domain, instead of HTTP-01. Needs connectionId.",
+		),
 	name: text
 		.toLowerCase()
 		.refine(isDomainName, "Enter a domain name, like example.com."),
@@ -81,7 +87,7 @@ export const domainApiBody = z.object({
 
 export const updateDomainApiBody = domainApiBody
 	.omit({ name: true })
-	.extend({ autoRecords: z.boolean() })
+	.extend({ autoRecords: z.boolean(), dnsChallenge: z.boolean() })
 	.partial();
 
 export const dnsRecordApiBody = z.object({

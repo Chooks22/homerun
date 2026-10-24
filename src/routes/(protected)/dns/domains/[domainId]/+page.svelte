@@ -16,6 +16,7 @@
 	const link = $state(
 		untrack(() => ({
 			autoRecords: data.domain.autoRecords,
+			dnsChallenge: data.domain.dnsChallenge,
 			connectionId: data.domain.connectionId ?? "",
 			target: data.domain.target ?? "",
 			zone: data.domain.zoneId

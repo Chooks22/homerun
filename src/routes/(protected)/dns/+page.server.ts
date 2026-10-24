@@ -73,7 +73,7 @@ export const actions = {
 		if (!domain) {
 			return fail(404, { error: "That domain doesn't exist any more." });
 		}
-		await domain.delete();
+		await DomainSettingsService.remove(domain);
 		logger.info(`Domain removed: ${domain.name} user=${locals.user.id}`);
 		return { deleted: domain.name };
 	},

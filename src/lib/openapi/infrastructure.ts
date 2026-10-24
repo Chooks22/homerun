@@ -52,6 +52,7 @@ export const domainResponse = z.object({
 	autoRecords: z.boolean(),
 	connectionId: z.string().nullable(),
 	createdAt: timestamp,
+	dnsChallenge: z.boolean(),
 	id: z.string(),
 	name: z.string(),
 	target: z.string().nullable(),

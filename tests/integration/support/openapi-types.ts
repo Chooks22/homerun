@@ -4920,6 +4920,7 @@ export interface operations {
 						connectionId: string | null;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
+						dnsChallenge: boolean;
 						id: string;
 						name: string;
 						target: string | null;
@@ -4972,6 +4973,11 @@ export interface operations {
 					autoRecords: boolean;
 					/** @description The DNS connection the domain's zone lives in. */
 					connectionId?: string | null;
+					/**
+					 * @description Issue its certificates through an ACME DNS-01 challenge solved with its connection, one wildcard for the domain, instead of HTTP-01. Needs connectionId.
+					 * @default false
+					 */
+					dnsChallenge: boolean;
 					name: string;
 					/** @description What its services' records point at: an IP or a hostname. Unset points them at the base domain. */
 					target?: string | null;
@@ -4994,6 +5000,7 @@ export interface operations {
 						connectionId: string | null;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
+						dnsChallenge: boolean;
 						id: string;
 						name: string;
 						target: string | null;
@@ -5064,6 +5071,7 @@ export interface operations {
 						connectionId: string | null;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
+						dnsChallenge: boolean;
 						id: string;
 						name: string;
 						target: string | null;
@@ -5184,6 +5192,7 @@ export interface operations {
 					autoRecords?: boolean;
 					/** @description The DNS connection the domain's zone lives in. */
 					connectionId?: string | null;
+					dnsChallenge?: boolean;
 					/** @description What its services' records point at: an IP or a hostname. Unset points them at the base domain. */
 					target?: string | null;
 					/** @description The provider zone the domain lives in. Required with connectionId. */
@@ -5205,6 +5214,7 @@ export interface operations {
 						connectionId: string | null;
 						/** @description ISO 8601 timestamp */
 						createdAt: string;
+						dnsChallenge: boolean;
 						id: string;
 						name: string;
 						target: string | null;

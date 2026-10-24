@@ -1,5 +1,6 @@
 import { applyInstanceSettings } from "#lib/config.js";
 import type { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
+import { AcmeDnsService } from "#lib/services/acme-dns.service.js";
 import { rebuildAuth } from "#lib/services/auth.js";
 import { syncDashboardDns } from "#lib/services/dns.service.js";
 import { syncErrorPages } from "#lib/services/docker/error-pages.js";
@@ -28,6 +29,7 @@ export function applyAndRebuild(settings: InstanceSettingsDTO) {
 	applyInstanceSettings(settings.toConfigOverride());
 	rebuildAuth();
 	void DockerService.syncDashboardRouter();
+	void AcmeDnsService.syncRouters();
 	void syncErrorPages();
 	void RedirectService.sync();
 	void IpBanService.sync();

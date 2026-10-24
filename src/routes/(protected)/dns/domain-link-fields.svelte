@@ -17,6 +17,7 @@
 		values: {
 			autoRecords: boolean;
 			connectionId: string;
+			dnsChallenge: boolean;
 			target: string;
 			zone: string;
 		};
@@ -108,4 +109,14 @@
     name="autoRecords"
     bind:checked={values.autoRecords}
   />
+
+  {#if values.connectionId}
+    <CheckBox
+      helperText="Traefik proves control of the domain with a TXT record Homerun writes through this provider, and gets one wildcard certificate for it instead of one per hostname. Works behind a proxy like Cloudflare's, where HTTP challenges fail. Services pick it up on their next deploy."
+      id="dnsChallenge"
+      label="Issue certificates through DNS (DNS-01)"
+      name="dnsChallenge"
+      bind:checked={values.dnsChallenge}
+    />
+  {/if}
 </div>

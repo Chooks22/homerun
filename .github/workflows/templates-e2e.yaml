@@ -106,6 +106,16 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Download Go modules
+        timeout-minutes: 10
+        run: |
+          for attempt in 1 2 3; do
+            go mod download && exit 0
+            echo "::warning::go mod download attempt $attempt failed"
+            sleep 15
+          done
+          exit 1
+
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
@@ -167,7 +177,21 @@ jobs:
           exit 1
 
       - name: Install Playwright's Chromium
-        run: bunx playwright install --with-deps chromium
+        timeout-minutes: 20
+        run: |
+          bunx playwright install chromium
+          if bun -e 'const { chromium } = await import("@playwright/test"); await (await chromium.launch()).close();'; then
+            exit 0
+          fi
+          echo "::warning::Chromium doesn't launch with the runner's own libraries, installing its system dependencies"
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
+            sudo tee /etc/apt/apt.conf.d/99-ci-network > /dev/null
+          for attempt in 1 2 3; do
+            bunx playwright install-deps chromium && exit 0
+            echo "::warning::Playwright dependency install attempt $attempt failed"
+            sleep 10
+          done
+          exit 1
 
       - name: Deploy ${{ matrix.slug }}
         env:

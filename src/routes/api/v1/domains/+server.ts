@@ -30,6 +30,7 @@ export const POST = async ({ locals, request }) => {
 			{
 				autoRecords: body.data.autoRecords,
 				connectionId: body.data.connectionId || null,
+				dnsChallenge: body.data.dnsChallenge,
 				name: body.data.name,
 				target: body.data.target || null,
 				zoneId: body.data.zoneId || null,

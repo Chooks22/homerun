@@ -1,6 +1,7 @@
 import { DnsConnectionDTO } from "#lib/dto/dns-connection-dto.js";
 import { DomainDTO, type DomainInput } from "#lib/dto/domain-dto.js";
 import { Logger } from "#lib/logger.js";
+import { AcmeDnsService } from "#lib/services/acme-dns.service.js";
 import { normalizeName } from "#lib/services/dns-providers/http.js";
 
 const logger = new Logger("DNS");
@@ -11,8 +12,8 @@ export class DomainSettingsError extends Error {}
 type DomainLink = Pick<DomainInput, "connectionId" | "zoneId" | "zoneName">;
 
 /**
- * Adding and editing the domains the instance manages, shared by the DNS
- * page and the REST API.
+ * Adding, editing and removing the domains the instance manages, shared by
+ * the DNS page and the REST API.
  */
 class DomainSettingsServiceClass {
 	/**
@@ -35,6 +36,7 @@ class DomainSettingsServiceClass {
 		logger.info(
 			`Domain added: ${domain.name} connection=${input.connectionId ?? "none"} user=${userId}`,
 		);
+		void AcmeDnsService.sync();
 		return domain;
 	}
 
@@ -66,12 +68,22 @@ class DomainSettingsServiceClass {
 			...(input.autoRecords === undefined
 				? {}
 				: { autoRecords: input.autoRecords }),
+			...(input.dnsChallenge === undefined
+				? {}
+				: { dnsChallenge: input.dnsChallenge }),
 			...(input.target === undefined
 				? {}
 				: { target: input.target?.trim() || null }),
 			...link,
 		});
 		logger.info(`Domain saved: ${domain.name}`);
+		void AcmeDnsService.sync();
+	}
+
+	/** Removes a domain from Homerun, its records at the provider staying, and stops issuing its certificates through DNS. */
+	async remove(domain: DomainDTO): Promise<void> {
+		await domain.delete();
+		void AcmeDnsService.sync();
 	}
 
 	/**

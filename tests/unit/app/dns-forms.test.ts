@@ -40,6 +40,7 @@ describe("parseDomainForm", () => {
 				form({
 					autoRecords: "on",
 					connectionId: "c1",
+					dnsChallenge: "on",
 					name: "Example.com.",
 					target: "203.0.113.10",
 					zone: "z1|example.com",
@@ -49,6 +50,7 @@ describe("parseDomainForm", () => {
 		).toEqual({
 			autoRecords: true,
 			connectionId: "c1",
+			dnsChallenge: true,
 			name: "example.com",
 			target: "203.0.113.10",
 			zoneId: "z1",
