@@ -2388,6 +2388,7 @@ export const domain = pgTable("domain", {
 		onDelete: "set null",
 	}),
 	createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+	dnsChallenge: boolean("dns_challenge").default(false).notNull(),
 	id: text("id").primaryKey(),
 	name: text("name").notNull().unique(),
 	target: text("target"),

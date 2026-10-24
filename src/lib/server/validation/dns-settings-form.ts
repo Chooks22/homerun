@@ -159,7 +159,12 @@ export async function saveCloudflareFromForm(
 		await existing.update(link);
 		return;
 	}
-	await DomainDTO.create({ ...link, name: baseDomain, userId });
+	await DomainDTO.create({
+		...link,
+		dnsChallenge: false,
+		name: baseDomain,
+		userId,
+	});
 }
 
 /**

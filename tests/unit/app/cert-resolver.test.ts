@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { setDnsChallengeDomains } from "../../../src/lib/config";
 import { certResolverFor } from "../../../src/lib/services/docker/cert-resolver";
 
 describe("certResolverFor", () => {
@@ -23,5 +24,22 @@ describe("certResolverFor", () => {
 
 	test("skips when no resolver is configured", () => {
 		expect(certResolverFor("app.example.com", "", false)).toBeNull();
+	});
+
+	test("defers to the wildcard certificate of a DNS-challenge domain", () => {
+		setDnsChallengeDomains(["example.com"]);
+		try {
+			expect(
+				certResolverFor("app.example.com", "letsencrypt", false),
+			).toBeNull();
+			expect(certResolverFor("a.b.example.com", "letsencrypt", false)).toBe(
+				"letsencrypt-dns",
+			);
+			expect(certResolverFor("app.other.org", "letsencrypt", false)).toBe(
+				"letsencrypt",
+			);
+		} finally {
+			setDnsChallengeDomains([]);
+		}
 	});
 });

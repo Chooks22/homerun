@@ -4734,6 +4734,9 @@
 												"description": "ISO 8601 timestamp",
 												"type": "string"
 											},
+											"dnsChallenge": {
+												"type": "boolean"
+											},
 											"id": {
 												"type": "string"
 											},
@@ -4757,6 +4760,7 @@
 											"autoRecords",
 											"connectionId",
 											"createdAt",
+											"dnsChallenge",
 											"id",
 											"name",
 											"target",
@@ -4837,6 +4841,11 @@
 										"description": "The DNS connection the domain's zone lives in.",
 										"type": ["string", "null"]
 									},
+									"dnsChallenge": {
+										"default": false,
+										"description": "Issue its certificates through an ACME DNS-01 challenge solved with its connection, one wildcard for the domain, instead of HTTP-01. Needs connectionId.",
+										"type": "boolean"
+									},
 									"name": {
 										"type": "string"
 									},
@@ -4853,7 +4862,7 @@
 										"type": ["string", "null"]
 									}
 								},
-								"required": ["autoRecords", "name"],
+								"required": ["autoRecords", "dnsChallenge", "name"],
 								"type": "object"
 							}
 						}
@@ -4876,6 +4885,9 @@
 										"createdAt": {
 											"description": "ISO 8601 timestamp",
 											"type": "string"
+										},
+										"dnsChallenge": {
+											"type": "boolean"
 										},
 										"id": {
 											"type": "string"
@@ -4900,6 +4912,7 @@
 										"autoRecords",
 										"connectionId",
 										"createdAt",
+										"dnsChallenge",
 										"id",
 										"name",
 										"target",
@@ -5093,6 +5106,9 @@
 											"description": "ISO 8601 timestamp",
 											"type": "string"
 										},
+										"dnsChallenge": {
+											"type": "boolean"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -5116,6 +5132,7 @@
 										"autoRecords",
 										"connectionId",
 										"createdAt",
+										"dnsChallenge",
 										"id",
 										"name",
 										"target",
@@ -5221,6 +5238,9 @@
 										"description": "The DNS connection the domain's zone lives in.",
 										"type": ["string", "null"]
 									},
+									"dnsChallenge": {
+										"type": "boolean"
+									},
 									"target": {
 										"description": "What its services' records point at: an IP or a hostname. Unset points them at the base domain.",
 										"type": ["string", "null"]
@@ -5257,6 +5277,9 @@
 											"description": "ISO 8601 timestamp",
 											"type": "string"
 										},
+										"dnsChallenge": {
+											"type": "boolean"
+										},
 										"id": {
 											"type": "string"
 										},
@@ -5280,6 +5303,7 @@
 										"autoRecords",
 										"connectionId",
 										"createdAt",
+										"dnsChallenge",
 										"id",
 										"name",
 										"target",

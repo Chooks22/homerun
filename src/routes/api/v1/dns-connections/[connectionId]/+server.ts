@@ -5,6 +5,7 @@ import {
 	connectionFields,
 	parseConnectionForm,
 } from "#lib/server/validation/dns-forms.js";
+import { AcmeDnsService } from "#lib/services/acme-dns.service.js";
 import { dnsProviderById } from "#lib/services/dns-providers/index.js";
 
 export const GET = async ({ locals, params }) => {
@@ -58,5 +59,6 @@ export const DELETE = async ({ locals, params }) => {
 		return apiError("Not found", 404);
 	}
 	await connection.delete();
+	void AcmeDnsService.sync();
 	return new Response(null, { status: 204 });
 };

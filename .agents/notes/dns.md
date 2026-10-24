@@ -31,6 +31,40 @@ alone. Migration 0088 turned the old `cloudflare_api_token_enc`/`zone_id`
 instance settings into a connection plus the base domain (the ciphertext moved
 as is, it's the same scheme), and `dns_provider` is now just Pangolin on/off.
 
+## Certificates over DNS-01 (`domain.dnsChallenge`, `src/lib/acme-dns.ts`, `AcmeDnsService`)
+
+A domain linked to a connection can opt into DNS-01 (for wildcard certs and
+hosts behind Cloudflare's proxy where HTTP-01 fails). Traefik gets a second
+resolver, `letsencrypt-dns` (`DNS_CHALLENGE_RESOLVER`), on lego's **httpreq**
+provider, whose `HTTPREQ_ENDPOINT` is this app (`/api/acme-dns/present|cleanup`,
+at the origin of `config.authCheckUrl`, the address Traefik already reaches it
+on for forwardAuth) with Basic auth `homerun:<HMAC of AUTH_SECRET>`.
+`AcmeDnsService.handle` writes or removes the TXT record through the most
+specific opted-in domain's own `DnsProviderClient`, so all sixteen providers
+work with no per-provider lego mapping and Traefik never holds a credential.
+Records are added, never replaced: the apex and the wildcard are validated on
+the same `_acme-challenge` name at once (`rrsetEditor` appends a value), and
+they're not tracked in `dns_managed_record`, whose unique index is one row per
+name and type.
+
+The resolver is static config: `DockerService.applyDnsChallenge` puts its flags
+(storage and email copied from the HTTP-01 resolver's flags on the running
+command, so both share `acme.json`, keyed by resolver) and the `HTTPREQ_*` env
+onto Traefik through `applyTraefikFlags`, which now merges env as well as the
+command, and `reassertTraefikConfig` re-applies it (or strips it) like the other
+flags. `TraefikExpectation.dnsChallenge` drives drift and reassert.
+
+Certificates: `config.traefik.dnsChallengeDomains` (set by
+`AcmeDnsService.load`, at boot, on every worker (re)boot and after a domain or
+connection change, never by `applyInstanceSettings`) feeds `certResolverFor`: a
+host the domain's wildcard names cover (`wildcardNames`: the domain, `*.domain`,
+and `*.<serviceDomain()>` when that's below it) gets **no** resolver and takes
+the cert from Traefik's store; a deeper host gets the DNS resolver directly. The
+wildcard itself is requested by one router per domain in
+`homerun-acme-wildcards.yml` (dynamic dir): a `Host()` rule on
+`_acme-wildcard.<domain>`, service `noop@internal`, `tls.domains` asking for the
+names. Not live-tested against a real ACME account yet.
+
 ## Pangolin, and the history of the Cloudflare integration (`src/lib/services/pangolin.service.ts`)
 
 The DNS-provider automation gap this doc used to list under Planned features is

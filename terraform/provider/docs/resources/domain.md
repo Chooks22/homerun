@@ -30,6 +30,9 @@ resource "homerun_domain" "example" {
 - `auto_records` (Boolean) Create and remove the records of services' hostnames
   under it. Defaults to `true`.
 - `connection_id` (String) The DNS connection the domain's zone lives in.
+- `dns_challenge` (Boolean) Issue its certificates through an ACME DNS-01
+  challenge, one wildcard for the domain, instead of HTTP-01. Defaults to
+  `false`.
 - `target` (String) What its services' records point at, an IP or a hostname.
   Unset points them at the base domain.
 - `zone_id` (String) The provider's zone id. Required with connection_id.

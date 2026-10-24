@@ -107,7 +107,11 @@ describe("remote hosts", () => {
 describe("domains and DNS records", () => {
 	test("adds, edits and removes a domain, refusing a duplicate and a zone without a connection", async () => {
 		const created = await client.POST("/domains", {
-			body: { autoRecords: false, name: "Infra-API.example.com" },
+			body: {
+				autoRecords: false,
+				dnsChallenge: false,
+				name: "Infra-API.example.com",
+			},
 		});
 		const domain = expectOk(created.data, created.response);
 		domainIds.push(domain.id);
@@ -116,7 +120,11 @@ describe("domains and DNS records", () => {
 		expect(domain.connectionId).toBeNull();
 
 		const duplicate = await client.POST("/domains", {
-			body: { autoRecords: true, name: "infra-api.example.com" },
+			body: {
+				autoRecords: true,
+				dnsChallenge: false,
+				name: "infra-api.example.com",
+			},
 		});
 		expect(duplicate.response.status).toBe(400);
 		expect(duplicate.error?.error).toContain("already added");
@@ -160,7 +168,7 @@ describe("domains and DNS records", () => {
 
 	test("refuses a name that isn't a domain", async () => {
 		const created = await client.POST("/domains", {
-			body: { autoRecords: true, name: "not a domain" },
+			body: { autoRecords: true, dnsChallenge: false, name: "not a domain" },
 		});
 		expect(created.response.status).toBe(400);
 	});

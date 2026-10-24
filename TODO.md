@@ -35,6 +35,10 @@ When done delete the entry, no bloat.
       `swarmPlacement` yet (an object attribute, which `iac/resources.ts`'s
       attribute kinds can't express); add it so drift and import see placement
 
+- [ ] The pre-push unit-test hook fails on a clean main: bun's per-file 80%
+      coverage threshold trips on `backup-queue.ts`, `domain-takeover.ts` and
+      `service-settings.service.ts`; cover them or exclude them
+
 ## Medium
 
 - [ ] Pipelines: expose watched repositories, their CI runs and stats in the

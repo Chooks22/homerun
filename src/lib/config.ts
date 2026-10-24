@@ -216,6 +216,7 @@ const configSchema = z.object({
 		.object({
 			acmeEmail: z.string().optional(),
 			certResolver: z.string().default("letsencrypt"),
+			dnsChallengeDomains: z.array(z.string()).default([]),
 			dynamicConfigDir: z.string().optional(),
 			entrypoint: z.string().default("websecure"),
 			httpCache: z.boolean().default(false),
@@ -426,6 +427,15 @@ export const config: AppConfig = structuredClone(fileDefaults);
 const authCheckUrlPinnedByFile = Boolean(
 	yamlConfigSchema.safeParse(readYamlConfig()).data?.authCheckUrl,
 );
+
+/**
+ * Sets the domains whose certificates come from the DNS-01 resolver, kept
+ * apart from the instance settings override since they live on the domain
+ * table: `applyInstanceSettings` never resets them.
+ */
+export function setDnsChallengeDomains(domains: string[]): void {
+	config.traefik.dnsChallengeDomains = domains;
+}
 
 /**
  * Replaces the default forwardAuth check URL with one detected at boot (the

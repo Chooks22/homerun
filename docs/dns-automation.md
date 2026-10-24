@@ -74,6 +74,34 @@ provider's `homerun_domain` and `homerun_dns_record`, see
 Buying a domain isn't something Homerun does: register it at your registrar,
 then add it here.
 
+### Certificates over DNS (DNS-01)
+
+By default Traefik proves it controls a hostname over HTTP (the HTTP-01
+challenge), one certificate per hostname. That fails when the hostname doesn't
+reach this server directly, behind Cloudflare's proxy say, and can't issue a
+wildcard. Tick **Issue certificates through DNS (DNS-01)** on a domain linked to
+a connection and:
+
+- **Traefik asks Homerun for the challenge record.** Homerun adds a second
+  certificate resolver to Traefik (`letsencrypt-dns`, next to `letsencrypt`)
+  whose challenges call back into the dashboard, which writes the
+  `_acme-challenge` TXT record through the domain's own connection and removes
+  it once Let's Encrypt has checked it. Every provider above works, and Traefik
+  never sees the provider's credentials. Adding the resolver recreates the
+  Traefik container once, a few seconds without routing.
+- **One wildcard certificate covers the domain.** It's issued for the domain,
+  `*.example.com` and, when the services subdomain sits under it,
+  `*.apps.example.com` too; every route on one of those names uses it instead of
+  asking for its own. A deeper name (`a.b.example.com`) gets its own certificate
+  through the DNS challenge.
+- **Services switch on their next deploy.** The dashboard, redirects and status
+  pages switch right away. Until the wildcard is issued (a minute or two, longer
+  on providers slow to publish records), those names get Traefik's self-signed
+  default.
+
+Behind Pangolin nothing changes: Pangolin terminates TLS and no route asks for a
+certificate.
+
 What a sync did is written into each deploy's own log
 (`DNS (Cloudflare): app.example.com: created A → 203.0.113.10`), and a DNS
 failure never fails the deploy itself.

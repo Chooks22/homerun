@@ -7,7 +7,13 @@ import { BaseDTO } from "./base-dto";
 
 export type DomainInput = Pick<
 	Domain,
-	"autoRecords" | "connectionId" | "name" | "target" | "zoneId" | "zoneName"
+	| "autoRecords"
+	| "connectionId"
+	| "dnsChallenge"
+	| "name"
+	| "target"
+	| "zoneId"
+	| "zoneName"
 >;
 
 /**
@@ -60,7 +66,7 @@ export class DomainDTO extends BaseDTO<Domain> {
 		return new DomainDTO(row);
 	}
 
-	/** Saves the domain's connection, zone, target and automation switch. */
+	/** Saves the domain's connection, zone, target and automation switches. */
 	async update(input: Partial<Omit<DomainInput, "name">>): Promise<void> {
 		await db.update(domain).set(input).where(eq(domain.id, this.row.id));
 		Object.assign(this.row, input);

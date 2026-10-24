@@ -37,6 +37,7 @@ export const PATCH = async ({ locals, params, request }) => {
 		await DomainSettingsService.update(domain, {
 			autoRecords: body.data.autoRecords,
 			connectionId: blankToNull(body.data.connectionId),
+			dnsChallenge: body.data.dnsChallenge,
 			target: blankToNull(body.data.target),
 			zoneId: blankToNull(body.data.zoneId),
 			zoneName: blankToNull(body.data.zoneName),
@@ -59,7 +60,7 @@ export const DELETE = async ({ locals, params }) => {
 	if (!domain) {
 		return apiError("Not found", 404);
 	}
-	await domain.delete();
+	await DomainSettingsService.remove(domain);
 	logger.info(`Domain removed: ${domain.name} user=${caller.userId}`);
 	return new Response(null, { status: 204 });
 };

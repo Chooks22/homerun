@@ -1,3 +1,4 @@
+import { dnsChallengeSetup } from "#lib/acme-dns.js";
 import {
 	applyInstanceSettings,
 	config,
@@ -6,6 +7,7 @@ import {
 import { InstanceSettingsDTO } from "#lib/dto/instance-settings-dto.js";
 import { NotificationDTO } from "#lib/dto/notification-dto.js";
 import { WorkerClient } from "#lib/server/worker-client.js";
+import { AcmeDnsService } from "../acme-dns.service.ts";
 import { DeploymentService } from "../deploy.service.ts";
 import { syncCoreHostDns, syncDashboardDns } from "../dns.service.ts";
 import type { TraefikExpectation } from "../docker/core-services.ts";
@@ -51,6 +53,10 @@ export function traefikExpectation(swarm: boolean): TraefikExpectation {
 	return {
 		acmeEmail: config.traefik.acmeEmail ?? null,
 		certResolver: config.traefik.certResolver,
+		dnsChallenge:
+			config.traefik.dnsChallengeDomains.length > 0 && !config.pangolinEnabled
+				? dnsChallengeSetup(config.authCheckUrl, config.auth.secret)
+				: null,
 		httpCache: config.traefik.httpCache,
 		swarm,
 	};
@@ -111,6 +117,10 @@ export class CoreServicesWatch extends BaseScheduler {
 			});
 		}
 		const settings = await InstanceSettingsDTO.get();
+		await AcmeDnsService.load().catch((err) => {
+			this.logger.warn("Couldn't load the DNS challenge domains", err);
+		});
+		await AcmeDnsService.syncRouters();
 		await DockerService.syncDashboardRouter();
 		await syncErrorPages();
 		await StatusPageSettingsService.syncRoutes();

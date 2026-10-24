@@ -110,6 +110,8 @@ export function parseDomainForm(
 		value: {
 			autoRecords: formData.get("autoRecords") === "on",
 			connectionId,
+			dnsChallenge:
+				Boolean(connectionId) && formData.get("dnsChallenge") === "on",
 			name,
 			target,
 			zoneId: connectionId ? (zoneId ?? null) : null,

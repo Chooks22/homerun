@@ -16,7 +16,9 @@ const SKIP: Record<string, string> = {};
 const DEPLOY_TIMEOUT_MS = 8 * 60_000;
 const HEALTH_TIMEOUT_MS = 5 * 60_000;
 const ROUTE_TIMEOUT_MS = 2 * 60_000;
-const PULL_ATTEMPTS = 3;
+const PULL_ATTEMPTS = 4;
+const PULL_BACKOFF_MS = 15_000;
+const RATE_LIMITED_BACKOFF_MS = 45_000;
 const DEPLOY_RETRIES = 2;
 const POLL_MS = 3000;
 const SETTLED_DEPLOY = new Set(["running", "failed", "stopped", "missing"]);
@@ -84,7 +86,8 @@ function imagesOf(template: TemplateFile): string[] {
 
 /**
  * Pulls every image not already on the host, retrying a failed pull with a
- * growing pause, so a registry hiccup doesn't fail the template. Records each
+ * growing pause (a longer one when the registry answers `toomanyrequests`),
+ * so a registry hiccup or rate limit doesn't fail the template. Records each
  * ref it pulled in `pulled`, which cleanup may remove again.
  *
  * @throws Error when an image still can't be pulled after every attempt.
@@ -105,8 +108,11 @@ async function prePull(images: string[], pulled: string[]): Promise<void> {
 				if (attempt >= PULL_ATTEMPTS) {
 					throw error;
 				}
+				const rateLimited = String(error).includes("toomanyrequests");
 				// oxlint-disable-next-line no-await-in-loop -- backoff between attempts
-				await sleep(attempt * 15_000);
+				await sleep(
+					attempt * (rateLimited ? RATE_LIMITED_BACKOFF_MS : PULL_BACKOFF_MS),
+				);
 			}
 		}
 	}

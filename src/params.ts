@@ -6,5 +6,7 @@ function matchInteger(param: string): boolean {
 }
 
 export const params = defineParams({
+	acmeAction: (param) =>
+		param === "present" || param === "cleanup" ? param : undefined,
 	integer: (param) => (matchInteger(param) ? param : undefined),
 });

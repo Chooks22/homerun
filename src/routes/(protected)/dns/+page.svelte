@@ -16,6 +16,7 @@
 	let name = $state("");
 	const link = $state({
 		autoRecords: true,
+		dnsChallenge: false,
 		connectionId: "",
 		target: "",
 		zone: "",
@@ -121,6 +122,7 @@
                     : "Not managed by Homerun"}
                   · records point at {domain.target ?? data.baseDomain ?? "nothing yet"}
                   {domain.connection && domain.autoRecords ? ` · ${domain.managedRecords} managed` : ""}
+                  {domain.connection && domain.dnsChallenge ? " · wildcard certificate over DNS" : ""}
                 </span>
               </span>
               <ChevronRight class="text-text-subtle ml-auto size-4" />

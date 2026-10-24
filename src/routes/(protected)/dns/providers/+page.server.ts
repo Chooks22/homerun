@@ -3,6 +3,7 @@ import { DnsConnectionDTO } from "#lib/dto/dns-connection-dto.js";
 import { Logger } from "#lib/logger.js";
 import { redirectToSignIn } from "#lib/server/sign-in-redirect.js";
 import { parseConnectionForm } from "#lib/server/validation/dns-forms.js";
+import { AcmeDnsService } from "#lib/services/acme-dns.service.js";
 import {
 	DNS_PROVIDERS,
 	dnsProviderById,
@@ -108,6 +109,7 @@ export const actions = {
 			return fail(404, { error: "That connection doesn't exist any more." });
 		}
 		await connection.delete();
+		void AcmeDnsService.sync();
 		logger.info(
 			`DNS connection removed: "${connection.name}" user=${locals.user.id}`,
 		);

@@ -87,6 +87,11 @@ function dnsResources(attr: AttributeFactory): IacResource[] {
 					description:
 						"Create and remove the records of services' hostnames under it.",
 				}),
+				attr("dnsChallenge", "bool", {
+					default: false,
+					description:
+						"Issue its certificates through an ACME DNS-01 challenge, one wildcard for the domain, instead of HTTP-01.",
+				}),
 			],
 			collectionPath: "/domains",
 			description:

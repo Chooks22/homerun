@@ -42,6 +42,7 @@ import {
 	OIDC_TOKEN_PATH,
 	withTokenCors,
 } from "#lib/server/oidc-client-guard.js";
+import { AcmeDnsService } from "#lib/services/acme-dns.service.js";
 import { AdminService } from "#lib/services/admin.service.js";
 import { isBanned } from "#lib/services/app-access.service.js";
 import {
@@ -287,6 +288,12 @@ export const init = async () => {
 	// not just after a settings-page save.
 	const { created, settings } = await InstanceSettingsDTO.getOrCreate();
 	applyInstanceSettings(settings.toConfigOverride());
+	await AcmeDnsService.load().catch((err) => {
+		logger.warn(
+			"Couldn't load the domains issuing certificates through DNS",
+			err,
+		);
+	});
 	await detectAuthCheckUrl();
 	rebuildAuth();
 	await pruneUndecryptableSigningKeys().catch((err) => {

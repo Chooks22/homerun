@@ -69,6 +69,7 @@ describe("Traefik drift", () => {
 	const everything = expectedTraefikFlags({
 		acmeEmail: "me@example.com",
 		certResolver: "letsencrypt",
+		dnsChallenge: null,
 		httpCache: true,
 		swarm: true,
 	});
@@ -97,12 +98,40 @@ describe("Traefik drift", () => {
 		expect(missingTraefikFlags(cmd, everything)).toEqual([]);
 	});
 
+	test("a domain on DNS-01 expects the DNS challenge resolver", () => {
+		const expected = expectedTraefikFlags({
+			acmeEmail: null,
+			certResolver: "letsencrypt",
+			dnsChallenge: {
+				endpoint: "http://homerun:3000/api/acme-dns",
+				password: "p",
+				username: "homerun",
+			},
+			httpCache: false,
+			swarm: false,
+		});
+		expect(missingTraefikFlags([...CMD, ...METRICS], expected)).toEqual([
+			"the DNS challenge resolver",
+		]);
+		expect(
+			missingTraefikFlags(
+				[
+					...CMD,
+					...METRICS,
+					"--certificatesresolvers.letsencrypt-dns.acme.dnschallenge.provider=httpreq",
+				],
+				expected,
+			),
+		).toEqual([]);
+	});
+
 	test("a setting that's off expects only the request metrics, and an old value is drift", () => {
 		expect(
 			Object.keys(
 				expectedTraefikFlags({
 					acmeEmail: null,
 					certResolver: "letsencrypt",
+					dnsChallenge: null,
 					httpCache: false,
 					swarm: false,
 				}),
@@ -114,6 +143,7 @@ describe("Traefik drift", () => {
 				expectedTraefikFlags({
 					acmeEmail: "new@example.com",
 					certResolver: "letsencrypt",
+					dnsChallenge: null,
 					httpCache: false,
 					swarm: false,
 				}),
@@ -179,6 +209,7 @@ describe("applyFlags on a Traefik that already has them", () => {
 		const groups = expectedTraefikFlags({
 			acmeEmail: "me@example.com",
 			certResolver: "letsencrypt",
+			dnsChallenge: null,
 			httpCache: true,
 			swarm: true,
 		});

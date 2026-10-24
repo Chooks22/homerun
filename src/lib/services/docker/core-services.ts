@@ -1,6 +1,13 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { join } from "node:path";
+import {
+	applyEnv,
+	DNS_CHALLENGE_RESOLVER,
+	type DnsChallengeSetup,
+	dnsChallengeFlags,
+	httpreqEnv,
+} from "#lib/acme-dns.js";
 import { config } from "#lib/config.js";
 import { Logger } from "#lib/logger.js";
 import { WorkerRequestError } from "#lib/server/worker-client.js";
@@ -108,6 +115,7 @@ export function applyFlags(
 export interface TraefikExpectation {
 	acmeEmail: string | null;
 	certResolver: string;
+	dnsChallenge: DnsChallengeSetup | null;
 	httpCache: boolean;
 	swarm: boolean;
 }
@@ -135,6 +143,12 @@ export function expectedTraefikFlags(
 		groups["the HTTP cache plugin"] = {
 			"experimental.plugins.souin.modulename": SOUIN_MODULE,
 			"experimental.plugins.souin.version": SOUIN_VERSION,
+		};
+	}
+	if (expectation.dnsChallenge) {
+		groups["the DNS challenge resolver"] = {
+			[`certificatesresolvers.${DNS_CHALLENGE_RESOLVER}.acme.dnschallenge.provider`]:
+				"httpreq",
 		};
 	}
 	if (expectation.acmeEmail) {
@@ -239,6 +253,7 @@ export interface ListedContainer {
 export interface InspectedContainer {
 	Config: {
 		Cmd?: string[];
+		Env?: string[];
 		Image: string;
 		Labels?: Record<string, string>;
 	};
@@ -431,7 +446,8 @@ export function DockerCoreServicesMixin<
 
 		/**
 		 * Recreates the Traefik container with `flags` merged into its own
-		 * command line, everything else (image, mounts, networks, env, ports)
+		 * command line and `env` into its environment (a null removing the
+		 * flag or variable), everything else (image, mounts, networks, ports)
 		 * read back off the running container unchanged.
 		 *
 		 * The narrow "Traefik is core infrastructure this app doesn't own"
@@ -443,10 +459,11 @@ export function DockerCoreServicesMixin<
 		 * that only writes a database row is a field that does nothing, which
 		 * is exactly what "Setting a Let's Encrypt email in the UI does
 		 * nothing" meant. Returns `updated: false` without touching anything
-		 * when every flag already holds the requested value.
+		 * when every flag and variable already holds the requested value.
 		 */
 		async applyTraefikFlags(
 			flags: Record<string, string | null>,
+			env: Record<string, string | null> = {},
 		): Promise<TraefikUpdateResult> {
 			const traefik = await this.findTraefikContainer();
 			if (!traefik) {
@@ -458,10 +475,11 @@ export function DockerCoreServicesMixin<
 			);
 			const cmd = info.Config.Cmd ?? [];
 			const next = applyFlags(cmd, flags);
-			if (
-				next.length === cmd.length &&
-				next.every((arg, i) => arg === cmd[i])
-			) {
+			const currentEnv = info.Config.Env ?? [];
+			const nextEnv = applyEnv(currentEnv, env);
+			const same = (a: string[], b: string[]) =>
+				a.length === b.length && a.every((value, i) => value === b[i]);
+			if (same(next, cmd) && same(nextEnv, currentEnv)) {
 				return {
 					message: "Traefik already runs with that configuration.",
 					updated: false,
@@ -469,7 +487,12 @@ export function DockerCoreServicesMixin<
 			}
 
 			const wasRunning = info.State.Running;
-			await this.#recreate(traefik, info, { Cmd: next }, wasRunning);
+			await this.#recreate(
+				traefik,
+				info,
+				{ Cmd: next, Env: nextEnv },
+				wasRunning,
+			);
 
 			logger.info(`Traefik recreated with updated flags: ${next.join(" ")}`);
 			return {
@@ -701,6 +724,9 @@ export function DockerCoreServicesMixin<
 				const email = expectation.acmeEmail;
 				await attempt("ACME email", () => this.applyAcmeEmail(email));
 			}
+			await attempt("DNS challenge resolver", () =>
+				this.applyDnsChallenge(expectation.dnsChallenge),
+			);
 			return failures;
 		}
 
@@ -728,6 +754,36 @@ export function DockerCoreServicesMixin<
 		async applyAcmeEmail(email: string | null): Promise<TraefikUpdateResult> {
 			const key = `certificatesresolvers.${config.traefik.certResolver}.acme.email`;
 			return await this.applyTraefikFlags({ [key]: email });
+		}
+
+		/**
+		 * Declares the DNS-01 resolver on the running Traefik, solving its
+		 * challenges through lego's httpreq provider against this app, or
+		 * removes it with a null `setup`. It shares the HTTP-01 resolver's
+		 * storage file and account email, read off the running command.
+		 * Recreates Traefik only when something changes.
+		 *
+		 * @throws When there's no Traefik container.
+		 */
+		async applyDnsChallenge(
+			setup: DnsChallengeSetup | null,
+		): Promise<TraefikUpdateResult> {
+			const traefik = await this.findTraefikContainer();
+			if (!traefik) {
+				throw new Error("Traefik container not found.");
+			}
+			const info = await this.worker.get<InspectedContainer>(
+				`/v1/containers/${traefik.id}/inspect`,
+			);
+			return await this.applyTraefikFlags(
+				dnsChallengeFlags(
+					config.traefik.certResolver,
+					setup !== null,
+					info.Config.Cmd ?? [],
+					config.traefik.acmeEmail ?? null,
+				),
+				httpreqEnv(setup),
+			);
 		}
 
 		/**
