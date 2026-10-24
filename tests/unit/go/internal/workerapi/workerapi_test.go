@@ -272,7 +272,7 @@ func TestASwarmServiceScaledToZeroIsStopped(t *testing.T) {
 
 func TestRunningTaskCountComesFromTheDaemonsOwnStatus(t *testing.T) {
 	api := newAPI(t, &fakeDaemon{bodies: map[string]string{
-		"/services/s1": `{"ServiceStatus":{"RunningTasks":3,"DesiredTasks":3}}`,
+		"/services": `[{"ID":"s1","ServiceStatus":{"RunningTasks":3,"DesiredTasks":3}}]`,
 	}})
 	if _, body := call(t, api, http.MethodGet, "/v1/swarm/services/s1/running-tasks/count", false); !strings.Contains(body, `"count":3`) {
 		t.Fatalf("want the daemon's RunningTasks, got %s", body)
