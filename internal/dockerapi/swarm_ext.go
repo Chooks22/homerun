@@ -242,22 +242,29 @@ func (c *Client) SwarmTaskLogs(ctx context.Context, id string, tail int, follow 
 	return response.Body, nil
 }
 
-// CountRunningSwarmTasks counts a service's tasks running on any node, as the
-// daemon itself counts them (`?status=true`), so no task list is fetched or
-// walked.
+// CountRunningSwarmTasks lists all services along with their status
+// and returns the running task count for the given id, since the daemon
+// doesn't provide a way to get the status for individual services only.
 func (c *Client) CountRunningSwarmTasks(ctx context.Context, id string) (int, error) {
-	var inspected struct {
+	var inspected []struct {
+		ID            string `json:"ID"`
 		ServiceStatus *struct {
 			RunningTasks int `json:"RunningTasks"`
 		} `json:"ServiceStatus"`
 	}
-	if err := c.decode(ctx, http.MethodGet, "/services/"+id, url.Values{"status": {"true"}}, nil, &inspected); err != nil {
+	if err := c.decode(ctx, http.MethodGet, "/services", url.Values{"status": {"true"}}, nil, &inspected); err != nil {
 		return 0, err
 	}
-	if inspected.ServiceStatus == nil {
-		return 0, nil
+	for _, service := range inspected {
+		if service.ID == id {
+			if service.ServiceStatus != nil {
+				return service.ServiceStatus.RunningTasks, nil
+			} else {
+				return 0, nil
+			}
+		}
 	}
-	return inspected.ServiceStatus.RunningTasks, nil
+	return 0, ErrNotFound
 }
 
 // SwarmServiceReplicas is a replicated service's configured replica count.
