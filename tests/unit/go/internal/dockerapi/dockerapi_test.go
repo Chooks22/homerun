@@ -563,6 +563,10 @@ func TestCountRunningSwarmTasksAsksForStatus(t *testing.T) {
 	if running, err := client.CountRunningSwarmTasks(context.Background(), "s1"); err != nil || running != 0 {
 		t.Errorf("no ServiceStatus = %d, %v", running, err)
 	}
+
+	if _, err := client.CountRunningSwarmTasks(context.Background(), "s2"); !errors.Is(err, dockerapi.ErrNotFound) {
+		t.Errorf("no ErrNotFound %v", err)
+	}
 }
 
 func TestRemoveSwarmNodeForces(t *testing.T) {
