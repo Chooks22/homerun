@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.70](https://github.com/orochibraru/homerun/compare/v1.0.69...v1.0.70) (2026-10-24)
+
+### Features
+
+- **dns:** issue certificates through ACME DNS-01 for domains on a DNS
+  connection (#151)
+  ([7024f05](https://github.com/orochibraru/homerun/commit/7024f0596a1fe09702fa1bf33c2d55d714101154))
+- add build server concurrency and host-based build selection (#149)
+  ([4e8cf53](https://github.com/orochibraru/homerun/commit/4e8cf5344d5d30116b9cf3b23a83b3ac09acc2f6))
+
+### Performance Improvements
+
+- cache streamed page data and load each dashboard panel on its own (#147)
+  ([d6efebf](https://github.com/orochibraru/homerun/commit/d6efebf0b7d0c2ebad26bc76c295150c5160bfaf))
+- stream dashboard and services list behind skeletons (#145)
+  ([7c12a1e](https://github.com/orochibraru/homerun/commit/7c12a1e47b38ae9bdd4e90631d525a671f774916))
+
 ## [1.0.69](https://github.com/orochibraru/homerun/compare/v1.0.68...v1.0.69) (2026-10-22)
 
 ### Features

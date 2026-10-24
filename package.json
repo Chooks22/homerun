@@ -121,7 +121,7 @@
 		"db:generate": "drizzle-kit generate"
 	},
 	"type": "module",
-	"version": "1.0.69",
+	"version": "1.0.70",
 	"trustedDependencies": [
 		"agnix"
 	],
